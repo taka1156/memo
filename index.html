@@ -8,26 +8,11 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;700&display=swap');
 
-:root {
-–bg: #0a0e14;
-–surface: #0f1520;
-–border: #1e2d3d;
-–accent: #00d4ff;
-–accent2: #00ff9f;
-–accent3: #ff6b6b;
-–accent4: #ffd166;
-–text: #cdd9e5;
-–text-dim: #637389;
-–layer1: #162032;
-–layer2: #0d1a2a;
-–layer3: #091422;
-}
-
 - { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-background: var(–bg);
-color: var(–text);
+background: #0a0e14;
+color: #cdd9e5;
 font-family: ‘Noto Sans JP’, sans-serif;
 min-height: 100vh;
 padding: 32px 20px;
@@ -37,7 +22,7 @@ overflow-x: hidden;
 h1 {
 font-family: ‘JetBrains Mono’, monospace;
 font-size: clamp(1.1rem, 3vw, 1.5rem);
-color: var(–accent);
+color: #00d4ff;
 text-align: center;
 letter-spacing: 0.08em;
 margin-bottom: 8px;
@@ -45,7 +30,7 @@ margin-bottom: 8px;
 .subtitle {
 text-align: center;
 font-size: 0.8rem;
-color: var(–text-dim);
+color: #637389;
 margin-bottom: 40px;
 font-family: ‘JetBrains Mono’, monospace;
 }
@@ -60,19 +45,19 @@ flex-wrap: wrap;
 }
 .tab {
 padding: 8px 18px;
-background: var(–surface);
-border: 1px solid var(–border);
-color: var(–text-dim);
+background: #0f1520;
+border: 1px solid #1e2d3d;
+color: #637389;
 font-family: ‘JetBrains Mono’, monospace;
 font-size: 0.75rem;
 cursor: pointer;
 transition: all 0.2s;
 letter-spacing: 0.05em;
 }
-.tab:hover { border-color: var(–accent); color: var(–accent); }
+.tab:hover { border-color: #00d4ff; color: #00d4ff; }
 .tab.active {
-background: var(–accent);
-border-color: var(–accent);
+background: #00d4ff;
+border-color: #00d4ff;
 color: #000;
 font-weight: 700;
 }
@@ -96,7 +81,7 @@ cursor: pointer;
 
 .layer-box {
 padding: 14px 20px;
-border: 1px solid var(–border);
+border: 1px solid #1e2d3d;
 display: flex;
 align-items: center;
 gap: 14px;
@@ -112,29 +97,29 @@ width: 3px;
 }
 .layer-item:hover .layer-box {
 transform: translateX(4px);
-border-color: var(–accent);
+border-color: #00d4ff;
 }
 
 .layer-container .layer-box { background: #0a1520; border-color: #1a3040; }
-.layer-container .layer-box::before { background: var(–accent3); }
+.layer-container .layer-box::before { background: #ff6b6b; }
 
 .layer-rw .layer-box { background: #122010; border-color: #1a4020; }
-.layer-rw .layer-box::before { background: var(–accent2); }
+.layer-rw .layer-box::before { background: #00ff9f; }
 
 .layer-img3 .layer-box { background: #0f1e30; border-color: #1a3040; }
-.layer-img3 .layer-box::before { background: var(–accent); }
+.layer-img3 .layer-box::before { background: #00d4ff; }
 
 .layer-img2 .layer-box { background: #0d1a28; border-color: #172a38; }
-.layer-img2 .layer-box::before { background: var(–accent); opacity:0.7; }
+.layer-img2 .layer-box::before { background: #00d4ff; opacity:0.7; }
 
 .layer-img1 .layer-box { background: #0b1620; border-color: #152030; }
-.layer-img1 .layer-box::before { background: var(–accent); opacity:0.4; }
+.layer-img1 .layer-box::before { background: #00d4ff; opacity:0.4; }
 
 .layer-base .layer-box { background: #1a1008; border-color: #3a2010; }
-.layer-base .layer-box::before { background: var(–accent4); }
+.layer-base .layer-box::before { background: #ffd166; }
 
 .layer-kernel .layer-box { background: #1a0810; border-color: #3a1020; }
-.layer-kernel .layer-box::before { background: var(–accent3); }
+.layer-kernel .layer-box::before { background: #ff6b6b; }
 
 .layer-icon {
 font-size: 1.4rem;
@@ -146,11 +131,11 @@ flex-shrink: 0;
 font-family: ‘JetBrains Mono’, monospace;
 font-size: 0.85rem;
 font-weight: 600;
-color: var(–text);
+color: #cdd9e5;
 }
 .layer-desc {
 font-size: 0.72rem;
-color: var(–text-dim);
+color: #637389;
 margin-left: auto;
 text-align: right;
 max-width: 160px;
@@ -163,13 +148,13 @@ padding: 2px 7px;
 border-radius: 2px;
 flex-shrink: 0;
 }
-.badge-rw { background: #1a4020; color: var(–accent2); border: 1px solid #2a6030; }
-.badge-ro { background: #0f1e30; color: var(–accent); border: 1px solid #1a3040; }
+.badge-rw { background: #1a4020; color: #00ff9f; border: 1px solid #2a6030; }
+.badge-ro { background: #0f1e30; color: #00d4ff; border: 1px solid #1a3040; }
 
 .section-label {
 font-family: ‘JetBrains Mono’, monospace;
 font-size: 0.65rem;
-color: var(–text-dim);
+color: #637389;
 text-transform: uppercase;
 letter-spacing: 0.12em;
 margin: 18px 0 6px;
@@ -181,20 +166,20 @@ gap: 8px;
 content: ‘’;
 flex: 1;
 height: 1px;
-background: var(–border);
+background: #1e2d3d;
 }
 
 .arrow-down {
 text-align: center;
 font-size: 1rem;
-color: var(–text-dim);
+color: #637389;
 margin: 4px 0;
 }
 
 /* tooltip */
 .tooltip-box {
 background: #0f2030;
-border: 1px solid var(–accent);
+border: 1px solid #00d4ff;
 padding: 12px 16px;
 margin-top: 16px;
 font-size: 0.78rem;
@@ -203,7 +188,7 @@ display: none;
 animation: fadeIn 0.2s ease;
 }
 .tooltip-box.show { display: block; }
-.tooltip-box strong { color: var(–accent); font-family: ‘JetBrains Mono’, monospace; }
+.tooltip-box strong { color: #00d4ff; font-family: ‘JetBrains Mono’, monospace; }
 
 /* ===== PANEL 2: OverlayFS ===== */
 .overlayfs-diagram {
@@ -220,27 +205,27 @@ margin-bottom: 3px;
 }
 .fs-cell {
 padding: 10px 14px;
-border: 1px solid var(–border);
+border: 1px solid #1e2d3d;
 font-family: ‘JetBrains Mono’, monospace;
 font-size: 0.75rem;
 text-align: center;
 }
-.fs-cell.upper { background: #122010; border-color: #1a4020; color: var(–accent2); }
-.fs-cell.lower { background: #0f1e30; border-color: #1a3040; color: var(–accent); }
-.fs-cell.merged { background: #1a1a30; border-color: #2a2a50; color: var(–accent4); }
-.fs-cell.empty { background: transparent; border: none; color: var(–text-dim); font-size: 1.2rem; }
-.fs-arrow { text-align: center; font-size: 0.9rem; color: var(–text-dim); padding: 4px 0; }
+.fs-cell.upper { background: #122010; border-color: #1a4020; color: #00ff9f; }
+.fs-cell.lower { background: #0f1e30; border-color: #1a3040; color: #00d4ff; }
+.fs-cell.merged { background: #1a1a30; border-color: #2a2a50; color: #ffd166; }
+.fs-cell.empty { background: transparent; border: none; color: #637389; font-size: 1.2rem; }
+.fs-arrow { text-align: center; font-size: 0.9rem; color: #637389; padding: 4px 0; }
 
 .cow-demo {
 margin-top: 28px;
-background: var(–surface);
-border: 1px solid var(–border);
+background: #0f1520;
+border: 1px solid #1e2d3d;
 padding: 20px;
 }
 .cow-title {
 font-family: ‘JetBrains Mono’, monospace;
 font-size: 0.8rem;
-color: var(–accent4);
+color: #ffd166;
 margin-bottom: 16px;
 display: flex;
 align-items: center;
@@ -258,7 +243,7 @@ gap: 12px;
 font-size: 0.75rem;
 }
 .step-num {
-background: var(–accent4);
+background: #ffd166;
 color: #000;
 font-family: ‘JetBrains Mono’, monospace;
 font-weight: 700;
@@ -270,10 +255,10 @@ align-items: center;
 justify-content: center;
 flex-shrink: 0;
 }
-.step-text { color: var(–text); line-height: 1.5; }
+.step-text { color: #cdd9e5; line-height: 1.5; }
 .step-code {
 font-family: ‘JetBrains Mono’, monospace;
-color: var(–accent);
+color: #00d4ff;
 background: #0a1520;
 padding: 1px 6px;
 font-size: 0.72rem;
@@ -288,8 +273,8 @@ max-width: 640px;
 margin: 0 auto 28px;
 }
 .ns-card {
-background: var(–surface);
-border: 1px solid var(–border);
+background: #0f1520;
+border: 1px solid #1e2d3d;
 padding: 16px;
 position: relative;
 overflow: hidden;
@@ -297,7 +282,7 @@ transition: all 0.2s;
 cursor: default;
 }
 .ns-card:hover {
-border-color: var(–accent);
+border-color: #00d4ff;
 transform: translateY(-2px);
 }
 .ns-card::after {
@@ -306,10 +291,10 @@ position: absolute;
 bottom: 0; left: 0; right: 0;
 height: 2px;
 }
-.ns-card.pid::after { background: var(–accent); }
-.ns-card.net::after { background: var(–accent2); }
-.ns-card.mnt::after { background: var(–accent4); }
-.ns-card.ipc::after { background: var(–accent3); }
+.ns-card.pid::after { background: #00d4ff; }
+.ns-card.net::after { background: #00ff9f; }
+.ns-card.mnt::after { background: #ffd166; }
+.ns-card.ipc::after { background: #ff6b6b; }
 .ns-card.uts::after { background: #c792ea; }
 .ns-card.usr::after { background: #89ddff; }
 
@@ -319,27 +304,27 @@ font-size: 0.85rem;
 font-weight: 700;
 margin-bottom: 6px;
 }
-.ns-card.pid .ns-name { color: var(–accent); }
-.ns-card.net .ns-name { color: var(–accent2); }
-.ns-card.mnt .ns-name { color: var(–accent4); }
-.ns-card.ipc .ns-name { color: var(–accent3); }
+.ns-card.pid .ns-name { color: #00d4ff; }
+.ns-card.net .ns-name { color: #00ff9f; }
+.ns-card.mnt .ns-name { color: #ffd166; }
+.ns-card.ipc .ns-name { color: #ff6b6b; }
 .ns-card.uts .ns-name { color: #c792ea; }
 .ns-card.usr .ns-name { color: #89ddff; }
 
-.ns-full { font-size: 0.65rem; color: var(–text-dim); margin-bottom: 8px; font-family: ‘JetBrains Mono’, monospace; }
-.ns-desc { font-size: 0.72rem; color: var(–text); line-height: 1.5; }
+.ns-full { font-size: 0.65rem; color: #637389; margin-bottom: 8px; font-family: ‘JetBrains Mono’, monospace; }
+.ns-desc { font-size: 0.72rem; color: #cdd9e5; line-height: 1.5; }
 
 .cgroup-box {
 max-width: 640px;
 margin: 0 auto;
-background: var(–surface);
-border: 1px solid var(–border);
+background: #0f1520;
+border: 1px solid #1e2d3d;
 padding: 20px;
 }
 .cgroup-title {
 font-family: ‘JetBrains Mono’, monospace;
 font-size: 0.8rem;
-color: var(–accent3);
+color: #ff6b6b;
 margin-bottom: 16px;
 }
 .cgroup-bars {
@@ -351,7 +336,7 @@ gap: 10px;
 .cg-label {
 font-family: ‘JetBrains Mono’, monospace;
 font-size: 0.72rem;
-color: var(–text-dim);
+color: #637389;
 width: 70px;
 flex-shrink: 0;
 }
@@ -359,7 +344,7 @@ flex-shrink: 0;
 flex: 1;
 height: 18px;
 background: #0f1520;
-border: 1px solid var(–border);
+border: 1px solid #1e2d3d;
 position: relative;
 overflow: hidden;
 }
@@ -380,9 +365,9 @@ transform-origin: left;
 @keyframes barGrow {
 from { width: 0; }
 }
-.cg-cpu { background: var(–accent); }
-.cg-mem { background: var(–accent2); }
-.cg-io  { background: var(–accent4); }
+.cg-cpu { background: #00d4ff; }
+.cg-mem { background: #00ff9f; }
+.cg-io  { background: #ffd166; }
 
 /* ===== PANEL 4: Runtime flow ===== */
 .flow-container {
@@ -401,7 +386,7 @@ position: absolute;
 left: 19px;
 bottom: -16px;
 font-size: 0.7rem;
-color: var(–text-dim);
+color: #637389;
 z-index: 1;
 }
 .flow-step:last-child::after { display: none; }
@@ -409,20 +394,20 @@ z-index: 1;
 .flow-num {
 width: 40px;
 height: 40px;
-background: var(–surface);
-border: 1px solid var(–accent);
+background: #0f1520;
+border: 1px solid #00d4ff;
 display: flex;
 align-items: center;
 justify-content: center;
 font-family: ‘JetBrains Mono’, monospace;
 font-size: 0.85rem;
 font-weight: 700;
-color: var(–accent);
+color: #00d4ff;
 flex-shrink: 0;
 }
 .flow-content {
-background: var(–surface);
-border: 1px solid var(–border);
+background: #0f1520;
+border: 1px solid #1e2d3d;
 padding: 12px 16px;
 flex: 1;
 }
@@ -430,18 +415,18 @@ flex: 1;
 font-family: ‘JetBrains Mono’, monospace;
 font-size: 0.82rem;
 font-weight: 700;
-color: var(–text);
+color: #cdd9e5;
 margin-bottom: 4px;
 }
 .flow-detail {
 font-size: 0.73rem;
-color: var(–text-dim);
+color: #637389;
 line-height: 1.5;
 }
 .flow-cmd {
 font-family: ‘JetBrains Mono’, monospace;
 font-size: 0.7rem;
-color: var(–accent2);
+color: #00ff9f;
 background: #0a1a10;
 padding: 4px 8px;
 margin-top: 6px;
@@ -460,7 +445,7 @@ display: flex;
 align-items: center;
 gap: 6px;
 font-size: 0.7rem;
-color: var(–text-dim);
+color: #637389;
 }
 .legend-dot {
 width: 10px;
@@ -487,7 +472,7 @@ border-radius: 1px;
 <div id="panel-layers" class="panel active">
   <div class="layer-stack">
 
-
+```
 <div class="section-label">コンテナ実行時</div>
 
 <div class="layer-item layer-container" onclick="showTip('container')">
@@ -576,7 +561,7 @@ border-radius: 1px;
 </div>
 
 <div id="tip-box" class="tooltip-box"></div>
-
+```
 
   </div>
 </div>
@@ -586,6 +571,7 @@ border-radius: 1px;
 <div id="panel-overlayfs" class="panel">
   <div class="overlayfs-diagram">
 
+```
 <div class="section-label">OverlayFS の仕組み</div>
 
 <div class="fs-row">
@@ -612,24 +598,25 @@ border-radius: 1px;
     </div>
     <div class="cow-step">
       <div class="step-num">2</div>
-      <div class="step-text">書き込み発生 → カーネルが lowerdir からファイルを <strong style="color:var(--accent4)">upperdir にコピー</strong></div>
+      <div class="step-text">書き込み発生 → カーネルが lowerdir からファイルを <strong style="color:#ffd166">upperdir にコピー</strong></div>
     </div>
     <div class="cow-step">
       <div class="step-num">3</div>
-      <div class="step-text">upperdir 上の差分のみを変更。元の lowerdir は<strong style="color:var(--accent)">一切変更されない</strong></div>
+      <div class="step-text">upperdir 上の差分のみを変更。元の lowerdir は<strong style="color:#00d4ff">一切変更されない</strong></div>
     </div>
     <div class="cow-step">
       <div class="step-num">4</div>
-      <div class="step-text">コンテナ削除 → upperdir だけ消去。イメージ(lowerdir)は<strong style="color:var(--accent2)">再利用可能</strong></div>
+      <div class="step-text">コンテナ削除 → upperdir だけ消去。イメージ(lowerdir)は<strong style="color:#00ff9f">再利用可能</strong></div>
     </div>
   </div>
 </div>
 
-<div style="margin-top:20px;background:var(--surface);border:1px solid var(--border);padding:16px;">
-  <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--text-dim);margin-bottom:8px;"># 実際のマウント確認</div>
-  <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--accent2);">$ docker inspect &lt;container&gt; | grep -A5 GraphDriver</div>
-  <div style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--text-dim);margin-top:6px;">→ LowerDir / UpperDir / MergedDir / WorkDir が確認できる</div>
+<div style="margin-top:20px;background:#0f1520;border:1px solid #1e2d3d;padding:16px;">
+  <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#637389;margin-bottom:8px;"># 実際のマウント確認</div>
+  <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#00ff9f;">$ docker inspect &lt;container&gt; | grep -A5 GraphDriver</div>
+  <div style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:#637389;margin-top:6px;">→ LowerDir / UpperDir / MergedDir / WorkDir が確認できる</div>
 </div>
+```
 
   </div>
 </div>
@@ -683,26 +670,26 @@ border-radius: 1px;
         <div class="cg-bar-bg">
           <div class="cg-bar-fill cg-cpu" style="width:60%">60%</div>
         </div>
-        <div style="font-size:0.68rem;color:var(--text-dim);width:100px;font-family:'JetBrains Mono',monospace">--cpus="0.6"</div>
+        <div style="font-size:0.68rem;color:#637389;width:100px;font-family:'JetBrains Mono',monospace">--cpus="0.6"</div>
       </div>
       <div class="cg-row">
         <div class="cg-label">Memory</div>
         <div class="cg-bar-bg">
           <div class="cg-bar-fill cg-mem" style="width:40%">512MB</div>
         </div>
-        <div style="font-size:0.68rem;color:var(--text-dim);width:100px;font-family:'JetBrains Mono',monospace">-m 512m</div>
+        <div style="font-size:0.68rem;color:#637389;width:100px;font-family:'JetBrains Mono',monospace">-m 512m</div>
       </div>
       <div class="cg-row">
         <div class="cg-label">Block I/O</div>
         <div class="cg-bar-bg">
           <div class="cg-bar-fill cg-io" style="width:30%">30%</div>
         </div>
-        <div style="font-size:0.68rem;color:var(--text-dim);width:100px;font-family:'JetBrains Mono',monospace">--blkio-weight</div>
+        <div style="font-size:0.68rem;color:#637389;width:100px;font-family:'JetBrains Mono',monospace">--blkio-weight</div>
       </div>
     </div>
-    <div style="margin-top:14px;font-size:0.72rem;color:var(--text-dim);line-height:1.6;">
-      cgroups はリソースを<strong style="color:var(--text)">制限</strong>するだけでなく、<strong style="color:var(--text)">計測</strong>・<strong style="color:var(--text)">優先度付け</strong>も行う。<br>
-      <span style="font-family:'JetBrains Mono',monospace;color:var(--accent3);">/sys/fs/cgroup/</span> 以下にファイルシステムとして公開される。
+    <div style="margin-top:14px;font-size:0.72rem;color:#637389;line-height:1.6;">
+      cgroups はリソースを<strong style="color:#cdd9e5">制限</strong>するだけでなく、<strong style="color:#cdd9e5">計測</strong>・<strong style="color:#cdd9e5">優先度付け</strong>も行う。<br>
+      <span style="font-family:'JetBrains Mono',monospace;color:#ff6b6b;">/sys/fs/cgroup/</span> 以下にファイルシステムとして公開される。
     </div>
   </div>
 </div>
@@ -712,6 +699,7 @@ border-radius: 1px;
 <div id="panel-runtime" class="panel">
   <div class="flow-container">
 
+```
 <div class="section-label">docker run の実行フロー</div>
 
 <div class="flow-step">
@@ -727,7 +715,7 @@ border-radius: 1px;
   <div class="flow-num">02</div>
   <div class="flow-content">
     <div class="flow-title">イメージのプル / キャッシュ確認</div>
-    <div class="flow-detail">ローカルに対象イメージが存在するか確認。なければ Docker Hub (Registry) からレイヤーを取得し <span style="font-family:'JetBrains Mono';color:var(--accent)">/var/lib/docker/overlay2/</span> に展開</div>
+    <div class="flow-detail">ローカルに対象イメージが存在するか確認。なければ Docker Hub (Registry) からレイヤーを取得し <span style="font-family:'JetBrains Mono';color:#00d4ff">/var/lib/docker/overlay2/</span> に展開</div>
   </div>
 </div>
 
@@ -735,7 +723,7 @@ border-radius: 1px;
   <div class="flow-num">03</div>
   <div class="flow-content">
     <div class="flow-title">containerd → runc へ委譲</div>
-    <div class="flow-detail">dockerd は containerd に指示を出し、containerd は OCI ランタイムである <strong style="color:var(--accent)">runc</strong> を呼び出す</div>
+    <div class="flow-detail">dockerd は containerd に指示を出し、containerd は OCI ランタイムである <strong style="color:#00d4ff">runc</strong> を呼び出す</div>
   </div>
 </div>
 
@@ -743,7 +731,7 @@ border-radius: 1px;
   <div class="flow-num">04</div>
   <div class="flow-content">
     <div class="flow-title">Namespace の作成</div>
-    <div class="flow-detail">runc が <span style="font-family:'JetBrains Mono';color:var(--accent)">clone()</span> システムコールで PID / NET / MNT / UTS / IPC 名前空間を新規作成し、プロセスをその中に配置</div>
+    <div class="flow-detail">runc が <span style="font-family:'JetBrains Mono';color:#00d4ff">clone()</span> システムコールで PID / NET / MNT / UTS / IPC 名前空間を新規作成し、プロセスをその中に配置</div>
   </div>
 </div>
 
@@ -759,7 +747,7 @@ border-radius: 1px;
   <div class="flow-num">06</div>
   <div class="flow-content">
     <div class="flow-title">cgroups の設定</div>
-    <div class="flow-detail"><span style="font-family:'JetBrains Mono';color:var(--accent3)">/sys/fs/cgroup/</span> にコンテナのグループを作成し、CPU・メモリ等のリソース制限を書き込む</div>
+    <div class="flow-detail"><span style="font-family:'JetBrains Mono';color:#ff6b6b">/sys/fs/cgroup/</span> にコンテナのグループを作成し、CPU・メモリ等のリソース制限を書き込む</div>
   </div>
 </div>
 
@@ -767,17 +755,18 @@ border-radius: 1px;
   <div class="flow-num">07</div>
   <div class="flow-content">
     <div class="flow-title">pivot_root → PID 1 起動</div>
-    <div class="flow-detail"><span style="font-family:'JetBrains Mono';color:var(--accent)">pivot_root()</span> で merged をルートに切り替え、Dockerfile の CMD / ENTRYPOINT を PID 1 として exec。コンテナが起動完了</div>
+    <div class="flow-detail"><span style="font-family:'JetBrains Mono';color:#00d4ff">pivot_root()</span> で merged をルートに切り替え、Dockerfile の CMD / ENTRYPOINT を PID 1 として exec。コンテナが起動完了</div>
     <div class="flow-cmd">→ bash プロセスが起動 (コンテナ内では PID 1)</div>
   </div>
 </div>
+```
 
   </div>
 
   <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Docker / containerd レイヤー</div>
-    <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div>Linux カーネル機能</div>
-    <div class="legend-item"><div class="legend-dot" style="background:var(--accent4)"></div>ファイルシステム操作</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#00d4ff"></div>Docker / containerd レイヤー</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#00ff9f"></div>Linux カーネル機能</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ffd166"></div>ファイルシステム操作</div>
   </div>
 </div>
 
