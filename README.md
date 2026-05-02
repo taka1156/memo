@@ -1,1 +1,825 @@
-# memo
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docker 動作原理</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;700&display=swap');
+
+:root {
+–bg: #0a0e14;
+–surface: #0f1520;
+–border: #1e2d3d;
+–accent: #00d4ff;
+–accent2: #00ff9f;
+–accent3: #ff6b6b;
+–accent4: #ffd166;
+–text: #cdd9e5;
+–text-dim: #637389;
+–layer1: #162032;
+–layer2: #0d1a2a;
+–layer3: #091422;
+}
+
+- { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+background: var(–bg);
+color: var(–text);
+font-family: ‘Noto Sans JP’, sans-serif;
+min-height: 100vh;
+padding: 32px 20px;
+overflow-x: hidden;
+}
+
+h1 {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: clamp(1.1rem, 3vw, 1.5rem);
+color: var(–accent);
+text-align: center;
+letter-spacing: 0.08em;
+margin-bottom: 8px;
+}
+.subtitle {
+text-align: center;
+font-size: 0.8rem;
+color: var(–text-dim);
+margin-bottom: 40px;
+font-family: ‘JetBrains Mono’, monospace;
+}
+
+/* Tab nav */
+.tabs {
+display: flex;
+gap: 4px;
+justify-content: center;
+margin-bottom: 32px;
+flex-wrap: wrap;
+}
+.tab {
+padding: 8px 18px;
+background: var(–surface);
+border: 1px solid var(–border);
+color: var(–text-dim);
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 0.75rem;
+cursor: pointer;
+transition: all 0.2s;
+letter-spacing: 0.05em;
+}
+.tab:hover { border-color: var(–accent); color: var(–accent); }
+.tab.active {
+background: var(–accent);
+border-color: var(–accent);
+color: #000;
+font-weight: 700;
+}
+
+.panel { display: none; animation: fadeIn 0.3s ease; }
+.panel.active { display: block; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+/* ===== PANEL 1: Layer structure ===== */
+.layer-stack {
+max-width: 520px;
+margin: 0 auto;
+position: relative;
+}
+
+.layer-item {
+position: relative;
+margin-bottom: 3px;
+cursor: pointer;
+}
+
+.layer-box {
+padding: 14px 20px;
+border: 1px solid var(–border);
+display: flex;
+align-items: center;
+gap: 14px;
+transition: all 0.2s;
+position: relative;
+overflow: hidden;
+}
+.layer-box::before {
+content: ‘’;
+position: absolute;
+left: 0; top: 0; bottom: 0;
+width: 3px;
+}
+.layer-item:hover .layer-box {
+transform: translateX(4px);
+border-color: var(–accent);
+}
+
+.layer-container .layer-box { background: #0a1520; border-color: #1a3040; }
+.layer-container .layer-box::before { background: var(–accent3); }
+
+.layer-rw .layer-box { background: #122010; border-color: #1a4020; }
+.layer-rw .layer-box::before { background: var(–accent2); }
+
+.layer-img3 .layer-box { background: #0f1e30; border-color: #1a3040; }
+.layer-img3 .layer-box::before { background: var(–accent); }
+
+.layer-img2 .layer-box { background: #0d1a28; border-color: #172a38; }
+.layer-img2 .layer-box::before { background: var(–accent); opacity:0.7; }
+
+.layer-img1 .layer-box { background: #0b1620; border-color: #152030; }
+.layer-img1 .layer-box::before { background: var(–accent); opacity:0.4; }
+
+.layer-base .layer-box { background: #1a1008; border-color: #3a2010; }
+.layer-base .layer-box::before { background: var(–accent4); }
+
+.layer-kernel .layer-box { background: #1a0810; border-color: #3a1020; }
+.layer-kernel .layer-box::before { background: var(–accent3); }
+
+.layer-icon {
+font-size: 1.4rem;
+width: 28px;
+text-align: center;
+flex-shrink: 0;
+}
+.layer-label {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 0.85rem;
+font-weight: 600;
+color: var(–text);
+}
+.layer-desc {
+font-size: 0.72rem;
+color: var(–text-dim);
+margin-left: auto;
+text-align: right;
+max-width: 160px;
+}
+
+.badge {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 0.6rem;
+padding: 2px 7px;
+border-radius: 2px;
+flex-shrink: 0;
+}
+.badge-rw { background: #1a4020; color: var(–accent2); border: 1px solid #2a6030; }
+.badge-ro { background: #0f1e30; color: var(–accent); border: 1px solid #1a3040; }
+
+.section-label {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 0.65rem;
+color: var(–text-dim);
+text-transform: uppercase;
+letter-spacing: 0.12em;
+margin: 18px 0 6px;
+display: flex;
+align-items: center;
+gap: 8px;
+}
+.section-label::after {
+content: ‘’;
+flex: 1;
+height: 1px;
+background: var(–border);
+}
+
+.arrow-down {
+text-align: center;
+font-size: 1rem;
+color: var(–text-dim);
+margin: 4px 0;
+}
+
+/* tooltip */
+.tooltip-box {
+background: #0f2030;
+border: 1px solid var(–accent);
+padding: 12px 16px;
+margin-top: 16px;
+font-size: 0.78rem;
+line-height: 1.6;
+display: none;
+animation: fadeIn 0.2s ease;
+}
+.tooltip-box.show { display: block; }
+.tooltip-box strong { color: var(–accent); font-family: ‘JetBrains Mono’, monospace; }
+
+/* ===== PANEL 2: OverlayFS ===== */
+.overlayfs-diagram {
+max-width: 600px;
+margin: 0 auto;
+}
+
+.fs-row {
+display: grid;
+grid-template-columns: 1fr 40px 1fr;
+gap: 0;
+align-items: center;
+margin-bottom: 3px;
+}
+.fs-cell {
+padding: 10px 14px;
+border: 1px solid var(–border);
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 0.75rem;
+text-align: center;
+}
+.fs-cell.upper { background: #122010; border-color: #1a4020; color: var(–accent2); }
+.fs-cell.lower { background: #0f1e30; border-color: #1a3040; color: var(–accent); }
+.fs-cell.merged { background: #1a1a30; border-color: #2a2a50; color: var(–accent4); }
+.fs-cell.empty { background: transparent; border: none; color: var(–text-dim); font-size: 1.2rem; }
+.fs-arrow { text-align: center; font-size: 0.9rem; color: var(–text-dim); padding: 4px 0; }
+
+.cow-demo {
+margin-top: 28px;
+background: var(–surface);
+border: 1px solid var(–border);
+padding: 20px;
+}
+.cow-title {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 0.8rem;
+color: var(–accent4);
+margin-bottom: 16px;
+display: flex;
+align-items: center;
+gap: 8px;
+}
+.cow-steps {
+display: flex;
+flex-direction: column;
+gap: 8px;
+}
+.cow-step {
+display: flex;
+align-items: flex-start;
+gap: 12px;
+font-size: 0.75rem;
+}
+.step-num {
+background: var(–accent4);
+color: #000;
+font-family: ‘JetBrains Mono’, monospace;
+font-weight: 700;
+font-size: 0.65rem;
+width: 20px;
+height: 20px;
+display: flex;
+align-items: center;
+justify-content: center;
+flex-shrink: 0;
+}
+.step-text { color: var(–text); line-height: 1.5; }
+.step-code {
+font-family: ‘JetBrains Mono’, monospace;
+color: var(–accent);
+background: #0a1520;
+padding: 1px 6px;
+font-size: 0.72rem;
+}
+
+/* ===== PANEL 3: Namespaces ===== */
+.ns-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+gap: 12px;
+max-width: 640px;
+margin: 0 auto 28px;
+}
+.ns-card {
+background: var(–surface);
+border: 1px solid var(–border);
+padding: 16px;
+position: relative;
+overflow: hidden;
+transition: all 0.2s;
+cursor: default;
+}
+.ns-card:hover {
+border-color: var(–accent);
+transform: translateY(-2px);
+}
+.ns-card::after {
+content: ‘’;
+position: absolute;
+bottom: 0; left: 0; right: 0;
+height: 2px;
+}
+.ns-card.pid::after { background: var(–accent); }
+.ns-card.net::after { background: var(–accent2); }
+.ns-card.mnt::after { background: var(–accent4); }
+.ns-card.ipc::after { background: var(–accent3); }
+.ns-card.uts::after { background: #c792ea; }
+.ns-card.usr::after { background: #89ddff; }
+
+.ns-name {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 0.85rem;
+font-weight: 700;
+margin-bottom: 6px;
+}
+.ns-card.pid .ns-name { color: var(–accent); }
+.ns-card.net .ns-name { color: var(–accent2); }
+.ns-card.mnt .ns-name { color: var(–accent4); }
+.ns-card.ipc .ns-name { color: var(–accent3); }
+.ns-card.uts .ns-name { color: #c792ea; }
+.ns-card.usr .ns-name { color: #89ddff; }
+
+.ns-full { font-size: 0.65rem; color: var(–text-dim); margin-bottom: 8px; font-family: ‘JetBrains Mono’, monospace; }
+.ns-desc { font-size: 0.72rem; color: var(–text); line-height: 1.5; }
+
+.cgroup-box {
+max-width: 640px;
+margin: 0 auto;
+background: var(–surface);
+border: 1px solid var(–border);
+padding: 20px;
+}
+.cgroup-title {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 0.8rem;
+color: var(–accent3);
+margin-bottom: 16px;
+}
+.cgroup-bars {
+display: flex;
+flex-direction: column;
+gap: 10px;
+}
+.cg-row { display: flex; align-items: center; gap: 12px; }
+.cg-label {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 0.72rem;
+color: var(–text-dim);
+width: 70px;
+flex-shrink: 0;
+}
+.cg-bar-bg {
+flex: 1;
+height: 18px;
+background: #0f1520;
+border: 1px solid var(–border);
+position: relative;
+overflow: hidden;
+}
+.cg-bar-fill {
+height: 100%;
+position: relative;
+display: flex;
+align-items: center;
+justify-content: flex-end;
+padding-right: 6px;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 0.62rem;
+color: #000;
+font-weight: 700;
+animation: barGrow 1.2s ease forwards;
+transform-origin: left;
+}
+@keyframes barGrow {
+from { width: 0; }
+}
+.cg-cpu { background: var(–accent); }
+.cg-mem { background: var(–accent2); }
+.cg-io  { background: var(–accent4); }
+
+/* ===== PANEL 4: Runtime flow ===== */
+.flow-container {
+max-width: 580px;
+margin: 0 auto;
+}
+.flow-step {
+display: flex;
+gap: 16px;
+margin-bottom: 4px;
+position: relative;
+}
+.flow-step::after {
+content: ‘▼’;
+position: absolute;
+left: 19px;
+bottom: -16px;
+font-size: 0.7rem;
+color: var(–text-dim);
+z-index: 1;
+}
+.flow-step:last-child::after { display: none; }
+
+.flow-num {
+width: 40px;
+height: 40px;
+background: var(–surface);
+border: 1px solid var(–accent);
+display: flex;
+align-items: center;
+justify-content: center;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 0.85rem;
+font-weight: 700;
+color: var(–accent);
+flex-shrink: 0;
+}
+.flow-content {
+background: var(–surface);
+border: 1px solid var(–border);
+padding: 12px 16px;
+flex: 1;
+}
+.flow-title {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 0.82rem;
+font-weight: 700;
+color: var(–text);
+margin-bottom: 4px;
+}
+.flow-detail {
+font-size: 0.73rem;
+color: var(–text-dim);
+line-height: 1.5;
+}
+.flow-cmd {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 0.7rem;
+color: var(–accent2);
+background: #0a1a10;
+padding: 4px 8px;
+margin-top: 6px;
+display: inline-block;
+}
+
+.legend {
+display: flex;
+gap: 16px;
+justify-content: center;
+margin-top: 28px;
+flex-wrap: wrap;
+}
+.legend-item {
+display: flex;
+align-items: center;
+gap: 6px;
+font-size: 0.7rem;
+color: var(–text-dim);
+}
+.legend-dot {
+width: 10px;
+height: 10px;
+border-radius: 1px;
+}
+</style>
+
+</head>
+<body>
+
+<h1>// DOCKER INTERNALS</h1>
+<div class="subtitle">動作原理・レイヤー構造の図解</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('layers')">レイヤー構造</div>
+  <div class="tab" onclick="switchTab('overlayfs')">OverlayFS</div>
+  <div class="tab" onclick="switchTab('namespaces')">名前空間 / cgroups</div>
+  <div class="tab" onclick="switchTab('runtime')">起動フロー</div>
+</div>
+
+<!-- PANEL 1: Layers -->
+
+<div id="panel-layers" class="panel active">
+  <div class="layer-stack">
+
+```
+<div class="section-label">コンテナ実行時</div>
+
+<div class="layer-item layer-container" onclick="showTip('container')">
+  <div class="layer-box">
+    <div class="layer-icon">📦</div>
+    <div>
+      <div class="layer-label">コンテナ (実行中プロセス)</div>
+    </div>
+    <div class="layer-desc">PID 1 として起動<br>隔離された環境</div>
+  </div>
+</div>
+
+<div class="arrow-down">↕</div>
+
+<div class="layer-item layer-rw" onclick="showTip('rw')">
+  <div class="layer-box">
+    <div class="layer-icon">✏️</div>
+    <div>
+      <div class="layer-label">Container Layer</div>
+    </div>
+    <span class="badge badge-rw">Read/Write</span>
+    <div class="layer-desc">差分のみ書き込み<br>(CoW)</div>
+  </div>
+</div>
+
+<div class="arrow-down">↓ (マウント)</div>
+
+<div class="section-label">イメージレイヤー (読み取り専用)</div>
+
+<div class="layer-item layer-img3" onclick="showTip('img3')">
+  <div class="layer-box">
+    <div class="layer-icon">🔵</div>
+    <div>
+      <div class="layer-label">Layer 3: アプリケーション</div>
+    </div>
+    <span class="badge badge-ro">Read Only</span>
+    <div class="layer-desc">COPY app/ /app<br>RUN pip install</div>
+  </div>
+</div>
+
+<div class="layer-item layer-img2" onclick="showTip('img2')">
+  <div class="layer-box">
+    <div class="layer-icon">🔵</div>
+    <div>
+      <div class="layer-label">Layer 2: 依存パッケージ</div>
+    </div>
+    <span class="badge badge-ro">Read Only</span>
+    <div class="layer-desc">RUN apt-get install<br>python3 curl</div>
+  </div>
+</div>
+
+<div class="layer-item layer-img1" onclick="showTip('img1')">
+  <div class="layer-box">
+    <div class="layer-icon">🔵</div>
+    <div>
+      <div class="layer-label">Layer 1: OS設定</div>
+    </div>
+    <span class="badge badge-ro">Read Only</span>
+    <div class="layer-desc">ENV 設定<br>ユーザー作成</div>
+  </div>
+</div>
+
+<div class="layer-item layer-base" onclick="showTip('base')">
+  <div class="layer-box">
+    <div class="layer-icon">🟡</div>
+    <div>
+      <div class="layer-label">Base Image (ubuntu:22.04)</div>
+    </div>
+    <span class="badge badge-ro">Read Only</span>
+    <div class="layer-desc">FROM ubuntu:22.04<br>基底ファイルシステム</div>
+  </div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<div class="section-label">ホスト</div>
+
+<div class="layer-item layer-kernel" onclick="showTip('kernel')">
+  <div class="layer-box">
+    <div class="layer-icon">⚙️</div>
+    <div>
+      <div class="layer-label">Linux Kernel (共有)</div>
+    </div>
+    <div class="layer-desc">namespaces / cgroups<br>OverlayFS driver</div>
+  </div>
+</div>
+
+<div id="tip-box" class="tooltip-box"></div>
+```
+
+  </div>
+</div>
+
+<!-- PANEL 2: OverlayFS -->
+
+<div id="panel-overlayfs" class="panel">
+  <div class="overlayfs-diagram">
+
+```
+<div class="section-label">OverlayFS の仕組み</div>
+
+<div class="fs-row">
+  <div class="fs-cell upper">upperdir<br><span style="font-size:0.65rem;color:#4a8">読み書き可能層<br>/var/lib/docker/overlay2/.../diff</span></div>
+  <div class="fs-cell empty">+</div>
+  <div class="fs-cell lower">lowerdir<br><span style="font-size:0.65rem;color:#48f">読み取り専用層<br>イメージレイヤー</span></div>
+</div>
+
+<div class="fs-arrow" style="text-align:center;padding:8px 0">▼ カーネルがマウント</div>
+
+<div style="max-width:380px;margin:0 auto">
+  <div class="fs-cell merged" style="padding:14px">
+    merged (コンテナが見えるファイルシステム)<br>
+    <span style="font-size:0.65rem;color:#aaa">/var/lib/docker/overlay2/.../merged</span>
+  </div>
+</div>
+
+<div class="cow-demo">
+  <div class="cow-title">📋 Copy-on-Write (CoW) の動作</div>
+  <div class="cow-steps">
+    <div class="cow-step">
+      <div class="step-num">1</div>
+      <div class="step-text">コンテナが <span class="step-code">/etc/nginx/nginx.conf</span> を読む → lowerdir から透過的に参照</div>
+    </div>
+    <div class="cow-step">
+      <div class="step-num">2</div>
+      <div class="step-text">書き込み発生 → カーネルが lowerdir からファイルを <strong style="color:var(--accent4)">upperdir にコピー</strong></div>
+    </div>
+    <div class="cow-step">
+      <div class="step-num">3</div>
+      <div class="step-text">upperdir 上の差分のみを変更。元の lowerdir は<strong style="color:var(--accent)">一切変更されない</strong></div>
+    </div>
+    <div class="cow-step">
+      <div class="step-num">4</div>
+      <div class="step-text">コンテナ削除 → upperdir だけ消去。イメージ(lowerdir)は<strong style="color:var(--accent2)">再利用可能</strong></div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:20px;background:var(--surface);border:1px solid var(--border);padding:16px;">
+  <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--text-dim);margin-bottom:8px;"># 実際のマウント確認</div>
+  <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--accent2);">$ docker inspect &lt;container&gt; | grep -A5 GraphDriver</div>
+  <div style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--text-dim);margin-top:6px;">→ LowerDir / UpperDir / MergedDir / WorkDir が確認できる</div>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- PANEL 3: Namespaces -->
+
+<div id="panel-namespaces" class="panel">
+
+  <div class="section-label" style="max-width:640px;margin:0 auto 16px;">Linux Namespaces — 隔離の種類</div>
+
+  <div class="ns-grid">
+    <div class="ns-card pid">
+      <div class="ns-name">PID</div>
+      <div class="ns-full">Process ID</div>
+      <div class="ns-desc">コンテナ内のプロセスに独立した PID 空間。コンテナの init は PID 1 に見える</div>
+    </div>
+    <div class="ns-card net">
+      <div class="ns-name">NET</div>
+      <div class="ns-full">Network</div>
+      <div class="ns-desc">仮想NIC・ルーティングテーブル・ポートを独立化。外部とは veth ペアで接続</div>
+    </div>
+    <div class="ns-card mnt">
+      <div class="ns-name">MNT</div>
+      <div class="ns-full">Mount</div>
+      <div class="ns-desc">マウントポイントの独立化。OverlayFS をここにマウントし専用ファイルシステムを構築</div>
+    </div>
+    <div class="ns-card ipc">
+      <div class="ns-name">IPC</div>
+      <div class="ns-full">Inter-Process Comm</div>
+      <div class="ns-desc">共有メモリ・セマフォをコンテナ間で隔離。意図しない通信を防ぐ</div>
+    </div>
+    <div class="ns-card uts">
+      <div class="ns-name">UTS</div>
+      <div class="ns-full">UNIX Timesharing</div>
+      <div class="ns-desc">ホスト名・ドメイン名を独立化。コンテナごとに別のホスト名を設定可能</div>
+    </div>
+    <div class="ns-card usr">
+      <div class="ns-name">USER</div>
+      <div class="ns-full">User ID</div>
+      <div class="ns-desc">コンテナ内の root をホストの非特権ユーザーにマッピング (rootless Docker)</div>
+    </div>
+  </div>
+
+  <div class="section-label" style="max-width:640px;margin:0 auto 16px;">cgroups — リソース制限</div>
+
+  <div class="cgroup-box">
+    <div class="cgroup-title">⚡ cgroups v2 によるリソース割り当て例</div>
+    <div class="cgroup-bars">
+      <div class="cg-row">
+        <div class="cg-label">CPU</div>
+        <div class="cg-bar-bg">
+          <div class="cg-bar-fill cg-cpu" style="width:60%">60%</div>
+        </div>
+        <div style="font-size:0.68rem;color:var(--text-dim);width:100px;font-family:'JetBrains Mono',monospace">--cpus="0.6"</div>
+      </div>
+      <div class="cg-row">
+        <div class="cg-label">Memory</div>
+        <div class="cg-bar-bg">
+          <div class="cg-bar-fill cg-mem" style="width:40%">512MB</div>
+        </div>
+        <div style="font-size:0.68rem;color:var(--text-dim);width:100px;font-family:'JetBrains Mono',monospace">-m 512m</div>
+      </div>
+      <div class="cg-row">
+        <div class="cg-label">Block I/O</div>
+        <div class="cg-bar-bg">
+          <div class="cg-bar-fill cg-io" style="width:30%">30%</div>
+        </div>
+        <div style="font-size:0.68rem;color:var(--text-dim);width:100px;font-family:'JetBrains Mono',monospace">--blkio-weight</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;font-size:0.72rem;color:var(--text-dim);line-height:1.6;">
+      cgroups はリソースを<strong style="color:var(--text)">制限</strong>するだけでなく、<strong style="color:var(--text)">計測</strong>・<strong style="color:var(--text)">優先度付け</strong>も行う。<br>
+      <span style="font-family:'JetBrains Mono',monospace;color:var(--accent3);">/sys/fs/cgroup/</span> 以下にファイルシステムとして公開される。
+    </div>
+  </div>
+</div>
+
+<!-- PANEL 4: Runtime flow -->
+
+<div id="panel-runtime" class="panel">
+  <div class="flow-container">
+
+```
+<div class="section-label">docker run の実行フロー</div>
+
+<div class="flow-step">
+  <div class="flow-num">01</div>
+  <div class="flow-content">
+    <div class="flow-title">CLI → Docker Daemon</div>
+    <div class="flow-detail">docker run コマンドを受け取った Docker CLI が Unix ソケット経由で dockerd (daemon) に REST リクエストを送る</div>
+    <div class="flow-cmd">$ docker run -it ubuntu:22.04 bash</div>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="flow-num">02</div>
+  <div class="flow-content">
+    <div class="flow-title">イメージのプル / キャッシュ確認</div>
+    <div class="flow-detail">ローカルに対象イメージが存在するか確認。なければ Docker Hub (Registry) からレイヤーを取得し <span style="font-family:'JetBrains Mono';color:var(--accent)">/var/lib/docker/overlay2/</span> に展開</div>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="flow-num">03</div>
+  <div class="flow-content">
+    <div class="flow-title">containerd → runc へ委譲</div>
+    <div class="flow-detail">dockerd は containerd に指示を出し、containerd は OCI ランタイムである <strong style="color:var(--accent)">runc</strong> を呼び出す</div>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="flow-num">04</div>
+  <div class="flow-content">
+    <div class="flow-title">Namespace の作成</div>
+    <div class="flow-detail">runc が <span style="font-family:'JetBrains Mono';color:var(--accent)">clone()</span> システムコールで PID / NET / MNT / UTS / IPC 名前空間を新規作成し、プロセスをその中に配置</div>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="flow-num">05</div>
+  <div class="flow-content">
+    <div class="flow-title">OverlayFS のマウント</div>
+    <div class="flow-detail">lowerdir (イメージレイヤー群) と upperdir (書き込み用) を merged ディレクトリに OverlayFS でマウント。コンテナのルートファイルシステムとして設定</div>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="flow-num">06</div>
+  <div class="flow-content">
+    <div class="flow-title">cgroups の設定</div>
+    <div class="flow-detail"><span style="font-family:'JetBrains Mono';color:var(--accent3)">/sys/fs/cgroup/</span> にコンテナのグループを作成し、CPU・メモリ等のリソース制限を書き込む</div>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="flow-num">07</div>
+  <div class="flow-content">
+    <div class="flow-title">pivot_root → PID 1 起動</div>
+    <div class="flow-detail"><span style="font-family:'JetBrains Mono';color:var(--accent)">pivot_root()</span> で merged をルートに切り替え、Dockerfile の CMD / ENTRYPOINT を PID 1 として exec。コンテナが起動完了</div>
+    <div class="flow-cmd">→ bash プロセスが起動 (コンテナ内では PID 1)</div>
+  </div>
+</div>
+```
+
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Docker / containerd レイヤー</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div>Linux カーネル機能</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent4)"></div>ファイルシステム操作</div>
+  </div>
+</div>
+
+<script>
+const tips = {
+  container: '<strong>コンテナ (実行中プロセス)</strong><br>本質的にはただの Linux プロセスです。名前空間で隔離されているだけで、ホストカーネルを直接使います。VM と違いハイパーバイザー不要。',
+  rw: '<strong>Container Layer (Read/Write)</strong><br>コンテナ固有の書き込み層。ファイルを変更すると CoW で lowerdir からコピーして上書きします。コンテナ削除時にこの層のみが消えます。',
+  img3: '<strong>アプリケーション層</strong><br>Dockerfile の COPY や RUN pip install が生成する層。各 RUN コマンドが 1 レイヤーを作ります。順番が重要で、変更があるとそれ以降のレイヤーキャッシュが無効化されます。',
+  img2: '<strong>依存パッケージ層</strong><br>apt / yum などのパッケージインストールが生成。複数コンテナでこの層を共有できるため、ディスク効率が高い。',
+  img1: '<strong>OS設定層</strong><br>ENV 変数の設定や、ユーザー作成などの軽量な変更。レイヤーをできるだけ薄くするのがベストプラクティス。',
+  base: '<strong>Base Image</strong><br>ubuntu:22.04 等の公式イメージ。Docker Hub から pull した際の最初のレイヤー群。scratch (空) を指定することも可能。',
+  kernel: '<strong>Linux Kernel (ホスト共有)</strong><br>全コンテナが同じカーネルを共有。これが VM との最大の違いで、軽量・高速な理由です。カーネルバージョンに依存するため、Linux コンテナは Windows/Mac では仮想マシン上で動きます。'
+};
+
+function showTip(key) {
+  const box = document.getElementById('tip-box');
+  if (box.dataset.current === key && box.classList.contains('show')) {
+    box.classList.remove('show');
+    box.dataset.current = '';
+  } else {
+    box.innerHTML = tips[key];
+    box.classList.add('show');
+    box.dataset.current = key;
+  }
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['layers','overlayfs','namespaces','runtime'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  // hide tooltip when switching
+  const box = document.getElementById('tip-box');
+  if (box) { box.classList.remove('show'); box.dataset.current = ''; }
+}
+</script>
+
+</body>
+</html>
