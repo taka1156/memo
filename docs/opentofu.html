@@ -145,15 +145,16 @@ td.files code { display: inline-block; margin: 0 4px 4px 0; }
 
 /* 流れ */
 .flow { display: flex; flex-direction: column; gap: 10px; counter-reset: s; }
-.flow div { counter-increment: s; display: grid; grid-template-columns: 26px minmax(0,1fr); gap: 10px; align-items: start; padding: 2px 0; }
+.flow div { counter-increment: s; display: grid; grid-template-columns: 26px minmax(0,1fr); gap: 2px 10px; align-items: start; padding: 2px 0; }
 .flow div::before {
   content: counter(s);
+  grid-column: 1; grid-row: 1 / -1;
   font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 700; font-size: 0.75rem;
   color: var(--accent); background: var(--chip);
   width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
 }
-.flow b { display: block; font-size: 0.92rem; }
-.flow span.d { color: var(--fg-2); font-size: 0.86rem; }
+.flow b { grid-column: 2; display: block; font-size: 0.92rem; }
+.flow span.d { grid-column: 2; color: var(--fg-2); font-size: 0.86rem; }
 
 .prec { display: flex; flex-direction: column; gap: 5px; }
 .prec div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 12px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); font-size: 0.84rem; }
