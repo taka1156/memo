@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import html
 import json
 import re
@@ -52,6 +53,16 @@ def site_url() -> str:
 
 SITE_URL = site_url()  # og:url / og:image の絶対 URL に使う
 SITE_NAME = "MEMO"
+
+
+def asset_version(name: str) -> str:
+    """画像の中身から短いハッシュを作る。画像を差し替えると URL が変わり、
+    Discord などの画像キャッシュが古いまま残るのを防ぐ。"""
+    f = DOCS / "assets" / name
+    return hashlib.sha256(f.read_bytes()).hexdigest()[:8] if f.is_file() else ""
+
+
+OG_VERSION = asset_version("og.png")
 HEAD_BEGIN = "<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->"
 HEAD_END = "<!-- /memo:head -->"
 HEAD_RE = re.compile(r"<!-- memo:head.*?<!-- /memo:head -->\n?", re.S)
@@ -172,7 +183,7 @@ def head_block(text: str, filename: str) -> str:
         lines.append(f'<meta property="og:description" content="{e(desc)}">')
     lines += [
         f'<meta property="og:url" content="{e(url)}">',
-        f'<meta property="og:image" content="{SITE_URL}assets/og.png">',
+        f'<meta property="og:image" content="{SITE_URL}assets/og.png' + (f'?v={OG_VERSION}' if OG_VERSION else '') + '">',
         '<meta property="og:image:width" content="1200">',
         '<meta property="og:image:height" content="630">',
         '<meta name="twitter:card" content="summary_large_image">',
