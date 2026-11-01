@@ -1,0 +1,44 @@
+name: Build MEMO index
+
+# メモ（*.html）が push されたら index.html の一覧を再生成してコミットする。
+# GitHub の画面から HTML を直接アップロードしても一覧に載る。
+on:
+  push:
+    branches: [master]
+    paths:
+      - "*.html"
+      - "scripts/memo.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # memo:date がないメモの日付を git 履歴から推定するため
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Lint memos (report only)
+        run: python3 scripts/memo.py lint $(ls *.html | grep -v '^index.html$') || true
+
+      - name: Build index
+        run: python3 scripts/memo.py build
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet index.html; then
+            echo "index.html は最新です"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Rebuild MEMO index"
+          git push

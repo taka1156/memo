@@ -1,0 +1,65 @@
+---
+name: memo-style
+description: MEMO リポジトリ用の解説ページ（HTML 1 枚）を新しく作るときのデザイン規約とテンプレート。「〜の図解ページを作って」「MEMO 用に解説を書いて」など、新規にメモ HTML を書くときに必ず読む。既存 HTML を登録するだけなら memo-publish を使う。
+---
+
+# memo-style
+
+MEMO の各ページを見た目・作りの両面で揃えるための規約。
+新規作成時は `template.html`（このフォルダ）をコピーして中身を書く。
+
+## 基本方針
+
+- **HTML 1 枚で完結**。CSS / JS はインライン。外部は Google Fonts と、必要なら cdnjs のライブラリのみ。
+- **日本語**で書く。専門用語は英語併記（例: 名前空間 (namespace)）。
+- 「読む」より「見てわかる」を優先: 図（インライン SVG / CSS ボックス）、タブ切り替え、ホバーで補足、などを使う。
+- スマホ幅（〜380px）で横スクロールが出ないこと。左右 16px 以上の余白。
+
+## デザイントークン
+
+トップページ（index.html）と揃える。`:root` に変数で定義し、ダークモードは `prefers-color-scheme` で切り替え。
+
+| 変数 | ライト | ダーク | 用途 |
+| --- | --- | --- | --- |
+| `--bg` | `#f6f7f9` | `#0a0e14` | 背景 |
+| `--surface` | `#ffffff` | `#111823` | カード・パネル |
+| `--fg` | `#1c2230` | `#cdd9e5` | 本文 |
+| `--fg-2` | `#5a6376` | `#7d8b9d` | 補足文字 |
+| `--line` | `#dde1e8` | `#1e2d3d` | 罫線 |
+| `--accent` | `#0077b6` | `#00d4ff` | 見出し・強調・リンク |
+| `--chip` | `#eceff4` | `#18222f` | タグ・ボタン背景 |
+
+図の中で色分けが必要なときは、意味ごとに追加変数を定義する（例: `--c-ok`, `--c-warn`）。色だけで意味を伝えず、ラベルも付ける。
+
+- 本文フォント: `'Noto Sans JP', system-ui, sans-serif`
+- 見出し・コード・数値: `'JetBrains Mono', ui-monospace, monospace`
+- 本文 15px 前後、行間 1.7。最大幅 880px で中央寄せ。
+
+## ページ構成
+
+1. `h1` タイトル（アクセント色、等幅フォント）＋ 1 行のサブタイトル
+2. 要点（3 行程度の「ざっくり言うと」）
+3. 本体: 図解・タブ・ステップ。セクションは `h2` で区切る
+4. 必要なら「よくある誤解」「コマンド例」
+5. 右下の「← MEMO」リンク（テンプレートに含まれている）
+
+## メタ情報（必須）
+
+`<head>` に入れる。memo-publish の `memo.py meta` で後から付けてもよい。
+
+```html
+<title>Docker 動作原理</title>
+<meta name="description" content="何がわかるページかを 1 文で">
+<meta name="memo:tags" content="Docker, Linux">
+<meta name="memo:date" content="YYYY-MM-DD">
+```
+
+## 崩れ防止（コピペ事故対策）
+
+- CSS / JS の引用符は必ず半角 `'` `"`。全角 `‘’“”` は font-family が効かなくなる原因。
+- セレクタ `*` を行頭に置くとき、Markdown 経由で `-` や `\*` に化けないよう、ファイルとして直接保存する。
+- 書いたら `python3 scripts/memo.py lint FILE.html` で確認する。
+
+## 書き終えたら
+
+memo-publish の手順 3 以降（lint → meta → build → commit/push）で登録する。

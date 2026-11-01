@@ -118,24 +118,31 @@ footer a { color: var(--accent); }
 </div>
 
 <script>
-// ===== メモを追加するときはここに 1 行足すだけ =====
+// メモ一覧は各メモの <meta> から自動生成されます（README 参照）
+// MEMOS:BEGIN（scripts/memo.py build が自動生成。手で編集しない）
 const MEMOS = [
   {
-    file: 'docker.html',
-    title: 'Docker 動作原理',
-    desc: 'イメージのレイヤー構造、名前空間、cgroups などコンテナが動く仕組みを図解。',
-    tags: ['Docker', 'Linux'],
-    date: '2026-11-01',
+    "file": "ecma.html",
+    "title": "Ecma TC 一覧",
+    "desc": "Ecma International の技術委員会 (TC39 など) をカードで一覧表示。",
+    "tags": [
+      "JavaScript",
+      "標準化"
+    ],
+    "date": "2026-10-31"
   },
   {
-    file: 'ecma.html',
-    title: 'Ecma TC 一覧',
-    desc: 'Ecma International の技術委員会 (TC39 など) をカードで一覧表示。',
-    tags: ['JavaScript', '標準化'],
-    date: '2026-11-01',
-  },
+    "file": "docker.html",
+    "title": "Docker 動作原理",
+    "desc": "イメージのレイヤー構造、名前空間、cgroups などコンテナが動く仕組みを図解。",
+    "tags": [
+      "Docker",
+      "Linux"
+    ],
+    "date": "2026-10-31"
+  }
 ];
-// ================================================
+// MEMOS:END
 
 const list = document.getElementById('list');
 const empty = document.getElementById('empty');
