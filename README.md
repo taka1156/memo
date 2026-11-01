@@ -30,6 +30,8 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
   ```
 
 - `docs/index.html` の `// MEMOS:BEGIN`〜`// MEMOS:END` は自動生成です。手で編集しません
+- 全ページの `<!-- memo:head -->` ブロック（ファビコン・iOS アイコン・OGP）も自動生成です。og:title / og:description は各ページの title / description から作られます
+- 画像は `docs/assets/`（`favicon.ico`, `icon-32.png`, `icon-192.png`, `apple-touch-icon.png`, `og.png`）。元画像は `branding/source.png`（非公開）
 - master に `docs/*.html` が push されると、GitHub Actions が一覧を再生成します（GitHub の画面から HTML を直接アップロードしても載ります）
 
 ## 手でやる場合
@@ -43,4 +45,4 @@ python3 scripts/memo.py build                          # 一覧を再生成
 python3 scripts/memo.py list                           # 一覧を表示
 ```
 
-`lint` が直すもの: CSS 内の全角クォート、`* {` の化け、DOCTYPE / charset / viewport の欠落、トップへ戻るリンクの追加。
+`lint` が直すもの: CSS 内の全角クォート、`* {` の化け、DOCTYPE / charset / viewport の欠落、トップへ戻るリンクの追加、アイコン・OGP タグの追加／更新。

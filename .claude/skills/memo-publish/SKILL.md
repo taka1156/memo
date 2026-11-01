@@ -52,6 +52,7 @@ python3 scripts/memo.py lint NAME --fix --backlink
 - `* {` が `- {` / `\*` に化けたもの（Markdown 経由のコピペで起きる）
 - `<!DOCTYPE html>` / charset / viewport の欠落
 - 右下に「← MEMO」のトップへ戻るリンクを追加（`--backlink`）
+- ファビコン・iOS アイコン・OGP の `<head>` タグ（`<!-- memo:head -->` ブロック）を追加／更新。og:title / og:description は title / description から自動で作られる
 
 報告だけのもの（`[要対応]`）:
 - JS 内の全角クォート疑い → `memo.py path NAME` のファイルを読み、文字列の区切りに使われていれば半角に直す。日本語の文中の使用ならそのまま。
@@ -75,6 +76,7 @@ python3 scripts/memo.py meta NAME \
 - **desc**: 何がわかるページかを 1 文（40〜60 字）。
 - **tags**: 1〜3 個。表記ゆれを防ぐため、`memo.py list` に出ている既存タグに合うものがあれば再利用する（例: `Docker` と `docker` を混在させない）。
 - **date**: `--date` を値なしで渡すと今日。
+- `meta` を実行すると OGP タグも自動で更新される。`<!-- memo:head -->` 〜 `<!-- /memo:head -->` は手で編集しない。
 
 ## 6. 一覧を更新して確認
 
@@ -90,7 +92,7 @@ python3 scripts/memo.py list
 
 ```bash
 git fetch origin master            # 遅れていれば rebase
-git add -A "$(dirname "$(python3 scripts/memo.py path NAME)")"
+git add -A "$(dirname "$(python3 scripts/memo.py path NAME)")"   # build が他ページの head を更新した場合もまとめて入る
 git commit -m "Add memo: <タイトル>"
 git push origin HEAD:master
 ```

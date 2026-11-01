@@ -61,6 +61,8 @@ python3 scripts/memo.py new NAME   # NAME は英小文字・ハイフン（例: 
 <meta name="memo:date" content="YYYY-MM-DD">
 ```
 
+アイコン（ファビコン・iOS）と OGP のタグは `memo.py` が `<!-- memo:head -->` ブロックとして自動で入れるので、自分では書かない。
+
 ## 崩れ防止（コピペ事故対策）
 
 - CSS / JS の引用符は必ず半角 `'` `"`。全角 `‘’“”` は font-family が効かなくなる原因。

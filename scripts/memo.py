@@ -36,6 +36,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"  # GitHub Pages の公開元
 INDEX = DOCS / "index.html"
+SITE_URL = "https://taka1156.github.io/memo/"  # og:url / og:image の絶対 URL に使う
+SITE_NAME = "MEMO"
+HEAD_BEGIN = "<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->"
+HEAD_END = "<!-- /memo:head -->"
+HEAD_RE = re.compile(r"<!-- memo:head.*?<!-- /memo:head -->\n?", re.S)
 TEMPLATE = ROOT / ".claude" / "skills" / "memo-style" / "template.html"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 BEGIN = "// MEMOS:BEGIN"
@@ -77,9 +82,15 @@ class _Meta(HTMLParser):
             self.title += data
 
 
+def parse_meta(text: str) -> tuple[dict, str]:
+    p = _Meta()
+    p.feed(HEAD_RE.sub("", text))
+    return p.meta, p.title.strip()
+
+
 def read_meta(path: Path) -> dict:
     p = _Meta()
-    p.feed(path.read_text(encoding="utf-8"))
+    p.feed(HEAD_RE.sub("", path.read_text(encoding="utf-8")))
     m = p.meta
     tags = [t.strip() for t in m.get("memo:tags", "").split(",") if t.strip()]
     return {
@@ -123,6 +134,60 @@ def memo_files() -> list[Path]:
     return sorted(p for p in DOCS.glob("*.html") if p.name != "index.html")
 
 
+# ---------------------------------------------------------------- head（アイコン・OGP）
+
+def head_block(text: str, filename: str) -> str:
+    m, title = parse_meta(text)
+    title = (m.get("memo:title") or title or SITE_NAME).strip()
+    desc = m.get("description", "").strip()
+    is_index = filename == "index.html"
+    url = SITE_URL + ("" if is_index else filename)
+    e = lambda v: html.escape(v, quote=True)
+    lines = [
+        HEAD_BEGIN,
+        '<link rel="icon" href="assets/favicon.ico" sizes="any">',
+        '<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">',
+        '<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">',
+        '<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">',
+        f'<meta name="apple-mobile-web-app-title" content="{SITE_NAME}">',
+        f'<meta property="og:type" content="{"website" if is_index else "article"}">',
+        f'<meta property="og:site_name" content="{SITE_NAME}">',
+        f'<meta property="og:title" content="{e(title)}">',
+    ]
+    if desc:
+        lines.append(f'<meta property="og:description" content="{e(desc)}">')
+    lines += [
+        f'<meta property="og:url" content="{e(url)}">',
+        f'<meta property="og:image" content="{SITE_URL}assets/og.png">',
+        '<meta property="og:image:width" content="1200">',
+        '<meta property="og:image:height" content="630">',
+        '<meta name="twitter:card" content="summary_large_image">',
+        HEAD_END,
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def apply_head(text: str, filename: str) -> str:
+    block = head_block(text, filename)
+    if HEAD_RE.search(text):
+        return HEAD_RE.sub(lambda _: block, text, count=1)
+    m = re.search(r"</head>", text, re.I)
+    if m:
+        return text[: m.start()] + block + text[m.start():]
+    m = re.search(r"<head[^>]*>", text, re.I)
+    pos = m.end() if m else 0
+    return text[:pos] + "\n" + block + text[pos:]
+
+
+def refresh_head(path: Path) -> bool:
+    text = path.read_text(encoding="utf-8")
+    new = apply_head(text, path.name)
+    if new != text:
+        path.write_text(new, encoding="utf-8")
+        return True
+    return False
+
+
 # ---------------------------------------------------------------- lint
 
 STYLE_RE = re.compile(r"(<style\b[^>]*>)(.*?)(</style>)", re.S | re.I)
@@ -146,7 +211,7 @@ def _fix_css(css: str) -> tuple[str, list[str]]:
     return css, notes
 
 
-def lint_text(text: str, backlink: bool) -> tuple[str, list[str], list[str]]:
+def lint_text(text: str, backlink: bool, filename: str = "") -> tuple[str, list[str], list[str]]:
     """returns (fixed_text, fixed_notes, problems_remaining)"""
     fixed: list[str] = []
     problems: list[str] = []
@@ -203,6 +268,12 @@ def lint_text(text: str, backlink: bool) -> tuple[str, list[str], list[str]]:
     elif BACKLINK_ID not in text and "index.html" not in text:
         problems.append("トップ（index.html）へのリンクがない（--backlink で追加）")
 
+    if filename:
+        new = apply_head(text, filename)
+        if new != text:
+            fixed.append("アイコン・OGP の head タグを追加／更新")
+            text = new
+
     return text, fixed, problems
 
 
@@ -211,7 +282,7 @@ def cmd_lint(args) -> int:
     for f in args.files:
         path = memo_path(f)
         text = path.read_text(encoding="utf-8")
-        new, fixed, problems = lint_text(text, args.backlink)
+        new, fixed, problems = lint_text(text, args.backlink, path.name)
         print(f"== {path.name}")
         if fixed:
             verb = "修正" if args.fix else "修正可能"
@@ -267,7 +338,7 @@ def cmd_meta(args) -> int:
         date = args.date or dt.date.today().isoformat()
         dt.date.fromisoformat(date)  # 形式チェック
         text = _set_meta(text, "memo:date", date)
-    path.write_text(text, encoding="utf-8")
+    path.write_text(apply_head(text, path.name), encoding="utf-8")
     print(json.dumps(read_meta(path), ensure_ascii=False, indent=2))
     return 0
 
@@ -280,6 +351,15 @@ def render_block(memos: list[dict]) -> str:
 
 
 def cmd_build(args) -> int:
+    stale = []
+    for p in memo_files():
+        text = p.read_text(encoding="utf-8")
+        if apply_head(text, p.name) != text:
+            stale.append(p.name)
+            if not args.check:
+                p.write_text(apply_head(text, p.name), encoding="utf-8")
+    if stale:
+        print(("head が古い: " if args.check else "head を更新: ") + ", ".join(stale))
     memos = sorted((read_meta(p) for p in memo_files()),
                    key=lambda m: (m["date"], m["file"]), reverse=True)
     src = INDEX.read_text(encoding="utf-8")
@@ -287,9 +367,9 @@ def cmd_build(args) -> int:
     if not pat.search(src):
         print(f"docs/index.html に {BEGIN} / {END} マーカーがありません", file=sys.stderr)
         return 2
-    new = pat.sub(lambda _: render_block(memos), src, count=1)
+    new = apply_head(pat.sub(lambda _: render_block(memos), src, count=1), "index.html")
     if args.check:
-        if new != src:
+        if new != src or stale:
             print("docs/index.html が古いです（python3 scripts/memo.py build を実行）")
             return 1
         print("docs/index.html は最新です")
