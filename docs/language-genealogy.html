@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>プログラミング言語の系譜</title>
-<meta name="description" content="OCaml→Rustのような言語間の親子・孫関係を、派生・影響・実装の3種類でたどれる系譜図。">
+<meta name="description" content="OCaml→Rust、JS→TypeScriptのような言語間の親子・孫関係を、派生・影響・実装の3種類でたどれる系譜図。">
 <meta name="memo:tags" content="プログラミング言語, OCaml, Rust">
 <meta name="memo:date" content="2026-11-01">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
@@ -114,12 +114,16 @@ code {
 
 /* 系譜図 */
 .figure {
+  width: min(1200px, calc(100vw - 32px));
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface);
 }
-#tree { display: block; width: 100%; min-width: 640px; height: auto; }
+#tree { display: block; width: 100%; min-width: 900px; height: auto; }
 #tree .lane-h { font: 700 11px 'Noto Sans JP', sans-serif; fill: var(--fg-2); text-anchor: middle; }
 #tree .tick { font: 500 10px 'JetBrains Mono', monospace; fill: var(--fg-2); }
 #tree .grid { stroke: var(--line); stroke-width: 1; }
@@ -143,7 +147,7 @@ code {
 #tree .node:focus { outline: none; }
 #tree .node:focus-visible rect.box { stroke: var(--accent); stroke-width: 3; }
 .scroll-hint { display: none; font-size: 0.78rem; color: var(--fg-2); margin-top: 6px; }
-@media (max-width: 680px) { .scroll-hint { display: block; } }
+@media (max-width: 940px) { .scroll-hint { display: block; } }
 
 /* 詳細パネル */
 #info { margin-top: 14px; }
@@ -216,7 +220,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="MEMO">
 <meta property="og:title" content="プログラミング言語の系譜">
-<meta property="og:description" content="OCaml→Rustのような言語間の親子・孫関係を、派生・影響・実装の3種類でたどれる系譜図。">
+<meta property="og:description" content="OCaml→Rust、JS→TypeScriptのような言語間の親子・孫関係を、派生・影響・実装の3種類でたどれる系譜図。">
 <meta property="og:url" content="https://memo.taka1156.site/language-genealogy.html">
 <meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
 <meta property="og:image:width" content="1200">
@@ -234,7 +238,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <ul>
       <li>言語の系譜は 1 本の木ではなく、複数の親を持つ<strong>網目状（DAG）</strong>。Rust の親は 10 言語近くある。</li>
       <li>関係には<strong>派生</strong>（方言・後継）、<strong>影響</strong>（アイデアの借用）、<strong>実装</strong>（その言語で処理系を書いた）の 3 種類がある。</li>
-      <li>Rust は「見た目は C 系、中身は ML 系」。OCaml は思想上の親であり、最初のコンパイラを書いた言語でもある。</li>
+      <li>Rust は「見た目は C 系、中身は ML 系」。OCaml は Rust の思想上の親であり、Rust・Flow・ReScript の処理系を書いた言語でもある。</li>
+      <li>alt JS は「JS の子（派生）」でも、親は別系統。TypeScript は C#、PureScript は Haskell、ReScript は OCaml の血を引く。</li>
     </ul>
   </div>
 
@@ -307,6 +312,44 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <p class="note">ほかに Swift（<code>if let</code>）、C#（属性）、Ruby（クロージャの書き方）なども、Rust リファレンスに影響元として挙がっている。</p>
   </div>
 
+  <h2>alt JS・JVM 系・Mojo の親</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="a-js">alt JS</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="a-jvm">JVM 系</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="a-mojo">Mojo</button>
+  </div>
+  <div class="panel card" id="a-js">
+    <div class="tbl-wrap"><table>
+      <tr><th>言語</th><th>JS 以外の親</th><th>処理系の実装言語</th></tr>
+      <tr><td class="lang">CoffeeScript</td><td>Python・Ruby（簡潔な構文）</td><td>CoffeeScript 自身</td></tr>
+      <tr><td class="lang">TypeScript</td><td>C#・Java（型とクラス）</td><td>TypeScript → <strong>Go</strong>（7.0 から）</td></tr>
+      <tr><td class="lang">Flow</td><td>—（JS に型注釈を足す）</td><td><strong>OCaml</strong></td></tr>
+      <tr><td class="lang">ReScript</td><td>OCaml → Reason</td><td><strong>OCaml</strong></td></tr>
+      <tr><td class="lang">PureScript</td><td>Haskell</td><td><strong>Haskell</strong></td></tr>
+      <tr><td class="lang">Elm</td><td>Haskell・OCaml</td><td>Haskell</td></tr>
+      <tr><td class="lang">Dart</td><td>Java・C#</td><td>—</td></tr>
+    </table></div>
+    <p class="note">alt JS = JavaScript に変換して動かす言語の総称。変換先が同じでも、親の系統はばらばら。</p>
+  </div>
+  <div class="panel card" id="a-jvm" hidden>
+    <div class="tbl-wrap"><table>
+      <tr><th>言語</th><th>受け継いだもの</th></tr>
+      <tr><td class="lang">Scala</td><td>Java（JVM・相互運用）＋ SML / OCaml（パターンマッチ・型推論）＋ Haskell（型クラス相当）＋ Erlang（アクター）</td></tr>
+      <tr><td class="lang">Kotlin</td><td>Java（JVM）＋ Scala（データクラス・型推論）＋ C#（拡張関数・プロパティ）</td></tr>
+    </table></div>
+    <p class="note">Scala は ML 系と JVM 系の合流点。Kotlin はその Scala を通じて ML 系の「孫」にあたる。</p>
+  </div>
+  <div class="panel card" id="a-mojo" hidden>
+    <div class="tbl-wrap"><table>
+      <tr><th>親</th><th>受け継いだもの</th><th>関係</th></tr>
+      <tr><td class="lang">Python</td><td>構文、Python コードとの互換を目指す方針</td><td><span class="tag">派生</span></td></tr>
+      <tr><td class="lang">Rust</td><td>所有権と借用</td><td><span class="tag">影響</span></td></tr>
+      <tr><td class="lang">Swift</td><td>値セマンティクス（設計者ラトナーが Swift の作者）</td><td><span class="tag">影響</span></td></tr>
+      <tr><td class="lang">C++</td><td>ゼロコストの抽象化</td><td><span class="tag">影響</span></td></tr>
+    </table></div>
+    <p class="note">Mojo から見ると OCaml は「祖父母」（OCaml → Rust → Mojo）。系譜図で Mojo を選ぶと確認できる。</p>
+  </div>
+
   <h2>よくある誤解</h2>
   <div class="card">
     <div class="myth">
@@ -316,6 +359,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="myth">
       <p class="q">OCaml で書かれていたから Rust は OCaml の子</p>
       <p class="a">「実装」と「設計上の影響」は別。たまたま両方が当てはまるのが OCaml → Rust で、Rust は 2011 年に Rust 自身で書き直された（セルフホスト）。</p>
+    </div>
+    <div class="myth">
+      <p class="q">TypeScript は JavaScript の子だから、JavaScript で書かれている</p>
+      <p class="a">言語としては JS の上位互換（派生）だが、コンパイラは長く TypeScript 自身で書かれ、TypeScript 7.0（2026 年）で Go 製に置き換わった。親（派生元）と実装言語は一致しなくてよい。</p>
     </div>
     <div class="myth">
       <p class="q">系譜は 1 本の家系図にまとまる</p>
@@ -328,55 +375,86 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
 <script>
 // ---- データ ----
-// lane: 0 Lisp系 / 1 ML系 / 2 純粋関数型 / 3 Rust と子孫 / 4 C系 / 5 並行・その他
-const LANES = ['Lisp 系', 'ML 系', '純粋関数型', 'Rust と子孫', 'C 系', '並行・その他'];
+// lane: 0 動的言語 / 1 ML系 / 2 純粋関数型 / 3 Rust と子孫 / 4 JVM系 / 5 C系 / 6 JavaScript系 / 7 alt JS / 8 並行・その他
+const LANES = ['動的言語', 'ML 系', '純粋関数型', 'Rust と子孫', 'JVM 系', 'C 系', 'JavaScript 系', 'alt JS', '並行・その他'];
 const NODES = [
   { id: 'lisp', name: 'LISP', year: 1958, lane: 0, desc: 'マッカーシーが考案。関数・再帰・ガベージコレクションを持ち込んだ最古級の高水準言語。' },
-  { id: 'scheme', name: 'Scheme', year: 1975, lane: 0, desc: 'LISP の方言。レキシカルスコープと衛生的マクロを持つ。' },
+  { id: 'scheme', name: 'Scheme', year: 1975, lane: 0, desc: 'LISP の方言。レキシカルスコープと衛生的マクロを持つ。JavaScript の関数の設計にも影響した。' },
+  { id: 'self', name: 'Self', year: 1987, lane: 0, desc: 'クラスを持たず、オブジェクトを複製して使うプロトタイプベースのオブジェクト指向言語。JavaScript のプロトタイプの源流。' },
+  { id: 'python', name: 'Python', year: 1991, lane: 0, desc: 'ファン・ロッサムによる、読みやすさを重視した動的言語。インデントでブロックを表す。' },
   { id: 'iswim', name: 'ISWIM', year: 1966, lane: 1, desc: 'ランディンが論文で示した仮想言語。let / where など ML 系の書き味の原型。' },
   { id: 'ml', name: 'ML', year: 1973, lane: 1, desc: 'ミルナーが定理証明系 LCF のメタ言語として作成。Hindley–Milner 型推論を実用化した。' },
   { id: 'sml', name: 'SML', full: 'Standard ML', year: 1983, lane: 1, desc: 'ML を標準化した方言。言語仕様を形式的な意味論で定義している。' },
   { id: 'caml', name: 'Caml', year: 1985, lane: 1, desc: 'フランス INRIA による ML の方言。' },
   { id: 'camllight', name: 'Caml Light', year: 1990, lane: 1, desc: 'Caml を軽量に作り直した処理系。' },
-  { id: 'ocaml', name: 'OCaml', year: 1996, lane: 1, desc: 'Caml Light にオブジェクトと強力なモジュール機能を加えた後継（旧名 Objective Caml）。実用 ML の代表。' },
+  { id: 'ocaml', name: 'OCaml', year: 1996, lane: 1, desc: 'Caml Light にオブジェクトと強力なモジュール機能を加えた後継（旧名 Objective Caml）。実用 ML の代表で、Rust・Flow・ReScript などの処理系の実装言語にもなった。' },
   { id: 'fsharp', name: 'F#', year: 2005, lane: 1, desc: 'OCaml をベースに .NET 向けに作られた言語。' },
   { id: 'reason', name: 'Reason', year: 2016, lane: 1, desc: 'Facebook（現 Meta）による、OCaml を JavaScript 風の構文で書けるようにしたもの。' },
   { id: 'miranda', name: 'Miranda', year: 1985, lane: 2, desc: 'ターナーによる遅延評価の純粋関数型言語。' },
   { id: 'haskell', name: 'Haskell', year: 1990, lane: 2, desc: 'Miranda などを源流に委員会で設計された純粋関数型言語。型クラスを導入。' },
-  { id: 'elm', name: 'Elm', year: 2012, lane: 2, desc: 'Web フロントエンド向けの純粋関数型言語。親切なエラーメッセージで知られる。' },
+  { id: 'elm', name: 'Elm', year: 2012, lane: 2, desc: 'JavaScript にコンパイルされる、Web フロントエンド向けの純粋関数型言語。親切なエラーメッセージで知られる。' },
   { id: 'rust', name: 'Rust', year: 2010, lane: 3, desc: 'Mozilla が 2010 年に公表（1.0 は 2015 年）。所有権と借用でメモリ安全性を GC なしで実現。初代コンパイラ rustboot は OCaml 製で、2011 年に Rust 自身で書き直された。' },
-  { id: 'swift', name: 'Swift', year: 2014, lane: 3, desc: 'Apple の言語。Rust、Haskell、C# などから影響を受けた。' },
+  { id: 'swift', name: 'Swift', year: 2014, lane: 3, desc: 'Apple の言語。Rust、Haskell、C#、Python などから影響を受けた。' },
   { id: 'gleam', name: 'Gleam', year: 2016, lane: 3, desc: 'Erlang の仮想マシン（BEAM）で動く静的型付け言語（1.0 は 2024 年）。コンパイラは Rust 製。' },
-  { id: 'algol', name: 'ALGOL 60', year: 1960, lane: 4, desc: 'ブロック構造と構文の形式的な記法（BNF）を広めた。C 系をはじめ多くの言語の祖。' },
-  { id: 'cpl', name: 'CPL', year: 1963, lane: 4, desc: 'ケンブリッジ大学などが ALGOL をもとに設計した言語。' },
-  { id: 'bcpl', name: 'BCPL', year: 1967, lane: 4, desc: 'CPL を簡略化したシステム記述言語。' },
-  { id: 'b', name: 'B', year: 1969, lane: 4, desc: 'ベル研究所のトンプソンが BCPL をもとに作成。' },
-  { id: 'c', name: 'C', year: 1972, lane: 4, desc: 'リッチーが B を発展させて作成。UNIX の記述に使われた。' },
-  { id: 'cpp', name: 'C++', year: 1985, lane: 4, desc: 'ストラウストラップが C に Simula のクラスを持ち込んだ言語。' },
-  { id: 'java', name: 'Java', year: 1995, lane: 4, desc: 'Sun Microsystems の言語。C++ 風の構文と GC 付きの VM。' },
-  { id: 'csharp', name: 'C#', year: 2000, lane: 4, desc: 'Microsoft の .NET 向け言語。Java と C++ の影響が強い。' },
-  { id: 'cyclone', name: 'Cyclone', year: 2002, lane: 4, desc: 'AT&T とコーネル大学による安全な C の方言。リージョンによるメモリ管理を研究した。' },
-  { id: 'simula', name: 'Simula 67', year: 1967, lane: 5, desc: 'クラスと継承を初めて導入した、オブジェクト指向の祖。' },
-  { id: 'prolog', name: 'Prolog', year: 1972, lane: 5, desc: '論理型プログラミング言語。' },
-  { id: 'csp', name: 'CSP', year: 1978, lane: 5, desc: 'ホーアによる並行計算の理論。チャネル通信の源流（言語というより記法）。' },
-  { id: 'erlang', name: 'Erlang', year: 1986, lane: 5, desc: 'エリクソンが電話交換機向けに開発。軽量プロセスとメッセージパッシング。' },
-  { id: 'newsqueak', name: 'Newsqueak', year: 1988, lane: 5, desc: 'パイクによる、チャネルを持つ並行言語。' },
-  { id: 'alef', name: 'Alef', year: 1992, lane: 5, desc: 'ベル研究所の Plan 9 向け並行言語。' },
-  { id: 'limbo', name: 'Limbo', year: 1995, lane: 5, desc: 'Inferno OS 向けの言語。チャネルと軽量スレッド。' },
-  { id: 'go', name: 'Go', year: 2009, lane: 5, desc: 'Google の言語。goroutine とチャネルで Newsqueak / Limbo の系譜を継ぐ。' }
+  { id: 'mojo', name: 'Mojo', year: 2023, lane: 3, desc: 'Swift と LLVM を作ったラトナーの Modular 社が開発。Python の書き味に Rust・Swift 流の所有権や型を足した、AI・高速計算向けの言語（1.0 は 2026 年 8 月）。' },
+  { id: 'java', name: 'Java', year: 1995, lane: 4, desc: 'Sun Microsystems の言語。C++ 風の構文と GC 付きの仮想マシン（JVM）。' },
+  { id: 'scala', name: 'Scala', year: 2004, lane: 4, desc: 'オーダスキーによる JVM 言語。オブジェクト指向に ML・Haskell 流の関数型を融合し、Erlang 流のアクターも取り入れた。' },
+  { id: 'kotlin', name: 'Kotlin', year: 2011, lane: 4, desc: 'JetBrains による JVM 言語。Java と相互運用しつつ、Scala や C# の便利な機能を簡潔に取り入れた。Android の推奨言語。' },
+  { id: 'algol', name: 'ALGOL 60', year: 1960, lane: 5, desc: 'ブロック構造と構文の形式的な記法（BNF）を広めた。C 系をはじめ多くの言語の祖。' },
+  { id: 'cpl', name: 'CPL', year: 1963, lane: 5, desc: 'ケンブリッジ大学などが ALGOL をもとに設計した言語。' },
+  { id: 'bcpl', name: 'BCPL', year: 1967, lane: 5, desc: 'CPL を簡略化したシステム記述言語。' },
+  { id: 'b', name: 'B', year: 1969, lane: 5, desc: 'ベル研究所のトンプソンが BCPL をもとに作成。' },
+  { id: 'c', name: 'C', year: 1972, lane: 5, desc: 'リッチーが B を発展させて作成。UNIX の記述に使われた。' },
+  { id: 'cpp', name: 'C++', year: 1985, lane: 5, desc: 'ストラウストラップが C に Simula のクラスを持ち込んだ言語。' },
+  { id: 'csharp', name: 'C#', year: 2000, lane: 5, desc: 'Microsoft の .NET 向け言語。Java と C++ の影響が強い。設計者ヘルスバーグは後に TypeScript も手がけた。' },
+  { id: 'cyclone', name: 'Cyclone', year: 2002, lane: 5, desc: 'AT&T とコーネル大学による安全な C の方言。リージョンによるメモリ管理を研究した。' },
+  { id: 'js', name: 'JavaScript', year: 1995, lane: 6, desc: 'Netscape のアイクが短期間で作成。構文は Java 風、関数は Scheme 風、オブジェクトは Self 風のプロトタイプ。' },
+  { id: 'ts', name: 'TypeScript', year: 2012, lane: 6, desc: 'Microsoft による JavaScript の上位互換＋静的型。コンパイラは長く TypeScript 製だったが、TypeScript 7.0（2026 年）で Go 製のネイティブ版になった。' },
+  { id: 'flow', name: 'Flow', year: 2014, lane: 6, desc: 'Facebook（現 Meta）による JavaScript 用の静的型チェッカー。型注釈の書き方は TypeScript と似るが、チェッカー本体は OCaml 製。' },
+  { id: 'rescript', name: 'ReScript', year: 2020, lane: 6, desc: 'BuckleScript（OCaml → JS コンパイラ）と Reason の流れをくむ、JavaScript 向けの型付き言語。コンパイラは OCaml 製。' },
+  { id: 'coffee', name: 'CoffeeScript', year: 2009, lane: 7, desc: 'Ruby・Python 風の簡潔な構文を JavaScript に変換する言語。アロー関数やクラス構文など、後の JS（ES2015）に影響した。' },
+  { id: 'dart', name: 'Dart', year: 2011, lane: 7, desc: 'Google の言語。当初は JavaScript の置き換えを狙い、現在は Flutter の言語。' },
+  { id: 'purescript', name: 'PureScript', year: 2013, lane: 7, desc: 'Haskell によく似た、JavaScript にコンパイルされる純粋関数型言語。コンパイラは Haskell 製。' },
+  { id: 'simula', name: 'Simula 67', year: 1967, lane: 8, desc: 'クラスと継承を初めて導入した、オブジェクト指向の祖。' },
+  { id: 'prolog', name: 'Prolog', year: 1972, lane: 8, desc: '論理型プログラミング言語。' },
+  { id: 'csp', name: 'CSP', year: 1978, lane: 8, desc: 'ホーアによる並行計算の理論。チャネル通信の源流（言語というより記法）。' },
+  { id: 'erlang', name: 'Erlang', year: 1986, lane: 8, desc: 'エリクソンが電話交換機向けに開発。軽量プロセスとメッセージパッシング。' },
+  { id: 'newsqueak', name: 'Newsqueak', year: 1988, lane: 8, desc: 'パイクによる、チャネルを持つ並行言語。' },
+  { id: 'alef', name: 'Alef', year: 1992, lane: 8, desc: 'ベル研究所の Plan 9 向け並行言語。' },
+  { id: 'limbo', name: 'Limbo', year: 1995, lane: 8, desc: 'Inferno OS 向けの言語。チャネルと軽量スレッド。' },
+  { id: 'go', name: 'Go', year: 2009, lane: 8, desc: 'Google の言語。goroutine とチャネルで Newsqueak / Limbo の系譜を継ぐ。TypeScript 7 のコンパイラの実装言語にもなった。' }
 ];
 // t: d=派生, i=影響, m=実装（その言語で処理系を書いた）
 const EDGES = [
   ['lisp', 'iswim', 'i'], ['algol', 'iswim', 'i'],
   ['lisp', 'scheme', 'd'], ['algol', 'scheme', 'i'],
+  ['simula', 'self', 'i'],
+  ['c', 'python', 'i'], ['haskell', 'python', 'i', 'リスト内包表記'],
   ['iswim', 'ml', 'd'], ['ml', 'sml', 'd'], ['ml', 'caml', 'd'],
   ['caml', 'camllight', 'd'], ['camllight', 'ocaml', 'd'],
-  ['ocaml', 'fsharp', 'd'], ['csharp', 'fsharp', 'i'], ['ocaml', 'reason', 'd'],
+  ['ocaml', 'fsharp', 'd'], ['csharp', 'fsharp', 'i'],
+  ['ocaml', 'reason', 'd', 'OCaml そのもの（構文だけ JS 風に）'], ['js', 'reason', 'i', 'JS 風の構文'],
   ['ml', 'miranda', 'i'], ['miranda', 'haskell', 'd'], ['sml', 'haskell', 'i'],
   ['haskell', 'elm', 'i'], ['ocaml', 'elm', 'i'],
   ['algol', 'cpl', 'd'], ['cpl', 'bcpl', 'd'], ['bcpl', 'b', 'd'], ['b', 'c', 'd'],
   ['algol', 'simula', 'd'], ['c', 'cpp', 'd'], ['simula', 'cpp', 'i'],
   ['cpp', 'java', 'i'], ['java', 'csharp', 'i'], ['cpp', 'csharp', 'i'], ['c', 'cyclone', 'd'],
+  ['java', 'scala', 'i', 'JVM 上で動き Java と相互運用'], ['sml', 'scala', 'i', 'パターンマッチ・型推論'],
+  ['ocaml', 'scala', 'i', 'モジュール的な型の扱い'], ['haskell', 'scala', 'i', '型クラス相当（implicit / given）'],
+  ['erlang', 'scala', 'i', 'アクターモデル'],
+  ['java', 'kotlin', 'i', 'JVM・Java との相互運用'], ['scala', 'kotlin', 'i', 'データクラス・型推論などを簡潔に'],
+  ['csharp', 'kotlin', 'i', '拡張関数・プロパティ'],
+  ['scheme', 'js', 'i', '第一級関数・クロージャ'], ['self', 'js', 'i', 'プロトタイプベースのオブジェクト'],
+  ['java', 'js', 'i', '構文と名前'],
+  ['js', 'coffee', 'd', 'JS に変換される（意味は JS そのもの）'], ['python', 'coffee', 'i', 'インデント・内包表記'],
+  ['js', 'ts', 'd', 'JS の上位互換'], ['csharp', 'ts', 'i', '型の書き方・設計者が同じ'], ['java', 'ts', 'i', 'クラス・インターフェース'],
+  ['go', 'ts', 'm', 'TypeScript 7.0 のネイティブコンパイラ'],
+  ['js', 'flow', 'd', 'JS に型注釈を足す'], ['ocaml', 'flow', 'm', '型チェッカー本体の実装言語'],
+  ['reason', 'rescript', 'd', 'Reason / BuckleScript の後継'], ['ocaml', 'rescript', 'm', 'コンパイラの実装言語'],
+  ['js', 'rescript', 'i', 'JS への出力と JS 風の構文'],
+  ['java', 'dart', 'i'], ['js', 'dart', 'i'], ['csharp', 'dart', 'i'],
+  ['haskell', 'purescript', 'i', 'ほぼ Haskell の構文と型システム'], ['haskell', 'purescript', 'm', 'コンパイラの実装言語'],
+  ['js', 'purescript', 'i', 'JS へコンパイル'],
   ['prolog', 'erlang', 'i'], ['prolog', 'erlang', 'm'], ['csp', 'erlang', 'i'],
   ['csp', 'newsqueak', 'i'], ['c', 'newsqueak', 'i'], ['newsqueak', 'alef', 'd'],
   ['alef', 'limbo', 'd'], ['limbo', 'go', 'i'], ['newsqueak', 'go', 'i'], ['c', 'go', 'i'],
@@ -389,17 +467,19 @@ const EDGES = [
   ['erlang', 'rust', 'i', 'メッセージパッシング・失敗の隔離'],
   ['newsqueak', 'rust', 'i', 'チャネル'], ['limbo', 'rust', 'i', 'チャネル'],
   ['scheme', 'rust', 'i', '衛生的マクロ'],
-  ['rust', 'swift', 'i'], ['haskell', 'swift', 'i'], ['csharp', 'swift', 'i'],
+  ['rust', 'swift', 'i'], ['haskell', 'swift', 'i'], ['csharp', 'swift', 'i'], ['python', 'swift', 'i'],
   ['rust', 'gleam', 'i'], ['rust', 'gleam', 'm', 'コンパイラの実装言語'],
-  ['erlang', 'gleam', 'i'], ['elm', 'gleam', 'i'], ['ocaml', 'gleam', 'i']
+  ['erlang', 'gleam', 'i'], ['elm', 'gleam', 'i'], ['ocaml', 'gleam', 'i'],
+  ['python', 'mojo', 'd', 'Python の構文・Python との互換を目指す'], ['rust', 'mojo', 'i', '所有権と借用'],
+  ['swift', 'mojo', 'i', '値セマンティクス・設計者が同じ'], ['cpp', 'mojo', 'i', 'ゼロコストの抽象化']
 ].map(([from, to, t, note]) => ({ from, to, t, note }));
 
 const TYPE_NAME = { d: '派生', i: '影響', m: '実装' };
 const byId = Object.fromEntries(NODES.map(n => [n.id, n]));
 
 // ---- レイアウト ----
-const AXIS = 50, LANE_W = 128, NODE_W = 118, NODE_H = 24;
-const Y0 = 1955, Y1 = 2020, PX_YR = 15, TOP = 56;
+const AXIS = 50, LANE_W = 126, NODE_W = 116, NODE_H = 24;
+const Y0 = 1955, Y1 = 2026, PX_YR = 15, TOP = 56;
 const W = AXIS + LANE_W * LANES.length + 10;
 const H = TOP + (Y1 - Y0) * PX_YR + 20;
 const nx = n => AXIS + LANE_W / 2 + n.lane * LANE_W;
