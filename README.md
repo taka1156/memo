@@ -45,4 +45,4 @@ python3 scripts/memo.py build                          # 一覧を再生成
 python3 scripts/memo.py list                           # 一覧を表示
 ```
 
-`lint` が直すもの: CSS 内の全角クォート、`* {` の化け、DOCTYPE / charset / viewport の欠落、トップへ戻るリンクの追加、アイコン・OGP タグの追加／更新。
+`lint` が直すもの: CSS 内の全角クォート、`* {` の化け、DOCTYPE / charset / viewport の欠落、フッターへの「一覧に戻る」リンクの追加、アイコン・OGP タグの追加／更新。

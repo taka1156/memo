@@ -71,12 +71,14 @@ NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 BEGIN = "// MEMOS:BEGIN"
 END = "// MEMOS:END"
 BACKLINK_ID = "memo-backlink"
+# ページ下部のフッターに置く「一覧に戻る」リンク。どのページの CSS にも依存しないよう、
+# スタイルはすべてインラインで完結させる（独自の CSS 変数を参照しない）。
 BACKLINK = (
-    f'<a id="{BACKLINK_ID}" href="index.html" '
-    'style="position:fixed;right:12px;bottom:12px;z-index:2147483647;'
-    "padding:6px 12px;border-radius:999px;background:rgba(20,26,36,.85);color:#fff;"
-    "font:600 12px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.08em;"
-    'text-decoration:none;box-shadow:0 2px 8px rgba(0,0,0,.3)">&larr; MEMO</a>'
+    f'<footer id="{BACKLINK_ID}" '
+    'style="max-width:880px;margin:40px auto 0;padding:16px;text-align:center">'
+    '<a href="index.html" style="display:inline-block;padding:6px 14px;border-radius:999px;'
+    "background:rgba(127,127,127,.15);color:inherit;font:600 12px/1.4 ui-monospace,Menlo,monospace;"
+    'letter-spacing:.08em;text-decoration:none;opacity:.85">&larr; 一覧に戻る</a></footer>'
 )
 
 CURLY = "‘’“”"
@@ -289,9 +291,9 @@ def lint_text(text: str, backlink: bool, filename: str = "") -> tuple[str, list[
             text = text[:i] + BACKLINK + "\n" + text[i:]
         else:
             text = text.rstrip() + "\n" + BACKLINK + "\n"
-        fixed.append("トップへ戻るリンクを追加")
+        fixed.append("フッターに「一覧に戻る」リンクを追加")
     elif BACKLINK_ID not in text and "index.html" not in text:
-        problems.append("トップ（index.html）へのリンクがない（--backlink で追加）")
+        problems.append("一覧（index.html）へのリンクがない（--backlink で追加）")
 
     if filename:
         new = apply_head(text, filename)
@@ -479,7 +481,7 @@ def main() -> int:
     p = sub.add_parser("lint", help="崩れチェック（--fix で修正）")
     p.add_argument("files", nargs="+")
     p.add_argument("--fix", action="store_true")
-    p.add_argument("--backlink", action="store_true", help="トップへ戻るリンクを追加")
+    p.add_argument("--backlink", action="store_true", help="フッターに「一覧に戻る」リンクを追加")
     p.set_defaults(func=cmd_lint)
 
     p = sub.add_parser("meta", help="タイトル・説明・タグ・日付を設定")

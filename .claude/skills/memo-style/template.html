@@ -92,13 +92,23 @@ pre {
 .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .panel[hidden] { display: none; }
 
-#memo-backlink {
-  position: fixed; right: 12px; bottom: 12px; z-index: 10;
-  padding: 6px 12px; border-radius: 999px;
-  background: var(--fg); color: var(--bg);
-  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
-  letter-spacing: .08em; text-decoration: none;
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
 }
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -122,9 +132,9 @@ pre {
   </div>
   <div class="panel card" id="p1">ここに図解や説明。</div>
   <div class="panel card" id="p2" hidden>ここに詳細。</div>
-</div>
 
-<a id="memo-backlink" href="index.html">&larr; MEMO</a>
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
 
 <script>
 document.querySelectorAll('.tabs').forEach(group => {

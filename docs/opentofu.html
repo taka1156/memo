@@ -160,13 +160,23 @@ td.files code { display: inline-block; margin: 0 4px 4px 0; }
 .prec div:first-child { border-color: var(--accent); }
 .prec span.n { color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.7rem; white-space: nowrap; }
 
-#memo-backlink {
-  position: fixed; right: 12px; bottom: 12px; z-index: 10;
-  padding: 6px 12px; border-radius: 999px;
-  background: var(--fg); color: var(--bg);
-  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
-  letter-spacing: .08em; text-decoration: none;
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
 }
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
 </style>
 <!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="icon" href="assets/favicon.ico" sizes="any">
@@ -469,9 +479,9 @@ env = "staging"</pre>
     <div><span><code>.terraform.lock.hcl</code> は Git にコミットする？</span><span class="n">する</span></div>
   </div>
   <p class="lead" style="margin-top:14px">OpenTofu は Terraform からオープンソースの運営団体（Linux Foundation 配下）としてフォークされたプロジェクトで、HCL 構文・State 形式・Provider エコシステムに高い互換性がある。コマンド名が <code>terraform</code> から <code>tofu</code> に変わる点が主な違い。State を直接編集したい場合は <code>tofu state</code> コマンド群（<code>mv</code> / <code>rm</code> / <code>import</code> など）を使う。</p>
-</div>
 
-<a id="memo-backlink" href="index.html">&larr; MEMO</a>
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
 
 <script>
 document.querySelectorAll('.tabs').forEach(group => {

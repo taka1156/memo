@@ -51,7 +51,7 @@ python3 scripts/memo.py lint NAME --fix --backlink
 - `<style>` 内の全角クォート `‘ ’ “ ”`（コピペで化けて font-family 等が効かなくなる）
 - `* {` が `- {` / `\*` に化けたもの（Markdown 経由のコピペで起きる）
 - `<!DOCTYPE html>` / charset / viewport の欠落
-- 右下に「← MEMO」のトップへ戻るリンクを追加（`--backlink`）
+- ページ下部フッターに「← 一覧に戻る」リンクを追加（`--backlink`）
 - ファビコン・iOS アイコン・OGP の `<head>` タグ（`<!-- memo:head -->` ブロック）を追加／更新。og:title / og:description は title / description から自動で作られる
 
 報告だけのもの（`[要対応]`）:
