@@ -281,74 +281,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </div>
   </div>
 
-  <h2>Rust が親から受け継いだもの</h2>
-  <div class="tabs" role="tablist">
-    <button class="tab" role="tab" aria-selected="true" data-panel="t-type">型・データ（ML 系）</button>
-    <button class="tab" role="tab" aria-selected="false" data-panel="t-mem">メモリ（C 系）</button>
-    <button class="tab" role="tab" aria-selected="false" data-panel="t-conc">並行・その他</button>
-  </div>
-  <div class="panel card" id="t-type">
-    <div class="tbl-wrap"><table>
-      <tr><th>親</th><th>受け継いだもの</th><th>関係</th></tr>
-      <tr><td class="lang">OCaml</td><td>代数的データ型（<code>enum</code>）、パターンマッチ（<code>match</code>）、型推論、式指向の文法、<code>let</code> 束縛</td><td><span class="tag">影響</span> <span class="tag m">実装</span></td></tr>
-      <tr><td class="lang">SML</td><td>OCaml と同じく ML 系の型システムとパターンマッチ</td><td><span class="tag">影響</span></td></tr>
-      <tr><td class="lang">Haskell</td><td>型クラス → トレイト（<code>trait</code>）、関連型</td><td><span class="tag">影響</span></td></tr>
-    </table></div>
-  </div>
-  <div class="panel card" id="t-mem" hidden>
-    <div class="tbl-wrap"><table>
-      <tr><th>親</th><th>受け継いだもの</th><th>関係</th></tr>
-      <tr><td class="lang">C++</td><td>RAII（スコープを抜けたら解放）、参照、スマートポインタ、ムーブ、ジェネリクスの単相化（ゼロコスト抽象）、波括弧の構文</td><td><span class="tag">影響</span></td></tr>
-      <tr><td class="lang">Cyclone</td><td>リージョンによる安全なメモリ管理 → ライフタイム（<code>'a</code>）</td><td><span class="tag">影響</span></td></tr>
-    </table></div>
-  </div>
-  <div class="panel card" id="t-conc" hidden>
-    <div class="tbl-wrap"><table>
-      <tr><th>親</th><th>受け継いだもの</th><th>関係</th></tr>
-      <tr><td class="lang">Erlang</td><td>メッセージパッシング、スレッドの失敗を隔離する考え方</td><td><span class="tag">影響</span></td></tr>
-      <tr><td class="lang">Newsqueak / Limbo</td><td>チャネルによる並行処理</td><td><span class="tag">影響</span></td></tr>
-      <tr><td class="lang">Scheme</td><td>衛生的マクロ（<code>macro_rules!</code>）</td><td><span class="tag">影響</span></td></tr>
-    </table></div>
-    <p class="note">ほかに Swift（<code>if let</code>）、C#（属性）、Ruby（クロージャの書き方）なども、Rust リファレンスに影響元として挙がっている。</p>
-  </div>
-
-  <h2>alt JS・JVM 系・Mojo の親</h2>
-  <div class="tabs" role="tablist">
-    <button class="tab" role="tab" aria-selected="true" data-panel="a-js">alt JS</button>
-    <button class="tab" role="tab" aria-selected="false" data-panel="a-jvm">JVM 系</button>
-    <button class="tab" role="tab" aria-selected="false" data-panel="a-mojo">Mojo</button>
-  </div>
-  <div class="panel card" id="a-js">
-    <div class="tbl-wrap"><table>
-      <tr><th>言語</th><th>JS 以外の親</th><th>処理系の実装言語</th></tr>
-      <tr><td class="lang">CoffeeScript</td><td>Python・Ruby（簡潔な構文）</td><td>CoffeeScript 自身</td></tr>
-      <tr><td class="lang">TypeScript</td><td>C#・Java（型とクラス）</td><td>TypeScript → <strong>Go</strong>（7.0 から）</td></tr>
-      <tr><td class="lang">Flow</td><td>—（JS に型注釈を足す）</td><td><strong>OCaml</strong></td></tr>
-      <tr><td class="lang">ReScript</td><td>OCaml → Reason</td><td><strong>OCaml</strong></td></tr>
-      <tr><td class="lang">PureScript</td><td>Haskell</td><td><strong>Haskell</strong></td></tr>
-      <tr><td class="lang">Elm</td><td>Haskell・OCaml</td><td>Haskell</td></tr>
-      <tr><td class="lang">Dart</td><td>Java・C#</td><td>—</td></tr>
-    </table></div>
-    <p class="note">alt JS = JavaScript に変換して動かす言語の総称。変換先が同じでも、親の系統はばらばら。</p>
-  </div>
-  <div class="panel card" id="a-jvm" hidden>
-    <div class="tbl-wrap"><table>
-      <tr><th>言語</th><th>受け継いだもの</th></tr>
-      <tr><td class="lang">Scala</td><td>Java（JVM・相互運用）＋ SML / OCaml（パターンマッチ・型推論）＋ Haskell（型クラス相当）＋ Erlang（アクター）</td></tr>
-      <tr><td class="lang">Kotlin</td><td>Java（JVM）＋ Scala（データクラス・型推論）＋ C#（拡張関数・プロパティ）</td></tr>
-    </table></div>
-    <p class="note">Scala は ML 系と JVM 系の合流点。Kotlin はその Scala を通じて ML 系の「孫」にあたる。</p>
-  </div>
-  <div class="panel card" id="a-mojo" hidden>
-    <div class="tbl-wrap"><table>
-      <tr><th>親</th><th>受け継いだもの</th><th>関係</th></tr>
-      <tr><td class="lang">Python</td><td>構文、Python コードとの互換を目指す方針</td><td><span class="tag">派生</span></td></tr>
-      <tr><td class="lang">Rust</td><td>所有権と借用</td><td><span class="tag">影響</span></td></tr>
-      <tr><td class="lang">Swift</td><td>値セマンティクス（設計者ラトナーが Swift の作者）</td><td><span class="tag">影響</span></td></tr>
-      <tr><td class="lang">C++</td><td>ゼロコストの抽象化</td><td><span class="tag">影響</span></td></tr>
-    </table></div>
-    <p class="note">Mojo から見ると OCaml は「祖父母」（OCaml → Rust → Mojo）。系譜図で Mojo を選ぶと確認できる。</p>
-  </div>
+  <h2>主な言語が親から受け継いだもの</h2>
+  <p class="note">系譜図の線に付けた注記から自動で作った表。系譜図で言語を選んだときの「親から受け継いだもの」と同じ内容になる。</p>
+  <div class="tabs" role="tablist" id="heritage-tabs"></div>
+  <div id="heritage-panels"></div>
 
   <h2>よくある誤解</h2>
   <div class="card">
@@ -393,7 +329,7 @@ const NODES = [
   { id: 'miranda', name: 'Miranda', year: 1985, lane: 2, desc: 'ターナーによる遅延評価の純粋関数型言語。' },
   { id: 'haskell', name: 'Haskell', year: 1990, lane: 2, desc: 'Miranda などを源流に委員会で設計された純粋関数型言語。型クラスを導入。' },
   { id: 'elm', name: 'Elm', year: 2012, lane: 2, desc: 'JavaScript にコンパイルされる、Web フロントエンド向けの純粋関数型言語。親切なエラーメッセージで知られる。' },
-  { id: 'rust', name: 'Rust', year: 2010, lane: 3, desc: 'Mozilla が 2010 年に公表（1.0 は 2015 年）。所有権と借用でメモリ安全性を GC なしで実現。初代コンパイラ rustboot は OCaml 製で、2011 年に Rust 自身で書き直された。' },
+  { id: 'rust', name: 'Rust', year: 2010, lane: 3, desc: 'Mozilla が 2010 年に公表（1.0 は 2015 年）。所有権と借用でメモリ安全性を GC なしで実現。初代コンパイラ rustboot は OCaml 製で、2011 年に Rust 自身で書き直された。', extra: 'ほかに Swift（if let）、C#（属性）、Ruby（クロージャの書き方）なども、Rust リファレンスに影響元として挙がっている。' },
   { id: 'swift', name: 'Swift', year: 2014, lane: 3, desc: 'Apple の言語。Rust、Haskell、C#、Python などから影響を受けた。' },
   { id: 'gleam', name: 'Gleam', year: 2016, lane: 3, desc: 'Erlang の仮想マシン（BEAM）で動く静的型付け言語（1.0 は 2024 年）。コンパイラは Rust 製。' },
   { id: 'mojo', name: 'Mojo', year: 2023, lane: 3, desc: 'Swift と LLVM を作ったラトナーの Modular 社が開発。Python の書き味に Rust・Swift 流の所有権や型を足した、AI・高速計算向けの言語（1.0 は 2026 年 8 月）。' },
@@ -635,6 +571,42 @@ document.querySelectorAll('.controls input[type=checkbox]').forEach(cb => {
 });
 
 select('rust');
+
+// 「親から受け継いだもの」の表（EDGES の注記から生成）
+const FEATURED = ['rust', 'mojo', 'scala', 'kotlin', 'ts', 'flow', 'rescript', 'purescript', 'coffee'];
+const TYPE_ORDER = { d: 0, i: 1, m: 2 };
+(function buildHeritage() {
+  const tabs = document.getElementById('heritage-tabs');
+  const panels = document.getElementById('heritage-panels');
+  FEATURED.forEach((id, idx) => {
+    const n = byId[id];
+    const rows = new Map();
+    EDGES.filter(e => e.to === id).forEach(e => {
+      const r = rows.get(e.from) || { types: [], notes: [] };
+      if (!r.types.includes(e.t)) r.types.push(e.t);
+      if (e.note) r.notes.push(e.note);
+      rows.set(e.from, r);
+    });
+    const sorted = [...rows.entries()].sort((a, b) =>
+      Math.min(...a[1].types.map(t => TYPE_ORDER[t])) - Math.min(...b[1].types.map(t => TYPE_ORDER[t])) ||
+      byId[a[0]].year - byId[b[0]].year);
+    const body = sorted.map(([pid, r]) => {
+      const tags = r.types.sort((x, y) => TYPE_ORDER[x] - TYPE_ORDER[y])
+        .map(t => `<span class="tag ${t}">${TYPE_NAME[t]}</span>`).join(' ');
+      return `<tr><td class="lang">${byId[pid].name}</td><td>${r.notes.join('／') || '—'}</td><td>${tags}</td></tr>`;
+    }).join('');
+    const btn = document.createElement('button');
+    btn.className = 'tab'; btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', String(idx === 0));
+    btn.dataset.panel = 'h-' + id; btn.textContent = n.name;
+    tabs.appendChild(btn);
+    const panel = document.createElement('div');
+    panel.className = 'panel card'; panel.id = 'h-' + id; panel.hidden = idx !== 0;
+    panel.innerHTML = `<div class="tbl-wrap"><table><tr><th>親</th><th>受け継いだもの</th><th>関係</th></tr>${body}</table></div>`
+      + (n.extra ? `<p class="note">${n.extra}</p>` : '');
+    panels.appendChild(panel);
+  });
+})();
 
 // タブ
 document.querySelectorAll('.tabs').forEach(group => {
