@@ -57,6 +57,20 @@ h1 {
   font-size: 0.9rem;
 }
 #q:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.refresh-btn {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 8px;
+  padding: 0 14px;
+  font: 600 0.8rem 'JetBrains Mono', monospace;
+  cursor: pointer;
+}
+.refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+.refresh-btn svg { transition: transform .5s ease; }
+.refresh-btn.spinning svg { animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag {
   border: 1px solid var(--line);
@@ -123,6 +137,10 @@ footer a { color: var(--accent); }
 
   <div class="controls">
     <input id="q" type="search" placeholder="検索…" aria-label="メモを検索">
+    <button id="refresh" class="refresh-btn" type="button" title="最新の一覧に更新" aria-label="最新の一覧に更新">
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M13.65 2.35A6.97 6.97 0 0 0 8 0a7 7 0 1 0 6.93 8h-1.52A5.5 5.5 0 1 1 8 1.5c1.52 0 2.87.68 3.78 1.75L9.5 5.5H15V0l-1.35 2.35Z" fill="currentColor"/></svg>
+      更新
+    </button>
     <div class="tags" id="tags"></div>
   </div>
 
@@ -226,6 +244,16 @@ function render() {
 
 q.addEventListener('input', render);
 render();
+
+document.getElementById('refresh').addEventListener('click', e => {
+  const btn = e.currentTarget;
+  btn.classList.add('spinning');
+  btn.disabled = true;
+  // GitHub Pages の CDN キャッシュを避け、最新の一覧を取りに行く
+  const url = new URL(location.href);
+  url.searchParams.set('_', Date.now());
+  location.replace(url.pathname + url.search);
+});
 </script>
 </body>
 </html>
