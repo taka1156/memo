@@ -104,4 +104,4 @@ push 後に GitHub Actions も一覧を再生成するが、ローカルで buil
 ユーザーには短く伝える:
 - 追加した名前・タイトル・タグ
 - lint で直した点（あれば 1 行で）
-- GitHub Pages の URL: `https://taka1156.github.io/memo/NAME.html`
+- 公開 URL: `python3 scripts/memo.py url NAME` の出力（独自ドメインは `docs/CNAME` から決まる。URL を手で組み立てない）

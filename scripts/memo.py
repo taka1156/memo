@@ -5,6 +5,7 @@
   python3 scripts/memo.py new   NAME                  テンプレートから docs/NAME.html を作る
   python3 scripts/memo.py add   SRC NAME [--force]    外部の HTML を docs/NAME.html として取り込む
   python3 scripts/memo.py path  NAME                  docs/NAME.html の絶対パスを表示
+  python3 scripts/memo.py url   [NAME]                公開 URL を表示（docs/CNAME の独自ドメイン）
   python3 scripts/memo.py lint  MEMO... [--fix] [--backlink]
   python3 scripts/memo.py meta  MEMO [--title T] [--desc D] [--tags a,b] [--date YYYY-MM-DD]
   python3 scripts/memo.py build [--check]
@@ -36,7 +37,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"  # GitHub Pages の公開元
 INDEX = DOCS / "index.html"
-SITE_URL = "https://taka1156.github.io/memo/"  # og:url / og:image の絶対 URL に使う
+FALLBACK_URL = "https://taka1156.github.io/memo/"
+
+
+def site_url() -> str:
+    """公開 URL（末尾 /）。docs/CNAME があればその独自ドメインを使う。"""
+    cname = DOCS / "CNAME"
+    if cname.is_file():
+        domain = cname.read_text(encoding="utf-8").strip().splitlines()[0].strip()
+        if domain:
+            return f"https://{domain}/"
+    return FALLBACK_URL
+
+
+SITE_URL = site_url()  # og:url / og:image の絶対 URL に使う
 SITE_NAME = "MEMO"
 HEAD_BEGIN = "<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->"
 HEAD_END = "<!-- /memo:head -->"
@@ -414,6 +428,12 @@ def cmd_path(args) -> int:
     return 0
 
 
+def cmd_url(args) -> int:
+    name = memo_path(args.name, must_exist=False).name if args.name else ""
+    print(SITE_URL + ("" if name in ("", "index.html") else name))
+    return 0
+
+
 def cmd_list(_args) -> int:
     for p in memo_files():
         m = read_meta(p)
@@ -440,6 +460,10 @@ def main() -> int:
     p = sub.add_parser("path", help="メモの絶対パスを表示")
     p.add_argument("name")
     p.set_defaults(func=cmd_path)
+
+    p = sub.add_parser("url", help="公開 URL を表示（docs/CNAME から決まる）")
+    p.add_argument("name", nargs="?")
+    p.set_defaults(func=cmd_url)
 
     p = sub.add_parser("lint", help="崩れチェック（--fix で修正）")
     p.add_argument("files", nargs="+")
