@@ -31,7 +31,7 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 
 - `docs/index.html` の `// MEMOS:BEGIN`〜`// MEMOS:END` は自動生成です。手で編集しません
 - 全ページの `<!-- memo:head -->` ブロック（ファビコン・iOS アイコン・OGP）も自動生成です。og:title / og:description は各ページの title / description から作られます
-- 画像は `docs/assets/`（`favicon.ico`, `icon-32.png`, `icon-192.png`, `apple-touch-icon.png`, `og.png`）。元画像は `branding/source.png`（非公開）
+- 画像は `docs/assets/`（`favicon.ico`, `icon-32.png`, `icon-192.png`, `apple-touch-icon.png`, `og.png`）。生成元は `branding/`（`og.html`・`icon.html` を `python3 branding/render.py` で書き出し。非公開）
 - master に `docs/*.html` が push されると、GitHub Actions が一覧を再生成します（GitHub の画面から HTML を直接アップロードしても載ります）
 
 ## 手でやる場合
