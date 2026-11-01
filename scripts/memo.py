@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 """MEMO リポジトリ用ツール（標準ライブラリのみ）
 
-使い方:
-  python3 scripts/memo.py lint  FILE... [--fix] [--backlink]
-  python3 scripts/memo.py meta  FILE [--title T] [--desc D] [--tags a,b] [--date YYYY-MM-DD]
+使い方（どのディレクトリから実行してもよい）:
+  python3 scripts/memo.py new   NAME                  テンプレートから docs/NAME.html を作る
+  python3 scripts/memo.py add   SRC NAME [--force]    外部の HTML を docs/NAME.html として取り込む
+  python3 scripts/memo.py path  NAME                  docs/NAME.html の絶対パスを表示
+  python3 scripts/memo.py lint  MEMO... [--fix] [--backlink]
+  python3 scripts/memo.py meta  MEMO [--title T] [--desc D] [--tags a,b] [--date YYYY-MM-DD]
   python3 scripts/memo.py build [--check]
   python3 scripts/memo.py list
 
-メモ = リポジトリ直下の *.html（index.html 以外）。
+MEMO / NAME は「docker」「docker.html」「docs/docker.html」のどれでもよい
+（既存のファイルパスを渡した場合はそのファイルを対象にする）。
+置き場所（docs/）やテンプレートの場所はこのスクリプトだけが知っている。
+
+メモ = docs/ 直下の *.html（index.html 以外）。docs/ が GitHub Pages で公開される。
 一覧情報は各メモの <head> 内の次のタグから読み取る:
   <title>                         タイトル（memo:title があればそちら優先）
   <meta name="description">       説明
@@ -27,7 +34,10 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-INDEX = ROOT / "index.html"
+DOCS = ROOT / "docs"  # GitHub Pages の公開元
+INDEX = DOCS / "index.html"
+TEMPLATE = ROOT / ".claude" / "skills" / "memo-style" / "template.html"
+NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 BEGIN = "// MEMOS:BEGIN"
 END = "// MEMOS:END"
 BACKLINK_ID = "memo-backlink"
@@ -84,7 +94,8 @@ def read_meta(path: Path) -> dict:
 def git_added_date(path: Path) -> str:
     try:
         out = subprocess.run(
-            ["git", "log", "--diff-filter=A", "--follow", "--format=%cs", "--", path.name],
+            ["git", "log", "--diff-filter=A", "--follow", "--format=%cs", "--",
+             str(path.resolve().relative_to(ROOT))],
             cwd=ROOT, capture_output=True, text=True, check=True,
         ).stdout.split()
         return out[-1] if out else ""
@@ -92,8 +103,24 @@ def git_added_date(path: Path) -> str:
         return ""
 
 
+def memo_path(arg: str, must_exist: bool = True) -> Path:
+    """名前やパスを docs/ 内のメモのパスに解決する。"""
+    p = Path(arg)
+    if p.is_file():
+        return p.resolve()
+    name = p.name[:-5] if p.name.endswith(".html") else p.name
+    if not NAME_RE.match(name):
+        sys.exit(f"ファイル名は英小文字・数字・ハイフンのみ: {name!r}")
+    if name == "index":
+        sys.exit("index.html はトップページです。メモ名に使えません")
+    target = DOCS / f"{name}.html"
+    if must_exist and not target.is_file():
+        sys.exit(f"見つかりません: {target.relative_to(ROOT)}")
+    return target
+
+
 def memo_files() -> list[Path]:
-    return sorted(p for p in ROOT.glob("*.html") if p.name != "index.html")
+    return sorted(p for p in DOCS.glob("*.html") if p.name != "index.html")
 
 
 # ---------------------------------------------------------------- lint
@@ -182,7 +209,7 @@ def lint_text(text: str, backlink: bool) -> tuple[str, list[str], list[str]]:
 def cmd_lint(args) -> int:
     bad = 0
     for f in args.files:
-        path = Path(f)
+        path = memo_path(f)
         text = path.read_text(encoding="utf-8")
         new, fixed, problems = lint_text(text, args.backlink)
         print(f"== {path.name}")
@@ -220,7 +247,7 @@ def _set_meta(text: str, name: str, value: str) -> str:
 
 
 def cmd_meta(args) -> int:
-    path = Path(args.file)
+    path = memo_path(args.file)
     text = path.read_text(encoding="utf-8")
     if args.title is not None:
         t = html.escape(args.title, quote=False)
@@ -258,20 +285,52 @@ def cmd_build(args) -> int:
     src = INDEX.read_text(encoding="utf-8")
     pat = re.compile(re.escape(BEGIN) + r".*?" + re.escape(END), re.S)
     if not pat.search(src):
-        print(f"index.html に {BEGIN} / {END} マーカーがありません", file=sys.stderr)
+        print(f"docs/index.html に {BEGIN} / {END} マーカーがありません", file=sys.stderr)
         return 2
     new = pat.sub(lambda _: render_block(memos), src, count=1)
     if args.check:
         if new != src:
-            print("index.html が古いです（python3 scripts/memo.py build を実行）")
+            print("docs/index.html が古いです（python3 scripts/memo.py build を実行）")
             return 1
-        print("index.html は最新です")
+        print("docs/index.html は最新です")
         return 0
     if new != src:
         INDEX.write_text(new, encoding="utf-8")
-        print(f"index.html を更新（{len(memos)} 件）")
+        print(f"docs/index.html を更新（{len(memos)} 件）")
     else:
         print(f"変更なし（{len(memos)} 件）")
+    return 0
+
+
+def _strip_fence(text: str) -> str:
+    m = re.search(r"```(?:html)?\s*\n(.*?)\n```", text, re.S | re.I)
+    return m.group(1) if m and "<" in m.group(1) else text
+
+
+def cmd_new(args) -> int:
+    target = memo_path(args.name, must_exist=False)
+    if target.exists():
+        sys.exit(f"すでにあります: {target.relative_to(ROOT)}")
+    target.write_text(TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")
+    print(target)
+    return 0
+
+
+def cmd_add(args) -> int:
+    src = Path(args.src)
+    if not src.is_file():
+        sys.exit(f"見つかりません: {src}")
+    target = memo_path(args.name, must_exist=False)
+    if target.exists() and not args.force:
+        sys.exit(f"すでにあります: {target.relative_to(ROOT)}（上書きは --force）")
+    if src.resolve() != target.resolve():
+        target.write_text(_strip_fence(src.read_text(encoding="utf-8")), encoding="utf-8")
+    print(target)
+    return 0
+
+
+def cmd_path(args) -> int:
+    print(memo_path(args.name, must_exist=False))
     return 0
 
 
@@ -287,6 +346,20 @@ def cmd_list(_args) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description="MEMO リポジトリ用ツール")
     sub = ap.add_subparsers(dest="cmd", required=True)
+
+    p = sub.add_parser("new", help="テンプレートから新しいメモを作る")
+    p.add_argument("name")
+    p.set_defaults(func=cmd_new)
+
+    p = sub.add_parser("add", help="外部の HTML を docs/ に取り込む")
+    p.add_argument("src")
+    p.add_argument("name")
+    p.add_argument("--force", action="store_true")
+    p.set_defaults(func=cmd_add)
+
+    p = sub.add_parser("path", help="メモの絶対パスを表示")
+    p.add_argument("name")
+    p.set_defaults(func=cmd_path)
 
     p = sub.add_parser("lint", help="崩れチェック（--fix で修正）")
     p.add_argument("files", nargs="+")

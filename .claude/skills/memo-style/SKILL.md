@@ -6,7 +6,14 @@ description: MEMO リポジトリ用の解説ページ（HTML 1 枚）を新し�
 # memo-style
 
 MEMO の各ページを見た目・作りの両面で揃えるための規約。
-新規作成時は `template.html`（このフォルダ）をコピーして中身を書く。
+新規作成時は、リポジトリのルートで次を実行してテンプレートから作り、表示されたパスのファイルに中身を書く。
+
+```bash
+cd "$(git rev-parse --show-toplevel)"
+python3 scripts/memo.py new NAME   # NAME は英小文字・ハイフン（例: git-rebase）
+```
+
+テンプレートの実体はこのフォルダの `template.html`。置き場所はスクリプトが決めるので、自分でパスを組み立ててコピーしない。
 
 ## 基本方針
 
@@ -17,7 +24,7 @@ MEMO の各ページを見た目・作りの両面で揃えるための規約。
 
 ## デザイントークン
 
-トップページ（index.html）と揃える。`:root` に変数で定義し、ダークモードは `prefers-color-scheme` で切り替え。
+トップページ（メモ一覧）と揃える。`:root` に変数で定義し、ダークモードは `prefers-color-scheme` で切り替え。
 
 | 変数 | ライト | ダーク | 用途 |
 | --- | --- | --- | --- |
@@ -58,8 +65,8 @@ MEMO の各ページを見た目・作りの両面で揃えるための規約。
 
 - CSS / JS の引用符は必ず半角 `'` `"`。全角 `‘’“”` は font-family が効かなくなる原因。
 - セレクタ `*` を行頭に置くとき、Markdown 経由で `-` や `\*` に化けないよう、ファイルとして直接保存する。
-- 書いたら `python3 scripts/memo.py lint FILE.html` で確認する。
+- 書いたら `python3 scripts/memo.py lint NAME` で確認する。
 
 ## 書き終えたら
 
-memo-publish の手順 3 以降（lint → meta → build → commit/push）で登録する。
+memo-publish の手順 4 以降（lint → meta → build → commit/push → 報告）で登録する（`new` で作ったので取り込み手順 3 は不要）。

@@ -1,12 +1,12 @@
 name: Build MEMO index
 
-# メモ（*.html）が push されたら index.html の一覧を再生成してコミットする。
+# メモ（docs/*.html）が push されたら docs/index.html の一覧を再生成してコミットする。
 # GitHub の画面から HTML を直接アップロードしても一覧に載る。
 on:
   push:
     branches: [master]
     paths:
-      - "*.html"
+      - "docs/*.html"
       - "scripts/memo.py"
   workflow_dispatch:
 
@@ -26,19 +26,19 @@ jobs:
           python-version: "3.12"
 
       - name: Lint memos (report only)
-        run: python3 scripts/memo.py lint $(ls *.html | grep -v '^index.html$') || true
+        run: python3 scripts/memo.py lint $(ls docs/*.html | grep -v '/index.html$') || true
 
       - name: Build index
         run: python3 scripts/memo.py build
 
       - name: Commit if changed
         run: |
-          if git diff --quiet index.html; then
-            echo "index.html は最新です"
+          if git diff --quiet docs/index.html; then
+            echo "docs/index.html は最新です"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
+          git add docs/index.html
           git commit -m "Rebuild MEMO index"
           git push

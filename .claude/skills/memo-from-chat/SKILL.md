@@ -28,11 +28,11 @@ description: 会話の中で説明した内容（または指定されたテー�
 
 ## 3. HTML を書く
 
-- `.claude/skills/memo-style/SKILL.md` を読み、`template.html` をコピーして書く。
-- ファイル名は memo-publish の規則（英小文字・ハイフン、直下に置く）。
+- memo-style スキルの規約を読む。
+- 名前は memo-publish の規則（英小文字・ハイフン）で決め、`python3 scripts/memo.py new NAME` でテンプレートから作る。表示されたパスのファイルに書く。
 - メタ情報（title / description / memo:tags / memo:date）も書いておく。
 - ファイルとして直接保存する（チャットに貼ってからコピペさせない。崩れの原因になる）。
 
 ## 4. 登録する
 
-memo-publish の手順 3〜7（lint → meta → build → commit/push → 報告）を実行する。
+memo-publish の手順 4〜8（lint → meta → build → commit/push → 報告）を実行する。

@@ -2,7 +2,7 @@
 
 Claude に作ってもらった解説ページ (HTML) を貯めておくリポジトリ。
 
-- トップページ: `index.html`（メモ一覧・検索・タグ絞り込み）
+- トップページ: `docs/index.html`（メモ一覧・検索・タグ絞り込み）
 - Pages: https://taka1156.github.io/memo/
 
 ## Claude に頼むとき
@@ -19,7 +19,7 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 
 ## 仕組み
 
-- メモ = リポジトリ直下の `*.html`（`index.html` 以外）
+- メモ = `docs/` 直下の `*.html`（`index.html` 以外）。GitHub Pages は `docs/` だけを公開するので、README やスクリプトは公開されません
 - 一覧の情報は各メモの `<head>` から読みます
 
   ```html
@@ -29,16 +29,18 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
   <meta name="memo:date" content="2026-10-31">
   ```
 
-- `index.html` の `// MEMOS:BEGIN`〜`// MEMOS:END` は自動生成です。手で編集しません
-- master に `*.html` が push されると、GitHub Actions が一覧を再生成します（GitHub の画面から HTML を直接アップロードしても載ります）
+- `docs/index.html` の `// MEMOS:BEGIN`〜`// MEMOS:END` は自動生成です。手で編集しません
+- master に `docs/*.html` が push されると、GitHub Actions が一覧を再生成します（GitHub の画面から HTML を直接アップロードしても載ります）
 
 ## 手でやる場合
 
 ```bash
-python3 scripts/memo.py lint new.html --fix --backlink   # 崩れチェック・修正
-python3 scripts/memo.py meta new.html --title "…" --desc "…" --tags "a,b" --date
-python3 scripts/memo.py build                            # 一覧を再生成
-python3 scripts/memo.py list                             # 一覧を表示
+python3 scripts/memo.py add ~/Downloads/foo.html foo   # docs/foo.html として取り込む
+python3 scripts/memo.py new foo                        # またはテンプレートから新規作成
+python3 scripts/memo.py lint foo --fix --backlink      # 崩れチェック・修正
+python3 scripts/memo.py meta foo --title "…" --desc "…" --tags "a,b" --date
+python3 scripts/memo.py build                          # 一覧を再生成
+python3 scripts/memo.py list                           # 一覧を表示
 ```
 
 `lint` が直すもの: CSS 内の全角クォート、`* {` の化け、DOCTYPE / charset / viewport の欠落、トップへ戻るリンクの追加。
