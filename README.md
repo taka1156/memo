@@ -3,7 +3,8 @@
 Claude に作ってもらった解説ページ (HTML) を貯めておくリポジトリ。
 
 - トップページ: `docs/index.html`（メモ一覧・検索・タグ絞り込み）
-- 公開 URL: https://memo.taka1156.site/（`docs/CNAME` の独自ドメイン。OGP の URL もここから自動で決まります）
+- 公開 URL: https://memo.taka1156.site/
+  （`docs/CNAME` の独自ドメイン。OGP の URL もここから自動で決まります）
 
 ## Claude に頼むとき
 
