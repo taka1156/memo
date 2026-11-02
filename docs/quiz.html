@@ -218,6 +218,16 @@ footer a { color: var(--accent); }
 // MEMOS:BEGIN（scripts/memo.py build が自動生成。手で編集しない）
 const MEMOS = [
   {
+    "file": "vinext.html",
+    "title": "vinext と Next.js の比較",
+    "desc": "Cloudflare の vinext と本家 Next.js の違いと、Workers・Node.js・SSG の 3 つのデプロイパターンを図解。",
+    "tags": [
+      "JavaScript",
+      "フロントエンド"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "ui-design-styles.html",
     "title": "UI デザインスタイル早見表",
     "desc": "スキューモフィズムからリキッドグラスまで、主要な UI デザインスタイルを実物サンプルと CSS で比較。",
@@ -450,6 +460,11 @@ const MEMOS = [
   }
 ];
 const QUIZZES = [
+  {"file": "vinext.html", "title": "vinext と Next.js の比較", "q": "既存の Next.js アプリに vinext を試すとき、ほかの作業より前にまず実行しておくべきコマンドは？", "choices": ["npx create-vinext-app で新規作成し直す", "npx vinext check で互換性の問題をスキャンする", "next.config を削除して vite.config.ts に書き直す"], "answer": 1, "explain": "vinext check で非対応 API を先に洗い出す。vinext init は非破壊で、next.config やソースは書き換えない。", "ref": "#migrate"},
+  {"file": "vinext.html", "title": "vinext と Next.js の比較", "q": "vinext で Cloudflare Workers に載せたアプリから D1 や KV を使いたい。どう書くのが推奨？", "choices": ["import { env } from \"cloudflare:workers\" でバインディングを読む", "process.env.DB で接続文字列を読む", "getPlatformProxy() とカスタム worker エントリを用意する"], "answer": 0, "explain": "RSC 環境が workerd で動くため、cloudflare:workers の env からそのままバインディングを使える。", "ref": "#deploy"},
+  {"file": "vinext.html", "title": "vinext と Next.js の比較", "q": "vinext で output: \"export\"（SSG）にしたサイトで、フォーム送信を Server Actions で処理しようとした。どうなる？", "choices": ["ビルド時に実行されて結果が HTML に固定される", "静的ホストの CDN が代わりに実行する", "実行時のサーバーが無いので使えない。外部 API などに送る必要がある"], "answer": 2, "explain": "Server Actions も middleware もリクエスト時に動くサーバーが必要。静的書き出しでは SSR・ISR とあわせて使えない。", "ref": "#deploy"},
+  {"file": "vinext.html", "title": "vinext と Next.js の比較", "q": "vinext を Node.js の standalone 出力で複数台にスケールアウトした。ISR のキャッシュについて注意すべき点は？", "choices": ["既定の MemoryCacheHandler はプロセスごとなので、共有したいなら自前の CacheHandler を差し込む", "Workers Cache が自動で使われるので何もしなくてよい", "standalone 出力では ISR 自体が使えない"], "answer": 0, "explain": "既定はプロセス内メモリ。本番では Redis などの共有ストアを使う CacheHandler に差し替える。", "ref": "#deploy"},
+  {"file": "vinext.html", "title": "vinext と Next.js の比較", "q": "公式ベンチで vinext のビルドが Next.js より約 4 倍速かった。ここから言えることは？", "choices": ["本番でのページ表示も約 4 倍速くなる", "ビルドとバンドルが速く小さいだけで、配信速度は別に比べる必要がある", "Next.js の静的事前生成より常に有利になる"], "answer": 1, "explain": "ベンチが測っているのはビルド時間とバンドルサイズだけ。本家は静的ページをビルド時に作るので、配信では本家が有利な場面もある。", "ref": "#compare"},
   {"file": "ui-design-styles.html", "title": "UI デザインスタイル早見表", "q": "白い背景の上に、半透明にしたグラスモーフィズムのカードを置いたが、ガラスらしく見えない。理由は？", "choices": ["背後のぼかしが主役なので、色のある背景がないと効果が出ないから", "border-radius と枠線を付けていないから", "透明度が足りず、背景の白が透けていないから"], "answer": 0, "explain": "グラスモーフィズムは「半透明にすればいい」わけではない。背後に色や写真があって初めてすりガラス感が出る。", "ref": "#myths"},
   {"file": "ui-design-styles.html", "title": "UI デザインスタイル早見表", "q": "情報量が多く、毎日長時間使う業務系の管理画面を作る。ベースにするスタイルとして無難なのは？", "choices": ["クレイモーフィズム", "ニューモーフィズム", "フラット 2.0"], "answer": 2, "explain": "シンプルさと操作性のバランスがよく、可読性も高い。ニューモーフィズムはコントラスト不足、クレイは情報量の多い画面に不向き。", "ref": "#compare"},
   {"file": "ui-design-styles.html", "title": "UI デザインスタイル早見表", "q": "ボタンをすべてニューモーフィズムにしたら、使いにくいと言われた。主な原因は？", "choices": ["CSS では再現できず画像になっているから", "コントラストが低く、押した状態とも区別しにくいから", "影の数が少なく、立体感が足りないから"], "answer": 1, "explain": "WCAG の基準を満たしにくい。使うなら小さな部品のアクセント程度にとどめる。", "ref": "#neu"},
