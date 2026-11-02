@@ -157,6 +157,18 @@ footer a { color: var(--accent); }
 // MEMOS:BEGIN（scripts/memo.py build が自動生成。手で編集しない）
 const MEMOS = [
   {
+    "file": "vue-vs-svelte.html",
+    "title": "Vue と Svelte",
+    "desc": "Vue の Proxy リアクティブと仮想 DOM、Vapor Mode、Svelte のコンパイラと runes を、コンパイル結果と依存追跡のデモで比較。",
+    "tags": [
+      "JavaScript",
+      "Vue",
+      "Svelte",
+      "フロントエンド"
+    ],
+    "date": "2026-11-02"
+  },
+  {
     "file": "tsrs-vs-tsgo.html",
     "title": "tsrs と tsgo の比較",
     "desc": "TypeScript のネイティブ実装 tsgo（Go）と tsrs（Rust）の仕組み・性能・使い分けを図で比較。",
@@ -168,12 +180,94 @@ const MEMOS = [
     "date": "2026-11-02"
   },
   {
+    "file": "reactivity-models.html",
+    "title": "UI 更新の3つの方式",
+    "desc": "仮想 DOM・シグナル・コンパイラという UI フレームワークの更新方式を、同じ操作で何が再実行されるかで比較し、React・Vue・Solid・Svelte を地図に配置。",
+    "tags": [
+      "JavaScript",
+      "フロントエンド"
+    ],
+    "date": "2026-11-02"
+  },
+  {
+    "file": "react-vs-solid.html",
+    "title": "React と Solid",
+    "desc": "見た目はそっくりな JSX で、中身は正反対。React の再レンダーと Fiber、Solid のシグナルとコンパイル結果を、同じカウンターで比較。",
+    "tags": [
+      "JavaScript",
+      "React",
+      "フロントエンド"
+    ],
+    "date": "2026-11-02"
+  },
+  {
+    "file": "oauth-oidc.html",
+    "title": "OAuth 2.0 / OIDC のフロー",
+    "desc": "認証と認可の違いから、認可コードフロー＋PKCE の全手順、OIDC の ID トークンまでを図解。",
+    "tags": [
+      "認証",
+      "セキュリティ"
+    ],
+    "date": "2026-11-02"
+  },
+  {
+    "file": "mcp.html",
+    "title": "MCP の仕組み",
+    "desc": "AI アプリと外部ツールをつなぐ Model Context Protocol の構成、3つのプリミティブ、通信方式、2026-07-28 版の変更点を図解。",
+    "tags": [
+      "AI",
+      "MCP"
+    ],
+    "date": "2026-11-02"
+  },
+  {
+    "file": "jwt-vs-session.html",
+    "title": "JWT とセッション",
+    "desc": "JWT の中身と署名、セッションとの違い、失効の難しさ、Cookie と localStorage のどちらに置くかまでを図解。",
+    "tags": [
+      "認証",
+      "セキュリティ"
+    ],
+    "date": "2026-11-02"
+  },
+  {
+    "file": "js-runtimes.html",
+    "title": "JS ランタイム比較",
+    "desc": "Node.js・Bun・Cloudflare Workers の内部構造、プロセス型と isolate 型の違い、API・互換性・制限を比較。",
+    "tags": [
+      "JavaScript",
+      "Cloudflare",
+      "ランタイム"
+    ],
+    "date": "2026-11-02"
+  },
+  {
     "file": "docker-images.html",
     "title": "Docker イメージの種類",
     "desc": "slim・alpine・bookworm から distroless 等の本番向け最小イメージまで、分類と glibc・musl・ABI の違いを図解。",
     "tags": [
       "Docker",
       "Linux"
+    ],
+    "date": "2026-11-02"
+  },
+  {
+    "file": "cors-sop.html",
+    "title": "CORS と同一オリジンポリシー",
+    "desc": "オリジンの判定、ブラウザが何を止めているのか、単純リクエストとプリフライト、Cookie 付きの制約までを図解。",
+    "tags": [
+      "Web",
+      "セキュリティ"
+    ],
+    "date": "2026-11-02"
+  },
+  {
+    "file": "agent-instructions.html",
+    "title": "CLAUDE.md / AGENTS.md / Skills",
+    "desc": "AI コーディングエージェントへの指示ファイルと Skills の違いを、コンテキストに載るタイミングと置き場所から図解。",
+    "tags": [
+      "AI",
+      "Claude"
     ],
     "date": "2026-11-02"
   },

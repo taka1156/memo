@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CORS と同一オリジンポリシー</title>
+<meta name="description" content="オリジンの判定、ブラウザが何を止めているのか、単純リクエストとプリフライト、Cookie 付きの制約までを図解。">
+<meta name="memo:tags" content="Web, セキュリティ">
+<meta name="memo:date" content="2026-11-02">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-front: #c2410c;
+  --c-back: #15803d;
+  --c-ng: #b91c1c;
+  --c-ok: #15803d;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-front: #fb923c;
+    --c-back: #4ade80;
+    --c-ng: #f87171;
+    --c-ok: #4ade80;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.big { font-size: 1.05rem; font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* トークン表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+.myth .ng { color: var(--c-ng); font-weight: 700; }
+.myth .ok { color: var(--c-ok); font-weight: 700; }
+
+.related a { display: inline-block; margin: 4px 8px 4px 0; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.origin-parts { display: flex; flex-wrap: wrap; gap: 4px; align-items: stretch; font: 600 0.95rem 'JetBrains Mono', monospace; margin: 8px 0 4px; }
+.origin-parts > span { padding: 6px 10px; border-radius: 6px; text-align: center; }
+.origin-parts small { display: block; font: 500 0.68rem 'Noto Sans JP', sans-serif; }
+.op-s { background: color-mix(in srgb, var(--c-a) 18%, transparent); color: var(--c-a); }
+.op-h { background: color-mix(in srgb, var(--c-b) 18%, transparent); color: var(--c-b); }
+.op-p { background: color-mix(in srgb, var(--c-c) 18%, transparent); color: var(--c-c); }
+.op-x { color: var(--fg-2); background: var(--chip); }
+
+.judge { display: grid; gap: 6px; margin-top: 10px; }
+.judge button {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: 500 0.82rem 'JetBrains Mono', monospace;
+  cursor: pointer;
+  word-break: break-all;
+}
+.judge button .v { font: 700 0.75rem 'Noto Sans JP', sans-serif; white-space: nowrap; opacity: 0; transition: opacity .2s; }
+.judge button.shown .v { opacity: 1; }
+.v.same { color: var(--c-ok); }
+.v.diff { color: var(--c-ng); }
+.custom { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+.custom input {
+  flex: 1 1 220px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: 500 0.82rem 'JetBrains Mono', monospace;
+}
+.custom-out { margin-top: 6px; font-weight: 700; min-height: 1.6em; }
+
+.rw { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.rw .card { border-top: 4px solid var(--k); }
+.rw h3 { margin-top: 0; color: var(--k); }
+.rw ul { margin-left: 1.2em; }
+
+.where { width: 100%; height: auto; display: block; }
+.where .lane { fill: var(--chip); stroke: var(--line); }
+.where text { fill: var(--fg); font: 500 13px 'Noto Sans JP', sans-serif; text-anchor: middle; }
+.where .b { font-weight: 700; }
+.where .s { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', monospace; }
+.where .ok { stroke: var(--c-ok); stroke-width: 2; }
+.where .okh { fill: var(--c-ok); }
+.where .ng { stroke: var(--c-ng); stroke-width: 2.5; }
+.where .ngt { fill: var(--c-ng); font-weight: 700; }
+
+.checker { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.checker label { font-size: 0.8rem; color: var(--fg-2); display: block; margin-bottom: 3px; }
+.checker select {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 7px 8px;
+  font: 500 0.8rem 'JetBrains Mono', monospace;
+}
+.result { margin-top: 12px; padding: 12px 14px; border-radius: 8px; border: 2px solid var(--line); }
+.result.simple { border-color: var(--c-ok); }
+.result.pre { border-color: var(--c-front); }
+.result b.ttl { display: block; margin-bottom: 4px; }
+.result.simple b.ttl { color: var(--c-ok); }
+.result.pre b.ttl { color: var(--c-front); }
+
+.site { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+
+:root { --c-a: #b45309; --c-b: #0369a1; --c-c: #7c3aed; }
+@media (prefers-color-scheme: dark) { :root { --c-a: #fbbf24; --c-b: #38bdf8; --c-c: #c4b5fd; } }
+.rw .k-r { --k: var(--c-ng); }
+.rw .k-w { --k: var(--c-ok); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="CORS と同一オリジンポリシー">
+<meta property="og:description" content="オリジンの判定、ブラウザが何を止めているのか、単純リクエストとプリフライト、Cookie 付きの制約までを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/cors-sop.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+<h1>CORS と同一オリジンポリシー</h1>
+  <p class="subtitle">「CORS エラー」の正体は、ブラウザがユーザーを守るための制限</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>ブラウザは、<b>別オリジンから取ってきたレスポンスを JS に読ませない</b>。これが同一オリジンポリシー (SOP)</li>
+      <li>CORS は、サーバーが「このオリジンからなら読んでいい」と<b>ヘッダーで許可を出して、その制限を緩める</b>仕組み</li>
+      <li>多くの場合、リクエストはサーバーに届いて処理もされている。止められているのは「JS が結果を読むこと」</li>
+    </ul>
+  </div>
+
+  <h2>オリジンとは</h2>
+  <p>オリジンは <b>スキーム・ホスト・ポート</b> の3つの組。1つでも違えば別オリジン。パスやクエリは関係ない。</p>
+  <div class="card">
+    <div class="origin-parts">
+      <span class="op-s">https<small>スキーム</small></span>
+      <span class="op-x">://</span>
+      <span class="op-h">app.example.com<small>ホスト</small></span>
+      <span class="op-x">:</span>
+      <span class="op-p">443<small>ポート</small></span>
+      <span class="op-x">/users?id=1<small>関係なし</small></span>
+    </div>
+    <p class="muted">基準：<code>https://app.example.com</code> で動いているページから見て、次の URL は同じオリジン？（クリックで判定）</p>
+    <div class="judge" id="judge"></div>
+    <p class="muted" style="margin-top:12px">自分で URL を入力して試す：</p>
+    <div class="custom" style="margin-top:4px">
+      <input id="url" type="text" value="https://app.example.com:8080/" aria-label="判定する URL">
+    </div>
+    <div class="custom-out" id="custom-out"></div>
+  </div>
+
+  <h2>SOP が止めるもの・止めないもの</h2>
+  <div class="rw">
+    <div class="card k-r">
+      <h3>止める：読み取り</h3>
+      <ul>
+        <li><code>fetch</code> / XHR のレスポンスを JS で読む</li>
+        <li>別オリジンの iframe の中身（DOM）を触る</li>
+        <li>canvas に描いた別オリジン画像のピクセルを読む</li>
+      </ul>
+    </div>
+    <div class="card k-w">
+      <h3>止めない：送信・埋め込み</h3>
+      <ul>
+        <li>フォームの送信（別オリジンへの POST）</li>
+        <li><code>&lt;img&gt;</code>、<code>&lt;script&gt;</code>、<code>&lt;link&gt;</code> での読み込み</li>
+        <li>リンクやリダイレクトでの遷移</li>
+      </ul>
+    </div>
+  </div>
+  <p>Web は昔から「他サイトの画像を貼る」「他サイトにフォームを送る」ことで成り立ってきたので、送ること自体は止められない。だから <b>SOP があっても CSRF は起きる</b>。SOP が守るのは「ログイン中のユーザーの画面やデータを、悪意あるサイトの JS が盗み読むこと」。</p>
+
+  <h2>どこで止まっているのか</h2>
+  <div class="card">
+    <svg class="where" viewBox="0 0 600 250" role="img" aria-label="リクエストはサーバーに届き、ブラウザがレスポンスを JS に渡さない様子">
+      <rect class="lane" x="10" y="20" width="160" height="210" rx="8"/>
+      <text class="b" x="90" y="45">ページの JS</text>
+      <text class="s" x="90" y="63">app.example.com</text>
+      <rect class="lane" x="220" y="20" width="160" height="210" rx="8"/>
+      <text class="b" x="300" y="45">ブラウザ</text>
+      <text class="s" x="300" y="63">CORS をチェック</text>
+      <rect class="lane" x="430" y="20" width="160" height="210" rx="8"/>
+      <text class="b" x="510" y="45">API サーバー</text>
+      <text class="s" x="510" y="63">api.other.com</text>
+
+      <line class="ok" x1="170" y1="100" x2="420" y2="100"/>
+      <polygon class="okh" points="430,100 420,95 420,105"/>
+      <text x="300" y="92">① fetch() → リクエストは届く</text>
+
+      <line class="ok" x1="430" y1="150" x2="230" y2="150"/>
+      <polygon class="okh" points="220,150 230,145 230,155"/>
+      <text x="380" y="142">② 処理して 200 を返す</text>
+      <text class="s" x="380" y="170">許可ヘッダーなし</text>
+
+      <line class="ng" x1="220" y1="200" x2="180" y2="200"/>
+      <line class="ng" x1="185" y1="188" x2="205" y2="212"/>
+      <line class="ng" x1="205" y1="188" x2="185" y2="212"/>
+      <text class="ngt" x="300" y="205">③ JS には渡さない</text>
+    </svg>
+    <p class="muted">このため、単純リクエストの POST などは<b>サーバー側で処理が完了している</b>こともある。「CORS で失敗したから何も起きていない」とは限らない。プリフライトが必要なリクエストだけは、許可が出るまで本番のリクエスト自体が送られない。</p>
+  </div>
+
+  <h2>単純リクエストとプリフライト</h2>
+  <p>「昔からフォームでも送れた種類のリクエスト」は、そのまま送られる（単純リクエスト）。それ以外は、先に <code>OPTIONS</code> で「送っていい？」と確認する（プリフライト）。条件を選ぶと、どちらになるか判定できる。</p>
+  <div class="card">
+    <div class="checker">
+      <div>
+        <label for="m">メソッド</label>
+        <select id="m"><option>GET</option><option>POST</option><option>HEAD</option><option>PUT</option><option>DELETE</option><option>PATCH</option></select>
+      </div>
+      <div>
+        <label for="ct">Content-Type</label>
+        <select id="ct">
+          <option value="none">（なし）</option>
+          <option>application/x-www-form-urlencoded</option>
+          <option>multipart/form-data</option>
+          <option>text/plain</option>
+          <option>application/json</option>
+        </select>
+      </div>
+      <div>
+        <label for="h">追加ヘッダー</label>
+        <select id="h">
+          <option value="none">（なし）</option>
+          <option>Accept-Language</option>
+          <option>Authorization</option>
+          <option>X-Requested-With</option>
+        </select>
+      </div>
+    </div>
+    <div class="result" id="result"></div>
+  </div>
+
+  <h3>プリフライトのやり取り</h3>
+  <pre><code><b>① ブラウザ → サーバー（自動で送られる）</b>
+OPTIONS /api/items HTTP/1.1
+Origin: https://app.example.com
+Access-Control-Request-Method: PUT
+Access-Control-Request-Headers: authorization, content-type
+
+<b>② サーバー → ブラウザ</b>
+HTTP/1.1 204 No Content
+Access-Control-Allow-Origin: https://app.example.com
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE
+Access-Control-Allow-Headers: authorization, content-type
+Access-Control-Max-Age: 600
+
+<b>③ 許可が出たので、本番のリクエストを送る</b>
+PUT /api/items/42 HTTP/1.1
+Origin: https://app.example.com
+Authorization: Bearer ...</code></pre>
+  <p class="muted"><code>Max-Age</code> の間はプリフライトの結果がキャッシュされ、毎回 OPTIONS が飛ぶのを防げる（ブラウザごとに上限あり）。</p>
+
+  <h2>CORS のヘッダー一覧</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>ヘッダー</th><th>向き</th><th>意味</th></tr>
+      <tr><td><code>Origin</code></td><td>要求</td><td>リクエスト元のオリジン。ブラウザが自動で付け、JS からは変えられない</td></tr>
+      <tr><td><code>Access-Control-Request-Method</code></td><td>要求</td><td>（プリフライト）本番で使いたいメソッド</td></tr>
+      <tr><td><code>Access-Control-Request-Headers</code></td><td>要求</td><td>（プリフライト）本番で付けたいヘッダー</td></tr>
+      <tr><td><code>Access-Control-Allow-Origin</code></td><td>応答</td><td>読んでいいオリジン。1つだけか <code>*</code>。複数許可したいときは、サーバーが <code>Origin</code> を見て返し分ける</td></tr>
+      <tr><td><code>Access-Control-Allow-Methods</code></td><td>応答</td><td>許可するメソッド</td></tr>
+      <tr><td><code>Access-Control-Allow-Headers</code></td><td>応答</td><td>許可するリクエストヘッダー</td></tr>
+      <tr><td><code>Access-Control-Allow-Credentials</code></td><td>応答</td><td><code>true</code> なら Cookie 付きのレスポンスも読ませる</td></tr>
+      <tr><td><code>Access-Control-Expose-Headers</code></td><td>応答</td><td>JS から読めるレスポンスヘッダーを追加する（標準ではごく一部しか読めない）</td></tr>
+      <tr><td><code>Access-Control-Max-Age</code></td><td>応答</td><td>プリフライト結果のキャッシュ秒数</td></tr>
+      <tr><td><code>Vary: Origin</code></td><td>応答</td><td>Origin によって返し分けるときに付ける。忘れると CDN が別オリジン向けの応答をキャッシュして配ってしまう</td></tr>
+    </table>
+  </div>
+
+  <h2>Cookie を送るときの制約</h2>
+  <div class="card">
+    <p>別オリジンへの <code>fetch</code> は、標準では Cookie を送らない。送るには両側の設定が要る。</p>
+    <pre><code>// フロント
+fetch('https://api.example.com/me', { credentials: 'include' })
+
+// サーバーの応答
+Access-Control-Allow-Origin: https://app.example.com   ← * は不可
+Access-Control-Allow-Credentials: true</code></pre>
+    <p>Cookie 付きのときは、<code>Allow-Origin</code>・<code>Allow-Headers</code>・<code>Allow-Methods</code> に <code>*</code> が使えず、具体的な値を書く必要がある。「全オリジンから Cookie 付きで読める」状態を作らせないため。</p>
+  </div>
+
+  <h3>「オリジン」と「サイト」は違う</h3>
+  <div class="site">
+    <div class="card">
+      <span class="label">オリジン（CORS の単位）</span>
+      <p>スキーム＋ホスト＋ポート。<code>app.example.com</code> と <code>api.example.com</code> は<b>別オリジン</b>。</p>
+    </div>
+    <div class="card">
+      <span class="label">サイト（Cookie の SameSite の単位）</span>
+      <p>スキーム＋登録可能ドメイン（<code>example.com</code> の部分）。上の2つは<b>同じサイト</b>。</p>
+    </div>
+  </div>
+  <p class="muted">そのため「サブドメイン違いの API」は、CORS の設定は必要だが、<code>SameSite=Lax</code> の Cookie はそのまま送れる。CSRF 対策との関係は <a href="jwt-vs-session.html">JWT とセッション</a> を参照。</p>
+
+  <h2>ハマったときの確認ポイント</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="d1">エラーの読み方</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="d2">よくある原因</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="d3">開発中の回避</button>
+  </div>
+  <div class="panel card" id="d1">
+    <p>コンソールのメッセージに「どのヘッダーが足りないか」が書いてある。ネットワークタブでは、<b>OPTIONS のリクエストが別の行</b>として出ているので、そちらの応答ヘッダーとステータスを見る。</p>
+  </div>
+  <div class="panel card" id="d2" hidden>
+    <ul style="margin-left:1.2em">
+      <li>サーバーが <b>500 などのエラー</b>を返し、エラー応答に CORS ヘッダーが付いていない（本当の原因はサーバーエラー）</li>
+      <li>OPTIONS を認証ミドルウェアが弾いて 401 を返している（プリフライトには認証情報が付かない）</li>
+      <li><code>credentials: 'include'</code> なのに <code>Allow-Origin: *</code></li>
+      <li>オリジンの末尾に <code>/</code> を付けて登録している（<code>https://app.example.com/</code> は一致しない）</li>
+    </ul>
+  </div>
+  <div class="panel card" id="d3" hidden>
+    <p>開発サーバーのプロキシを使うと、ブラウザから見て同じオリジンになるので CORS 自体が発生しない。</p>
+    <pre><code>// vite.config.ts
+export default {
+  server: {
+    proxy: { '/api': 'http://localhost:8080' }
+  }
+}</code></pre>
+    <p class="muted">本番でも、フロントと API を同じドメインの配下に置く（リバースプロキシ）と CORS 設定が不要になる。<a href="vite-toolchain.html">Vite ツールチェーン</a>も参照。</p>
+  </div>
+
+  <h2>よくある誤解</h2>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「CORS はサーバーを攻撃から守る仕組み」</p>
+    <p><span class="ok">○</span> 守っているのは<b>ユーザー</b>。curl やサーバー間通信には何の制限もかからないので、API 自体の認証・認可は別に必要。</p>
+  </div>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「curl だと通るのに CORS エラーになるのはサーバーのバグ」</p>
+    <p><span class="ok">○</span> CORS はブラウザだけが行うチェック。curl は許可ヘッダーを見ないので通って当然。</p>
+  </div>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「<code>mode: 'no-cors'</code> にすれば直る」</p>
+    <p><span class="ok">○</span> エラーは消えるが、レスポンスは中身の読めない「opaque」になる。データを使いたいなら意味がない。CORS はフロントだけでは直せず、サーバーの設定が必要。</p>
+  </div>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「CORS を設定していれば CSRF は防げる」</p>
+    <p><span class="ok">○</span> 単純リクエスト（フォーム送信と同じ形）は CORS と関係なく送られ、サーバーで処理される。CSRF は SameSite Cookie や CSRF トークンで防ぐ。</p>
+  </div>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="jwt-vs-session.html">JWT とセッション（CSRF と SameSite）→</a> <a href="vite-toolchain.html">Vite ツールチェーン →</a></p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+const BASE = new URL('https://app.example.com');
+const CASES = [
+  'https://app.example.com/api/users',
+  'http://app.example.com/',
+  'https://api.example.com/',
+  'https://app.example.com:8443/',
+  'https://app.example.com:443/',
+  'https://example.com/'
+];
+function judge(u) {
+  let x;
+  try { x = new URL(u); } catch (e) { return { ok: null, msg: 'URL として読めません' }; }
+  const diff = [];
+  if (x.protocol !== BASE.protocol) diff.push('スキームが違う（' + x.protocol.replace(':', '') + '）');
+  if (x.hostname !== BASE.hostname) diff.push('ホストが違う（' + x.hostname + '）');
+  if (x.port !== BASE.port) diff.push('ポートが違う（' + (x.port || (x.protocol === 'http:' ? '80' : '443')) + '）');
+  if (!diff.length) {
+    const note = /:443(\/|$)/.test(u) ? '（443 は https の既定ポートなので省略と同じ）' : '（パスは関係ない）';
+    return { ok: true, msg: '同じオリジン ' + note };
+  }
+  return { ok: false, msg: '別オリジン：' + diff.join('、') };
+}
+const box = document.getElementById('judge');
+CASES.forEach(u => {
+  const r = judge(u);
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.innerHTML = '<span></span><span class="v ' + (r.ok ? 'same' : 'diff') + '"></span>';
+  b.firstChild.textContent = u;
+  b.lastChild.textContent = r.ok ? '○ 同じ' : '✕ 別';
+  b.title = r.msg;
+  b.addEventListener('click', () => {
+    b.classList.add('shown');
+    out.textContent = u + ' → ' + r.msg;
+    out.style.color = r.ok ? 'var(--c-ok)' : 'var(--c-ng)';
+  });
+  box.appendChild(b);
+});
+const inp = document.getElementById('url');
+const out = document.getElementById('custom-out');
+function live() {
+  const r = judge(inp.value.trim());
+  out.textContent = r.msg;
+  out.style.color = r.ok === null ? 'var(--fg-2)' : r.ok ? 'var(--c-ok)' : 'var(--c-ng)';
+}
+inp.addEventListener('input', live);
+live();
+
+const SAFE_CT = ['none', 'application/x-www-form-urlencoded', 'multipart/form-data', 'text/plain'];
+const SAFE_H = ['none', 'Accept-Language'];
+const els = ['m', 'ct', 'h'].map(id => document.getElementById(id));
+function check() {
+  const [m, ct, h] = els.map(e => e.value);
+  const why = [];
+  if (!['GET', 'POST', 'HEAD'].includes(m)) why.push('メソッドが ' + m + '（GET / POST / HEAD 以外）');
+  if (!SAFE_CT.includes(ct)) why.push('Content-Type が ' + ct + '（フォームで送れない形式）');
+  if (!SAFE_H.includes(h)) why.push(h + ' ヘッダーを付けている（安全リスト外）');
+  const r = document.getElementById('result');
+  if (!why.length) {
+    r.className = 'result simple';
+    r.innerHTML = '<b class="ttl">単純リクエスト：そのまま送られる</b>サーバーは処理し、応答に <code>Access-Control-Allow-Origin</code> がなければ、ブラウザが JS に結果を渡さない。';
+  } else {
+    r.className = 'result pre';
+    r.innerHTML = '<b class="ttl">プリフライトが発生する：先に OPTIONS で確認</b>理由：' + why.join('、') + '。許可が返らなければ本番のリクエストは送られない。';
+  }
+}
+els.forEach(e => e.addEventListener('change', check));
+check();
+</script>
+</body>
+</html>
