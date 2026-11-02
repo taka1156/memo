@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TypeScript 学習フローと仕組み</title>
+<meta name="description" content="TypeScript を学ぶ6ステップと、型チェック・型消去・コンパイルの流れを図で整理。">
+<meta name="memo:tags" content="言語, JavaScript">
+<meta name="memo:date" content="2026-11-02">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-type: #7b4fd6;
+  --c-js: #b88600;
+  --c-ok: #1f8a4c;
+  --c-warn: #c0392b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-type: #b69cff;
+    --c-js: #f2c94c;
+    --c-ok: #4cd18a;
+    --c-warn: #ff7b6b;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 4px 0 6px; }
+p { margin: 8px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.t { color: var(--c-type); font-weight: 700; }
+.j { color: var(--c-js); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* ロードマップ */
+.roadmap { list-style: none; position: relative; padding-left: 0; }
+.roadmap::before {
+  content: "";
+  position: absolute;
+  left: 17px; top: 18px; bottom: 18px;
+  width: 2px;
+  background: var(--line);
+}
+.step { position: relative; padding-left: 50px; margin-bottom: 14px; }
+.step .num {
+  position: absolute; left: 0; top: 10px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.step details { cursor: pointer; }
+.step summary { list-style: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.step summary::-webkit-details-marker { display: none; }
+.step summary::after { content: "＋ 詳細"; margin-left: auto; color: var(--fg-2); font-size: 0.75rem; }
+.step details[open] summary::after { content: "－ 閉じる"; }
+.step .lv {
+  font: 600 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  background: var(--chip); color: var(--fg-2);
+  padding: 1px 8px; border-radius: 999px;
+}
+.step .goal { color: var(--fg-2); font-size: 0.85rem; width: 100%; }
+.step .body { margin-top: 10px; cursor: auto; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.chips span {
+  font: 500 0.75rem 'JetBrains Mono', ui-monospace, monospace;
+  background: var(--chip); padding: 2px 8px; border-radius: 6px;
+}
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); }
+.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.fig .sub { fill: var(--fg-2); font-size: 11px; }
+.fig .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.fig .box-a { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig .box-t { fill: var(--surface); stroke: var(--c-type); stroke-width: 2; }
+.fig .box-j { fill: var(--surface); stroke: var(--c-js); stroke-width: 2; }
+.fig .arrow { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .arrow-t { stroke: var(--c-type); stroke-width: 1.5; fill: none; stroke-dasharray: 4 3; }
+.fig .ah { fill: var(--fg-2); }
+.fig .ah-t { fill: var(--c-type); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.8rem; color: var(--fg-2); margin-top: 8px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 2px solid; vertical-align: -1px; margin-right: 4px; }
+
+/* 2 カラム */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+.label { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .06em; margin-bottom: 6px; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; background: var(--surface); border-radius: 10px; overflow: hidden; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 700; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+.myth .q { font-weight: 700; }
+.myth .q::before { content: "✕ "; color: var(--c-warn); }
+.myth .a::before { content: "◯ "; color: var(--c-ok); font-weight: 700; }
+
+/* ホバー補足 */
+.tip { border-bottom: 1px dotted var(--accent); cursor: help; position: relative; }
+.tip:hover::after, .tip:focus::after {
+  content: attr(data-tip);
+  position: absolute; left: 0; top: 1.8em; z-index: 5;
+  width: max-content; max-width: 260px;
+  background: var(--fg); color: var(--bg);
+  font-size: 0.75rem; line-height: 1.5;
+  padding: 6px 10px; border-radius: 6px;
+  white-space: normal;
+}
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="TypeScript 学習フローと仕組み">
+<meta property="og:description" content="TypeScript を学ぶ6ステップと、型チェック・型消去・コンパイルの流れを図で整理。">
+<meta property="og:url" content="https://memo.taka1156.site/typescript.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>TypeScript 学習フローと仕組み</h1>
+  <p class="subtitle">何から順に学ぶか ／ 型はどこでチェックされ、どこで消えるのか</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>TypeScript ＝ <span class="j">JavaScript</span> ＋ <span class="t">型</span>。型は<strong>開発時だけ</strong>働き、実行前に全部消える（型消去 / type erasure）。</li>
+      <li>仕組みは「<strong>型チェック</strong>」と「<strong>JS への変換</strong>」の 2 つの仕事。最近はこの 2 つを別ツールで分担するのが主流。</li>
+      <li>学ぶ順番は <strong>JS 基礎 → 基本の型 → 型の合成・絞り込み → ジェネリクス → 設定とツール → 型レベル</strong>。</li>
+    </ul>
+  </div>
+
+  <!-- ===== 仕組み ===== -->
+  <h2>仕組み：TypeScript が JavaScript になるまで</h2>
+  <p>TypeScript のコンパイラ（<code>tsc</code>）の中では、ソースコードが次の順に処理されます。<span class="t">紫の点線</span>は「型の情報」の流れで、<strong>出力される JS には届きません</strong>。</p>
+
+  <div class="card">
+    <svg class="fig" viewBox="0 0 640 400" role="img" aria-label="TypeScript コンパイルパイプラインの図: ソースコードからスキャナ、パーサ、AST、バインダ、チェッカー、エミッタを経て JavaScript と d.ts が出力される">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+        <marker id="aht" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah-t"/></marker>
+      </defs>
+
+      <!-- 1段目 -->
+      <rect class="box-a" x="10" y="20" width="130" height="62" rx="8"/>
+      <text x="75" y="46" text-anchor="middle" font-size="14" font-weight="700" class="mono">app.ts</text>
+      <text x="75" y="66" text-anchor="middle" class="sub">ソースコード</text>
+
+      <rect class="box" x="175" y="20" width="130" height="62" rx="8"/>
+      <text x="240" y="46" text-anchor="middle" font-size="13" font-weight="700">① Scanner</text>
+      <text x="240" y="66" text-anchor="middle" class="sub">文字 → トークン</text>
+
+      <rect class="box" x="340" y="20" width="130" height="62" rx="8"/>
+      <text x="405" y="46" text-anchor="middle" font-size="13" font-weight="700">② Parser</text>
+      <text x="405" y="66" text-anchor="middle" class="sub">トークン → 構文木</text>
+
+      <rect class="box" x="505" y="20" width="125" height="62" rx="8"/>
+      <text x="567" y="46" text-anchor="middle" font-size="13" font-weight="700" class="mono">AST</text>
+      <text x="567" y="66" text-anchor="middle" class="sub">抽象構文木</text>
+
+      <line class="arrow" x1="140" y1="51" x2="173" y2="51" marker-end="url(#ah)"/>
+      <line class="arrow" x1="305" y1="51" x2="338" y2="51" marker-end="url(#ah)"/>
+      <line class="arrow" x1="470" y1="51" x2="503" y2="51" marker-end="url(#ah)"/>
+
+      <!-- AST から下へ -->
+      <path class="arrow" d="M567,82 L567,118 L470,118 L470,140" marker-end="url(#ah)"/>
+      <path class="arrow" d="M567,118 L567,262" marker-end="url(#ah)"/>
+
+      <!-- 2段目: 型の世界 -->
+      <rect x="10" y="108" width="400" height="128" rx="10" fill="none" stroke="var(--c-type)" stroke-width="1" stroke-dasharray="5 4"/>
+      <text x="22" y="128" font-size="11" font-weight="700" fill="var(--c-type)" style="fill:var(--c-type)">型の世界（実行時には存在しない）</text>
+
+      <rect class="box-t" x="230" y="142" width="160" height="62" rx="8"/>
+      <text x="310" y="168" text-anchor="middle" font-size="13" font-weight="700">③ Binder</text>
+      <text x="310" y="188" text-anchor="middle" class="sub">名前とスコープを結びつけ</text>
+
+      <rect class="box-t" x="25" y="142" width="170" height="62" rx="8"/>
+      <text x="110" y="168" text-anchor="middle" font-size="13" font-weight="700">④ Checker</text>
+      <text x="110" y="188" text-anchor="middle" class="sub">型を推論・照合しエラー検出</text>
+
+      <path class="arrow" d="M470,140 L470,173 L392,173" marker-end="url(#ah)"/>
+      <line class="arrow-t" x1="230" y1="173" x2="197" y2="173" marker-end="url(#aht)"/>
+
+      <!-- エラー -->
+      <rect x="25" y="262" width="170" height="54" rx="8" fill="var(--surface)" stroke="var(--c-warn)" stroke-width="2"/>
+      <text x="110" y="285" text-anchor="middle" font-size="13" font-weight="700">エラー表示</text>
+      <text x="110" y="303" text-anchor="middle" class="sub">エディタの赤波線 / tsc の出力</text>
+      <line class="arrow-t" x1="110" y1="204" x2="110" y2="260" marker-end="url(#aht)"/>
+
+      <!-- d.ts -->
+      <rect class="box-t" x="230" y="262" width="160" height="54" rx="8"/>
+      <text x="310" y="285" text-anchor="middle" font-size="13" font-weight="700" class="mono">app.d.ts</text>
+      <text x="310" y="303" text-anchor="middle" class="sub">型だけを書き出した宣言</text>
+      <path class="arrow-t" d="M195,190 L215,190 L215,289 L228,289" marker-end="url(#aht)"/>
+
+      <!-- Emitter -->
+      <rect class="box" x="490" y="264" width="140" height="62" rx="8"/>
+      <text x="560" y="290" text-anchor="middle" font-size="13" font-weight="700">⑤ Emitter</text>
+      <text x="560" y="310" text-anchor="middle" class="sub">型注釈を削って出力</text>
+
+      <!-- JS -->
+      <rect class="box-j" x="490" y="350" width="140" height="44" rx="8"/>
+      <text x="560" y="377" text-anchor="middle" font-size="14" font-weight="700" class="mono">app.js</text>
+      <line class="arrow" x1="560" y1="326" x2="560" y2="348" marker-end="url(#ah)"/>
+
+      <!-- 注釈 -->
+      <text x="430" y="372" text-anchor="end" class="sub">型エラーがあっても JS は出る</text>
+      <text x="430" y="388" text-anchor="end" class="sub">（noEmitOnError で止められる）</text>
+    </svg>
+    <div class="legend">
+      <span><i style="border-color:var(--c-type)"></i>型の情報（JS に残らない）</span>
+      <span><i style="border-color:var(--c-js)"></i>実行される JS</span>
+      <span><i style="border-color:var(--c-warn)"></i>開発者へのフィードバック</span>
+    </div>
+  </div>
+
+  <h2>型消去：書いたコードと実行されるコード</h2>
+  <div class="grid2">
+    <div class="card">
+      <div class="label t">app.ts（書くもの）</div>
+<pre><code>type User = {
+  id: number;
+  name: string;
+};
+
+function greet(u: User): string {
+  return `Hi, ${u.name}`;
+}
+
+greet({ id: 1, name: "Ann" });</code></pre>
+    </div>
+    <div class="card">
+      <div class="label j">app.js（動くもの）</div>
+<pre><code>
+
+
+function greet(u) {
+  return `Hi, ${u.name}`;
+}
+
+greet({ id: 1, name: "Ann" });</code></pre>
+      <p class="muted">型定義と <code>: User</code> などの注釈が消えただけ。ロジックはそのまま。</p>
+    </div>
+  </div>
+  <p class="muted">だから「実行時に型で分岐する」ことはできない。外部から来るデータ（API レスポンスなど）は <code>zod</code> などで実行時に検証する必要がある。</p>
+
+  <h2>2 つの仕事を誰がやるか</h2>
+  <p>「型チェック」と「JS への変換」は分けられる。今はツールごとに担当が違う。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="w1">tsc 単体</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="w2">バンドラ併用</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="w3">ランタイム直実行</button>
+  </div>
+  <div class="panel card" id="w1">
+    <h3>tsc が両方やる（基本形）</h3>
+    <p><code>tsc</code> が型チェックしてから JS を出力。ライブラリの公開（<code>.d.ts</code> も必要）や学習の最初はこれ。</p>
+<pre><code>npx tsc --init   # tsconfig.json を作る
+npx tsc          # チェック ＋ 出力
+npx tsc --noEmit # チェックだけ（CI でよく使う）</code></pre>
+    <p class="muted">TypeScript 7 では tsc 自体が Go で書き直され（ネイティブ版）、大規模プロジェクトのビルドが大幅に速くなった。</p>
+  </div>
+  <div class="panel card" id="w2" hidden>
+    <h3>変換は高速ツール、チェックは tsc / エディタ</h3>
+    <p>Vite は内部の <span class="tip" tabindex="0" data-tip="Rust 製の高速ツール群。Vite 8 以降は Rolldown と組み合わせて TS/JSX の変換を担当（以前は esbuild）">Oxc</span>、Next.js は <span class="tip" tabindex="0" data-tip="Rust 製の高速トランスパイラ">SWC</span> で<strong>型を削るだけ</strong>。どちらも型を「理解」しないので速く、型エラーがあっても画面は動く。</p>
+<pre><code>開発中: エディタ(言語サーバ)が型エラーを表示
+ビルド: vite build        ← 型は見ない
+CI    : tsc --noEmit      ← ここで型を検査</code></pre>
+  </div>
+  <div class="panel card" id="w3" hidden>
+    <h3>ランタイムがそのまま実行</h3>
+    <p>Deno・Bun は <code>.ts</code> を直接実行できる。Node.js も最近のバージョンでは<strong>型注釈を取り除いて</strong>そのまま実行できる（type stripping）。</p>
+<pre><code>node app.ts   # 型を削って実行（チェックはしない）</code></pre>
+    <p class="muted">Node の型除去は「消すだけ」なので、<code>enum</code> など JS コードを生成する構文は既定では使えない。<code>erasableSyntaxOnly</code> オプションで事前に検出できる。</p>
+  </div>
+
+  <h2>型チェックの考え方：構造的型付け</h2>
+  <p>TypeScript は「名前」ではなく「<strong>形（持っているプロパティ）</strong>」で型の互換性を判断する（構造的型付け / structural typing）。</p>
+  <div class="card">
+    <svg class="fig" viewBox="0 0 640 170" role="img" aria-label="構造的型付けの図: Point 型と、名前は違うが同じ形のオブジェクトが互換になる様子">
+      <defs>
+        <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+      </defs>
+      <rect class="box-t" x="10" y="20" width="180" height="96" rx="8"/>
+      <text x="100" y="44" text-anchor="middle" font-size="13" font-weight="700" class="mono">type Point</text>
+      <text x="100" y="70" text-anchor="middle" font-size="12" class="mono">x: number</text>
+      <text x="100" y="92" text-anchor="middle" font-size="12" class="mono">y: number</text>
+
+      <rect class="box" x="230" y="20" width="180" height="96" rx="8"/>
+      <text x="320" y="44" text-anchor="middle" font-size="13" font-weight="700" class="mono">{ x, y, z }</text>
+      <text x="320" y="70" text-anchor="middle" font-size="12" class="sub">x, y を持つ</text>
+      <text x="320" y="92" text-anchor="middle" font-size="12" class="sub">＋ 余分な z</text>
+      <text x="320" y="146" text-anchor="middle" font-size="13" font-weight="700" style="fill:var(--c-ok)">◯ Point として渡せる</text>
+
+      <rect class="box" x="450" y="20" width="180" height="96" rx="8"/>
+      <text x="540" y="44" text-anchor="middle" font-size="13" font-weight="700" class="mono">{ x }</text>
+      <text x="540" y="70" text-anchor="middle" font-size="12" class="sub">y が足りない</text>
+      <text x="540" y="146" text-anchor="middle" font-size="13" font-weight="700" style="fill:var(--c-warn)">✕ 型エラー</text>
+
+      <line class="arrow" x1="228" y1="68" x2="192" y2="68" marker-end="url(#ah2)"/>
+    </svg>
+    <p class="muted">※ オブジェクトリテラルを直接書いた場合だけは、余分なプロパティもエラーになる（excess property check）。</p>
+  </div>
+
+  <!-- ===== 学習フロー ===== -->
+  <h2>学習フロー：6 ステップ</h2>
+  <p>各ステップをタップすると、学ぶ項目と「次に進む目安」が開きます。</p>
+
+  <ol class="roadmap">
+    <li class="step">
+      <span class="num">0</span>
+      <details class="card">
+        <summary><strong>JavaScript の基礎</strong><span class="lv">前提</span><span class="goal">TS は JS の上に乗っている。ここが曖昧だと型も曖昧になる</span></summary>
+        <div class="body">
+          <div class="chips"><span>let / const</span><span>関数・アロー関数</span><span>オブジェクト・配列</span><span>分割代入・スプレッド</span><span>Promise / async-await</span><span>ES Modules</span></div>
+          <p><strong>目安：</strong>fetch でデータを取ってきて配列を加工する小さなスクリプトが書ける。</p>
+        </div>
+      </details>
+    </li>
+    <li class="step">
+      <span class="num">1</span>
+      <details class="card">
+        <summary><strong>基本の型</strong><span class="lv">入門</span><span class="goal">変数・関数に型を付け、推論に任せる感覚をつかむ</span></summary>
+        <div class="body">
+          <div class="chips"><span>string / number / boolean</span><span>配列 T[]</span><span>オブジェクト型</span><span>関数の引数・戻り値</span><span>型推論</span><span>any と unknown</span></div>
+<pre><code>let count = 0;            // number と推論される
+const add = (a: number, b: number) => a + b; // 戻り値も推論</code></pre>
+          <p><strong>目安：</strong>「全部に型を書く」のではなく、<strong>引数には書き、あとは推論</strong>が自然にできる。</p>
+        </div>
+      </details>
+    </li>
+    <li class="step">
+      <span class="num">2</span>
+      <details class="card">
+        <summary><strong>型を組み立てる・絞り込む</strong><span class="lv">基礎</span><span class="goal">現実のデータの形を型で表現する</span></summary>
+        <div class="body">
+          <div class="chips"><span>type / interface</span><span>ユニオン A | B</span><span>リテラル型</span><span>オプショナル ?</span><span>narrowing (typeof / in)</span><span>判別可能なユニオン</span><span>null / undefined</span></div>
+<pre><code>type Result =
+  | { ok: true;  data: string }
+  | { ok: false; error: Error };
+
+function show(r: Result) {
+  if (r.ok) r.data;   // ここでは data がある
+  else      r.error;  // ここでは error がある
+}</code></pre>
+          <p><strong>目安：</strong>if 文で型が絞り込まれていく様子をエディタのホバーで確認できる。</p>
+        </div>
+      </details>
+    </li>
+    <li class="step">
+      <span class="num">3</span>
+      <details class="card">
+        <summary><strong>ジェネリクスと組み込みユーティリティ</strong><span class="lv">中級</span><span class="goal">型を引数にとって再利用する</span></summary>
+        <div class="body">
+          <div class="chips"><span>&lt;T&gt;</span><span>制約 extends</span><span>Partial / Required</span><span>Pick / Omit</span><span>Record</span><span>ReturnType</span><span>keyof / typeof</span></div>
+<pre><code>function first&lt;T&gt;(arr: T[]): T | undefined {
+  return arr[0];
+}
+first([1, 2]);      // number | undefined
+first(["a"]);       // string | undefined</code></pre>
+          <p><strong>目安：</strong>ライブラリの型定義（<code>.d.ts</code>）を読んで、だいたい意味がわかる。</p>
+        </div>
+      </details>
+    </li>
+    <li class="step">
+      <span class="num">4</span>
+      <details class="card">
+        <summary><strong>設定とツールチェーン</strong><span class="lv">実践</span><span class="goal">実プロジェクトで型の恩恵を最大にする</span></summary>
+        <div class="body">
+          <div class="chips"><span>tsconfig.json</span><span>strict: true</span><span>noUncheckedIndexedAccess</span><span>tsc --noEmit</span><span>Vite / Next.js</span><span>ESLint (typescript-eslint)</span><span>@types/*</span><span>zod 等の実行時検証</span></div>
+<pre><code>{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022",
+    "module": "nodenext",
+    "noEmit": true
+  }
+}</code></pre>
+          <p><strong>目安：</strong>新規プロジェクトを <code>strict</code> で立ち上げ、CI で型チェックを回せる。</p>
+        </div>
+      </details>
+    </li>
+    <li class="step">
+      <span class="num">5</span>
+      <details class="card">
+        <summary><strong>型レベルプログラミング</strong><span class="lv">上級</span><span class="goal">型で型を計算する。ライブラリ作者向け</span></summary>
+        <div class="body">
+          <div class="chips"><span>Conditional Types</span><span>infer</span><span>Mapped Types</span><span>Template Literal Types</span><span>satisfies</span><span>型の分配</span></div>
+<pre><code>type Unwrap&lt;T&gt; = T extends Promise&lt;infer U&gt; ? U : T;
+type A = Unwrap&lt;Promise&lt;string&gt;&gt;; // string</code></pre>
+          <p><strong>目安：</strong>必要になってから学べば十分。アプリ開発ではステップ 4 までで大半が足りる。</p>
+        </div>
+      </details>
+    </li>
+  </ol>
+
+  <h2>学び方の比較</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>方法</th><th>向いている段階</th><th>ポイント</th></tr></thead>
+      <tbody>
+        <tr><td>公式 Playground</td><td>ステップ 1〜3</td><td>ブラウザで書いて、右側に出る JS とエラーを即確認。型消去を目で見られる</td></tr>
+        <tr><td>公式 Handbook</td><td>ステップ 1〜5</td><td>体系的。迷ったときの一次情報</td></tr>
+        <tr><td>既存 JS を TS 化</td><td>ステップ 2〜4</td><td>拡張子を .ts にして赤線を 1 つずつ消す。実務に一番近い</td></tr>
+        <tr><td>type-challenges</td><td>ステップ 5</td><td>型パズル集。型レベルの練習用</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>よくある誤解</h2>
+  <div class="card">
+    <div class="myth">
+      <p class="q">型を書けば実行時にもチェックされる</p>
+      <p class="a">型はコンパイル時に消える。外部入力は実行時に検証する（zod など）。</p>
+    </div>
+    <div class="myth">
+      <p class="q">型エラーがあると JS が出力されない</p>
+      <p class="a">tsc は既定でエラーがあっても JS を出す。esbuild や Node の型除去はそもそもチェックしない。</p>
+    </div>
+    <div class="myth">
+      <p class="q">TypeScript にすると実行が速くなる / 遅くなる</p>
+      <p class="a">実行されるのはただの JS なので、速度は変わらない。変わるのはビルド時間と開発体験。</p>
+    </div>
+    <div class="myth">
+      <p class="q">とりあえず any で逃げればいい</p>
+      <p class="a">any はチェックを止める。型がわからないときは <code>unknown</code> にして、絞り込んでから使う。</p>
+    </div>
+    <div class="myth">
+      <p class="q">全部の変数に型注釈を書くべき</p>
+      <p class="a">推論できるところは任せる。書くのは関数の引数・公開 API・推論が広すぎるところ。</p>
+    </div>
+  </div>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+</body>
+</html>
