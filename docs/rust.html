@@ -302,7 +302,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </ul>
   </div>
 
-  <h2>学習ロードマップ</h2>
+  <h2 id="roadmap">学習ロードマップ</h2>
   <div class="legend">
     <span style="--dot: var(--c-p1)">フェーズ1: 入門</span>
     <span style="--dot: var(--c-p2)">フェーズ2: Rust らしさの中核</span>
@@ -431,7 +431,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </details></li>
   </ol>
 
-  <h2>仕組み 1: コンパイル時に何をしているか</h2>
+  <h2 id="compile">仕組み 1: コンパイル時に何をしているか</h2>
   <p>Rust のコンパイラ <code>rustc</code> は、ソースコードを段階的に変換しながらチェックする。安全性の要となる<b>借用チェッカ (borrow checker)</b> は、中間表現 MIR の上で動く。</p>
   <div class="flow">
     <div class="st"><b>ソース</b><span>.rs ファイル</span></div>
@@ -448,7 +448,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <p class="note">太枠が「Rust らしい安全性」を保証する段階。ここで弾かれたコードは実行ファイルにならないので、実行時のコスト（GC やチェック処理）がかからない。</p>
 
-  <h2>仕組み 2: 所有権 — スタックとヒープで見る</h2>
+  <h2 id="ownership">仕組み 2: 所有権 — スタックとヒープで見る</h2>
   <p><code>String</code> の中身（文字列データ）はヒープ、変数はスタックにある「ポインタ・長さ・容量」の組。代入したときに何が起きるかを比べる。</p>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-panel="own-move">ムーブ</button>
@@ -549,7 +549,7 @@ println!("{a} {b}");   <span class="ok">// ○ 両方使える</span></code></pr
     <p class="note">スコープを抜けた値は、所有者が自動で <code>drop</code> して解放する（RAII）。手動の <code>free</code> は不要。</p>
   </div>
 
-  <h2>仕組み 3: 借用ルール</h2>
+  <h2 id="borrow">仕組み 3: 借用ルール</h2>
   <p>同じ値に対して、ある時点で持てる参照は<b>次のどちらか一方だけ</b>。</p>
   <div class="grid2">
     <div class="card rule">
@@ -572,7 +572,7 @@ println!("{first}");   <span class="cm">// ← first の最後の使用。ここ
 v.push(4);             <span class="ok">// ○ もう共有参照がないので OK</span></code></pre>
   <p class="note">なぜ禁止？ <code>push</code> で Vec が再確保されると、<code>first</code> は解放済みメモリを指す「ダングリング参照」になる。このルールはその事故とデータ競争を同時に防いでいる。参照の有効範囲は「最後に使われた場所まで」で判定される（NLL: Non-Lexical Lifetimes）。</p>
 
-  <h2>仕組み 4: ライフタイムとエラー処理</h2>
+  <h2 id="lifetime-error">仕組み 4: ライフタイムとエラー処理</h2>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-panel="lt">ライフタイム</button>
     <button class="tab" role="tab" aria-selected="false" data-panel="err">Result と ?</button>
@@ -600,7 +600,7 @@ match read_config() {
     <p>例外 (exception) はない。失敗の可能性は<b>戻り値の型に現れる</b>ので、呼び出し側は無視できない（match しないと値を取り出せない）。</p>
   </div>
 
-  <h2>メモリ管理の比較</h2>
+  <h2 id="memory">メモリ管理の比較</h2>
   <div class="tbl">
     <table>
       <thead><tr><th>方式</th><th>代表言語</th><th>解放のタイミング</th><th>安全性</th><th>実行時コスト</th></tr></thead>
@@ -612,7 +612,7 @@ match read_config() {
     </table>
   </div>
 
-  <h2>よくある誤解</h2>
+  <h2 id="myths">よくある誤解</h2>
   <div class="card myth">
     <p>clone() を使うのは負け</p>
     <p>学習初期は clone で回避して動かすのが正解。動いてから、借用に置き換えて最適化すればいい。</p>
@@ -634,7 +634,7 @@ match read_config() {
     <p>実行時に出るはずだったバグを前倒しで見せている。エラーメッセージには直し方の提案（help:）まで付くので、読むこと自体が学習になる。</p>
   </div>
 
-  <h2>よく使うコマンド</h2>
+  <h2 id="commands">よく使うコマンド</h2>
 <pre><code>cargo new myapp       <span class="cm"># プロジェクト作成</span>
 cargo run             <span class="cm"># ビルドして実行</span>
 cargo check           <span class="cm"># 型・借用チェックだけ（速い。書きながら回す）</span>
@@ -644,7 +644,7 @@ cargo fmt             <span class="cm"># コード整形</span>
 cargo clippy          <span class="cm"># Lint（より Rust らしい書き方を提案）</span>
 cargo add serde       <span class="cm"># 依存クレートを追加</span></code></pre>
 
-  <h2>学習リソース</h2>
+  <h2 id="resources">学習リソース</h2>
   <div class="card">
     <ul class="res">
       <li><a href="https://doc.rust-lang.org/book/">The Rust Programming Language</a>（通称 The Book。<a href="https://doc.rust-jp.rs/book-ja/">日本語版</a>あり）— ロードマップ 1〜8 の主教材</li>
@@ -655,7 +655,215 @@ cargo add serde       <span class="cm"># 依存クレートを追加</span></cod
     <p class="note">おすすめの進め方: The Book を 1 章読む → Rustlings の該当問題を解く、を繰り返し、所有権の章（第 4 章）だけは 2 周する。</p>
   </div>
 
-  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    target.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>
 
 <script>
@@ -670,6 +878,65 @@ document.querySelectorAll('.tabs').forEach(group => {
     });
   });
 });
+</script>
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "String を関数に渡したあと、元の変数をもう一度使ったら borrow of moved value になった。所有権を手放さずに関数に使わせるには？",
+    "choices": [
+      "関数の中で drop を呼ばないようにする",
+      "変数を let mut にする",
+      "&s のように参照（借用）で渡す"
+    ],
+    "answer": 2,
+    "explain": "値を渡すと所有権がムーブする。借用なら所有権は元の変数に残る。とりあえず動かすなら clone() でもよい。",
+    "ref": "#ownership"
+  },
+  {
+    "q": "let first = &v[0]; のあとに v.push(4); を書き、その後で first を使うとコンパイルエラーになる。なぜ禁止されている？",
+    "choices": [
+      "push で再確保されると、first が解放済みのメモリを指すから",
+      "first を let mut で宣言していないから",
+      "let で作った Vec には、後から要素を追加できないから"
+    ],
+    "answer": 0,
+    "explain": "共有参照がある間は可変借用できない。first を最後に使った後なら push できる（NLL）。",
+    "ref": "#borrow"
+  },
+  {
+    "q": "let b = a; のあと、a が i32 なら両方使えるのに、String だと a が使えなくなる。違いは？",
+    "choices": [
+      "String は不変なので、別の変数に代入できないから",
+      "i32 は Copy 型で複製され、String はムーブになるから",
+      "i32 は参照で、String は値だから"
+    ],
+    "answer": 1,
+    "explain": "ヒープを持つ型までコピーすると二重解放の危険があるので、明示的な clone() を求める設計。",
+    "ref": "#own-copy"
+  },
+  {
+    "q": "設定ファイルの読み込みが失敗しうる関数で、失敗を呼び出し元に返したい。どう書く？",
+    "choices": [
+      "失敗したら panic! でメッセージを出して終了する",
+      "戻り値を Result<T, E> にして、? でエラーを早期リターンする",
+      "unwrap() で値を取り出し、失敗したらその場で止める"
+    ],
+    "answer": 1,
+    "explain": "回復できる失敗は Result、回復不能なバグは panic!。unwrap() は試作用。",
+    "ref": "#err"
+  },
+  {
+    "q": "コードを書きながら、型や借用のエラーだけを素早く確認したい。どのコマンドを使う？",
+    "choices": [
+      "cargo check",
+      "cargo clippy",
+      "cargo build --release"
+    ],
+    "answer": 0,
+    "explain": "cargo check は実行ファイルを作らずにチェックだけ行うので速い。clippy はより Rust らしい書き方の提案。",
+    "ref": "#commands"
+  }
+]
 </script>
 </body>
 </html>

@@ -244,7 +244,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </ul>
   </div>
 
-  <h2>全体の流れ</h2>
+  <h2 id="flow">全体の流れ</h2>
   <div class="legend">
     <span class="lg-core"><i></i>基本工程</span>
     <span class="lg-gate"><i></i>品質ゲート（推奨）</span>
@@ -356,7 +356,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <p class="loop">↻ 次の機能では <b>2 から</b>繰り返す（憲法はプロジェクト共通）。最短ルートは <code>specify → plan → tasks → implement</code>、本番向けは clarify / checklist / analyze も挟むのがおすすめ。</p>
   </div>
 
-  <h2>登場人物と役割</h2>
+  <h2 id="roles">登場人物と役割</h2>
   <div class="actors">
     <div class="card actor h">
       <div class="who">人間（開発者）<small>決める・レビューする</small></div>
@@ -393,7 +393,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </div>
   </div>
 
-  <h2>コマンド別：誰が何をするか</h2>
+  <h2 id="commands">コマンド別：誰が何をするか</h2>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-panel="t-const">constitution</button>
     <button class="tab" role="tab" aria-selected="false" data-panel="t-spec">specify</button>
@@ -467,7 +467,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </dl>
   </div>
 
-  <h2>できあがるファイル</h2>
+  <h2 id="files">できあがるファイル</h2>
   <div class="cols2">
 <pre>my-project/
 ├── .specify/
@@ -502,7 +502,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <p class="note">エージェント用コマンドの置き場所は選んだエージェントで変わります（Claude Code なら <code>.claude/commands/</code> など）。</p>
 
-  <h2>コマンド例</h2>
+  <h2 id="examples">コマンド例</h2>
 <pre><span class="cm"># 前提: Python 3.11+, Git, uv, AI エージェントのどれか</span>
 
 <span class="cm"># 新規プロジェクトに導入（エージェントを指定）</span>
@@ -515,7 +515,7 @@ uvx --from git+https://github.com/github/spec-kit.git specify init --here --ai c
 specify check</pre>
   <p class="note">オプションやコマンド名は更新が速いので、導入時は公式リポジトリ (github/spec-kit) の README を確認してください。</p>
 
-  <h2>よくある誤解</h2>
+  <h2 id="myths">よくある誤解</h2>
   <div class="card">
     <div class="myth">
       <p class="q">specify CLI がコードを生成する</p>
@@ -539,7 +539,215 @@ specify check</pre>
     </div>
   </div>
 
-  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    target.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>
 
 <script>
@@ -554,6 +762,65 @@ document.querySelectorAll('.tabs').forEach(group => {
     });
   });
 });
+</script>
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "/speckit.specify で仕様を書いている途中、「Next.js と PostgreSQL で作る」と書き足したくなった。どこに書く？",
+    "choices": [
+      "spec ではなく、次の /speckit.plan で伝える",
+      "spec.md の機能要件の一つとして書く",
+      "constitution.md にプロジェクト共通の方針として書く"
+    ],
+    "answer": 0,
+    "explain": "spec は「何を・なぜ」だけ。技術は plan で初めて出す。分けておくと技術を差し替えても仕様が残る。",
+    "ref": "#myths"
+  },
+  {
+    "q": "実装の途中で要件が変わった。Spec Kit の考え方に沿った進め方は？",
+    "choices": [
+      "spec.md を直し、plan・tasks に流し直してから実装する",
+      "コードだけ直し、文書はそのままにする",
+      "tasks.md にタスクを 1 行足すだけにする"
+    ],
+    "answer": 0,
+    "explain": "成果物が工程間の「唯一の正解」。上流から直して下流に流すのが本来の使い方。",
+    "ref": "#myths"
+  },
+  {
+    "q": "小さな機能を急いで作りたい。最低限たどる流れは？",
+    "choices": [
+      "constitution → implement",
+      "specify → plan → tasks → implement",
+      "clarify → checklist → analyze → implement"
+    ],
+    "answer": 1,
+    "explain": "clarify・checklist・analyze は規模や重要度に応じて挟む品質ゲート。",
+    "ref": "#flow"
+  },
+  {
+    "q": "実装を始める前に、spec・plan・tasks の間に食い違いや抜けがないか確かめたい。どのコマンドを使う？",
+    "choices": [
+      "/speckit.constitution",
+      "/speckit.analyze",
+      "/speckit.implement"
+    ],
+    "answer": 1,
+    "explain": "analyze はファイルを書き換えずに、カバレッジ不足・重複・憲法違反などを報告する。どれを直すかは人間が判断する。",
+    "ref": "#t-anal"
+  },
+  {
+    "q": "specify init を実行した。これでコードは生成される？",
+    "choices": [
+      "される。仕様からアプリの雛形まで生成する",
+      "される。ただし tasks.md がある場合だけ",
+      "されない。CLI はテンプレートなどの土台を配るだけ"
+    ],
+    "answer": 2,
+    "explain": "specify CLI は土台づくりと段取りの担当。",
+    "ref": "#myths"
+  }
+]
 </script>
 </body>
 </html>
