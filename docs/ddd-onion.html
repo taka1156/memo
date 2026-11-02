@@ -1492,13 +1492,16 @@ describe('taskUseCases', () =&gt; {
 #memo-quiz-ui b.ok{color:var(--mq-ok)}
 #memo-quiz-ui b.ng{color:var(--mq-ng)}
 .mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px}
+#memo-quiz-ui .mq-more{color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;text-decoration:none}
+#memo-quiz-ui .mq-more:hover{color:var(--accent,inherit)}
 #memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
 #memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
 </style>
 <h2 id="memo-quiz-title">確認クイズ <small></small></h2>
 <div class="mq-list"></div>
 <div class="mq-result" hidden aria-live="polite"></div>
-<button type="button" class="mq-reset">やり直す</button>
+<div class="mq-foot"><button type="button" class="mq-reset">やり直す</button><a class="mq-more" href="quiz.html">🎯 ほかのメモからも出題 →</a></div>
 </section>
 <script>
 // 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する

@@ -41,6 +41,18 @@ body {
 }
 .wrap { max-width: 880px; margin: 0 auto; }
 header { margin-bottom: 28px; }
+.head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.quiz-link {
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', 'Noto Sans JP', monospace;
+  text-decoration: none;
+}
+.quiz-link:hover { border-color: var(--accent); color: var(--accent); }
 h1 {
   font-family: 'JetBrains Mono', monospace;
   font-size: 1.6rem;
@@ -182,7 +194,10 @@ footer a { color: var(--accent); }
 <body>
 <div class="wrap">
   <header>
-    <h1>MEMO</h1>
+    <div class="head-row">
+      <h1>MEMO</h1>
+      <a class="quiz-link" href="quiz.html">🎯 クイズ</a>
+    </div>
     <p class="lead">Claude に作ってもらった解説ページの置き場</p>
   </header>
 
