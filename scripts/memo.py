@@ -15,7 +15,7 @@ MEMO / NAME は「docker」「docker.html」「docs/docker.html」のどれで�
 （既存のファイルパスを渡した場合はそのファイルを対象にする）。
 置き場所（docs/）やテンプレートの場所はこのスクリプトだけが知っている。
 
-メモ = docs/ 直下の *.html（index.html 以外）。docs/ が GitHub Pages で公開される。
+メモ = docs/ 直下の *.html（index.html・quiz.html 以外）。docs/ が GitHub Pages で公開される。
 一覧情報は各メモの <head> 内の次のタグから読み取る:
   <title>                         タイトル（memo:title があればそちら優先）
   <meta name="description">       説明
@@ -41,6 +41,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"  # GitHub Pages の公開元
 INDEX = DOCS / "index.html"
+QUIZ_PAGE = DOCS / "quiz.html"  # 全メモの問題から 10 問解くページ
+# メモではない特別なページ（一覧に載せない・メモ名に使えない）。build が一覧データを埋め込む
+SPECIAL_PAGES = (INDEX, QUIZ_PAGE)
+SPECIAL_NAMES = {p.name for p in SPECIAL_PAGES}
 FALLBACK_URL = "https://taka1156.github.io/memo/"
 
 
@@ -152,8 +156,8 @@ def memo_path(arg: str, must_exist: bool = True) -> Path:
     name = p.name[:-5] if p.name.endswith(".html") else p.name
     if not NAME_RE.match(name):
         sys.exit(f"ファイル名は英小文字・数字・ハイフンのみ: {name!r}")
-    if name == "index":
-        sys.exit("index.html はトップページです。メモ名に使えません")
+    if f"{name}.html" in SPECIAL_NAMES:
+        sys.exit(f"{name}.html は特別なページです（{'トップ' if name == 'index' else 'クイズ'}）。メモ名に使えません")
     target = DOCS / f"{name}.html"
     if must_exist and not target.is_file():
         sys.exit(f"見つかりません: {target.relative_to(ROOT)}")
@@ -161,7 +165,7 @@ def memo_path(arg: str, must_exist: bool = True) -> Path:
 
 
 def memo_files() -> list[Path]:
-    return sorted(p for p in DOCS.glob("*.html") if p.name != "index.html")
+    return sorted(p for p in DOCS.glob("*.html") if p.name not in SPECIAL_NAMES)
 
 
 # ---------------------------------------------------------------- head（アイコン・OGP）
@@ -301,18 +305,61 @@ QUIZ_BLOCK = QUIZ_BEGIN + r"""
     if (text != null) e.textContent = text;
     return e;
   }
-  // 本文の該当箇所（ref = "#id"）へのリンク。飛んだ先を少しの間だけ強調する
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    target.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
   function refLink(q, label) {
     if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
-    var target = document.getElementById(q.ref.slice(1));
-    if (!target) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
     var a = el('a', 'mq-ref', label);
     a.href = q.ref;
-    a.addEventListener('click', function () {
-      target.classList.add('mq-flash');
-      setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
     });
     return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
   }
   function count() {
     var done = 0, ok = 0;
@@ -465,7 +512,7 @@ def apply_quiz(text: str) -> str:
 def apply_generated(text: str, filename: str) -> str:
     """自動生成ブロック（head・クイズ）をすべて最新にする。"""
     text = apply_head(text, filename)
-    return text if filename == "index.html" else apply_quiz(text)
+    return text if filename in SPECIAL_NAMES else apply_quiz(text)
 
 
 # ---------------------------------------------------------------- lint
@@ -673,22 +720,29 @@ def cmd_build(args) -> int:
         print(("自動生成ブロックが古い: " if args.check else "自動生成ブロックを更新: ") + ", ".join(stale))
     memos = sorted((read_meta(p) for p in memo_files()),
                    key=lambda m: (m["date"], m["file"]), reverse=True)
-    src = INDEX.read_text(encoding="utf-8")
-    pat = re.compile(re.escape(BEGIN) + r".*?" + re.escape(END), re.S)
-    if not pat.search(src):
-        print(f"docs/index.html に {BEGIN} / {END} マーカーがありません", file=sys.stderr)
-        return 2
     quizzes = collect_quizzes(memos)
-    new = apply_head(pat.sub(lambda _: render_block(memos, quizzes), src, count=1), "index.html")
+    pat = re.compile(re.escape(BEGIN) + r".*?" + re.escape(END), re.S)
+    outdated = []
+    for page in SPECIAL_PAGES:
+        if not page.is_file():
+            continue
+        src = page.read_text(encoding="utf-8")
+        if not pat.search(src):
+            print(f"docs/{page.name} に {BEGIN} / {END} マーカーがありません", file=sys.stderr)
+            return 2
+        new = apply_head(pat.sub(lambda _: render_block(memos, quizzes), src, count=1), page.name)
+        if new != src:
+            outdated.append(page.name)
+            if not args.check:
+                page.write_text(new, encoding="utf-8")
     if args.check:
-        if new != src or stale:
-            print("docs/index.html が古いです（python3 scripts/memo.py build を実行）")
+        if outdated or stale:
+            print(", ".join(f"docs/{n}" for n in outdated or ["index.html"]) + " が古いです（python3 scripts/memo.py build を実行）")
             return 1
-        print("docs/index.html は最新です")
+        print("一覧データは最新です")
         return 0
-    if new != src:
-        INDEX.write_text(new, encoding="utf-8")
-        print(f"docs/index.html を更新（{len(memos)} 件、クイズ {len(quizzes)} 問）")
+    if outdated:
+        print(f"{', '.join(outdated)} を更新（{len(memos)} 件、クイズ {len(quizzes)} 問）")
     else:
         print(f"変更なし（{len(memos)} 件、クイズ {len(quizzes)} 問）")
     return 0
@@ -777,7 +831,7 @@ def main() -> int:
     p.add_argument("--date", nargs="?", const="", help="YYYY-MM-DD（値なしで今日）")
     p.set_defaults(func=cmd_meta)
 
-    p = sub.add_parser("build", help="index.html の一覧を再生成")
+    p = sub.add_parser("build", help="index.html・quiz.html の一覧データを再生成")
     p.add_argument("--check", action="store_true")
     p.set_defaults(func=cmd_build)
 

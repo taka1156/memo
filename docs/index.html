@@ -151,6 +151,8 @@ h1 {
 .rq-actions { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-top: 12px; }
 .rq-actions a { color: var(--accent); font-size: 0.8rem; font-weight: 700; text-decoration: none; }
 .rq-actions a:hover { text-decoration: underline; }
+.rq-actions a.rq-more { margin-left: auto; color: var(--fg-2); font-weight: 600; font-size: 0.75rem; }
+.rq-actions a.rq-more:hover { color: var(--accent); }
 .rq-next {
   border: 1px solid var(--line); background: var(--chip); color: var(--fg-2);
   border-radius: 999px; padding: 4px 12px;
@@ -203,6 +205,7 @@ footer a { color: var(--accent); }
       <div class="rq-actions">
         <button class="rq-next" id="rq-next" type="button">次の問題 →</button>
         <a id="rq-link" href="#" hidden></a>
+        <a class="rq-more" href="quiz.html">🎯 10 問に挑戦（ランダム・カテゴリ別）</a>
       </div>
     </div>
   </details>
