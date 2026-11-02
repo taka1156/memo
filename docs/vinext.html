@@ -151,8 +151,6 @@ a { color: var(--accent); }
 .c.cf { border-color: var(--c-cf); } .c.cf span, .c.cf.hd b { color: var(--c-cf); }
 .c.node { border-color: var(--c-node); } .c.node span, .c.node.hd b { color: var(--c-node); }
 .c.ssg { border-color: var(--c-ssg); } .c.ssg span, .c.ssg.hd b { color: var(--c-ssg); }
-.c.upd { border-width: 2px; border-style: dashed; }
-.chip-upd { font-style: normal; font-size: 0.68rem; color: var(--c-warn); border: 1px solid var(--c-warn); border-radius: 4px; padding: 0 4px; margin-left: 4px; }
 .mtabs { display: none; }
 @media (max-width: 720px) {
   .mtabs { display: flex; }
@@ -314,10 +312,9 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="rl">使える機能</div>
       <div class="c cf"><b>SSR・Server Actions</b><span>middleware・ISR すべて可</span></div>
       <div class="c node"><b>SSR・Server Actions</b><span>middleware・ISR すべて可</span></div>
-      <div class="c ssg upd"><b>静的ページのみ <em class="chip-upd">更新</em></b><span>SSR・ISR・Server Actions・middleware は不可</span></div>
+      <div class="c ssg"><b>静的ページのみ</b><span>SSR・ISR・Server Actions・middleware は不可</span></div>
     </div>
-    <p class="muted" style="margin-top:12px">※ SSG で追加プラグイン不要という点は、README の記述からの推論（静的書き出しのみでの動作は未検証）。<br>
-    更新：元の表では SSG で Server Actions・middleware が使えるとしていたが、どちらもリクエスト時に動くサーバーが必要なため、静的書き出しでは使えない。</p>
+    <p class="muted" style="margin-top:12px">※ SSG で追加プラグイン不要という点は、README の記述からの推論（静的書き出しのみでの動作は未検証）。</p>
   </div>
 
   <h2 id="myths">よくある誤解</h2>
