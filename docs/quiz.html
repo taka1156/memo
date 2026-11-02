@@ -293,6 +293,16 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
+    "file": "docker-files.html",
+    "title": "Dockerfile と Compose の書き方",
+    "desc": "Dockerfile・マルチステージビルド・compose.yaml・devcontainer.json の書き方を、注釈付きの例と落とし穴で整理。",
+    "tags": [
+      "インフラ",
+      "開発ツール"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "ddd-onion.html",
     "title": "DDD とオニオンアーキテクチャ",
     "desc": "DDD の要素と依存の向きを図解し、Hono・Void での構成例と AI 時代向けの軽量版を比較。",
@@ -555,6 +565,11 @@ const QUIZZES = [
   {"file": "docker.html", "title": "Docker 動作原理", "q": "あるコンテナがメモリを使いすぎてホストが重くなる。コンテナのメモリを 512MB までに抑えるのに使われる仕組みは？", "choices": ["OverlayFS", "名前空間（namespace）", "cgroups（-m 512m）"], "answer": 2, "explain": "名前空間は「見える範囲」を分ける仕組みで、使える量を制限するのは cgroups。", "ref": "#cgroups"},
   {"file": "docker.html", "title": "Docker 動作原理", "q": "コンテナの中で ps を実行すると、自分のアプリが PID 1 に見え、ホストのプロセスは見えない。理由は？", "choices": ["cgroups がホストのプロセスを非表示にしているから", "PID 名前空間で、コンテナ専用のプロセス番号の空間が作られているから", "コンテナが仮想マシンとして別のカーネルで動いているから"], "answer": 1, "explain": "runc が PID 名前空間を作り、その中で CMD / ENTRYPOINT を PID 1 として起動する。カーネル自体はホストと共有している。", "ref": "#namespaces"},
   {"file": "docker.html", "title": "Docker 動作原理", "q": "コンテナと仮想マシンの違いとして正しいのは？", "choices": ["コンテナはホストのカーネルを共有し、隔離と制限をかけて動く", "コンテナもゲスト OS のカーネルを丸ごと起動している", "コンテナはカーネルを使わずにアプリを直接ハードウェアで動かす"], "answer": 0, "explain": "コンテナは普通のプロセスに隔離と制限をかけたもの。カーネルを共有するので起動が速く軽い。", "ref": "#vs-vm"},
+  {"file": "docker-files.html", "title": "Dockerfile と Compose の書き方", "q": "ソースを 1 行直しただけなのに、docker build のたびに npm ci が最初から走って遅い。Dockerfile をどう直す？", "choices": ["RUN npm ci を CMD に移す", "package.json と lock ファイルだけを先に COPY して npm ci し、そのあとで COPY . . する", "FROM のタグを latest にする"], "answer": 1, "explain": "変わった行以降はすべて作り直されるので、変わりにくい依存定義を先に入れておけば、ソース変更では npm ci の層がキャッシュから使われる。", "ref": "#cache"},
+  {"file": "docker-files.html", "title": "Dockerfile と Compose の書き方", "q": "本番イメージにコンパイラや devDependencies を入れずに、ビルド成果物だけを載せたい。どう書く？", "choices": ["ビルド後に RUN rm -rf でツールを消す", ".dockerignore にコンパイラを書く", "ビルド用と実行用のステージに分け、実行用で COPY --from=build して成果物だけ持ってくる"], "answer": 2, "explain": "RUN rm で消しても前の層には残るのでサイズは減らない。最終イメージは最後のステージだけなので、マルチステージで分けるのが正解。", "ref": "#multistage"},
+  {"file": "docker-files.html", "title": "Dockerfile と Compose の書き方", "q": "compose で app から DATABASE_URL=postgres://…@localhost:5432 に接続すると失敗する。db サービスは動いている。どう直す？", "choices": ["ホスト名を db（サービス名）にする", "db に ports: \"5432:5432\" を足す", "app に EXPOSE 5432 を書く"], "answer": 0, "explain": "コンテナの中の localhost はそのコンテナ自身。同じ compose 内のコンテナにはサービス名で届く。ports はホストへの公開なので関係ない。", "ref": "#compose"},
+  {"file": "docker-files.html", "title": "Dockerfile と Compose の書き方", "q": "docker compose up 直後、app が「DB に接続できない」で落ちる。depends_on: [db] は書いてある。何を足す？", "choices": ["restart: \"no\" を付ける", "db に healthcheck を書き、app の depends_on を condition: service_healthy にする", "db を app より上に書く"], "answer": 1, "explain": "素の depends_on は起動順しか保証しない。DB が接続を受け付けるまで待つには healthcheck と service_healthy の組み合わせが必要。", "ref": "#compose"},
+  {"file": "docker-files.html", "title": "Dockerfile と Compose の書き方", "q": "docker stop すると毎回 10 秒待たされ、アプリの終了処理も動かない。Dockerfile の最後は CMD node server.js。原因は？", "choices": ["シェル形式なので sh が PID 1 になり、SIGTERM がアプリに届いていない", "EXPOSE を書いていないから", "USER を root にしていないから"], "answer": 0, "explain": "CMD [\"node\", \"server.js\"] の exec 形式にすると node が PID 1 になり SIGTERM が届く。PID 1 は既定では終了しないので、アプリで SIGTERM を処理するか --init（compose なら init: true）も使う。", "ref": "#exec-form"},
   {"file": "ddd-onion.html", "title": "DDD とオニオンアーキテクチャ", "q": "「完了済みのタスクはもう一度完了できない」という業務ルールを追加する。どこに書く？", "choices": ["Task エンティティの complete() メソッドの中", "Hono のルートハンドラ", "ユースケース（CompleteTaskUseCase）の if 文"], "answer": 0, "explain": "業務ルールはエンティティや値オブジェクトに閉じ込める。ユースケースは取り出して呼んで保存する段取り役。ルールがユースケースに散らばるとドメインモデル貧血症になる。", "ref": "#ddd-tac"},
   {"file": "ddd-onion.html", "title": "DDD とオニオンアーキテクチャ", "q": "ユースケースから DB に保存したいが、application 層は infrastructure 層を import してはいけない。どうする？", "choices": ["例外として application から D1 のクライアントを直接 import する", "リポジトリのインターフェースをドメインに置き、infrastructure でそれを実装する", "保存処理もドメインのエンティティに書く"], "answer": 1, "explain": "依存性逆転。どちらの矢印も内側を向くので、D1 を Postgres やメモリに替えても内側は変わらない。", "ref": "#onion"},
   {"file": "ddd-onion.html", "title": "DDD とオニオンアーキテクチャ", "q": "API の入力は Zod で検証している。それでも TaskTitle のような値オブジェクトを作る意味はある？", "choices": ["ない。値オブジェクトは DB の型を表すためのもの", "ある。値オブジェクトは別の入口から来ても業務ルールを守れる", "ない。Zod で検証済みなら二重チェックになるだけ"], "answer": 1, "explain": "値オブジェクトは生成時にルールを検証するので、作れた時点で正しい値であることが保証される。", "ref": "#myths"},
