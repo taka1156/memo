@@ -565,7 +565,9 @@ description: MEMO リポジトリ用の解説ページを新しく作るとき�
     var target = document.getElementById(id);
     if (!target) return false;
     reveal(target);
-    target.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
     target.classList.add('mq-flash');
     setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
     return true;
