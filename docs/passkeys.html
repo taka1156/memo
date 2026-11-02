@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>パスキー（WebAuthn）</title>
+<meta name="description" content="公開鍵で署名するパスキーの登録・ログインの流れ、フィッシングに強い理由、同期型と端末固定型の違い、実装時のチェックリストまでを図解。">
+<meta name="memo:tags" content="セキュリティ">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-warn: #b45309;
+  --c-a: #7c3aed;
+  --c-b: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-warn: #fbbf24;
+    --c-a: #c4b5fd;
+    --c-b: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.list, ol.list { margin: 6px 0 6px 1.3em; }
+ul.list li, ol.list li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* ステップ */
+ol.steps { list-style: none; counter-reset: st; }
+ol.steps > li {
+  counter-increment: st;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 12px; top: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps b { display: block; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.fig .sub { fill: var(--fg-2); font-family: 'Noto Sans JP', sans-serif; }
+.fig .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+details.card summary { cursor: pointer; font-weight: 700; }
+details.card[open] summary { margin-bottom: 8px; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.lane { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.lane .hd { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; text-align: center; color: var(--fg-2); padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.lane .msg { grid-column: span 3; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-items: center; }
+.lane .msg > div { font-size: 0.8rem; padding: 6px 8px; border-radius: 6px; }
+.lane .msg .act { background: var(--chip); border: 1px solid var(--line); }
+.lane .msg .to { color: var(--fg-2); text-align: center; font-size: 0.75rem; }
+.lane .msg .key { border-color: var(--c-ok); }
+.lane .msg .sec { border-color: var(--c-b); }
+@media (max-width: 560px) { .lane .msg > div { font-size: 0.72rem; padding: 5px; } }
+.phish .opts { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.phish button { border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 999px; padding: 6px 14px; cursor: pointer; font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace; }
+.phish button[aria-pressed="true"] { border-color: var(--accent); outline: 2px solid var(--accent); }
+.urlbar { font: 600 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); border-radius: 999px; padding: 6px 14px; margin: 6px 0; }
+.phish .out { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+@media (max-width: 560px) { .phish .out { grid-template-columns: 1fr; } }
+.phish .out > div { border: 2px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; }
+.cmp td, .cmp th { text-align: center; }
+.cmp td:first-child, .cmp th:first-child { text-align: left; }
+.check li { margin: 5px 0 5px 1.3em; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="パスキー（WebAuthn）">
+<meta property="og:description" content="公開鍵で署名するパスキーの登録・ログインの流れ、フィッシングに強い理由、同期型と端末固定型の違い、実装時のチェックリストまでを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/passkeys.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+<h1>パスキー（WebAuthn）</h1>
+  <p class="subtitle">「秘密を送る」ログインから「秘密で署名する」ログインへ</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>パスキーは<b>サイトごとの公開鍵ペア</b>。秘密鍵は端末（やパスワードマネージャー）から出ず、サーバーには公開鍵しか置かない。</li>
+      <li>ログインは「サーバーが出した使い捨ての問題（チャレンジ）に秘密鍵で署名する」だけ。<b>送るものは毎回違い、盗まれても使い回せない</b>。</li>
+      <li>ブラウザが<b>本物のドメインにしか署名させない</b>ので、偽サイトに誘導されても渡すものが無い。これがパスワード＋SMS との最大の違い。</li>
+    </ul>
+  </div>
+
+  <h2 id="register">登録の流れ</h2>
+  <div class="card">
+    <div class="lane">
+      <div class="hd">認証器<br><small>端末・鍵マネージャー</small></div><div class="hd">ブラウザ</div><div class="hd">サーバー（RP）</div>
+      <div class="msg"><div></div><div class="to">← チャレンジ・RP ID・ユーザー情報</div><div class="act">登録オプションを作る</div></div>
+      <div class="msg"><div class="to">← create()</div><div class="act"><code>navigator.credentials.create()</code></div><div></div></div>
+      <div class="msg"><div class="act key">本人確認（指紋・顔・PIN）→ <b>鍵ペアを生成</b>、秘密鍵は保管</div><div class="to">公開鍵・ID →</div><div></div></div>
+      <div class="msg"><div></div><div class="act">オリジンを添えて送る</div><div class="act key"><b>公開鍵</b>と credential ID を保存</div></div>
+    </div>
+    <p class="note">RP（Relying Party）＝ログインさせる側のサイト。RP ID は通常そのドメイン（例: <code>example.com</code>）で、鍵はこの RP ID に紐づけて作られる。</p>
+  </div>
+
+  <h2 id="login">ログインの流れ</h2>
+  <div class="card">
+    <div class="lane">
+      <div class="hd">認証器</div><div class="hd">ブラウザ</div><div class="hd">サーバー（RP）</div>
+      <div class="msg"><div></div><div class="to">← 使い捨てのチャレンジ</div><div class="act">ランダム値を発行</div></div>
+      <div class="msg"><div class="to">← get()</div><div class="act"><code>navigator.credentials.get()</code><br>今のオリジンと RP ID を確認</div><div></div></div>
+      <div class="msg"><div class="act sec">本人確認 → チャレンジ＋オリジン情報に<b>秘密鍵で署名</b></div><div class="to">署名 →</div><div></div></div>
+      <div class="msg"><div></div><div class="act">署名を送る</div><div class="act key">保存した<b>公開鍵で検証</b>。チャレンジ・オリジン・RP ID が一致すれば OK</div></div>
+    </div>
+    <p class="note">指紋や顔のデータは端末の中で「本人か」を確かめるのに使うだけで、サーバーには送られない。サーバーが受け取るのは「本人確認した」という印（UV フラグ）と署名だけ。</p>
+  </div>
+
+  <h2 id="phishing">なぜフィッシングに強い？</h2>
+  <div class="card phish">
+    <p>メールのリンクを踏んだ先がどちらかで、何が起きるかを比べる。</p>
+    <div class="opts" id="opts">
+      <button aria-pressed="true" data-d="real">本物 example.com</button>
+      <button aria-pressed="false" data-d="fake">偽物 examp1e.com</button>
+    </div>
+    <div class="urlbar" id="url"></div>
+    <div class="out">
+      <div id="pw"></div>
+      <div id="pk"></div>
+    </div>
+  </div>
+
+  <h2 id="types">同期型と端末固定型</h2>
+  <div class="grid2">
+    <div class="card">
+      <span class="label">同期パスキー（synced）</span>
+      <p>iCloud キーチェーン、Google パスワードマネージャー、1Password などに保存され、<b>同じアカウントの端末間で同期</b>される。機種変更しても使え、一般ユーザー向けの主流。</p>
+      <p class="note">安全性はそのマネージャーのアカウント保護に依存する。</p>
+    </div>
+    <div class="card">
+      <span class="label">端末固定パスキー（device-bound）</span>
+      <p>YubiKey などのセキュリティキーや、管理された業務端末の中だけにあり、<b>コピーできない</b>。管理者アカウントや厳しい社内要件向け。</p>
+      <p class="note">失くすと使えないので、予備のキーを必ず登録しておく。</p>
+    </div>
+  </div>
+  <p class="note">手元にパスキーが無い PC でも、画面の QR コードをスマホで読むと、Bluetooth で近くにあることを確かめたうえでスマホのパスキーでログインできる（ハイブリッド方式）。</p>
+
+  <h2 id="compare">ほかの方式との比較</h2>
+  <div class="card table-wrap">
+    <table class="cmp">
+      <tr><th>方式</th><th>フィッシング</th><th>サーバー漏えい時</th><th>使い回し</th><th>手間</th></tr>
+      <tr><td>パスワードのみ</td><td class="ng">弱い</td><td class="ng">ハッシュが解かれる恐れ</td><td class="ng">起きがち</td><td>覚える・打つ</td></tr>
+      <tr><td>＋ SMS コード</td><td class="ng">弱い（コードも中継される）</td><td class="warn">パスワード分は残る</td><td class="warn">パスワード次第</td><td>届くのを待つ</td></tr>
+      <tr><td>＋ TOTP アプリ</td><td class="ng">弱い（6桁も中継される）</td><td class="warn">共有シークレットが漏れる</td><td class="warn">パスワード次第</td><td>アプリを開いて打つ</td></tr>
+      <tr><td>パスキー</td><td class="ok">強い（ドメインに紐づく）</td><td class="ok">公開鍵だけ＝無害</td><td class="ok">構造上できない</td><td>指紋・顔・PIN だけ</td></tr>
+    </table>
+  </div>
+  <p class="note">SMS や TOTP は「本物そっくりの偽サイトが、入力されたコードをその場で本物に転送する」中継型フィッシングに負ける。パスキーは署名に本物のオリジンが入るので中継しても通らない。</p>
+
+  <h2 id="implement">実装するときのチェックリスト</h2>
+  <div class="card">
+    <ul class="check">
+      <li><b>ライブラリを使う</b>：署名・CBOR・各種フラグの検証は自前で書かない（例: SimpleWebAuthn、各言語の WebAuthn ライブラリ）。</li>
+      <li><b>チャレンジはサーバーで毎回生成</b>し、セッションに紐づけて一度だけ受け付ける。</li>
+      <li><b>オートフィルに出す</b>：ユーザー名欄に <code>autocomplete="username webauthn"</code> を付け、<code>get({ mediation: 'conditional' })</code> を呼ぶと、入力欄の候補にパスキーが並ぶ。</li>
+      <li><b>1 アカウントに複数のパスキー</b>を登録できるようにする（スマホ・PC・予備のキー）。一覧で名前を付けて削除できるように。</li>
+      <li><b>復旧手段を設計する</b>：全部の端末を失ったときの道（メール確認＋再登録、サポート窓口など）。ここが弱いと結局そこが狙われる。</li>
+      <li><b>パスワードはすぐ消さない</b>：まずは「追加のログイン方法」として導入し、パスキーでログインした人に促して段階的に移す。</li>
+      <li><b>ドメインを決めてから始める</b>：パスキーは RP ID（ドメイン）に紐づく。複数ドメインで共有したいなら Related Origin Requests（<code>/.well-known/webauthn</code>）を使う。</li>
+    </ul>
+<pre><code><span class="cm">// ログイン画面：オートフィルにパスキーを出す</span>
+const options = await fetch('/webauthn/login-options').then(r => r.json());
+const cred = await navigator.credentials.get({
+  publicKey: PublicKeyCredential.parseRequestOptionsFromJSON(options),
+  mediation: 'conditional',
+});
+await fetch('/webauthn/verify', { method: 'POST', body: JSON.stringify(cred) });</code></pre>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✕</span> 指紋や顔のデータがサーバーに送られる</p><p><span class="ok">○</span> 生体情報は端末内で本人確認に使うだけ。サーバーに届くのは署名と「本人確認済み」のフラグ。</p></div>
+  <div class="card myth"><p><span class="ng">✕</span> パスキー対応サイトがハッキングされたら、パスキーも盗まれる</p><p><span class="ok">○</span> サーバーにあるのは公開鍵だけ。公開鍵では署名できないので、漏れても他人がログインすることはできない。</p></div>
+  <div class="card myth"><p><span class="ng">✕</span> スマホを失くしたらログインできなくなる</p><p><span class="ok">○</span> 同期パスキーなら、同じアカウントの別端末や新しい端末に戻ってくる。端末固定型は予備を登録しておくのが前提。</p></div>
+
+  <h2 id="now">いまの動き（2026年）</h2>
+  <div class="card">
+    <ul class="list">
+      <li><b>WebAuthn Level 3</b>：2026年8月に W3C 勧告（正式な標準）になった。オートフィル中にパスキーを作る conditional create、削除などをマネージャーに伝える Signal API、対応機能を問い合わせる <code>getClientCapabilities()</code>、JSON 変換ヘルパーなどが入り、主要ブラウザで実装が進んでいる。</li>
+      <li><b>パスキーの引っ越し（CXP / CXF）</b>：FIDO Alliance が、パスワードマネージャー間でパスキーを安全に移す仕組みを作っている。データ形式の CXF は 2025年8月に Proposed Standard になったが、受け渡しの手順を決める CXP はまだ草案の段階。Apple は OS 26 系で対応を始めているが、マネージャー間の自由な移行はまだ広がりつつある段階。</li>
+    </ul>
+  </div>
+
+  <h2>関連</h2>
+  <p class="related"><a href="oauth-oidc.html">OAuth 2.0 / OIDC のフロー</a><a href="jwt-vs-session.html">JWT とセッション</a><a href="cors-sop.html">CORS と同一オリジンポリシー</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://www.w3.org/TR/webauthn-3/">W3C: Web Authentication Level 3</a></li>
+    <li><a href="https://passkeys.dev/">passkeys.dev（実装ガイド）</a></li>
+    <li><a href="https://fidoalliance.org/passkeys/">FIDO Alliance: Passkeys</a></li>
+    <li><a href="https://fidoalliance.org/webauthn-level-3-is-now-a-w3c-recommendation/">WebAuthn Level 3 is now a W3C Recommendation（FIDO Alliance, 2026-08）</a></li>
+    <li><a href="https://fidoalliance.org/specs/cx/cxf-v1.0-ps-20250814.html">Credential Exchange Format v1.0（Proposed Standard）</a></li>
+    <li><a href="https://guptadeepak.com/webauthn-level-3-whats-new-in-the-passkey-standard/">WebAuthn Level 3: What's New in the Passkey Standard</a></li>
+    <li><a href="https://www.corbado.com/blog/credential-exchange-protocol-cxp-credential-exchange-format-cxf">Credential Exchange Protocol (CXP) / Format (CXF)（Corbado）</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+(() => {
+  const D = {
+    real: {
+      url: '🔒 https://example.com/login',
+      pw: '<b>パスワード＋SMS</b><p>入力したパスワードとコードは本物に届く。問題なし。</p>',
+      pwc: 'var(--line)',
+      pk: '<b class="ok">パスキー</b><p>RP ID が一致するので、ブラウザが example.com のパスキーを候補に出す。署名してログイン。</p>',
+      pkc: 'var(--c-ok)'
+    },
+    fake: {
+      url: '🔒 https://examp1e.com/login',
+      pw: '<b class="ng">パスワード＋SMS</b><p>見た目が同じなので入力してしまう。偽サイトはそれを本物へ即座に中継し、SMS コードも横取りしてログインされる。</p>',
+      pwc: 'var(--c-ng)',
+      pk: '<b class="ok">パスキー</b><p>ブラウザは examp1e.com 用のパスキーを持っていないので<b>候補に出さない</b>。仮に署名させても中に examp1e.com と書かれるので、本物のサーバーは拒否する。</p>',
+      pkc: 'var(--c-ok)'
+    }
+  };
+  const opts = document.getElementById('opts');
+  const show = k => {
+    opts.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.d === k)));
+    const d = D[k];
+    document.getElementById('url').textContent = d.url;
+    const pw = document.getElementById('pw'), pk = document.getElementById('pk');
+    pw.innerHTML = d.pw; pw.style.borderColor = d.pwc;
+    pk.innerHTML = d.pk; pk.style.borderColor = d.pkc;
+  };
+  opts.addEventListener('click', e => { const b = e.target.closest('button'); if (b) show(b.dataset.d); });
+  show('real');
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "パスキー対応サービスのユーザーテーブルが丸ごと流出した。攻撃者がそのデータでユーザーとしてログインできない理由は？",
+    "choices": ["パスキーのデータは暗号化して保存されているから", "サーバーにあるのは公開鍵だけで、公開鍵では署名できないから", "流出してもパスキーは自動で失効するから"],
+    "answer": 1,
+    "explain": "ログインには秘密鍵での署名が必要で、秘密鍵はユーザーの端末やマネージャーから出ない。サーバー側の公開鍵は検証にしか使えない。",
+    "ref": "#login"
+  },
+  {
+    "q": "本物そっくりの偽サイトが、入力内容をリアルタイムで本物に中継する攻撃。SMS コードの二段階認証では防げないのに、パスキーでは防げるのはなぜ？",
+    "choices": ["パスキーは署名がドメイン（RP ID・オリジン）に紐づき、ブラウザが偽ドメインでは使わせないから", "パスキーの方がコードの桁数が多いから", "パスキーは通信を暗号化するから"],
+    "answer": 0,
+    "explain": "SMS コードはただの文字列なので中継できる。パスキーはブラウザが今のオリジンを確認し、署名にもオリジンが含まれるので、偽ドメインからは本物で通る署名を得られない。",
+    "ref": "#phishing"
+  },
+  {
+    "q": "社内の管理者アカウントで、鍵がクラウドに同期されることを避けたい。合う構成は？",
+    "choices": ["同期パスキーだけを許可する", "パスワード＋TOTP に戻す", "YubiKey などの端末固定パスキーを使い、予備のキーも登録する"],
+    "answer": 2,
+    "explain": "端末固定パスキーは鍵をコピーできず、そのハードウェアの中にしか存在しない。失くすと使えないので予備の登録が前提。",
+    "ref": "#types"
+  },
+  {
+    "q": "パスキーを導入したが「ボタンを探さないと使えない」と利用率が低い。ユーザー名欄の入力候補にパスキーを出すには？",
+    "choices": ["パスワード欄を削除する", "ユーザー名欄に autocomplete=\"username webauthn\" を付け、mediation: 'conditional' で get() を呼ぶ", "ページを開いたら自動で create() を呼ぶ"],
+    "answer": 1,
+    "explain": "conditional mediation を使うと、パスワードの自動入力と同じ場所にパスキーが候補として並ぶ。勝手に create() を呼ぶと毎回登録ダイアログが出てしまう。",
+    "ref": "#implement"
+  }
+]
+</script>
+</body>
+</html>

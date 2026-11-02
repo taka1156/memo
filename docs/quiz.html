@@ -256,11 +256,67 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
+    "file": "passkeys.html",
+    "title": "パスキー（WebAuthn）",
+    "desc": "公開鍵で署名するパスキーの登録・ログインの流れ、フィッシングに強い理由、同期型と端末固定型の違い、実装時のチェックリストまでを図解。",
+    "tags": [
+      "セキュリティ"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "http-cache.html",
+    "title": "HTTP キャッシュ",
+    "desc": "Cache-Control の読み方、鮮度と再検証（ETag・304）、ブラウザと CDN の二段構え、用途別のおすすめ設定までを図解。",
+    "tags": [
+      "インフラ",
+      "フロントエンド"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "git-internals.html",
+    "title": "Git の内部構造",
+    "desc": "blob・tree・commit・ref の4つで Git を理解し、merge と rebase の違い、reset の3種類、reflog での復旧までを図解。",
+    "tags": [
+      "開発ツール"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "ddd-onion.html",
     "title": "DDD とオニオンアーキテクチャ",
     "desc": "DDD の要素と依存の向きを図解し、Hono・Void での構成例と AI 時代向けの軽量版を比較。",
     "tags": [
       "設計"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "db-internals.html",
+    "title": "DB のしくみ",
+    "desc": "SQL が結果になるまでの流れ、ページとバッファプール、WAL によるクラッシュ復旧、行指向と列指向、そして D1 などクラウドでも使われるようになった SQLite を図解。",
+    "tags": [
+      "データベース"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "db-index-transaction.html",
+    "title": "インデックスとトランザクション",
+    "desc": "B木インデックスが効く条件・効かない条件（複合インデックスの順序、関数、LIKE）と、分離レベルで防げる異常、MVCC、更新の取りこぼし対策までを図解。",
+    "tags": [
+      "データベース"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "cloudflare-databases.html",
+    "title": "D1 と Hyperdrive＋PlanetScale",
+    "desc": "Cloudflare Workers から使う DB を、SQLite ベースの D1 と、Hyperdrive 経由の PlanetScale（Postgres / MySQL）で比較。仕組み・得意不得意・選び方を図解。",
+    "tags": [
+      "インフラ",
+      "データベース"
     ],
     "date": "2026-11-03"
   },
@@ -480,11 +536,40 @@ const QUIZZES = [
   {"file": "pwa.html", "title": "PWA の仕組みとチェックリスト", "q": "API のレスポンスは常に最新を見せたいが、オフラインのときは前回の結果を出したい。合う戦略は？", "choices": ["Cache First", "Network First", "Stale-While-Revalidate"], "answer": 1, "explain": "オンラインなら最新を取り、失敗したらキャッシュを返す。回線が遅いとタイムアウトまで待たされる点に注意。", "ref": "#s2"},
   {"file": "pwa.html", "title": "PWA の仕組みとチェックリスト", "q": "sw.js を /js/sw.js に置いたら、トップページ（/）の通信を Service Worker が扱わない。理由は？", "choices": ["SW が制御できるのは置いた場所以下だけだから", "sw.js は .js フォルダに置くと読み込まれない", "トップページは SW の対象外という仕様"], "answer": 0, "explain": "通常はサイトのルートに置く。広げるにはサーバーが Service-Worker-Allowed ヘッダーを返す必要がある。", "ref": "#myths"},
   {"file": "pwa.html", "title": "PWA の仕組みとチェックリスト", "q": "iPhone のユーザーにも PWA をインストールしてもらいたい。どうする？", "choices": ["条件を満たせば Android と同じく自動で案内が出る", "自動の案内は出ないので、「共有 → ホーム画面に追加」の手順をページで案内する", "beforeinstallprompt でインストールボタンを出す"], "answer": 1, "explain": "iOS の Safari には自動のプロンプトも beforeinstallprompt もない。", "ref": "#platforms"},
+  {"file": "passkeys.html", "title": "パスキー（WebAuthn）", "q": "パスキー対応サービスのユーザーテーブルが丸ごと流出した。攻撃者がそのデータでユーザーとしてログインできない理由は？", "choices": ["パスキーのデータは暗号化して保存されているから", "サーバーにあるのは公開鍵だけで、公開鍵では署名できないから", "流出してもパスキーは自動で失効するから"], "answer": 1, "explain": "ログインには秘密鍵での署名が必要で、秘密鍵はユーザーの端末やマネージャーから出ない。サーバー側の公開鍵は検証にしか使えない。", "ref": "#login"},
+  {"file": "passkeys.html", "title": "パスキー（WebAuthn）", "q": "本物そっくりの偽サイトが、入力内容をリアルタイムで本物に中継する攻撃。SMS コードの二段階認証では防げないのに、パスキーでは防げるのはなぜ？", "choices": ["パスキーは署名がドメイン（RP ID・オリジン）に紐づき、ブラウザが偽ドメインでは使わせないから", "パスキーの方がコードの桁数が多いから", "パスキーは通信を暗号化するから"], "answer": 0, "explain": "SMS コードはただの文字列なので中継できる。パスキーはブラウザが今のオリジンを確認し、署名にもオリジンが含まれるので、偽ドメインからは本物で通る署名を得られない。", "ref": "#phishing"},
+  {"file": "passkeys.html", "title": "パスキー（WebAuthn）", "q": "社内の管理者アカウントで、鍵がクラウドに同期されることを避けたい。合う構成は？", "choices": ["同期パスキーだけを許可する", "パスワード＋TOTP に戻す", "YubiKey などの端末固定パスキーを使い、予備のキーも登録する"], "answer": 2, "explain": "端末固定パスキーは鍵をコピーできず、そのハードウェアの中にしか存在しない。失くすと使えないので予備の登録が前提。", "ref": "#types"},
+  {"file": "passkeys.html", "title": "パスキー（WebAuthn）", "q": "パスキーを導入したが「ボタンを探さないと使えない」と利用率が低い。ユーザー名欄の入力候補にパスキーを出すには？", "choices": ["パスワード欄を削除する", "ユーザー名欄に autocomplete=\"username webauthn\" を付け、mediation: 'conditional' で get() を呼ぶ", "ページを開いたら自動で create() を呼ぶ"], "answer": 1, "explain": "conditional mediation を使うと、パスワードの自動入力と同じ場所にパスキーが候補として並ぶ。勝手に create() を呼ぶと毎回登録ダイアログが出てしまう。", "ref": "#implement"},
+  {"file": "http-cache.html", "title": "HTTP キャッシュ", "q": "デプロイしても一部のユーザーに古い画面が出続ける。HTML に Cache-Control: max-age=86400 が付いていた。根本的な対策は？", "choices": ["CDN をパージする", "HTML は no-cache（毎回再検証）にし、JS/CSS はファイル名ハッシュで長期キャッシュする", "HTML も JS も no-store にする"], "answer": 1, "explain": "URL が固定の HTML を長くキャッシュすると、ブラウザに残った分はパージでも消せない。HTML は毎回再検証、中身が変わると URL も変わるアセットは長期キャッシュ、が定番。no-store はキャッシュの利点を全部捨ててしまう。", "ref": "#recipes"},
+  {"file": "http-cache.html", "title": "HTTP キャッシュ", "q": "ブラウザにキャッシュされた ETag 付きレスポンスが古くなった。次のアクセスでサーバーの内容が変わっていなければ何が返る？", "choices": ["本文なしの 304 Not Modified", "同じ本文の 200 OK", "キャッシュが古いので 410 Gone"], "answer": 0, "explain": "ブラウザは If-None-Match で手元の ETag を送り、一致すればサーバーは本文なしの 304 を返す。ブラウザは手元のコピーを使い、鮮度もリセットされる。", "ref": "#flow"},
+  {"file": "http-cache.html", "title": "HTTP キャッシュ", "q": "マイページの API 応答が CDN にキャッシュされ、別のユーザーに他人の情報が表示された。最低限付けるべき指定は？", "choices": ["Cache-Control: no-cache", "Cache-Control: public, max-age=0", "Cache-Control: private（機微な情報なら no-store）"], "answer": 2, "explain": "private は共有キャッシュ（CDN）への保存を禁止する。no-cache は保存自体は許すので、CDN に残り得る。", "ref": "#layers"},
+  {"file": "http-cache.html", "title": "HTTP キャッシュ", "q": "Cache-Control: max-age=60, stale-while-revalidate=120 のレスポンスを受け取って 90 秒後にアクセスした。どうなる？", "choices": ["サーバーの返事を待ってから表示する", "古い版をすぐ表示し、裏でサーバーに確認して更新する", "キャッシュを使わず必ず 200 で取り直す"], "answer": 1, "explain": "60 秒を過ぎて古くなったが、そこから 120 秒間は SWR の猶予。古い版を即返しつつ裏で再検証するので、待たされない。", "ref": "#sim"},
+  {"file": "http-cache.html", "title": "HTTP キャッシュ", "q": "同じ URL で、Accept-Language によって日本語版と英語版を返している。CDN 経由で日本人に英語版が出ることがある。何が足りない？", "choices": ["Vary: Accept-Language", "Cache-Control: immutable", "ETag"], "answer": 0, "explain": "Vary に書いたヘッダーの値ごとに、キャッシュは別々に保存する。無いと最初に保存された言語版を全員に返してしまう。", "ref": "#vary"},
+  {"file": "git-internals.html", "title": "Git の内部構造", "q": "1000 回コミットしたリポジトリで、README.md は一度も変更していない。README.md の blob はいくつ保存されている？", "choices": ["1000 個（コミットごとに 1 つ）", "1 個（全コミットの tree から共有される）", "0 個（差分が無いので保存されない）"], "answer": 1, "explain": "blob の名前は中身のハッシュなので、同じ中身なら同じ blob が 1 つだけ。各コミットの tree がそれを指すだけになる。", "ref": "#graph"},
+  {"file": "git-internals.html", "title": "Git の内部構造", "q": "誤って git branch -D feature で未マージのブランチを消してしまった。最初にやることは？", "choices": ["もう復元できないので作業をやり直す", "git revert でブランチ削除を取り消す", "git reflog で消える前の先端コミットを探し、そこにブランチを作り直す"], "answer": 2, "explain": "消えたのはポインタ（ref）だけで、コミットはまだ残っている。reflog でハッシュを見つけて git branch で立て直せばよい。", "ref": "#reflog"},
+  {"file": "git-internals.html", "title": "Git の内部構造", "q": "チームで共有している develop ブランチ（push 済み）に main の最新を取り込みたい。安全なのは？", "choices": ["git merge main", "git rebase main して force push", "git reset --hard main"], "answer": 0, "explain": "merge は既存コミットを書き換えず新しいマージコミットを足すだけ。rebase はコミットを作り直すため、同じブランチを持つ他の人の履歴と食い違う。", "ref": "#merge-rebase"},
+  {"file": "git-internals.html", "title": "Git の内部構造", "q": "直前のコミットに入れるべきファイルを入れ忘れた。変更は消さずに、コミットだけ作り直したい。合うのは？", "choices": ["git reset --hard HEAD~1", "git reset --soft HEAD~1", "git revert HEAD"], "answer": 1, "explain": "--soft はブランチだけを1つ前に戻し、インデックスと作業ツリーはそのまま。ファイルを add して commit し直せる（git commit --amend でも同じことができる）。", "ref": "#reset"},
+  {"file": "git-internals.html", "title": "Git の内部構造", "q": "GitHub で feature を「Squash and merge」した後、同じ feature ブランチで作業を続けて再度 PR を出したら、前に取り込んだはずの変更まで差分に出てきた。なぜ？", "choices": ["squash で main 側のコミットが壊れたから", "GitHub のキャッシュが古いから", "squash したコミットは feature のコミットとつながっておらず、Git が取り込み済みと判定できないから"], "answer": 2, "explain": "squash merge は変更をまとめた新しいコミットを作るだけで、feature の元コミットを親に持たない。そのため Git から見ると feature の元コミットは main に未取り込みのまま。", "ref": "#merge-rebase"},
   {"file": "ddd-onion.html", "title": "DDD とオニオンアーキテクチャ", "q": "「完了済みのタスクはもう一度完了できない」という業務ルールを追加する。どこに書く？", "choices": ["Task エンティティの complete() メソッドの中", "Hono のルートハンドラ", "ユースケース（CompleteTaskUseCase）の if 文"], "answer": 0, "explain": "業務ルールはエンティティや値オブジェクトに閉じ込める。ユースケースは取り出して呼んで保存する段取り役。ルールがユースケースに散らばるとドメインモデル貧血症になる。", "ref": "#ddd-tac"},
   {"file": "ddd-onion.html", "title": "DDD とオニオンアーキテクチャ", "q": "ユースケースから DB に保存したいが、application 層は infrastructure 層を import してはいけない。どうする？", "choices": ["例外として application から D1 のクライアントを直接 import する", "リポジトリのインターフェースをドメインに置き、infrastructure でそれを実装する", "保存処理もドメインのエンティティに書く"], "answer": 1, "explain": "依存性逆転。どちらの矢印も内側を向くので、D1 を Postgres やメモリに替えても内側は変わらない。", "ref": "#onion"},
   {"file": "ddd-onion.html", "title": "DDD とオニオンアーキテクチャ", "q": "API の入力は Zod で検証している。それでも TaskTitle のような値オブジェクトを作る意味はある？", "choices": ["ない。値オブジェクトは DB の型を表すためのもの", "ある。値オブジェクトは別の入口から来ても業務ルールを守れる", "ない。Zod で検証済みなら二重チェックになるだけ"], "answer": 1, "explain": "値オブジェクトは生成時にルールを検証するので、作れた時点で正しい値であることが保証される。", "ref": "#myths"},
   {"file": "ddd-onion.html", "title": "DDD とオニオンアーキテクチャ", "q": "ユースケースの中でヘッダーやパラメーターを読みたいので、Hono の Context（c）をそのまま渡したくなった。どうするべき？", "choices": ["ハンドラで必要な値だけ取り出し、プレーンな引数として渡す", "c を渡して、ユースケースの中で c.req を読む", "ユースケースを Hono のミドルウェアとして書き直す"], "answer": 0, "explain": "c を渡すと application が Hono に依存し、テストにも Context が必要になる。", "ref": "#myths"},
   {"file": "ddd-onion.html", "title": "DDD とオニオンアーキテクチャ", "q": "CRUD が中心で業務ルールがまだ少ない新規 API を作る。構成の進め方としておすすめは？", "choices": ["層は分けず、ルートハンドラに業務ルールも DB アクセスも書く", "最初から 4 層のフォルダとクラスを全部用意する", "軽量版で始め、痛みが出た部分からフル版に寄せていく"], "answer": 2, "explain": "軽量版でも「ルールは task.ts だけ」「task.ts は FW や DB を import しない」「DB アクセスは task.repo.ts に閉じ込める」の 3 つは守る。", "ref": "#lite"},
+  {"file": "db-internals.html", "title": "DB のしくみ", "q": "COMMIT が成功した直後に DB サーバーの電源が落ちた。データファイルにはまだ反映されていなかった。再起動後どうなる？", "choices": ["WAL を再生して、コミットした変更は復元される", "データファイルに無いので変更は失われる", "トランザクションが途中から再実行される"], "answer": 0, "explain": "COMMIT は WAL がディスクに確定した時点で成功を返す。再起動時に WAL を読み直して（REDO）データファイルを最新にするので、コミット済みの変更は消えない。", "ref": "#recovery"},
+  {"file": "db-internals.html", "title": "DB のしくみ", "q": "昨日まで速かった同じ SQL が、データが急増した今日から急に遅くなった。SQL は一文字も変えていない。まず疑うべきは？", "choices": ["SQL の構文エラー", "プランナが選ぶ実行計画が変わった（EXPLAIN で確認する）", "WAL が壊れた"], "answer": 1, "explain": "どう取ってくるかはプランナが統計情報から毎回決める。データ量や分布が変わると別の計画が選ばれることがあるので、EXPLAIN で計画を比べる。", "ref": "#pipeline"},
+  {"file": "db-internals.html", "title": "DB のしくみ", "q": "1台のサーバーで動く社内ツールに SQLite を使ったら、管理画面で重い書き込みをしている間に一覧画面の読み込みが止まる。まず試すことは？", "choices": ["PostgreSQL に移行する", "PRAGMA journal_mode = WAL にする", "DB ファイルを NFS に置いて分散させる"], "answer": 1, "explain": "既定のロールバックジャーナルでは書き込み中は読み込みも待たされる。WAL モードなら変更を別ファイルに追記するので、書き込み中も読み込みは止まらない（書き込みは引き続き1本ずつ）。", "ref": "#sqlite-wal"},
+  {"file": "db-internals.html", "title": "DB のしくみ", "q": "SQLite で外部キーを定義したのに、存在しない親 ID を持つ行が普通に INSERT できてしまった。なぜ？", "choices": ["SQLite は外部キーに対応していないから", "STRICT テーブルにしていないから", "外部キー制約は既定で無効で、接続ごとに PRAGMA foreign_keys = ON が必要だから"], "answer": 2, "explain": "SQLite は互換性のため外部キーの検査を既定でオフにしている。接続を開くたびに PRAGMA foreign_keys = ON を実行する。", "ref": "#sqlite-setup"},
+  {"file": "db-internals.html", "title": "DB のしくみ", "q": "D1 で全テナントのデータを 1 つの DB に入れていたら、利用者が増えて書き込みが詰まり始めた。D1 の仕組みに合った対策は？", "choices": ["テナントごとに DB を分け、書き込みを複数の DB に散らす", "読み取りレプリカを増やす", "同じ DB への書き込みをできるだけ並列に投げる"], "answer": 0, "explain": "D1 の各 DB はシングルスレッドでクエリを1つずつ処理するので、1 DB の書き込みには上限がある。D1 は大量の DB を持てる設計なので、分けて書き込みを散らすのが定石。レプリカは読み取り専用なので書き込みには効かない。", "ref": "#sqlite-cloud"},
+  {"file": "db-index-transaction.html", "title": "インデックスとトランザクション", "q": "orders (user_id, created_at) の複合インデックスがある。「先週の全ユーザーの注文」を created_at だけで検索したら遅い。なぜ？", "choices": ["先頭列の user_id を指定していないので、並び順をそのまま使えないから", "created_at が日付型だから", "複合インデックスは等号でしか使えないから"], "answer": 0, "explain": "複合インデックスは user_id 順、その中で created_at 順に並んでいる。user_id を飛ばすと created_at はばらばらに散っているので、基本的には効率よく使えない（PostgreSQL 18 や MySQL 8.0.13 以降はスキップスキャンで使える場合もあるが、user_id の種類が多いと効果は薄い）。必要なら created_at 単独のインデックスを作る。", "ref": "#checker"},
+  {"file": "db-index-transaction.html", "title": "インデックスとトランザクション", "q": "email にインデックスがあるのに WHERE lower(email) = 'a@example.com' が全件スキャンになる。対策は？", "choices": ["email のインデックスを作り直す", "lower(email) の式インデックスを作る", "LIKE に書き換える"], "answer": 1, "explain": "インデックスは email の値の順に並んでいて、lower(email) の順ではない。関数をかけた結果で探すなら、その式自体にインデックスを作る。", "ref": "#like"},
+  {"file": "db-index-transaction.html", "title": "インデックスとトランザクション", "q": "既定の READ COMMITTED で「在庫を SELECT → アプリで -1 → UPDATE で書き戻す」処理を同時に 2 件実行したら、2 個売れたのに在庫が 1 しか減らなかった。一番シンプルな対策は？", "choices": ["分離レベルを READ UNCOMMITTED にする", "SELECT を 2 回実行して値を確認する", "UPDATE items SET stock = stock - 1 のように DB 側で計算する"], "answer": 2, "explain": "読んだ値を書き戻す方式は、READ COMMITTED では更新の取りこぼしが起きる。stock = stock - 1 なら UPDATE 時の最新値に対して計算されるので取りこぼさない。複雑な判定が必要なら SELECT ... FOR UPDATE。", "ref": "#lost-fix"},
+  {"file": "db-index-transaction.html", "title": "インデックスとトランザクション", "q": "PostgreSQL で、夜間バッチが長時間トランザクションを開いたままにしていたら、更新の多いテーブルがどんどん膨らんだ。主な原因は？", "choices": ["WAL がデータファイルに反映されないから", "そのトランザクションから見える可能性のある古い行の版を、VACUUM が消せないから", "インデックスが自動で増えるから"], "answer": 1, "explain": "MVCC では更新のたびに新しい版ができる。まだ実行中の古いトランザクションが見る可能性のある版は片付けられないので、溜まり続ける。", "ref": "#mvcc"},
+  {"file": "db-index-transaction.html", "title": "インデックスとトランザクション", "q": "SERIALIZABLE に上げたら、まれに「could not serialize access」エラーが出るようになった。どう扱う？", "choices": ["DB の不具合なので READ COMMITTED に戻す", "想定どおりの挙動なので、トランザクションを最初からリトライする", "エラーを無視して処理を続ける"], "answer": 1, "explain": "SERIALIZABLE は、直列に実行した場合と矛盾する組み合わせを検出すると片方をエラーにして守る。アプリ側でトランザクションごとやり直す前提で使う。", "ref": "#isolation"},
+  {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "Workers から AWS 上の既存 Postgres に直接つないだら、簡単な SELECT でも毎回遅い。まず入れるべきものは？", "choices": ["D1 の読み取りレプリカ", "KV にすべてのデータを移す", "Hyperdrive（接続プールとキャッシュ）"], "answer": 2, "explain": "Worker はリクエストごとに起動するので、直接つなぐと毎回 TCP・TLS・認証の往復をやり直す。Hyperdrive が DB への接続をプールしておくので、その往復がほぼ消える。", "ref": "#why-hyperdrive"},
+  {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "SaaS の各顧客企業に独立したデータを持たせたい。1社あたり数百 MB で、Postgres 固有の機能は使わない。素直な構成は？", "choices": ["D1 で顧客ごとに DB を1つずつ作る", "Hyperdrive だけを契約する", "PlanetScale の1つの DB に全社を入れ、D1 の読み取りレプリカで速くする"], "answer": 0, "explain": "D1 は1つの DB を小さく保ち、大量に作って分ける前提のサービス。テナントごとに分ければ書き込みも自然に散る。Hyperdrive は DB ではないので単体では使えない。", "ref": "#compare"},
+  {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "Hyperdrive 経由の PlanetScale を使っている。プロフィールを更新した直後の画面で、古い名前が表示されることがある。原因として考えられるのは？", "choices": ["PlanetScale の書き込みが失敗している", "Hyperdrive の読み取りクエリのキャッシュが古い結果を返している", "Placement の設定が間違っている"], "answer": 1, "explain": "Hyperdrive は読み取りクエリの結果を既定でキャッシュし、書き込みがあってもキャッシュを消さない。書いた直後に読む画面では、キャッシュを無効にした別の Hyperdrive 設定（バインディング）を経由して読む。", "ref": "#myths"},
+  {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "PlanetScale の DB は us-east-1 にある。Worker が各国の最寄りで動くため、1リクエストで何本もクエリを投げる API が遅い。効く対策は？", "choices": ["D1 の読み取りレプリカを増やす", "クエリを並列にしてさらに本数を増やす", "Placement で Worker を DB の近く（aws:us-east-1）で動かす"], "answer": 2, "explain": "クエリのたびに Worker と DB の間を往復するので、距離 × 本数だけ遅くなる。Worker を DB の近くで動かせば、ユーザーとの往復は1回、DB との往復は短くなる。", "ref": "#arch"},
+  {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "D1 で1つの DB に全ユーザーの書き込みが集中し、遅くなってきた。読み取りレプリカを有効にすれば解決する？", "choices": ["解決する。レプリカが書き込みも分担するから", "解決しない。レプリカは読み取り専用なので、書き込みは DB を分けて散らす", "解決する。レプリカがあると書き込みがキャッシュされるから"], "answer": 1, "explain": "D1 の各 DB はシングルスレッドで、書き込みはプライマリに集まる。書き込みを増やしたいなら DB を分けるか、共有データが中心なら PlanetScale のようなサーバー型 DB を検討する。", "ref": "#myths"},
   {"file": "vue-vs-svelte.html", "title": "Vue と Svelte", "q": "Vue の <script setup> で const count = ref(0) とし、関数の中で count++ と書いたが動かない。どう書く？", "choices": ["this.count++", "count.value++", "count = count + 1"], "answer": 1, "explain": "script の中では .value で読み書きする。テンプレートの中では自動で .value が外れる。", "ref": "#counter"},
   {"file": "vue-vs-svelte.html", "title": "Vue と Svelte", "q": "Svelte 4 で配列に arr.push(x) したのに、画面が更新されない。理由は？", "choices": ["push の結果は次のフレームまで反映されないから", "Svelte では配列をリアクティブにできないから", "代入文を検知する方式で、push は代入ではないから"], "answer": 2, "explain": "Svelte 4 では arr = [...arr, x] のように代入が必要だった。Svelte 5 の $state は Proxy で深く追跡するので push も検知される。", "ref": "#s4"},
   {"file": "vue-vs-svelte.html", "title": "Vue と Svelte", "q": "Svelte 5 で、複数のコンポーネントで共有するリアクティブな状態を、コンポーネントの外に切り出したい。どうする？", "choices": [".svelte.js / .svelte.ts ファイルで $state を使う", "外には切り出せないので親コンポーネントに置く", "普通の .js ファイルで let を export する"], "answer": 0, "explain": "runes は明示的な目印なので、.svelte.js などのファイルでも使える。Svelte 4 の書き方ではコンポーネントの外で使えなかった。", "ref": "#s5"},

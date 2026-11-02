@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTTP キャッシュ</title>
+<meta name="description" content="Cache-Control の読み方、鮮度と再検証（ETag・304）、ブラウザと CDN の二段構え、用途別のおすすめ設定までを図解。">
+<meta name="memo:tags" content="インフラ, フロントエンド">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-warn: #b45309;
+  --c-a: #7c3aed;
+  --c-b: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-warn: #fbbf24;
+    --c-a: #c4b5fd;
+    --c-b: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.list, ol.list { margin: 6px 0 6px 1.3em; }
+ul.list li, ol.list li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* ステップ */
+ol.steps { list-style: none; counter-reset: st; }
+ol.steps > li {
+  counter-increment: st;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 12px; top: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps b { display: block; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.fig .sub { fill: var(--fg-2); font-family: 'Noto Sans JP', sans-serif; }
+.fig .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+details.card summary { cursor: pointer; font-weight: 700; }
+details.card[open] summary { margin-bottom: 8px; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.layers { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: center; gap: 6px; text-align: center; }
+.layers .box { padding: 12px 6px; }
+.layers .box.priv { border-color: var(--c-a); }
+.layers .box.shared { border-color: var(--c-b); }
+@media (max-width: 560px) {
+  .layers { grid-template-columns: 1fr; }
+  .layers .arrow { transform: rotate(90deg); }
+}
+.sim .bar { position: relative; height: 34px; border-radius: 8px; overflow: hidden; display: flex; border: 1px solid var(--line); margin: 12px 0 6px; }
+.sim .seg { display: flex; align-items: center; justify-content: center; font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--bg); }
+.sim .s-fresh { background: var(--c-ok); }
+.sim .s-swr { background: var(--c-warn); }
+.sim .s-stale { background: var(--c-ng); }
+.sim .pin { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--fg); border-radius: 2px; }
+.sim input[type=range] { width: 100%; accent-color: var(--accent); }
+.sim .scale { position: relative; height: 1.4em; font: 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.sim .scale span { position: absolute; transform: translateX(-50%); }
+.sim .scale span:first-child { transform: none; }
+.sim .scale span:last-child { transform: translateX(-100%); }
+.sim .out { margin-top: 10px; padding: 10px 12px; border-radius: 8px; border: 2px solid var(--line); }
+.sim .out b { display: block; }
+.hdr { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); padding: 8px 12px; border-radius: 8px; word-break: break-all; margin: 6px 0; }
+.lane { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .lane { grid-template-columns: 1fr; } }
+.lane .flow { flex-direction: column; align-items: stretch; }
+.lane .arrow { text-align: center; font-size: 0.75rem; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="HTTP キャッシュ">
+<meta property="og:description" content="Cache-Control の読み方、鮮度と再検証（ETag・304）、ブラウザと CDN の二段構え、用途別のおすすめ設定までを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/http-cache.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+<h1>HTTP キャッシュ</h1>
+  <p class="subtitle">「いつまで聞かずに使うか」と「聞くときに何を送るか」の2段階</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>キャッシュは<b>新鮮（fresh）なうちは通信せずに使い</b>、古く（stale）なったら<b>サーバーに「まだ同じ？」と確認（再検証）</b>する。</li>
+      <li>確認には ETag などの検証子を使う。変わっていなければ本文なしの <code>304 Not Modified</code> が返り、転送量がほぼゼロになる。</li>
+      <li>全部 <code>Cache-Control</code> ヘッダーで決まる。ブラウザ（自分専用）と CDN（みんなで共有）の2か所にキャッシュがあることを意識する。</li>
+    </ul>
+  </div>
+
+  <h2 id="layers">キャッシュは2か所にある</h2>
+  <div class="card">
+    <div class="layers">
+      <div class="box priv">ブラウザ<small>private cache：その人専用</small></div>
+      <div class="arrow">→</div>
+      <div class="box shared">CDN / プロキシ<small>shared cache：全員で共有</small></div>
+      <div class="arrow">→</div>
+      <div class="box">オリジン<small>アプリのサーバー</small></div>
+    </div>
+    <p class="note">ログイン後の画面など<b>人によって中身が違うレスポンスを共有キャッシュに入れると、他人に見える</b>。そういうレスポンスには <code>private</code>（ブラウザだけ可）か <code>no-store</code> を付ける。</p>
+  </div>
+
+  <h2 id="flow">リクエストの流れ</h2>
+  <div class="lane">
+    <div class="card">
+      <span class="label">新鮮なうち</span>
+      <div class="flow">
+        <div class="box">ブラウザ：キャッシュを確認<small>max-age の範囲内</small></div>
+        <div class="arrow">↓ 通信しない</div>
+        <div class="box">そのまま表示<small>DevTools では「(disk cache)」「(memory cache)」</small></div>
+      </div>
+    </div>
+    <div class="card">
+      <span class="label">古くなったら（再検証）</span>
+      <div class="flow">
+        <div class="box">If-None-Match: "v42"<small>手元の ETag を付けて問い合わせ</small></div>
+        <div class="arrow">↓ サーバーが比較</div>
+        <div class="box"><span class="ok">304</span> 同じ → 本文なし、手元を使う<small>鮮度もリセットされる</small></div>
+        <div class="box"><span class="warn">200</span> 変わった → 新しい本文と ETag</div>
+      </div>
+    </div>
+  </div>
+  <p class="note">検証子は2種類。<code>ETag</code>（中身の識別子）→ 問い合わせは <code>If-None-Match</code>。<code>Last-Modified</code>（更新日時）→ <code>If-Modified-Since</code>。両方あれば ETag が優先される。</p>
+
+  <h2 id="sim">鮮度のタイムライン</h2>
+  <div class="card sim">
+    <p>レスポンスを受け取ってからの経過時間を動かしてみる。</p>
+    <div class="hdr">Cache-Control: max-age=60, stale-while-revalidate=120</div>
+    <div class="bar" id="bar">
+      <div class="seg s-fresh" style="width:20%">fresh</div>
+      <div class="seg s-swr" style="width:40%">SWR</div>
+      <div class="seg s-stale" style="width:40%">stale</div>
+      <div class="pin" id="pin"></div>
+    </div>
+    <input type="range" id="age" min="0" max="300" value="30" aria-label="経過秒数">
+    <div class="scale"><span style="left:0">0s</span><span style="left:20%">60s</span><span style="left:60%">180s</span><span style="left:100%">300s</span></div>
+    <div class="out" id="out"></div>
+  </div>
+
+  <h2 id="directives">Cache-Control の主な指定</h2>
+  <div class="card table-wrap">
+    <table>
+      <tr><th>指定</th><th>意味</th></tr>
+      <tr><td><code>max-age=N</code></td><td>N 秒間は新鮮。その間は確認なしで使ってよい。</td></tr>
+      <tr><td><code>s-maxage=N</code></td><td>共有キャッシュ（CDN）だけに効く max-age。ブラウザは短く、CDN は長く、ができる。</td></tr>
+      <tr><td><code>no-cache</code></td><td><b>保存はしてよいが、使う前に毎回再検証</b>。「キャッシュしない」ではない。</td></tr>
+      <tr><td><code>no-store</code></td><td>どこにも保存しない。本当にキャッシュさせたくないのはこれ。</td></tr>
+      <tr><td><code>private</code></td><td>ブラウザだけ保存可。CDN などの共有キャッシュは保存しない。</td></tr>
+      <tr><td><code>public</code></td><td>共有キャッシュも保存可（Authorization 付きリクエストの応答でも）。</td></tr>
+      <tr><td><code>must-revalidate</code></td><td>古くなったら必ず再検証。サーバーに繋がらなくても古いものを使わない（504 になる）。</td></tr>
+      <tr><td><code>immutable</code></td><td>新鮮な間は中身が絶対に変わらない。リロード時の再検証も省いてよい。</td></tr>
+      <tr><td><code>stale-while-revalidate=N</code></td><td>古くなってから N 秒間は、古いものを即返しつつ裏で更新する。</td></tr>
+      <tr><td><code>stale-if-error=N</code></td><td>オリジンがエラーのとき、古くなってから N 秒間は古いものを返してよい。</td></tr>
+    </table>
+  </div>
+  <p class="note">古い <code>Expires</code>（日時指定）や <code>Pragma: no-cache</code> もあるが、<code>Cache-Control: max-age</code> があればそちらが優先。新規に書くなら Cache-Control だけでよい。</p>
+
+  <h2 id="recipes">用途別のおすすめ</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="r-asset">ハッシュ付き JS/CSS</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="r-html">HTML</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="r-private">ログイン後の API</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="r-cdn">公開 API を CDN で</button>
+  </div>
+  <div class="panel card" id="r-asset">
+    <div class="hdr">Cache-Control: public, max-age=31536000, immutable</div>
+    <p><code>app.3f9a1c.js</code> のように<b>ファイル名に中身のハッシュが入っている</b>なら、中身が変われば URL も変わる。だから同じ URL は永遠に同じ中身＝1年キャッシュして問題ない。Vite などのビルドツールが自動でやってくれる。</p>
+  </div>
+  <div class="panel card" id="r-html" hidden>
+    <div class="hdr">Cache-Control: no-cache<br>ETag: "…"</div>
+    <p>HTML は URL が固定（<code>/</code> など）なので長くキャッシュすると更新が届かない。<b>毎回再検証</b>にしておけば、変わっていなければ 304 で軽く、デプロイ後はすぐ新しい HTML（＝新しいハッシュ付きアセットへの参照）が届く。</p>
+  </div>
+  <div class="panel card" id="r-private" hidden>
+    <div class="hdr">Cache-Control: private, no-cache</div>
+    <p>ユーザーごとに違う応答は <code>private</code> で CDN に乗せない。口座残高や個人情報など、端末に残ることすら避けたいものは <code>no-store</code>。</p>
+  </div>
+  <div class="panel card" id="r-cdn" hidden>
+    <div class="hdr">Cache-Control: public, max-age=0, s-maxage=60, stale-while-revalidate=300</div>
+    <p>ブラウザは max-age=0 なのですぐ古くなり、CDN は 60 秒間オリジンに聞かない。<code>stale-while-revalidate</code> はブラウザと CDN の両方に効くので、期限切れ後も5分間はどちらも古い値を即返しつつ裏で取り直す。<b>オリジンの負荷と応答の速さを両立</b>できる（ブラウザには毎回確認を待たせたいなら、SWR を <code>CDN-Cache-Control</code> など CDN 専用のヘッダーに分ける）。</p>
+  </div>
+
+  <h2 id="vary">Vary：同じ URL でも中身が変わるとき</h2>
+  <div class="card">
+    <p>同じ URL でも、リクエストヘッダーによって返す中身が違うことがある（圧縮形式、言語など）。<code>Vary</code> に「どのヘッダーで中身が変わるか」を書くと、キャッシュはそのヘッダーの値ごとに別々に保存する。</p>
+<pre><code>Vary: Accept-Encoding        <span class="cm"># gzip 版と br 版を別々に保存</span>
+Vary: Accept-Language        <span class="cm"># 日本語版と英語版を別々に保存</span></code></pre>
+    <p class="note"><code>Vary: Cookie</code> や <code>Vary: User-Agent</code> は値の種類が多すぎて、共有キャッシュがほぼ効かなくなる。人によって変わるなら <code>private</code> にする方が素直。</p>
+  </div>
+
+  <h2 id="myths">よくある誤解・ハマりどころ</h2>
+  <div class="card myth"><p><span class="ng">✕</span> <code>no-cache</code> を付ければキャッシュされない</p><p><span class="ok">○</span> no-cache は「使う前に毎回確認」。保存はされる。保存させたくないなら <code>no-store</code>。</p></div>
+  <div class="card myth"><p><span class="ng">✕</span> Cache-Control を付けなければキャッシュされない</p><p><span class="ok">○</span> 指定が無くても、<code>Last-Modified</code> があればブラウザや CDN が鮮度を推測して（ヒューリスティック）キャッシュすることがある。意図があるなら必ず明示する。</p></div>
+  <div class="card myth"><p><span class="ng">✕</span> CDN をパージすれば全員に新しいものが届く</p><p><span class="ok">○</span> パージで消えるのは CDN の分だけ。ブラウザに長い max-age で残っている分は消せない。更新があり得るものは URL を変える（ファイル名ハッシュ）か、max-age を短くしておく。</p></div>
+  <div class="card myth"><p><span class="ng">✕</span> Service Worker のキャッシュも Cache-Control で制御される</p><p><span class="ok">○</span> Service Worker の Cache API は別物で、コードで明示的に出し入れする。HTTP キャッシュとは二重に存在する（<a href="pwa.html">PWA</a> 参照）。</p></div>
+
+  <h2>確認のしかた</h2>
+<pre><code>curl -sI https://example.com/app.js     <span class="cm"># Cache-Control / ETag / Age を見る</span>
+curl -sI https://example.com/ -H 'If-None-Match: "v42"'   <span class="cm"># 304 が返るか</span></code></pre>
+  <p class="note"><code>Age</code> ヘッダーは「オリジンで生成（または最後に再検証）されてから何秒たったか」の見積もり。0 より大きければ、どこかのキャッシュから返ってきたとわかる。CDN の <code>X-Cache: HIT</code> や <code>CF-Cache-Status</code> などと合わせて見ると、どこで返ってきたかがわかる。DevTools の「Disable cache」はブラウザ側だけを無効にする。</p>
+
+  <h2>関連</h2>
+  <p class="related"><a href="cloudflare-services.html">Cloudflare サービス</a><a href="pwa.html">PWA の仕組み</a><a href="cors-sop.html">CORS と同一オリジンポリシー</a><a href="vite-toolchain.html">Vite ツールチェーン</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://www.rfc-editor.org/rfc/rfc9111">RFC 9111: HTTP Caching</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc5861">RFC 5861: stale-while-revalidate / stale-if-error</a></li>
+    <li><a href="https://developer.mozilla.org/ja/docs/Web/HTTP/Caching">MDN: HTTP キャッシュ</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+(() => {
+  const age = document.getElementById('age');
+  const pin = document.getElementById('pin');
+  const out = document.getElementById('out');
+  const render = () => {
+    const t = +age.value;
+    pin.style.left = `calc(${t / 300 * 100}% - 1px)`;
+    let html, color;
+    if (t < 60) {
+      color = 'var(--c-ok)';
+      html = `<b class="ok">${t} 秒：新鮮（fresh）</b>通信せずにキャッシュをそのまま使う。最速。`;
+    } else if (t < 180) {
+      color = 'var(--c-warn)';
+      html = `<b class="warn">${t} 秒：古いが SWR の猶予内</b>手元の古い版を<b>すぐ返し</b>、裏でサーバーに再検証する。次のアクセスでは新しい版になる。`;
+    } else {
+      color = 'var(--c-ng)';
+      html = `<b class="ng">${t} 秒：古い（stale）</b>使う前にサーバーへ再検証し、<b>返事を待つ</b>。変わっていなければ 304、変わっていれば 200 で新しい本文。`;
+    }
+    out.style.borderColor = color;
+    out.innerHTML = html;
+  };
+  age.addEventListener('input', render);
+  render();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "デプロイしても一部のユーザーに古い画面が出続ける。HTML に Cache-Control: max-age=86400 が付いていた。根本的な対策は？",
+    "choices": ["CDN をパージする", "HTML は no-cache（毎回再検証）にし、JS/CSS はファイル名ハッシュで長期キャッシュする", "HTML も JS も no-store にする"],
+    "answer": 1,
+    "explain": "URL が固定の HTML を長くキャッシュすると、ブラウザに残った分はパージでも消せない。HTML は毎回再検証、中身が変わると URL も変わるアセットは長期キャッシュ、が定番。no-store はキャッシュの利点を全部捨ててしまう。",
+    "ref": "#recipes"
+  },
+  {
+    "q": "ブラウザにキャッシュされた ETag 付きレスポンスが古くなった。次のアクセスでサーバーの内容が変わっていなければ何が返る？",
+    "choices": ["本文なしの 304 Not Modified", "同じ本文の 200 OK", "キャッシュが古いので 410 Gone"],
+    "answer": 0,
+    "explain": "ブラウザは If-None-Match で手元の ETag を送り、一致すればサーバーは本文なしの 304 を返す。ブラウザは手元のコピーを使い、鮮度もリセットされる。",
+    "ref": "#flow"
+  },
+  {
+    "q": "マイページの API 応答が CDN にキャッシュされ、別のユーザーに他人の情報が表示された。最低限付けるべき指定は？",
+    "choices": ["Cache-Control: no-cache", "Cache-Control: public, max-age=0", "Cache-Control: private（機微な情報なら no-store）"],
+    "answer": 2,
+    "explain": "private は共有キャッシュ（CDN）への保存を禁止する。no-cache は保存自体は許すので、CDN に残り得る。",
+    "ref": "#layers"
+  },
+  {
+    "q": "Cache-Control: max-age=60, stale-while-revalidate=120 のレスポンスを受け取って 90 秒後にアクセスした。どうなる？",
+    "choices": ["サーバーの返事を待ってから表示する", "古い版をすぐ表示し、裏でサーバーに確認して更新する", "キャッシュを使わず必ず 200 で取り直す"],
+    "answer": 1,
+    "explain": "60 秒を過ぎて古くなったが、そこから 120 秒間は SWR の猶予。古い版を即返しつつ裏で再検証するので、待たされない。",
+    "ref": "#sim"
+  },
+  {
+    "q": "同じ URL で、Accept-Language によって日本語版と英語版を返している。CDN 経由で日本人に英語版が出ることがある。何が足りない？",
+    "choices": ["Vary: Accept-Language", "Cache-Control: immutable", "ETag"],
+    "answer": 0,
+    "explain": "Vary に書いたヘッダーの値ごとに、キャッシュは別々に保存する。無いと最初に保存された言語版を全員に返してしまう。",
+    "ref": "#vary"
+  }
+]
+</script>
+</body>
+</html>
