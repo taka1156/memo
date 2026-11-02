@@ -28,7 +28,7 @@ jobs:
           python-version: "3.12"
 
       - name: Lint memos (report only)
-        run: python3 scripts/memo.py lint $(ls docs/*.html | grep -v '/index.html$') || true
+        run: python3 scripts/memo.py lint $(ls docs/*.html | grep -v -e '/index.html$' -e '/quiz.html$') || true
 
       - name: Build index
         run: python3 scripts/memo.py build

@@ -125,7 +125,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </ul>
   </div>
 
-  <h2>セクション</h2>
+  <h2 id="section">セクション</h2>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-panel="p1">概要</button>
     <button class="tab" role="tab" aria-selected="false" data-panel="p2">詳細</button>
@@ -148,6 +148,20 @@ document.querySelectorAll('.tabs').forEach(group => {
     });
   });
 });
+</script>
+
+<!-- 確認クイズ（問題データだけ書く。表示は memo.py がページ末尾に自動で入れる）
+     作り方は memo-style の「確認クイズ」を参照。ref は本文の見出しなどの id -->
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "〇〇したい場面で、まず選ぶべきものは？",
+    "choices": ["正解の選択肢", "よくある誤解の選択肢", "別の場面向けの選択肢"],
+    "answer": 0,
+    "explain": "なぜそれを選ぶのかを 1〜2 文で。",
+    "ref": "#section"
+  }
+]
 </script>
 </body>
 </html>

@@ -2,7 +2,8 @@
 
 Claude に作ってもらった解説ページ (HTML) を貯めておくリポジトリ。
 
-- トップページ: `docs/index.html`（メモ一覧・検索・タグ絞り込み）
+- トップページ: `docs/index.html`（メモ一覧・検索・タグ絞り込み・ランダムクイズ）
+- クイズページ: `docs/quiz.html`（ランダム 10 問・カテゴリ別 10 問。最後にスコアと正答一覧、本文へのリンク）
 - 公開 URL: https://memo.taka1156.site/
   （`docs/CNAME` の独自ドメイン。OGP の URL もここから自動で決まります）
 
@@ -36,7 +37,7 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 
 ## 仕組み
 
-- メモ = `docs/` 直下の `*.html`（`index.html` 以外）。GitHub Pages は `docs/` だけを公開するので、README やスクリプトは公開されません
+- メモ = `docs/` 直下の `*.html`（`index.html`・`quiz.html` 以外）。GitHub Pages は `docs/` だけを公開するので、README やスクリプトは公開されません
 - 一覧の情報は各メモの `<head>` から読みます
 
   ```html
@@ -46,7 +47,14 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
   <meta name="memo:date" content="2026-10-31">
   ```
 
-- `docs/index.html` の `// MEMOS:BEGIN`〜`// MEMOS:END` は自動生成です。手で編集しません
+- `docs/index.html` と `docs/quiz.html` の `// MEMOS:BEGIN`〜`// MEMOS:END` は自動生成です。手で編集しません
+- 確認クイズは各メモに問題データだけを書きます（書式と作問ルールは `.claude/skills/memo-style/SKILL.md`）。表示部分の `<!-- memo:quiz -->` ブロックはページ末尾に自動で入り、全メモの問題はトップのランダムクイズと `quiz.html` に集められます
+
+  ```
+  <script type="application/json" id="memo-quiz">
+  [{"q": "問題文", "choices": ["A", "B", "C"], "answer": 0, "explain": "解説", "ref": "#見出しのid"}]
+  </script>
+  ```
 - 全ページの `<!-- memo:head -->` ブロック（ファビコン・iOS アイコン・OGP）も自動生成です。og:title / og:description は各ページの title / description から作られます
 - 画像は `docs/assets/`（`favicon.ico`, `icon-32.png`, `icon-192.png`, `apple-touch-icon.png`, `og.png`）。生成元は `branding/`（`og.html`・`icon.html` を `python3 branding/render.py` で書き出し。非公開）
 - master に `docs/*.html` が push されると、GitHub Actions が一覧を再生成します（GitHub の画面から HTML を直接アップロードしても載ります）
@@ -62,4 +70,4 @@ python3 scripts/memo.py build                          # 一覧を再生成
 python3 scripts/memo.py list                           # 一覧を表示
 ```
 
-`lint` が直すもの: CSS 内の全角クォート、`* {` の化け、DOCTYPE / charset / viewport の欠落、フッターへの「一覧に戻る」リンクの追加、アイコン・OGP タグの追加／更新。
+`lint` が直すもの: CSS 内の全角クォート、`* {` の化け、DOCTYPE / charset / viewport の欠落、フッターへの「一覧に戻る」リンクの追加、アイコン・OGP タグの追加／更新、クイズの表示ブロックの追加／更新。クイズの JSON の崩れや `ref` の飛び先の誤りは報告します。
