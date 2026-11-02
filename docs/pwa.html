@@ -232,7 +232,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </ul>
   </div>
 
-  <h2>必須の 3 要素</h2>
+  <h2 id="essentials">必須の 3 要素</h2>
   <div class="pillars">
     <div class="card pillar">
       <span class="num">01 / HTTPS</span>
@@ -251,7 +251,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </div>
   </div>
 
-  <h2>全体の構成図</h2>
+  <h2 id="overview">全体の構成図</h2>
   <div class="card diagram">
     <svg viewBox="0 0 480 340" role="img" aria-label="ページのリクエストを Service Worker が受け、まずキャッシュを確認し、なければネットワークから取得する。manifest はホーム画面へのインストールに使われる。全体は HTTPS の中で動く。">
       <defs>
@@ -311,7 +311,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <p class="note">ページの通信はすべて Service Worker を通る。SW はキャッシュにあればそれを返し、なければネットワークに取りに行く（どちらを先にするかは「キャッシュ戦略」で決める）。</p>
   </div>
 
-  <h2>Service Worker のライフサイクル</h2>
+  <h2 id="lifecycle">Service Worker のライフサイクル</h2>
   <div class="steps">
     <div class="step"><b>1. register</b><p>ページが <code>sw.js</code> を登録する</p></div>
     <div class="step"><b>2. install</b><p>必要なファイルを先にキャッシュしておく</p></div>
@@ -321,7 +321,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <p class="note">更新時に 3 で止まるのがつまずきやすい点。タブをすべて閉じるか、<code>skipWaiting()</code> を呼ぶまで新しい SW は有効にならない。</p>
 
-  <h2>キャッシュ戦略</h2>
+  <h2 id="cache">キャッシュ戦略</h2>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-panel="s1">Cache First</button>
     <button class="tab" role="tab" aria-selected="false" data-panel="s2">Network First</button>
@@ -343,7 +343,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <p class="note">表示は速く、次回には新しくなる。そのかわり、今回表示する内容は 1 つ前の版になる。</p>
   </div>
 
-  <h2>最小構成のコード</h2>
+  <h2 id="code">最小構成のコード</h2>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-panel="c1">manifest</button>
     <button class="tab" role="tab" aria-selected="false" data-panel="c2">HTML</button>
@@ -403,7 +403,7 @@ self.addEventListener('fetch', e =&gt; {
   </div>
   <p class="note">手書きが大変なら Workbox、Vite なら <code>vite-plugin-pwa</code>、Next.js なら <code>@serwist/next</code> で生成できる。</p>
 
-  <h2>プラットフォームごとの違い</h2>
+  <h2 id="platforms">プラットフォームごとの違い</h2>
   <div class="card tbl-wrap">
     <table class="tbl">
       <thead><tr><th>項目</th><th>Chrome / Edge（Android・PC）</th><th>iOS / iPadOS Safari</th></tr></thead>
@@ -415,7 +415,7 @@ self.addEventListener('fetch', e =&gt; {
     </table>
   </div>
 
-  <h2>実装チェックリスト</h2>
+  <h2 id="checklist">実装チェックリスト</h2>
   <div class="card">
     <div class="progress">
       <div class="bar"><div id="bar"></div></div>
@@ -466,7 +466,7 @@ self.addEventListener('fetch', e =&gt; {
     </ul>
   </div>
 
-  <h2>よくある誤解</h2>
+  <h2 id="myths">よくある誤解</h2>
   <div class="card">
     <details class="myth"><summary>Service Worker を入れれば、アプリ全体がオフラインで動く</summary><p>動くのはキャッシュしてあるものだけ。API の結果や未訪問のページは、自分でキャッシュしない限りオフラインでは表示できない。</p></details>
     <details class="myth"><summary><code>sw.js</code> を書き換えればすぐ反映される</summary><p>新しい SW は waiting 状態で止まる。すべてのタブを閉じるか、<code>skipWaiting()</code> を呼ぶまで古い SW が動き続ける。</p></details>
@@ -487,7 +487,217 @@ self.addEventListener('fetch', e =&gt; {
     <p class="note">2026-11-03 時点で確認。</p>
   </div>
 
-  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>
 
 <script>
@@ -513,6 +723,65 @@ function update() {
 }
 boxes.forEach(b => b.addEventListener('change', update));
 update();
+</script>
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "sw.js を修正してデプロイしたのに、ユーザーの画面では古い動作のまま。よくある原因と対処は？",
+    "choices": [
+      "manifest.webmanifest のバージョン番号を上げ忘れている",
+      "本番が HTTPS でないので、SW の更新が無視されている",
+      "新しい SW が waiting で止まっている。skipWaiting() で切り替える"
+    ],
+    "answer": 2,
+    "explain": "旧 SW が動いている間、新しい SW はタブをすべて閉じるか skipWaiting() を呼ぶまで有効にならない。 sw.js 自体を HTTP キャッシュさせないことも大事。",
+    "ref": "#lifecycle"
+  },
+  {
+    "q": "ファイル名にハッシュが付いた CSS・JS・フォントをキャッシュする。合う戦略は？",
+    "choices": [
+      "Cache First",
+      "Network First",
+      "毎回ネットワークのみ"
+    ],
+    "answer": 0,
+    "explain": "中身が変わらない静的ファイルはキャッシュを先に見ると速くオフラインにも強い。更新はファイル名が変わることで反映される。",
+    "ref": "#s1"
+  },
+  {
+    "q": "API のレスポンスは常に最新を見せたいが、オフラインのときは前回の結果を出したい。合う戦略は？",
+    "choices": [
+      "Cache First",
+      "Network First",
+      "Stale-While-Revalidate"
+    ],
+    "answer": 1,
+    "explain": "オンラインなら最新を取り、失敗したらキャッシュを返す。回線が遅いとタイムアウトまで待たされる点に注意。",
+    "ref": "#s2"
+  },
+  {
+    "q": "sw.js を /js/sw.js に置いたら、トップページ（/）の通信を Service Worker が扱わない。理由は？",
+    "choices": [
+      "SW が制御できるのは置いた場所以下だけだから",
+      "sw.js は .js フォルダに置くと読み込まれない",
+      "トップページは SW の対象外という仕様"
+    ],
+    "answer": 0,
+    "explain": "通常はサイトのルートに置く。広げるにはサーバーが Service-Worker-Allowed ヘッダーを返す必要がある。",
+    "ref": "#myths"
+  },
+  {
+    "q": "iPhone のユーザーにも PWA をインストールしてもらいたい。どうする？",
+    "choices": [
+      "条件を満たせば Android と同じく自動で案内が出る",
+      "自動の案内は出ないので、「共有 → ホーム画面に追加」の手順をページで案内する",
+      "beforeinstallprompt でインストールボタンを出す"
+    ],
+    "answer": 1,
+    "explain": "iOS の Safari には自動のプロンプトも beforeinstallprompt もない。",
+    "ref": "#platforms"
+  }
+]
 </script>
 </body>
 </html>

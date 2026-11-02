@@ -337,7 +337,9 @@ QUIZ_BLOCK = QUIZ_BEGIN + r"""
     var target = document.getElementById(id);
     if (!target) return false;
     reveal(target);
-    target.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
     target.classList.add('mq-flash');
     setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
     return true;
@@ -487,6 +489,8 @@ def read_quiz(text: str) -> tuple[list | None, list[str]]:
     except json.JSONDecodeError as e:
         return None, [f"クイズの JSON が壊れている（{e.msg}, {e.lineno} 行目）"]
     probs = validate_quiz(qs)
+    if not probs and len(qs) >= 3 and len({q["answer"] for q in qs}) == 1:
+        probs.append("正解の位置（answer）が全問同じ。選択肢の順番を入れ替えて散らす")
     if not probs:
         for i, q in enumerate(qs, 1):
             ref = q.get("ref")
