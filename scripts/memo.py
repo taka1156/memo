@@ -46,6 +46,12 @@ QUIZ_PAGE = DOCS / "quiz.html"  # 全メモの問題から 10 問解くページ
 SPECIAL_PAGES = (INDEX, QUIZ_PAGE)
 SPECIAL_NAMES = {p.name for p in SPECIAL_PAGES}
 FALLBACK_URL = "https://taka1156.github.io/memo/"
+# 「今日」は日本時間で決める（実行環境の時計が UTC でも日付がずれないように）
+JST = dt.timezone(dt.timedelta(hours=9), "JST")
+
+
+def today_jst() -> str:
+    return dt.datetime.now(JST).date().isoformat()
 
 
 def site_url() -> str:
@@ -673,7 +679,7 @@ def cmd_meta(args) -> int:
         tags = ", ".join(t.strip() for t in args.tags.split(",") if t.strip())
         text = _set_meta(text, "memo:tags", tags)
     if args.date is not None:
-        date = args.date or dt.date.today().isoformat()
+        date = args.date or today_jst()
         dt.date.fromisoformat(date)  # 形式チェック
         text = _set_meta(text, "memo:date", date)
     path.write_text(apply_generated(text, path.name), encoding="utf-8")
@@ -1180,7 +1186,7 @@ def main() -> int:
     p.add_argument("--title")
     p.add_argument("--desc")
     p.add_argument("--tags", help="カンマ区切り")
-    p.add_argument("--date", nargs="?", const="", help="YYYY-MM-DD（値なしで今日）")
+    p.add_argument("--date", nargs="?", const="", help="YYYY-MM-DD（値なしで今日。日本時間）")
     p.set_defaults(func=cmd_meta)
 
     p = sub.add_parser("build", help="index.html・quiz.html の一覧データを再生成")
