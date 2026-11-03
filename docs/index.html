@@ -270,6 +270,16 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
+    "file": "s3-compatible.html",
+    "title": "S3 互換ストレージの仕組み",
+    "desc": "S3 API の仕組みと、互換ストレージの範囲・落とし穴・製品の違いを図解。",
+    "tags": [
+      "インフラ",
+      "データベース"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "rust.html",
     "title": "Rust 学習フローと仕組み",
     "desc": "Rust の学習ロードマップと、所有権・借用・ライフタイムなどコンパイラが安全性を保証する仕組みを図解。",
@@ -653,6 +663,11 @@ const QUIZZES = [
   {"file": "security-headers.html", "title": "セキュリティヘッダー", "q": "ユーザーがアップロードしたファイルを自ドメインで配信している。中身が JS の .txt を <script src> で読み込ませる攻撃を、ヘッダーで止めるには？", "choices": ["X-Content-Type-Options: nosniff を付け、正しい Content-Type で返す", "Referrer-Policy: no-referrer を付ける", "Cross-Origin-Opener-Policy: same-origin を付ける", "X-XSS-Protection: 1; mode=block を付ける"], "answer": 0, "explain": "nosniff があると、script として読み込まれたリソースの MIME タイプが JavaScript でなければブラウザはブロックする。自ドメインなので CSP の 'self' だけでは止まらない。", "ref": "#nosniff"},
   {"file": "security-headers.html", "title": "セキュリティヘッダー", "q": "<meta http-equiv=\"Content-Security-Policy\"> で frame-ancestors 'none' を書いたのに、他サイトの iframe に埋め込めてしまう。原因は？", "choices": ["frame-ancestors は default-src で上書きされる", "X-Frame-Options のほうが優先されるから", "iframe 側の sandbox 属性で無効化されたから", "frame-ancestors は <meta> では無視され、レスポンスヘッダーでしか効かない"], "answer": 3, "explain": "frame-ancestors・report-to・sandbox は meta の CSP では使えない。埋め込み制限はレスポンスヘッダーの CSP（か X-Frame-Options）で送る。", "ref": "#framing"},
   {"file": "security-headers.html", "title": "セキュリティヘッダー", "q": "セッション Cookie を XSS で持ち出されないようにしたい。どの属性？", "choices": ["Secure", "HttpOnly", "SameSite=Strict", "Domain=example.com"], "answer": 1, "explain": "HttpOnly の Cookie は document.cookie から読めない。Secure は盗聴、SameSite はクロスサイト送信（CSRF）向けで、Domain 指定はむしろ送信範囲を広げる。", "ref": "#cookie"},
+  {"file": "s3-compatible.html", "title": "S3 互換ストレージの仕組み", "q": "S3 互換ストレージで、キー 2026/11/ 以下にある「サブフォルダ」の一覧だけを取りたい。ListObjectsV2 にどう指定する？", "choices": ["prefix=2026/11/ を指定し、結果の Contents からキー名を加工する", "prefix=2026/11/ と delimiter=/ を指定し、CommonPrefixes を見る", "フォルダは HeadBucket で取得する"], "answer": 1, "explain": "フォルダは実在せず、delimiter を渡すと次の区切りまでで束ねたものが CommonPrefixes として返る。", "ref": "#folders"},
+  {"file": "s3-compatible.html", "title": "S3 互換ストレージの仕組み", "q": "localhost:9000 で動かしているセルフホストの S3 互換ストレージに AWS SDK で接続したら、ホスト名の解決に失敗した。まず見直す設定は？", "choices": ["アクセスキーを作り直す", "マルチパートのパートサイズを小さくする", "path-style（forcePathStyle）を有効にする"], "answer": 2, "explain": "既定の virtual-hosted 形式だと バケット名.localhost を引きに行く。セルフホストでは path-style でパスにバケット名を入れる。", "ref": "#addressing"},
+  {"file": "s3-compatible.html", "title": "S3 互換ストレージの仕組み", "q": "200 GiB のファイルを AWS S3 にマルチパートでアップロードしたい。パートサイズ 16 MiB では何が問題になる？", "choices": ["パート数が 10,000 を超えてしまう", "パートが 5 MiB 未満になってしまう", "1 回の PUT の上限 5 GB を超えるのでマルチパートは使えない"], "answer": 0, "explain": "200 GiB ÷ 16 MiB = 12,800 パートで上限 10,000 を超える。パートサイズを 21 MiB 以上にする。", "ref": "#multipart"},
+  {"file": "s3-compatible.html", "title": "S3 互換ストレージの仕組み", "q": "複数のワーカーが同じ manifest.json を読んで更新して書き戻している。他のワーカーの更新を消さないためには？", "choices": ["書き込み前に HeadObject で存在を確認する", "読んだときの ETag を If-Match に付けて PUT し、412 なら読み直す", "PUT の前に 1 秒待つ"], "answer": 1, "explain": "S3 にはロックがない。If-Match による条件付き書き込みで、読んだ後に誰かが更新していたら 412 で失敗させる（互換ストレージの対応は要確認）。", "ref": "#consistency"},
+  {"file": "s3-compatible.html", "title": "S3 互換ストレージの仕組み", "q": "AWS SDK を新しくしたら、これまで動いていた互換ストレージへの PutObject がエラーになった。考えられる原因と対処は？", "choices": ["SDK が既定でチェックサムを付けるようになったので、request_checksum_calculation を when_required にする", "署名が SigV2 に戻ったので SigV4 を指定する", "互換ストレージは最新 SDK を受け付けないので、旧版に固定するしかない"], "answer": 0, "explain": "2025 年初めから AWS SDK はアップロード時に CRC32 などのチェックサムを既定で送る。未対応の相手には、必要なときだけ送る設定に戻す。", "ref": "#checksum"},
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "String を関数に渡したあと、元の変数をもう一度使ったら borrow of moved value になった。所有権を手放さずに関数に使わせるには？", "choices": ["関数の中で drop を呼ばないようにする", "変数を let mut にする", "&s のように参照（借用）で渡す"], "answer": 2, "explain": "値を渡すと所有権がムーブする。借用なら所有権は元の変数に残る。とりあえず動かすなら clone() でもよい。", "ref": "#ownership"},
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "let first = &v[0]; のあとに v.push(4); を書き、その後で first を使うとコンパイルエラーになる。なぜ禁止されている？", "choices": ["push で再確保されると、first が解放済みのメモリを指すから", "first を let mut で宣言していないから", "let で作った Vec には、後から要素を追加できないから"], "answer": 0, "explain": "共有参照がある間は可変借用できない。first を最後に使った後なら push できる（NLL）。", "ref": "#borrow"},
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "let b = a; のあと、a が i32 なら両方使えるのに、String だと a が使えなくなる。違いは？", "choices": ["String は不変なので、別の変数に代入できないから", "i32 は Copy 型で複製され、String はムーブになるから", "i32 は参照で、String は値だから"], "answer": 1, "explain": "ヒープを持つ型までコピーすると二重解放の危険があるので、明示的な clone() を求める設計。", "ref": "#own-copy"},
