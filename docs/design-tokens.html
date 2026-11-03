@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>デザイントークン</title>
+<meta name="description" content="色・余白・文字サイズなどの決定を名前付きの変数（デザイントークン）で管理する考え方を、3 階層の構造・CSS 変数での実装・テーマ切り替えのデモで説明する">
+<meta name="memo:tags" content="デザイン, フロントエンド">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #cf222e;
+  --c-warn: #9a6700;
+  --c-a: #0077b6;
+  --c-b: #8250df;
+  --c-c: #1a7f37;
+  --c-d: #bc4c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-a: #00d4ff;
+    --c-b: #bc8cff;
+    --c-c: #3fb950;
+    --c-d: #f0883e;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.2em; }
+ul.plain li { margin: 2px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+  margin: 10px 0;
+}
+.en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* 図 */
+.diagram { margin: 8px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
+.d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
+.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--accent); }
+.d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
+.d-ng-head { fill: var(--c-ng); }
+
+/* ステップ・フロー */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.flow span {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+.tbl td:first-child { font-weight: 700; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+
+/* チェックリスト */
+.progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
+.bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
+.checklist { list-style: none; }
+.checklist li { border-bottom: 1px solid var(--line); }
+.checklist li:last-child { border-bottom: none; }
+.checklist label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 2px; cursor: pointer; }
+.checklist input { margin-top: 5px; accent-color: var(--accent); flex: none; width: 16px; height: 16px; }
+.checklist .txt { flex: 1; }
+.checklist .txt small { display: block; color: var(--fg-2); font-size: 0.8rem; }
+.checklist input:checked + .txt { color: var(--fg-2); text-decoration: line-through; }
+.badge {
+  display: inline-block;
+  font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  color: var(--fg-2);
+}
+.badge.a { color: var(--c-a); }
+.badge.b { color: var(--c-b); }
+.badge.c { color: var(--c-c); }
+.badge.d { color: var(--c-d); }
+
+/* よくある誤解 */
+.myth { margin-bottom: 10px; }
+.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
+.myth summary::-webkit-details-marker { display: none; }
+.myth summary::before { content: '✕ '; color: var(--c-ng); }
+.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
+.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+/* OK / NG コード比較 */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.vs > div { min-width: 0; }
+.vs .lbl { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; align-items: stretch; }
+.tier { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.tier .tn { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .1em; color: var(--accent); }
+.tier h3 { margin: 2px 0 6px; }
+.tier p { font-size: 0.84rem; color: var(--fg-2); margin: 4px 0; }
+.tok { display: flex; align-items: center; gap: 8px; font: 500 0.76rem 'JetBrains Mono', ui-monospace, monospace; margin: 4px 0; overflow-wrap: anywhere; }
+.sw { width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--line); flex: none; }
+.arrow-down { text-align: center; color: var(--accent); font-weight: 700; }
+
+/* デモ */
+.demo { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.preview {
+  --p-blue-100: #e6f3fa; --p-blue-500: #0077b6; --p-blue-700: #005a8c;
+  --p-cyan-400: #00d4ff; --p-cyan-900: #003544;
+  --p-gray-0: #ffffff; --p-gray-50: #f6f7f9; --p-gray-200: #dde1e8; --p-gray-600: #5a6376; --p-gray-900: #1c2230;
+  --p-ink-0: #0a0e14; --p-ink-100: #111823; --p-ink-300: #1e2d3d; --p-ink-600: #7d8b9d; --p-ink-800: #cdd9e5;
+  --p-green-500: #1a7f37; --p-orange-500: #bc4c00; --p-orange-100: #fff1e5; --p-orange-400: #f0883e; --p-orange-900: #3d2410;
+  --p-radius-sm: 6px; --p-radius-lg: 14px;
+  /* セマンティック（テーマで差し替え） */
+  --s-bg: var(--p-gray-50);
+  --s-surface: var(--p-gray-0);
+  --s-text: var(--p-gray-900);
+  --s-text-muted: var(--p-gray-600);
+  --s-border: var(--p-gray-200);
+  --s-accent: var(--p-blue-500);
+  --s-accent-text: var(--p-gray-0);
+  --s-accent-soft: var(--p-blue-100);
+  --s-radius: var(--p-radius-sm);
+  /* コンポーネント */
+  --button-bg: var(--s-accent);
+  --button-fg: var(--s-accent-text);
+  --button-radius: var(--s-radius);
+  --card-bg: var(--s-surface);
+  --card-border: var(--s-border);
+  --card-radius: var(--s-radius);
+  background: var(--s-bg);
+  color: var(--s-text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  transition: background .2s, color .2s;
+}
+.preview[data-theme="dark"] {
+  --s-bg: var(--p-ink-0); --s-surface: var(--p-ink-100); --s-text: var(--p-ink-800);
+  --s-text-muted: var(--p-ink-600); --s-border: var(--p-ink-300);
+  --s-accent: var(--p-cyan-400); --s-accent-text: var(--p-ink-0); --s-accent-soft: var(--p-cyan-900);
+}
+.preview[data-theme="brand"] {
+  --s-accent: var(--p-orange-500); --s-accent-soft: var(--p-orange-100); --s-radius: var(--p-radius-lg);
+}
+.preview[data-theme="brand-dark"] {
+  --s-bg: var(--p-ink-0); --s-surface: var(--p-ink-100); --s-text: var(--p-ink-800);
+  --s-text-muted: var(--p-ink-600); --s-border: var(--p-ink-300);
+  --s-accent: var(--p-orange-400); --s-accent-text: var(--p-ink-0); --s-accent-soft: var(--p-orange-900); --s-radius: var(--p-radius-lg);
+}
+.pv-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--card-radius); padding: 14px; transition: all .2s; }
+.pv-card h4 { font-size: 1rem; margin-bottom: 4px; }
+.pv-card p { font-size: 0.82rem; color: var(--s-text-muted); margin: 0 0 12px; }
+.pv-tag { display: inline-block; background: var(--s-accent-soft); color: var(--s-accent); border-radius: 999px; font-size: 0.7rem; font-weight: 700; padding: 1px 9px; margin-bottom: 8px; }
+.pv-btn { background: var(--button-bg); color: var(--button-fg); border: 0; border-radius: var(--button-radius); padding: 8px 16px; font: 700 0.85rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer; transition: all .2s; }
+.pv-btn.ghost { background: transparent; color: var(--s-accent); border: 1px solid var(--s-border); margin-left: 6px; }
+.resolve { font: 500 0.74rem/1.8 'JetBrains Mono', ui-monospace, monospace; }
+.resolve div { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; border-bottom: 1px dashed var(--line); padding: 3px 0; }
+.resolve i { font-style: normal; color: var(--accent); }
+.resolve .val { display: inline-flex; align-items: center; gap: 4px; }
+
+/* スケール */
+.scale { display: grid; gap: 4px; }
+.scale-row { display: grid; grid-template-columns: 92px 1fr 44px; gap: 8px; align-items: center; font: 500 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+.scale-row .bar-s { height: 12px; background: var(--accent); border-radius: 3px; }
+.scale-row span:last-child { color: var(--fg-2); text-align: right; }
+.type-row { display: flex; align-items: baseline; gap: 10px; border-bottom: 1px solid var(--line); padding: 4px 0; overflow: hidden; }
+.type-row code { flex: none; width: 86px; }
+.type-row span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="デザイントークン">
+<meta property="og:description" content="色・余白・文字サイズなどの決定を名前付きの変数（デザイントークン）で管理する考え方を、3 階層の構造・CSS 変数での実装・テーマ切り替えのデモで説明する">
+<meta property="og:url" content="https://memo.taka1156.site/design-tokens.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>デザイントークン</h1>
+  <p class="subtitle">「#0077b6」ではなく「アクセント色」と呼ぶ。デザインの決定に名前をつけて一元管理する</p>
+<div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>デザイントークンは、色・余白・文字サイズ・角丸・影などの<b>デザイン上の決定に名前をつけた最小単位</b>。コードでは CSS 変数などになる。</li>
+      <li>「生の値（<b>プリミティブ</b>）」→「意味（<b>セマンティック</b>）」→「部品（<b>コンポーネント</b>）」の 3 階層にすると、ダークモードやブランド変更が<b>セマンティック層の差し替えだけ</b>で済む。</li>
+      <li>デザインシステム ＝ トークン ＋ コンポーネント ＋ 使い方のルール。トークンはその土台。</li>
+    </ul>
+  </div>
+
+  <h2 id="tiers">3 つの階層</h2>
+  <p>上の層は下の層を参照（エイリアス）します。コンポーネントは<b>セマンティックだけ</b>を見て、生の色コードを直接知らないのがポイント。</p>
+  <div class="tiers">
+    <div class="tier">
+      <div class="tn">TIER 1</div>
+      <h3>プリミティブ <span class="en">primitive / global</span></h3>
+      <p>使える値の一覧（パレット）。名前は「見た目」そのもの。</p>
+      <div class="tok"><span class="sw" style="background:#0077b6"></span>--blue-500: #0077b6</div>
+      <div class="tok"><span class="sw" style="background:#00d4ff"></span>--cyan-400: #00d4ff</div>
+      <div class="tok"><span class="sw" style="background:#1c2230"></span>--gray-900: #1c2230</div>
+      <div class="tok">--space-4: 16px</div>
+    </div>
+    <div class="tier">
+      <div class="tn">TIER 2</div>
+      <h3>セマンティック <span class="en">semantic / alias</span></h3>
+      <p>「何に使うか」の名前。<b>テーマ切り替えはこの層だけ</b>を差し替える。</p>
+      <div class="tok">--color-accent → blue-500</div>
+      <div class="tok">--color-text → gray-900</div>
+      <div class="tok">--color-danger → red-600</div>
+      <div class="tok">--space-inset-md → space-4</div>
+    </div>
+    <div class="tier">
+      <div class="tn">TIER 3</div>
+      <h3>コンポーネント <span class="en">component</span></h3>
+      <p>特定の部品専用。必要なときだけ作る（なくてもよい）。</p>
+      <div class="tok">--button-bg → color-accent</div>
+      <div class="tok">--button-padding → space-inset-md</div>
+      <div class="tok">--card-radius → radius-md</div>
+    </div>
+  </div>
+
+  <h2 id="demo">テーマ切り替えのデモ</h2>
+  <p>下のプレビューは 3 階層の CSS 変数で組んであります。テーマを切り替えると、<b>セマンティック層の対応先だけ</b>が変わり、部品の CSS は一切変わりません。</p>
+  <div class="tabs" role="tablist" id="theme-tabs">
+    <button class="tab" aria-selected="true" data-theme="light">ライト</button>
+    <button class="tab" aria-selected="false" data-theme="dark">ダーク</button>
+    <button class="tab" aria-selected="false" data-theme="brand">別ブランド</button>
+    <button class="tab" aria-selected="false" data-theme="brand-dark">別ブランド × ダーク</button>
+  </div>
+  <div class="demo">
+    <div class="preview" id="preview" data-theme="light">
+      <div class="pv-card">
+        <span class="pv-tag">NEW</span>
+        <h4>プランをアップグレード</h4>
+        <p>部品は --button-bg や --card-bg しか知らない。色コードはどこにも書いていない。</p>
+        <button class="pv-btn">申し込む</button><button class="pv-btn ghost">詳細</button>
+      </div>
+    </div>
+    <div class="card resolve" id="resolve" aria-live="polite"></div>
+  </div>
+
+  <h2 id="css">CSS 変数での書き方</h2>
+<pre><code><span class="cm">/* 1. プリミティブ：パレット。ここ以外に色コードを書かない */</span>
+:root {
+  --blue-500: #0077b6;
+  --cyan-400: #00d4ff;
+  --gray-0:   #ffffff;
+  --gray-900: #1c2230;
+  --ink-0:    #0a0e14;
+  --ink-800:  #cdd9e5;
+  --space-2: 8px;  --space-4: 16px;
+}
+
+<span class="cm">/* 2. セマンティック：テーマごとに対応先を変える */</span>
+:root {
+  --color-bg:     var(--gray-0);
+  --color-text:   var(--gray-900);
+  --color-accent: var(--blue-500);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg:     var(--ink-0);
+    --color-text:   var(--ink-800);
+    --color-accent: var(--cyan-400);
+  }
+}
+
+<span class="cm">/* 3. コンポーネント：セマンティックだけを参照 */</span>
+.button {
+  --button-bg: var(--color-accent);
+  background: var(--button-bg);
+  padding: var(--space-2) var(--space-4);
+}</code></pre>
+  <p class="note">ライトとダークで値を 1 行にまとめる <code>light-dark()</code> 関数も主要ブラウザで使える（<code>color-scheme: light dark;</code> の指定が必要）。例：<code>--color-bg: light-dark(var(--gray-0), var(--ink-0));</code></p>
+
+  <h3 id="memo-example">実例：この MEMO のトークン</h3>
+  <p>このサイトの全ページも同じ考え方で、<code>--bg</code> <code>--surface</code> <code>--fg</code> <code>--fg-2</code> <code>--line</code> <code>--accent</code> <code>--chip</code> の 7 つを基本のセマンティックトークンにし、成功・エラー・注意などの状態色（<code>--c-ok</code> <code>--c-ng</code> <code>--c-warn</code> など）をページごとに少し足して色を決めています。ダークモードはこれらの値を差し替えているだけです（プリミティブ層は省略した、小さな構成）。</p>
+
+  <h2 id="scales">余白と文字サイズはスケールで決める</h2>
+  <p>値を自由に書けると 13px・15px・17px…と増殖します。<b>決まった段階（スケール）から選ぶ</b>ことで、見た目に一貫したリズムが生まれます。</p>
+  <div class="grid">
+    <div class="card">
+      <b>余白：4 / 8 の倍数</b>
+      <div class="scale" style="margin-top:8px">
+        <div class="scale-row"><code>--space-1</code><div class="bar-s" style="width:4px"></div><span>4px</span></div>
+        <div class="scale-row"><code>--space-2</code><div class="bar-s" style="width:8px"></div><span>8px</span></div>
+        <div class="scale-row"><code>--space-3</code><div class="bar-s" style="width:12px"></div><span>12px</span></div>
+        <div class="scale-row"><code>--space-4</code><div class="bar-s" style="width:16px"></div><span>16px</span></div>
+        <div class="scale-row"><code>--space-6</code><div class="bar-s" style="width:24px"></div><span>24px</span></div>
+        <div class="scale-row"><code>--space-8</code><div class="bar-s" style="width:32px"></div><span>32px</span></div>
+        <div class="scale-row"><code>--space-12</code><div class="bar-s" style="width:48px"></div><span>48px</span></div>
+      </div>
+      <p class="note">番号を「4px の何倍か」にしておくと、間に値を足したくなっても名前が崩れない。</p>
+    </div>
+    <div class="card">
+      <b>文字サイズ：比率で並べる</b>
+      <div style="margin-top:8px">
+        <div class="type-row"><code>--text-xs</code><span style="font-size:12px">12px あア</span></div>
+        <div class="type-row"><code>--text-sm</code><span style="font-size:14px">14px あア</span></div>
+        <div class="type-row"><code>--text-md</code><span style="font-size:16px">16px あア</span></div>
+        <div class="type-row"><code>--text-lg</code><span style="font-size:20px">20px あア</span></div>
+        <div class="type-row"><code>--text-xl</code><span style="font-size:25px">25px あア</span></div>
+        <div class="type-row"><code>--text-2xl</code><span style="font-size:31px">31px あア</span></div>
+      </div>
+      <p class="note">16px から約 1.25 倍ずつ（モジュラースケール）。見出しの段差が自然になる。</p>
+    </div>
+  </div>
+
+  <h2 id="naming">名前のつけ方</h2>
+  <p>よく使われるのは「<b>カテゴリ → 対象 → 種類 → 状態</b>」の順に並べる形です。</p>
+  <div class="flow"><span>color</span><i>-</i><span>bg</span><i>-</i><span>accent</span><i>-</i><span>hover</span></div>
+  <div class="vs">
+    <div class="card"><b class="ok">良い名前</b>
+      <ul class="plain">
+        <li><code>--color-text-muted</code>（用途がわかる）</li>
+        <li><code>--color-border-danger</code></li>
+        <li><code>--space-inset-md</code></li>
+      </ul></div>
+    <div class="card"><b class="ng">避けたい名前</b>
+      <ul class="plain">
+        <li><code>--color-light-blue</code>（セマンティック層に見た目の名前。ダークで「light」が濃い色になる）</li>
+        <li><code>--color-header-2</code>（何が 2 なのか不明）</li>
+        <li><code>--margin-13</code>（スケール外の値）</li>
+      </ul></div>
+  </div>
+
+  <h2 id="tools">ツールとフォーマット</h2>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>やりたいこと</th><th>手段</th></tr>
+    <tr><td>Web だけで使う</td><td>CSS 変数を手で書く。小〜中規模ならこれで十分</td></tr>
+    <tr><td>Tailwind CSS v4</td><td><code>@theme { --color-brand-500: …; }</code> と書くと、トークンがそのまま <code>bg-brand-500</code> などのクラスになる</td></tr>
+    <tr><td>iOS / Android とも共有</td><td>トークンを JSON で 1 か所に書き、Style Dictionary などで CSS・Swift・Kotlin に変換する</td></tr>
+    <tr><td>Figma と同期</td><td>Figma の Variables をトークンとして使い、プラグインや API で JSON に書き出す</td></tr>
+  </table></div>
+  <p>ツール間の共通フォーマットとして、W3C のコミュニティグループ（DTCG）が JSON の書式を定めています。<code>$value</code> と <code>$type</code> を持ち、<code>{…}</code> で別のトークンを参照します。</p>
+<pre><code>{
+  "space": {
+    "4": { "$type": "dimension", "$value": { "value": 16, "unit": "px" } }
+  },
+  "button": {
+    "padding-x": { "$value": "{space.4}" }
+  }
+}</code></pre>
+  <p class="note"><code>"{space.4}"</code> が別のトークンを参照するエイリアス（JSON にはコメントを書けないので、注記はコードの外に置いています）。この書式は 2025 年 10 月に安定版（Design Tokens Format Module 2025.10）が公開されています。</p>
+
+  <h2 id="system">デザインシステムの中での位置</h2>
+  <div class="flow"><span>トークン（値と名前）</span><i>→</i><span>コンポーネント（ボタン・カード…）</span><i>→</i><span>パターン（フォーム・一覧画面…）</span><i>＋</i><span>ガイドライン（いつ何を使うか）</span></div>
+  <p class="note">コンポーネントの作り方は <a href="component-design.html">コンポーネント設計</a>、色そのものの選び方は <a href="color-basics.html">色の基礎</a>、見た目のスタイルの種類は <a href="ui-design-styles.html">UI デザインスタイル早見表</a> へ。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth card"><summary>トークン ＝ CSS 変数のこと</summary><p>トークンは「デザインの決定」という考え方で、CSS 変数はその出力先の 1 つ。同じトークンから Swift や Kotlin の定数、Figma の変数も作れる。</p></details>
+  <details class="myth card"><summary>ダークモードは全コンポーネントに dark 用の色を書く</summary><p>セマンティック層を差し替えれば部品側は何も変えなくてよい。部品ごとに dark を書いているなら、生の色を直接参照しているサイン。</p></details>
+  <details class="myth card"><summary>コンポーネントトークンは全部品に必須</summary><p>部品ごとに上書きしたい事情があるときだけ作る。最初はプリミティブ＋セマンティックの 2 層で十分なことが多い。</p></details>
+  <details class="myth card"><summary>セマンティック名は見た目で付けてもよい（--color-blue など）</summary><p>ブランド色が変わったら「blue なのにオレンジ」になる。セマンティック層は用途（accent・danger・muted）で名付ける。</p></details>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      const p = t.dataset.panel && document.getElementById(t.dataset.panel);
+      if (p) p.hidden = !on;
+    });
+  });
+});
+document.querySelectorAll('[data-checklist]').forEach(box => {
+  const key = 'memo-check:' + location.pathname + ':' + box.dataset.checklist;
+  const inputs = [...box.querySelectorAll('input[type=checkbox]')];
+  const bar = box.querySelector('.bar div');
+  const count = box.querySelector('.count');
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {}
+  inputs.forEach((el, i) => { el.checked = !!saved[i]; });
+  const update = () => {
+    const n = inputs.filter(el => el.checked).length;
+    if (bar) bar.style.width = (n / inputs.length * 100) + '%';
+    if (count) count.textContent = n + ' / ' + inputs.length;
+    try { localStorage.setItem(key, JSON.stringify(inputs.map(el => el.checked))); } catch (e) {}
+  };
+  inputs.forEach(el => el.addEventListener('change', update));
+  update();
+});
+
+(() => {
+  const pv = document.getElementById('preview');
+  const out = document.getElementById('resolve');
+  const rows = [
+    ['--button-bg', '--s-accent'],
+    ['--button-fg', '--s-accent-text'],
+    ['--card-bg', '--s-surface'],
+    ['--card-border', '--s-border'],
+    ['--card-radius', '--s-radius']
+  ];
+  const map = {
+    light:        { '--s-accent': 'blue-500',   '--s-accent-text': 'gray-0', '--s-surface': 'gray-0',   '--s-border': 'gray-200', '--s-radius': 'radius-sm' },
+    dark:         { '--s-accent': 'cyan-400',   '--s-accent-text': 'ink-0',  '--s-surface': 'ink-100',  '--s-border': 'ink-300',  '--s-radius': 'radius-sm' },
+    brand:        { '--s-accent': 'orange-500', '--s-accent-text': 'gray-0', '--s-surface': 'gray-0',   '--s-border': 'gray-200', '--s-radius': 'radius-lg' },
+    'brand-dark': { '--s-accent': 'orange-400', '--s-accent-text': 'ink-0',  '--s-surface': 'ink-100',  '--s-border': 'ink-300',  '--s-radius': 'radius-lg' }
+  };
+  const show = theme => {
+    pv.dataset.theme = theme;
+    const cs = getComputedStyle(pv);
+    out.innerHTML = '<b style="font-family:inherit">参照の解決（' + theme + '）</b>' + rows.map(([c, s]) => {
+      const v = cs.getPropertyValue(c).trim();
+      const isColor = !c.includes('radius');
+      const sw = isColor ? '<span class="sw" style="background:' + v + '"></span>' : '';
+      return '<div>' + c + ' <i>→</i> ' + s.replace('--s-', 'color-').replace('color-radius', 'radius') + ' <i>→</i> ' + map[theme][s] + ' <i>→</i> <span class="val">' + sw + v + '</span></div>';
+    }).join('');
+  };
+  document.getElementById('theme-tabs').addEventListener('click', e => {
+    const t = e.target.closest('.tab'); if (!t) return;
+    document.querySelectorAll('#theme-tabs .tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+    show(t.dataset.theme);
+  });
+  show('light');
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "ダークモードに対応したい。トークンを 3 階層で組んでいる場合、主に差し替えるのはどの層？",
+    "choices": ["プリミティブ層（パレットの値そのもの）", "コンポーネント層（各部品の変数）", "セマンティック層（用途名がどのプリミティブを指すか）", "全部の層を同じだけ"],
+    "answer": 2,
+    "explain": "セマンティック層の対応先を変えれば、それを参照する部品は自動で追従する。プリミティブは「使える色の一覧」なので変えない。",
+    "ref": "#tiers"
+  },
+  {
+    "q": "セマンティックトークンに --color-light-blue という名前をつけた。後で困りやすいのはどんな場面？",
+    "choices": ["ブランド色の変更やダークモードで、名前と実際の色が食い違う", "CSS 変数として使えなくなる", "Tailwind で読み込めなくなる", "特に困ることはない"],
+    "answer": 0,
+    "explain": "セマンティック層は用途で名付ける。見た目の名前だと、テーマが変わったとき名前が嘘になる。",
+    "ref": "#naming"
+  },
+  {
+    "q": "ボタンの CSS に background: #0077b6; と直接書かれていて、ダークモードで読みにくい。トークンの考え方での直し方は？",
+    "choices": ["ダーク用の @media を各ボタンの CSS に追加する", "ボタンは var(--color-accent) などのセマンティックトークンを参照し、テーマ側で対応先を切り替える", "色を中間の灰色にして両方で読めるようにする", "プリミティブの --blue-500 をダーク時に別の色に書き換える"],
+    "answer": 1,
+    "explain": "部品が生の値を直接持つとテーマごとに部品を直すことになる。部品はセマンティック名だけを知り、切り替えはテーマ側でまとめて行う。",
+    "ref": "#css"
+  },
+  {
+    "q": "Web・iOS・Android の 3 つのアプリで同じ色と余白を使いたい。トークンの管理方法として向いているのは？",
+    "choices": ["各プラットフォームで手作業で同じ値を書く", "Web の CSS をそのまま iOS に読み込ませる", "トークンを JSON などで 1 か所に定義し、変換ツールで各プラットフォーム用に出力する", "Figma のスクリーンショットから色を拾う"],
+    "answer": 2,
+    "explain": "1 か所を正として変換すれば、値のずれが起きない。DTCG 形式の JSON や Style Dictionary がこの用途。",
+    "ref": "#tools"
+  }
+]
+</script>
+</body>
+</html>

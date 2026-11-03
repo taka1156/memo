@@ -238,6 +238,15 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
+    "file": "solid.html",
+    "title": "SOLID と依存性逆転",
+    "desc": "SOLID の 5 原則を「どんな症状を防ぐか」で整理し、オニオン／クリーンで内側に依存させる理由＝依存性逆転 (DIP) を図で説明する",
+    "tags": [
+      "設計"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "rust.html",
     "title": "Rust 学習フローと仕組み",
     "desc": "Rust の学習ロードマップと、所有権・借用・ライフタイムなどコンパイラが安全性を保証する仕組みを図解。",
@@ -303,6 +312,26 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
+    "file": "distributed-basics.html",
+    "title": "分散システムの基本",
+    "desc": "CAP 定理・整合性モデル・冪等性・リトライを、ネットワークが切れる／遅れる前提で図解し、Cloudflare の KV・D1・Durable Objects がどこに当たるかも整理する",
+    "tags": [
+      "設計",
+      "インフラ"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "design-tokens.html",
+    "title": "デザイントークン",
+    "desc": "色・余白・文字サイズなどの決定を名前付きの変数（デザイントークン）で管理する考え方を、3 階層の構造・CSS 変数での実装・テーマ切り替えのデモで説明する",
+    "tags": [
+      "デザイン",
+      "フロントエンド"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "ddd-onion.html",
     "title": "DDD とオニオンアーキテクチャ",
     "desc": "DDD の要素と依存の向きを図解し、Hono・Void での構成例と AI 時代向けの軽量版を比較。",
@@ -330,12 +359,52 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
+    "file": "component-design.html",
+    "title": "コンポーネント設計",
+    "desc": "Atomic Design がなぜ下火になったかを踏まえ、デザイントークン・Headless UI・機能単位の配置で組む今どきの UI コンポーネント設計を図とコードで整理する",
+    "tags": [
+      "設計",
+      "デザイン",
+      "フロントエンド"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "color-basics.html",
+    "title": "色の基礎",
+    "desc": "コントラスト比の基準と計算、ダークモードの色の作り方、HSL ではなく OKLCH でパレットを作る理由を、チェッカーと見比べられる色見本で説明する",
+    "tags": [
+      "デザイン",
+      "フロントエンド"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "cloudflare-databases.html",
     "title": "D1 と Hyperdrive＋PlanetScale",
     "desc": "Cloudflare Workers から使う DB を、SQLite ベースの D1 と、Hyperdrive 経由の PlanetScale（Postgres / MySQL）で比較。仕組み・得意不得意・選び方を図解。",
     "tags": [
       "インフラ",
       "データベース"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "architecture-compare.html",
+    "title": "アーキテクチャ比較",
+    "desc": "レイヤード・ヘキサゴナル・オニオン・クリーンの 4 つを同じ例で図にし、何が同じで何が違うか・どう選ぶかを整理する",
+    "tags": [
+      "設計"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "a11y-checklist.html",
+    "title": "アクセシビリティ チェックリスト",
+    "desc": "WCAG 2.2 の AA 基準から Web 開発で押さえるべき項目を、キーボード・色・フォーム・ARIA などの分類ごとのチェックリストとコード例でまとめる",
+    "tags": [
+      "デザイン",
+      "フロントエンド"
     ],
     "date": "2026-11-03"
   },
@@ -536,6 +605,11 @@ const QUIZZES = [
   {"file": "ui-design-styles.html", "title": "UI デザインスタイル早見表", "q": "ボタンをすべてニューモーフィズムにしたら、使いにくいと言われた。主な原因は？", "choices": ["CSS では再現できず画像になっているから", "コントラストが低く、押した状態とも区別しにくいから", "影の数が少なく、立体感が足りないから"], "answer": 1, "explain": "WCAG の基準を満たしにくい。使うなら小さな部品のアクセント程度にとどめる。", "ref": "#neu"},
   {"file": "ui-design-styles.html", "title": "UI デザインスタイル早見表", "q": "フラットデザインのアプリで「どこが押せるのかわからない」という声が出た。どう手直しする？", "choices": ["装飾をさらに減らして色も 1 色にする", "ボタンにだけ控えめな影や角丸を戻す", "全体をスキューモフィズムに作り直す"], "answer": 1, "explain": "フラットの弱点は「ボタンとただの色面の区別がつきにくい」こと。薄い影で浮いていることを示すだけで押せる場所が伝わる。", "ref": "#flat2"},
   {"file": "ui-design-styles.html", "title": "UI デザインスタイル早見表", "q": "記事の読みやすさは保ちつつ、画面に今っぽい奥行きも出したい。スタイルの使い方として一般的なのは？", "choices": ["本文はフラット 2.0 にし、上に浮くナビやモーダルだけをガラス表現にする", "1 つのスタイルを選んだら全画面で統一しなければならない", "すべての要素をグラスモーフィズムで統一する"], "answer": 0, "explain": "層ごとに使い分けるのが一般的。Liquid Glass もナビゲーション層に使い、内容はフラットに保つ前提。", "ref": "#myths"},
+  {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "注文処理のロジックが MySQL のリポジトリクラスを直接 import している。DB を差し替えても注文ロジックを書き直さずに済むようにするには、インターフェースをどこに置く？", "choices": ["infra 層に置き、MySQL クラスの隣で定義する", "ドメイン（注文処理を使う側）に置き、MySQL クラスがそれを実装する", "共通の utils フォルダに置き、どちらからも参照する", "インターフェースは作らず DI コンテナに任せる"], "answer": 1, "explain": "DIP では抽象を上位（使う側）が所有する。下位がその約束を実装することで、依存の向きが詳細→抽象に逆転する。", "ref": "#who-owns"},
+  {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "コンストラクタで OrderRepository を受け取るようにしたが、引数の型は MySqlOrderRepository（具体クラス）のまま。この状態の説明として正しいのは？", "choices": ["DI はしているが、DIP はまだできていない", "DIP はできているが、DI はできていない", "DI も DIP もできている", "DI コンテナがないのでどちらもできていない"], "answer": 0, "explain": "外から渡しているので DI ではあるが、具体クラスに依存しているので依存の向きは逆転していない。", "ref": "#dip-di-ioc"},
+  {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "経理の依頼で給与計算を直したら、人事向けの勤怠レポートの出力が変わってしまった。どの原則に違反している可能性が高い？", "choices": ["リスコフの置換原則", "インターフェース分離の原則", "単一責任の原則", "開放閉鎖の原則"], "answer": 2, "explain": "変更の理由（依頼元）が異なる処理が 1 つのクラスに同居していると、片方の修正がもう片方を壊す。", "ref": "#principles"},
+  {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "Storage インターフェースを実装した ReadOnlyStorage の save() が例外を投げる。呼び出し側に instanceof の分岐が増えてきた。どう直すのが筋がいい？", "choices": ["save() の中で何もしないようにして例外を消す", "呼び出し側の instanceof チェックを共通関数にまとめる", "Storage を継承した別クラスで save() をオーバーライドし直す", "読み取りと書き込みのインターフェースを分け、ReadOnlyStorage は読み取りだけを実装する"], "answer": 3, "explain": "できないことを型で表すのがリスコフ置換の守り方。黙って何もしないのは約束違反を隠すだけ。", "ref": "#principles"},
+  {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "オニオンアーキテクチャで、依存の矢印がすべてドメインに向かうように作る一番の理由は？", "choices": ["変わりにくい業務ルールを、変わりやすい DB やフレームワークの変更から守るため", "処理速度を上げるため", "フォルダ数を減らして見通しをよくするため", "ドメイン層から DB に直接アクセスできるようにするため"], "answer": 0, "explain": "変わりやすい側が変わりにくい側に合わせる構造にすると、変更の波及が外側で止まり、中心のテストも容易になる。", "ref": "#onion-link"},
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "String を関数に渡したあと、元の変数をもう一度使ったら borrow of moved value になった。所有権を手放さずに関数に使わせるには？", "choices": ["関数の中で drop を呼ばないようにする", "変数を let mut にする", "&s のように参照（借用）で渡す"], "answer": 2, "explain": "値を渡すと所有権がムーブする。借用なら所有権は元の変数に残る。とりあえず動かすなら clone() でもよい。", "ref": "#ownership"},
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "let first = &v[0]; のあとに v.push(4); を書き、その後で first を使うとコンパイルエラーになる。なぜ禁止されている？", "choices": ["push で再確保されると、first が解放済みのメモリを指すから", "first を let mut で宣言していないから", "let で作った Vec には、後から要素を追加できないから"], "answer": 0, "explain": "共有参照がある間は可変借用できない。first を最後に使った後なら push できる（NLL）。", "ref": "#borrow"},
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "let b = a; のあと、a が i32 なら両方使えるのに、String だと a が使えなくなる。違いは？", "choices": ["String は不変なので、別の変数に代入できないから", "i32 は Copy 型で複製され、String はムーブになるから", "i32 は参照で、String は値だから"], "answer": 1, "explain": "ヒープを持つ型までコピーすると二重解放の危険があるので、明示的な clone() を求める設計。", "ref": "#own-copy"},
@@ -570,6 +644,15 @@ const QUIZZES = [
   {"file": "docker-files.html", "title": "Dockerfile と Compose の書き方", "q": "compose で app から DATABASE_URL=postgres://…@localhost:5432 に接続すると失敗する。db サービスは動いている。どう直す？", "choices": ["ホスト名を db（サービス名）にする", "db に ports: \"5432:5432\" を足す", "app に EXPOSE 5432 を書く"], "answer": 0, "explain": "コンテナの中の localhost はそのコンテナ自身。同じ compose 内のコンテナにはサービス名で届く。ports はホストへの公開なので関係ない。", "ref": "#compose"},
   {"file": "docker-files.html", "title": "Dockerfile と Compose の書き方", "q": "docker compose up 直後、app が「DB に接続できない」で落ちる。depends_on: [db] は書いてある。何を足す？", "choices": ["restart: \"no\" を付ける", "db に healthcheck を書き、app の depends_on を condition: service_healthy にする", "db を app より上に書く"], "answer": 1, "explain": "素の depends_on は起動順しか保証しない。DB が接続を受け付けるまで待つには healthcheck と service_healthy の組み合わせが必要。", "ref": "#compose"},
   {"file": "docker-files.html", "title": "Dockerfile と Compose の書き方", "q": "docker stop すると毎回 10 秒待たされ、アプリの終了処理も動かない。Dockerfile の最後は CMD node server.js。原因は？", "choices": ["シェル形式なので sh が PID 1 になり、SIGTERM がアプリに届いていない", "EXPOSE を書いていないから", "USER を root にしていないから"], "answer": 0, "explain": "CMD [\"node\", \"server.js\"] の exec 形式にすると node が PID 1 になり SIGTERM が届く。PID 1 は既定では終了しないので、アプリで SIGTERM を処理するか --init（compose なら init: true）も使う。", "ref": "#exec-form"},
+  {"file": "distributed-basics.html", "title": "分散システムの基本", "q": "東京と大阪の DB ノード間の通信が切れた。大阪で残高を読まれたとき「古い値を返すくらいならエラーにする」設計は、CAP のどれを選んでいる？", "choices": ["AP（可用性を優先）", "CP（整合性を優先）", "CA（分断を無視）", "PACELC の EL"], "answer": 1, "explain": "分断中に正しさを守るため応答を諦めるのが CP。古くても返すのが AP。", "ref": "#cap"},
+  {"file": "distributed-basics.html", "title": "分散システムの基本", "q": "決済 API へのリクエストがタイムアウトした。二重課金を防ぎつつ安全にリトライするには？", "choices": ["タイムアウトを長くして 1 回だけ送る", "リトライ時は新しい UUID を冪等キーとして付け直す", "最初と同じ冪等キーを付けてリトライし、サーバーは処理済みなら前回の結果を返す", "リトライせず、ユーザーにもう一度ボタンを押してもらう"], "answer": 2, "explain": "冪等キーはリトライで使い回すのがポイント。キーを変えると別の操作と見なされ二重課金になる。", "ref": "#idem-key"},
+  {"file": "distributed-basics.html", "title": "分散システムの基本", "q": "API が一時的に落ちた後、多数のクライアントが同じ間隔でリトライして復旧直後のサーバーがまた落ちた。何を足すべき？", "choices": ["リトライ間隔にランダムなずれ（ジッター）を加える", "リトライ回数を増やす", "リトライ間隔を短くして早く成功させる", "全クライアントのリトライ時刻を揃える"], "answer": 0, "explain": "指数バックオフだけだと全員が同じタイミングで再送する。ジッターで分散させると負荷の山が崩れる。", "ref": "#backoff"},
+  {"file": "distributed-basics.html", "title": "分散システムの基本", "q": "在庫数を Workers KV に保存して、購入時に減らす実装にした。起こり得る問題は？", "choices": ["KV は書き込みができないので動かない", "結果整合性なので、古い在庫数を見て売り越しが起き得る", "KV は 1 か所にしかないので読み取りが遅くなる", "特に問題はない"], "answer": 1, "explain": "KV は書き込みが各地に届くまで古い値が返り得る。同時更新を正しく扱うなら Durable Objects や D1 のような強い整合性を持つ場所に置く。", "ref": "#cloudflare"},
+  {"file": "distributed-basics.html", "title": "分散システムの基本", "q": "外部 API が 422 Unprocessable Content を返した。リトライの判断として適切なのは？", "choices": ["指数バックオフでリトライする", "すぐに 1 回だけリトライする", "Retry-After ヘッダーの秒数待ってリトライする", "リトライせず、リクエスト内容を見直す"], "answer": 3, "explain": "4xx の多くはリクエスト自体の問題で、何度送っても結果は変わらない（429 は例外）。", "ref": "#retry"},
+  {"file": "design-tokens.html", "title": "デザイントークン", "q": "ダークモードに対応したい。トークンを 3 階層で組んでいる場合、主に差し替えるのはどの層？", "choices": ["プリミティブ層（パレットの値そのもの）", "コンポーネント層（各部品の変数）", "セマンティック層（用途名がどのプリミティブを指すか）", "全部の層を同じだけ"], "answer": 2, "explain": "セマンティック層の対応先を変えれば、それを参照する部品は自動で追従する。プリミティブは「使える色の一覧」なので変えない。", "ref": "#tiers"},
+  {"file": "design-tokens.html", "title": "デザイントークン", "q": "セマンティックトークンに --color-light-blue という名前をつけた。後で困りやすいのはどんな場面？", "choices": ["ブランド色の変更やダークモードで、名前と実際の色が食い違う", "CSS 変数として使えなくなる", "Tailwind で読み込めなくなる", "特に困ることはない"], "answer": 0, "explain": "セマンティック層は用途で名付ける。見た目の名前だと、テーマが変わったとき名前が嘘になる。", "ref": "#naming"},
+  {"file": "design-tokens.html", "title": "デザイントークン", "q": "ボタンの CSS に background: #0077b6; と直接書かれていて、ダークモードで読みにくい。トークンの考え方での直し方は？", "choices": ["ダーク用の @media を各ボタンの CSS に追加する", "ボタンは var(--color-accent) などのセマンティックトークンを参照し、テーマ側で対応先を切り替える", "色を中間の灰色にして両方で読めるようにする", "プリミティブの --blue-500 をダーク時に別の色に書き換える"], "answer": 1, "explain": "部品が生の値を直接持つとテーマごとに部品を直すことになる。部品はセマンティック名だけを知り、切り替えはテーマ側でまとめて行う。", "ref": "#css"},
+  {"file": "design-tokens.html", "title": "デザイントークン", "q": "Web・iOS・Android の 3 つのアプリで同じ色と余白を使いたい。トークンの管理方法として向いているのは？", "choices": ["各プラットフォームで手作業で同じ値を書く", "Web の CSS をそのまま iOS に読み込ませる", "トークンを JSON などで 1 か所に定義し、変換ツールで各プラットフォーム用に出力する", "Figma のスクリーンショットから色を拾う"], "answer": 2, "explain": "1 か所を正として変換すれば、値のずれが起きない。DTCG 形式の JSON や Style Dictionary がこの用途。", "ref": "#tools"},
   {"file": "ddd-onion.html", "title": "DDD とオニオンアーキテクチャ", "q": "「完了済みのタスクはもう一度完了できない」という業務ルールを追加する。どこに書く？", "choices": ["Task エンティティの complete() メソッドの中", "Hono のルートハンドラ", "ユースケース（CompleteTaskUseCase）の if 文"], "answer": 0, "explain": "業務ルールはエンティティや値オブジェクトに閉じ込める。ユースケースは取り出して呼んで保存する段取り役。ルールがユースケースに散らばるとドメインモデル貧血症になる。", "ref": "#ddd-tac"},
   {"file": "ddd-onion.html", "title": "DDD とオニオンアーキテクチャ", "q": "ユースケースから DB に保存したいが、application 層は infrastructure 層を import してはいけない。どうする？", "choices": ["例外として application から D1 のクライアントを直接 import する", "リポジトリのインターフェースをドメインに置き、infrastructure でそれを実装する", "保存処理もドメインのエンティティに書く"], "answer": 1, "explain": "依存性逆転。どちらの矢印も内側を向くので、D1 を Postgres やメモリに替えても内側は変わらない。", "ref": "#onion"},
   {"file": "ddd-onion.html", "title": "DDD とオニオンアーキテクチャ", "q": "API の入力は Zod で検証している。それでも TaskTitle のような値オブジェクトを作る意味はある？", "choices": ["ない。値オブジェクトは DB の型を表すためのもの", "ある。値オブジェクトは別の入口から来ても業務ルールを守れる", "ない。Zod で検証済みなら二重チェックになるだけ"], "answer": 1, "explain": "値オブジェクトは生成時にルールを検証するので、作れた時点で正しい値であることが保証される。", "ref": "#myths"},
@@ -585,11 +668,28 @@ const QUIZZES = [
   {"file": "db-index-transaction.html", "title": "インデックスとトランザクション", "q": "既定の READ COMMITTED で「在庫を SELECT → アプリで -1 → UPDATE で書き戻す」処理を同時に 2 件実行したら、2 個売れたのに在庫が 1 しか減らなかった。一番シンプルな対策は？", "choices": ["分離レベルを READ UNCOMMITTED にする", "SELECT を 2 回実行して値を確認する", "UPDATE items SET stock = stock - 1 のように DB 側で計算する"], "answer": 2, "explain": "読んだ値を書き戻す方式は、READ COMMITTED では更新の取りこぼしが起きる。stock = stock - 1 なら UPDATE 時の最新値に対して計算されるので取りこぼさない。複雑な判定が必要なら SELECT ... FOR UPDATE。", "ref": "#lost-fix"},
   {"file": "db-index-transaction.html", "title": "インデックスとトランザクション", "q": "PostgreSQL で、夜間バッチが長時間トランザクションを開いたままにしていたら、更新の多いテーブルがどんどん膨らんだ。主な原因は？", "choices": ["WAL がデータファイルに反映されないから", "そのトランザクションから見える可能性のある古い行の版を、VACUUM が消せないから", "インデックスが自動で増えるから"], "answer": 1, "explain": "MVCC では更新のたびに新しい版ができる。まだ実行中の古いトランザクションが見る可能性のある版は片付けられないので、溜まり続ける。", "ref": "#mvcc"},
   {"file": "db-index-transaction.html", "title": "インデックスとトランザクション", "q": "SERIALIZABLE に上げたら、まれに「could not serialize access」エラーが出るようになった。どう扱う？", "choices": ["DB の不具合なので READ COMMITTED に戻す", "想定どおりの挙動なので、トランザクションを最初からリトライする", "エラーを無視して処理を続ける"], "answer": 1, "explain": "SERIALIZABLE は、直列に実行した場合と矛盾する組み合わせを検出すると片方をエラーにして守る。アプリ側でトランザクションごとやり直す前提で使う。", "ref": "#isolation"},
+  {"file": "component-design.html", "title": "コンポーネント設計", "q": "atoms / molecules / organisms のフォルダ構成で、「カート」の仕様変更のたびに 3 つのフォルダを行き来している。根本的な改善は？", "choices": ["機能（features/cart）ごとにまとめ、業務を知らない共通部品だけを ui/ に置く", "templates/ フォルダを追加してまとめる", "カート関連の部品をすべて organisms に移す", "部品をさらに細かく atoms に分解する"], "answer": 0, "explain": "粒度での分類は変更の理由と無関係なので、1 機能の修正が散らばる。機能単位に置けば変更がフォルダ内で完結する。", "ref": "#folders"},
+  {"file": "component-design.html", "title": "コンポーネント設計", "q": "自作のモーダルで、Esc で閉じない・Tab で背後の要素に移ってしまう、という指摘を受けた。見た目は今のまま変えたくない。どうする？", "choices": ["見た目ごと UI ライブラリの既製モーダルに置き換える", "Esc キーのイベントだけ追加して様子を見る", "Headless UI（または <dialog> 要素）に振る舞いを任せ、今のスタイルを当てる", "モーダルをやめて別ページに遷移させる"], "answer": 2, "explain": "Headless は振る舞い（キー操作・フォーカス管理・ARIA）だけを提供するので、見た目を保ったまま難しい部分を任せられる。", "ref": "#headless"},
+  {"file": "component-design.html", "title": "コンポーネント設計", "q": "Button に primary・danger・outline などの真偽値 props が増え、同時に true にされると見た目が壊れる。設計の直し方は？", "choices": ["props の数を減らすため、className を直接渡させる", "同時に成り立たないものを variant: 'primary' | 'danger' … の 1 つの型にまとめる", "真偽値の組み合わせごとに別のコンポーネントを作る", "優先順位をコメントで書いておく"], "answer": 1, "explain": "排他的な選択肢を union 型にすれば、ありえない組み合わせを型で防げる。", "ref": "#c-variant"},
+  {"file": "component-design.html", "title": "コンポーネント設計", "q": "ある機能のために作った日付ピッカーを、別の機能でも使いたくなった（まだ 2 か所目）。進め方として無難なのは？", "choices": ["すぐに汎用化し、想定される全オプションを props に用意して ui/ に置く", "既存のものを import して使い、3 か所目で形が見えたら業務の言葉を抜いて ui/ に移す", "npm パッケージとして切り出して公開する", "2 か所目の機能用にゼロから作り直す"], "answer": 1, "explain": "早すぎる共通化は想像上の要件で props を膨らませる。実際の使われ方が 3 つ揃ってから共通化するほうが筋がよい。", "ref": "#folders"},
+  {"file": "color-basics.html", "title": "色の基礎", "q": "本文 15px のグレー文字を白背景に置いたら、コントラスト比が 3.8:1 だった。WCAG AA を満たすにはどうする？", "choices": ["そのままで良い（3:1 以上なので合格）", "文字色を濃くして 4.5:1 以上にする", "文字を太字にすれば 3.8:1 のままで合格", "背景を少しだけ灰色にする"], "answer": 1, "explain": "通常サイズの文字は 4.5:1 が基準。3:1 で良いのは大きな文字や UI 部品。背景を灰色にすると比率はさらに下がる。", "ref": "#contrast"},
+  {"file": "color-basics.html", "title": "色の基礎", "q": "色相だけを変えて「明るさのそろった」タグの色を 6 色作りたい。どの方法が向いている？", "choices": ["oklch() の L と C を固定して H だけ変える", "hsl() の L と S を固定して H だけ変える", "rgb() の合計値をそろえる", "16 進コードの先頭の桁をそろえる"], "answer": 0, "explain": "OKLCH の L は見た目の明るさにほぼ比例する。HSL の L は同じでも黄色は明るく青は暗く見える。", "ref": "#hsl-vs-oklch"},
+  {"file": "color-basics.html", "title": "色の基礎", "q": "ダークモードで、カードが背景に埋もれて境界がわからない。影を濃くしても改善しない。どうする？", "choices": ["カードの面を背景より一段明るい色にする", "背景を純黒 #000 にする", "カードに白い太枠を付ける", "カードを半透明にする"], "answer": 0, "explain": "暗い背景では影が見えにくい。ダークモードでは「上にあるものほど明るい面」で重なりを表す。", "ref": "#dark"},
+  {"file": "color-basics.html", "title": "色の基礎", "q": "サーバーの状態一覧で、稼働中を緑の丸、停止を赤の丸だけで表示している。何が問題？", "choices": ["緑と赤は印刷すると同じ色になる", "丸はアイコンとして小さすぎる", "赤と緑を見分けにくい人には状態が伝わらない", "特に問題はない"], "answer": 2, "explain": "色だけで意味を伝えると、色覚の個人差で情報が失われる。アイコンの形や文字ラベルを併用する。", "ref": "#meaning"},
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "Workers から AWS 上の既存 Postgres に直接つないだら、簡単な SELECT でも毎回遅い。まず入れるべきものは？", "choices": ["D1 の読み取りレプリカ", "KV にすべてのデータを移す", "Hyperdrive（接続プールとキャッシュ）"], "answer": 2, "explain": "Worker はリクエストごとに起動するので、直接つなぐと毎回 TCP・TLS・認証の往復をやり直す。Hyperdrive が DB への接続をプールしておくので、その往復がほぼ消える。", "ref": "#why-hyperdrive"},
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "SaaS の各顧客企業に独立したデータを持たせたい。1社あたり数百 MB で、Postgres 固有の機能は使わない。素直な構成は？", "choices": ["D1 で顧客ごとに DB を1つずつ作る", "Hyperdrive だけを契約する", "PlanetScale の1つの DB に全社を入れ、D1 の読み取りレプリカで速くする"], "answer": 0, "explain": "D1 は1つの DB を小さく保ち、大量に作って分ける前提のサービス。テナントごとに分ければ書き込みも自然に散る。Hyperdrive は DB ではないので単体では使えない。", "ref": "#compare"},
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "Hyperdrive 経由の PlanetScale を使っている。プロフィールを更新した直後の画面で、古い名前が表示されることがある。原因として考えられるのは？", "choices": ["PlanetScale の書き込みが失敗している", "Hyperdrive の読み取りクエリのキャッシュが古い結果を返している", "Placement の設定が間違っている"], "answer": 1, "explain": "Hyperdrive は読み取りクエリの結果を既定でキャッシュし、書き込みがあってもキャッシュを消さない。書いた直後に読む画面では、キャッシュを無効にした別の Hyperdrive 設定（バインディング）を経由して読む。", "ref": "#myths"},
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "PlanetScale の DB は us-east-1 にある。Worker が各国の最寄りで動くため、1リクエストで何本もクエリを投げる API が遅い。効く対策は？", "choices": ["D1 の読み取りレプリカを増やす", "クエリを並列にしてさらに本数を増やす", "Placement で Worker を DB の近く（aws:us-east-1）で動かす"], "answer": 2, "explain": "クエリのたびに Worker と DB の間を往復するので、距離 × 本数だけ遅くなる。Worker を DB の近くで動かせば、ユーザーとの往復は1回、DB との往復は短くなる。", "ref": "#arch"},
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "D1 で1つの DB に全ユーザーの書き込みが集中し、遅くなってきた。読み取りレプリカを有効にすれば解決する？", "choices": ["解決する。レプリカが書き込みも分担するから", "解決しない。レプリカは読み取り専用なので、書き込みは DB を分けて散らす", "解決する。レプリカがあると書き込みがキャッシュされるから"], "answer": 1, "explain": "D1 の各 DB はシングルスレッドで、書き込みはプライマリに集まる。書き込みを増やしたいなら DB を分けるか、共有データが中心なら PlanetScale のようなサーバー型 DB を検討する。", "ref": "#myths"},
+  {"file": "architecture-compare.html", "title": "アーキテクチャ比較", "q": "レイヤードアーキテクチャと、オニオン・クリーン・ヘキサゴナルとの一番大きな違いは？", "choices": ["層の数", "依存の向き（DB に向かうか、ドメインに向かうか）", "使えるプログラミング言語", "フロントエンドを含むかどうか"], "answer": 1, "explain": "レイヤードは上位が下位（DB 側）に依存する。他の 3 つは依存性逆転で外側がドメインに依存する。", "ref": "#difference"},
+  {"file": "architecture-compare.html", "title": "アーキテクチャ比較", "q": "ヘキサゴナルアーキテクチャで、Web API の Controller とテストコードはどちらも同じ側に描かれる。その理由は？", "choices": ["どちらも DB に接続するから", "どちらもアプリケーションを呼び出す側（Driving）のアダプターだから", "どちらも六角形の中にあるから", "どちらもポートを実装するから"], "answer": 1, "explain": "左側はアプリを駆動する側。テストも Web も同じポートからアプリを呼ぶので、同じ入口から検証できる。", "ref": "#hexagonal"},
+  {"file": "architecture-compare.html", "title": "アーキテクチャ比較", "q": "業務ルールはほとんどなく、画面とテーブルが 1 対 1 に近い社内ツールを作る。まず選ぶ構成として妥当なのは？", "choices": ["クリーンアーキテクチャを Presenter まで完全に実装する", "オニオンでドメインを 4 層に分ける", "レイヤード（フレームワーク標準の構成）で始める", "マイクロサービスに分割する"], "answer": 2, "explain": "守るべき業務ルールが薄いなら、層を増やしてもコストに見合わない。必要になってから DIP を入れればよい。", "ref": "#choose"},
+  {"file": "architecture-compare.html", "title": "アーキテクチャ比較", "q": "ヘキサゴナルの「ポート」は、オニオンアーキテクチャでは主に何に当たる？", "choices": ["ドメイン側に置くリポジトリなどの interface", "外周の UI 層", "データベースそのもの", "アプリケーションサービスの実装クラス"], "answer": 0, "explain": "どちらも「内側が定義し、外側が実装する約束」。名前が違うだけで役割は同じ。", "ref": "#mapping"},
+  {"file": "a11y-checklist.html", "title": "アクセシビリティ チェックリスト", "q": "クリックで動く要素を <div onclick> で作っている。キーボード利用者のために最も手間が少なく確実な直し方は？", "choices": ["role=\"button\" を付ける", "tabindex=\"0\" を付ける", "<button> 要素に置き換える", "aria-label を付ける"], "answer": 2, "explain": "<button> にすれば Tab での到達、Enter / Space での実行、「ボタン」としての読み上げが最初から付く。div に role や tabindex を足してもキー操作は自前で実装が必要。", "ref": "#k-button"},
+  {"file": "a11y-checklist.html", "title": "アクセシビリティ チェックリスト", "q": "デザイナーから「クリックしたときの青い枠が見た目に悪い」と言われた。キーボード利用者を困らせずに対応するには？", "choices": ["outline: none で全部消す", ":focus-visible で、主にキーボード操作時に枠を出す", "枠の色を背景と同じにする", "hover 時だけ枠を出す"], "answer": 1, "explain": ":focus-visible はブラウザがフォーカス表示を必要と判断したときに一致する。ボタンのマウスクリックでは通常一致しないので、キーボード利用者には枠を残しつつクリック時は出さずに済む。", "ref": "#k-focus"},
+  {"file": "a11y-checklist.html", "title": "アクセシビリティ チェックリスト", "q": "入力欄にラベルを付けず、placeholder に「メールアドレス」と書いている。何が問題？", "choices": ["入力を始めると説明が消え、何の欄か確かめられなくなる", "placeholder は検索エンジンに読まれない", "placeholder はスマホで表示されない", "特に問題はない"], "answer": 0, "explain": "placeholder はラベルの代わりにならない。<label> を紐づけると、読み上げでも常に名前が伝わる。", "ref": "#c-form"},
+  {"file": "a11y-checklist.html", "title": "アクセシビリティ チェックリスト", "q": "「保存しました」というトーストを表示しているが、スクリーンリーダーで読み上げられない。どうする？", "choices": ["トーストを 10 秒以上表示する", "トーストに alt 属性を付ける", "トーストの文字を大きくする", "role=\"status\"（aria-live）の入れ物を先に置き、中身を書き換える"], "answer": 3, "explain": "ライブリージョンは「変化」を読み上げる仕組み。入れ物ごと後から追加すると気づかれないことがあるので、先に置いておく。", "ref": "#k-live"},
+  {"file": "a11y-checklist.html", "title": "アクセシビリティ チェックリスト", "q": "Lighthouse のアクセシビリティスコアが 100 点になった。リリース前に追加でやるべきことは？", "choices": ["特になし。100 点なら基準を満たしている", "キーボードだけでの操作と、スクリーンリーダーでの読み上げを手で確かめる", "スコアが下がらないよう ARIA を全要素に付ける", "別の自動チェックツールで同じ確認を繰り返す"], "answer": 1, "explain": "自動チェックで見つかるのは一部。操作順・フォーカスの見え方・読み上げ内容の正しさは人が確かめる必要がある。", "ref": "#test"},
   {"file": "vue-vs-svelte.html", "title": "Vue と Svelte", "q": "Vue の <script setup> で const count = ref(0) とし、関数の中で count++ と書いたが動かない。どう書く？", "choices": ["this.count++", "count.value++", "count = count + 1"], "answer": 1, "explain": "script の中では .value で読み書きする。テンプレートの中では自動で .value が外れる。", "ref": "#counter"},
   {"file": "vue-vs-svelte.html", "title": "Vue と Svelte", "q": "Svelte 4 で配列に arr.push(x) したのに、画面が更新されない。理由は？", "choices": ["push の結果は次のフレームまで反映されないから", "Svelte では配列をリアクティブにできないから", "代入文を検知する方式で、push は代入ではないから"], "answer": 2, "explain": "Svelte 4 では arr = [...arr, x] のように代入が必要だった。Svelte 5 の $state は Proxy で深く追跡するので push も検知される。", "ref": "#s4"},
   {"file": "vue-vs-svelte.html", "title": "Vue と Svelte", "q": "Svelte 5 で、複数のコンポーネントで共有するリアクティブな状態を、コンポーネントの外に切り出したい。どうする？", "choices": [".svelte.js / .svelte.ts ファイルで $state を使う", "外には切り出せないので親コンポーネントに置く", "普通の .js ファイルで let を export する"], "answer": 0, "explain": "runes は明示的な目印なので、.svelte.js などのファイルでも使える。Svelte 4 の書き方ではコンポーネントの外で使えなかった。", "ref": "#s5"},

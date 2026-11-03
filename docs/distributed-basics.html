@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分散システムの基本</title>
+<meta name="description" content="CAP 定理・整合性モデル・冪等性・リトライを、ネットワークが切れる／遅れる前提で図解し、Cloudflare の KV・D1・Durable Objects がどこに当たるかも整理する">
+<meta name="memo:tags" content="設計, インフラ">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #cf222e;
+  --c-warn: #9a6700;
+  --c-a: #0077b6;
+  --c-b: #8250df;
+  --c-c: #1a7f37;
+  --c-d: #bc4c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-a: #00d4ff;
+    --c-b: #bc8cff;
+    --c-c: #3fb950;
+    --c-d: #f0883e;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.2em; }
+ul.plain li { margin: 2px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+  margin: 10px 0;
+}
+.en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* 図 */
+.diagram { margin: 8px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
+.d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
+.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--accent); }
+.d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
+.d-ng-head { fill: var(--c-ng); }
+
+/* ステップ・フロー */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.flow span {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+.tbl td:first-child { font-weight: 700; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+
+/* チェックリスト */
+.progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
+.bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
+.checklist { list-style: none; }
+.checklist li { border-bottom: 1px solid var(--line); }
+.checklist li:last-child { border-bottom: none; }
+.checklist label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 2px; cursor: pointer; }
+.checklist input { margin-top: 5px; accent-color: var(--accent); flex: none; width: 16px; height: 16px; }
+.checklist .txt { flex: 1; }
+.checklist .txt small { display: block; color: var(--fg-2); font-size: 0.8rem; }
+.checklist input:checked + .txt { color: var(--fg-2); text-decoration: line-through; }
+.badge {
+  display: inline-block;
+  font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  color: var(--fg-2);
+}
+.badge.a { color: var(--c-a); }
+.badge.b { color: var(--c-b); }
+.badge.c { color: var(--c-c); }
+.badge.d { color: var(--c-d); }
+
+/* よくある誤解 */
+.myth { margin-bottom: 10px; }
+.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
+.myth summary::-webkit-details-marker { display: none; }
+.myth summary::before { content: '✕ '; color: var(--c-ng); }
+.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
+.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+/* OK / NG コード比較 */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.vs > div { min-width: 0; }
+.vs .lbl { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.cap-sim { display: grid; gap: 10px; }
+.nodes { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.node {
+  min-width: 120px; text-align: center;
+  background: var(--surface); border: 2px solid var(--line); border-radius: 10px; padding: 8px 10px;
+}
+.node b { font-family: 'JetBrains Mono', ui-monospace, monospace; display: block; }
+.node .v { font: 700 1.3rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.node.err { border-color: var(--c-ng); }
+.node.err .v { color: var(--c-ng); font-size: 0.85rem; }
+.node.stale .v { color: var(--c-warn); }
+.link { font: 700 1rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); min-width: 60px; text-align: center; }
+.link.cut { color: var(--c-ng); }
+.sim-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.sim-btns button {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 6px 12px; font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer;
+}
+.sim-btns button:hover { border-color: var(--accent); }
+.sim-btns button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.sim-log { font-size: 0.85rem; background: var(--chip); border-radius: 8px; padding: 8px 12px; min-height: 3.4em; }
+.backoff { display: grid; gap: 4px; margin: 8px 0; }
+.bo-row { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 8px; font-size: 0.75rem; }
+.bo-row span:first-child { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.bo-track { position: relative; height: 18px; background: var(--chip); border-radius: 4px; }
+.bo-dot { position: absolute; top: 2px; width: 6px; height: 14px; border-radius: 2px; background: var(--accent); }
+.bo-dot.c2 { background: var(--c-b); }
+.bo-dot.c3 { background: var(--c-d); }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.spectrum { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.spectrum .card { padding: 10px 12px; }
+.spectrum .card b { font-size: 0.88rem; }
+.spectrum .card p { font-size: 0.8rem; color: var(--fg-2); margin: 4px 0 0; }
+.strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); letter-spacing: .1em; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="分散システムの基本">
+<meta property="og:description" content="CAP 定理・整合性モデル・冪等性・リトライを、ネットワークが切れる／遅れる前提で図解し、Cloudflare の KV・D1・Durable Objects がどこに当たるかも整理する">
+<meta property="og:url" content="https://memo.taka1156.site/distributed-basics.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>分散システムの基本</h1>
+  <p class="subtitle">CAP・結果整合性・冪等性・リトライ ——「ネットワークは失敗する」前提で設計する</p>
+<div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>複数台に分けた瞬間、<b>「ネットワークが切れる・遅れる・二重に届く」</b>が日常になる。設計はそれが起きる前提で考える。</li>
+      <li><b>CAP</b>：通信が切れたとき「エラーを返してでも正しさを守る (C)」か「古いかもしれない値でも返す (A)」かを選ぶしかない。</li>
+      <li>リトライすると処理は<b>二重に届き得る</b>。だから受ける側を<b>冪等</b>（何回やっても結果が同じ）にし、リトライは<b>指数バックオフ＋ジッター</b>で間隔を空ける。</li>
+    </ul>
+  </div>
+
+  <h2 id="why">なぜ難しいのか</h2>
+  <p>1 台なら「関数を呼んだら、成功か失敗かが必ずわかる」。ネットワーク越しになると、もう 1 つの結果が増えます。</p>
+  <div class="grid-3">
+    <div class="card"><span class="ok">成功</span><p class="note" style="border:0;padding:0">レスポンスが返ってきた。</p></div>
+    <div class="card"><span class="ng">失敗</span><p class="note" style="border:0;padding:0">エラーが返ってきた（処理されていない、と言える場合もある）。</p></div>
+    <div class="card"><span class="warn">わからない</span><p class="note" style="border:0;padding:0">タイムアウト。<b>相手が処理したのか、していないのか</b>判別できない。分散システムの難しさの大半はここから来る。</p></div>
+  </div>
+  <p class="note">「送金 API がタイムアウトした。もう一度送るべきか？」—— この問いに安全に答えられるようにするのが、後半の冪等性とリトライの話。</p>
+
+  <h2 id="cap">CAP 定理</h2>
+  <p>データを複数のノードに複製しているとき、次の 3 つを<b>同時に</b>完全には満たせない、という定理です。</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>文字</th><th>意味</th></tr>
+    <tr><td>C <span class="en">Consistency</span></td><td>どのノードから読んでも、最新の書き込み結果が返る（線形化可能性）</td></tr>
+    <tr><td>A <span class="en">Availability</span></td><td>生きているノードは、必ず（エラーでない）応答を返す</td></tr>
+    <tr><td>P <span class="en">Partition tolerance</span></td><td>ノード間の通信が切れても、システムとして動き続ける</td></tr>
+  </table></div>
+  <p>ただしネットワーク分断は<b>避けられない現実</b>なので、P は「選ぶ」ものではなく前提です。実際の選択は<b>「分断が起きている間、C と A のどちらを諦めるか」</b>だけ。下で試してみてください。</p>
+
+  <div class="card cap-sim" id="cap-sim">
+    <div class="nodes">
+      <div class="node" id="n1"><b>ノード 1（東京）</b><span class="v" id="v1">100</span></div>
+      <div class="link" id="lnk">⇄ 同期</div>
+      <div class="node" id="n2"><b>ノード 2（大阪）</b><span class="v" id="v2">100</span></div>
+    </div>
+    <div class="sim-btns">
+      <button data-act="cut">① 通信を切る</button>
+      <button data-act="write">② 東京で 200 に更新</button>
+      <button data-act="read">③ 大阪で読む</button>
+      <button data-act="heal">④ 復旧</button>
+    </div>
+    <div class="sim-btns">
+      <button data-mode="CP" class="on">CP を選ぶ</button>
+      <button data-mode="AP">AP を選ぶ</button>
+    </div>
+    <div class="sim-log" id="sim-log" aria-live="polite">①〜④を順に押してください。CP / AP を切り替えると、分断中の振る舞いが変わります。</div>
+  </div>
+
+  <h3 id="pacelc">分断していない平常時は？ — PACELC</h3>
+  <p>CAP は「分断中」の話だけ。平常時にも<b>「速さ (Latency) と整合性 (Consistency) のどちらを取るか」</b>という選択があります。これを足したのが PACELC。</p>
+  <div class="flow"><span>分断中 (P)</span><i>→</i><span>A か C か</span><i>／</i><span>平常時 (E: Else)</span><i>→</i><span>L か C か</span></div>
+  <p class="note">例：全リージョンへの同期完了を待ってから応答する（C 寄り・遅い）か、近くのリージョンに書いたらすぐ返して後で伝える（L 寄り・速い）か。</p>
+
+  <h2 id="consistency">整合性モデル</h2>
+  <p>「強い整合性」と「結果整合性」の 2 択ではなく、間にいくつか段階があります。強いほど直感的、弱いほど速くて落ちにくい。</p>
+  <div class="spectrum">
+    <div class="card"><span class="strength">STRONG</span><br><b>強い整合性（線形化可能）</b><p>書いた直後から、誰がどこで読んでも新しい値。1 台の DB に近い感覚で書ける。</p></div>
+    <div class="card"><span class="strength">SEQUENTIAL</span><br><b>逐次整合性</b><p>全員が同じ順番で更新を見る。ただし「今この瞬間の最新」とは限らない。</p></div>
+    <div class="card"><span class="strength">SESSION</span><br><b>自分の書き込みは読める</b><br><span class="en">Read-your-writes</span><p>他人の更新は遅れてもいいが、自分が書いたものは次の読み取りで必ず見える。</p></div>
+    <div class="card"><span class="strength">EVENTUAL</span><br><b>結果整合性</b><p>しばらく待てばいずれ揃う。その間は古い値が返り得る。いいね数・閲覧数などに向く。</p></div>
+  </div>
+
+  <h3 id="cloudflare">Cloudflare のサービスに当てはめると</h3>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>サービス</th><th>整合性</th><th>向いている用途</th></tr>
+    <tr><td>Workers KV</td><td>結果整合性。書き込みが他の拠点に届くまで<b>60 秒以上</b>かかることがあり、その間は古い値が返り得る</td><td>設定値・フラグ・キャッシュなど、読み取りが圧倒的に多いもの</td></tr>
+    <tr><td>D1（レプリカなし）</td><td>書き込みも読み取りも 1 か所（プライマリ）なので強い整合性</td><td>普通のリレーショナルデータ</td></tr>
+    <tr><td>D1（読み取りレプリカ・ベータ）</td><td>Sessions API の<b>ブックマーク</b>を引き継ぐと、自分の書き込みが次の読み取りで見える（逐次整合性）</td><td>読み取りを世界中で速くしつつ、ユーザー単位の一貫性は保ちたいとき</td></tr>
+    <tr><td>Durable Objects</td><td>1 オブジェクト＝1 か所で処理するので強い整合性</td><td>在庫・座席・チャットルームなど、同時更新を正しく捌きたいもの</td></tr>
+  </table></div>
+  <p class="note">詳しくは <a href="cloudflare-databases.html">D1 と Hyperdrive＋PlanetScale</a>、<a href="cloudflare-services.html">Cloudflare サービス</a>。KV で在庫数を管理すると、書き込みが各地に届くまでの間に売り越しが起き得る、という具合に<b>整合性モデルの選択がそのままバグになる</b>。</p>
+
+  <h2 id="idempotency">冪等性 (idempotency)</h2>
+  <p><b>同じ操作を 1 回やっても 10 回やっても、結果が同じ</b>になる性質。タイムアウト時に安心してリトライするための土台です。</p>
+  <div class="vs">
+    <div class="card"><b class="ok">もともと冪等</b>
+      <ul class="plain">
+        <li><code>PUT /users/1 {name: "A"}</code> — 何回送っても名前は A</li>
+        <li><code>DELETE /items/9</code> — 2 回目は「もうない」だけ</li>
+        <li><code>SET stock = 5</code></li>
+      </ul></div>
+    <div class="card"><b class="ng">そのままだと冪等でない</b>
+      <ul class="plain">
+        <li><code>POST /payments</code> — 2 回届けば 2 回課金</li>
+        <li><code>UPDATE stock = stock - 1</code></li>
+        <li>メール送信・プッシュ通知</li>
+      </ul></div>
+  </div>
+
+  <h3 id="idem-key">冪等キーで POST を冪等にする</h3>
+  <p>クライアントが操作ごとに一意なキーを作って送り、サーバーは「そのキーで処理済みなら、前回の結果をそのまま返す」。Stripe などの決済 API で使われている方法です。</p>
+  <div class="steps">
+    <div class="step"><b>1. キーを作る</b><p>クライアントが操作 1 回ごとに UUID を生成。<b>リトライでは同じキーを使い回す</b>。</p></div>
+    <div class="step"><b>2. 送る</b><p><code>Idempotency-Key: 7f3c…</code> ヘッダーを付けて POST。</p></div>
+    <div class="step"><b>3. 照合</b><p>サーバーはキーを保存済みか確認。初めてなら処理し、結果をキーと一緒に保存。</p></div>
+    <div class="step"><b>4. 2 回目</b><p>同じキーが来たら処理せず、保存した結果を返す。課金は 1 回だけ。</p></div>
+  </div>
+<pre><code><span class="cm">-- キーの一意制約で「同時に 2 つ届いた」ケースも弾く</span>
+CREATE TABLE idempotency_keys (
+  key        TEXT PRIMARY KEY,
+  response   TEXT,
+  created_at TIMESTAMP
+);
+<span class="cm">-- 処理本体とキーの保存は同じトランザクションで</span></code></pre>
+  <p class="note">キーの保存と本処理を別々にすると「処理したがキー保存前に落ちた」でまた二重になる。同じトランザクションに入れるのが要（<a href="db-index-transaction.html">インデックスとトランザクション</a>）。</p>
+
+  <h2 id="retry">リトライ</h2>
+  <h3>何をリトライしてよいか</h3>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>状況</th><th>リトライ</th><th>理由</th></tr>
+    <tr><td>タイムアウト・接続切れ</td><td class="ok">する（冪等なら）</td><td>一時的な可能性が高い。冪等でない操作は冪等キー必須</td></tr>
+    <tr><td>429 Too Many Requests</td><td class="ok">する</td><td><code>Retry-After</code> があればその秒数待つ</td></tr>
+    <tr><td>502 / 503 / 504</td><td class="ok">する</td><td>相手側の一時的な不調</td></tr>
+    <tr><td>400 / 401 / 403 / 404 / 422</td><td class="ng">しない</td><td>何度送っても同じ結果。リクエストを直す必要がある</td></tr>
+    <tr><td>500</td><td class="warn">慎重に</td><td>バグの可能性もある。回数を少なく</td></tr>
+  </table></div>
+
+  <h3 id="backoff">指数バックオフ＋ジッター</h3>
+  <p>失敗のたびに待ち時間を倍にし（1 秒 → 2 秒 → 4 秒…）、さらに<b>ランダムなずれ（ジッター）</b>を足します。ジッターがないと、同時に失敗した全クライアントが同じ瞬間に再送し、復旧しかけたサーバーをまた落とします（サンダリングハード）。</p>
+  <div class="card">
+    <div class="legend"><span><i style="background:var(--c-a)"></i>クライアント A</span><span><i style="background:var(--c-b)"></i>B</span><span><i style="background:var(--c-d)"></i>C</span></div>
+    <div class="backoff" id="bo"></div>
+    <div class="sim-btns"><button id="bo-shuffle">ジッターを振り直す</button></div>
+  </div>
+<pre><code>async function withRetry(fn, max = 5) {
+  for (let i = 0; ; i++) {
+    try { return await fn(); }
+    catch (e) {
+      if (i + 1 &gt;= max || !isRetryable(e)) throw e;
+      const cap  = Math.min(30_000, 1000 * 2 ** i);   <span class="cm">// 上限つき指数</span>
+      const wait = Math.random() * cap;               <span class="cm">// フルジッター</span>
+      await new Promise(r =&gt; setTimeout(r, wait));
+    }
+  }
+}</code></pre>
+  <p class="note">さらに、失敗が続く相手にはしばらく呼ぶこと自体をやめる<b>サーキットブレーカー</b>を組み合わせると、障害の連鎖を止められる。</p>
+
+  <h2 id="delivery">配送保証：「ちょうど 1 回」は作るもの</h2>
+  <div class="grid-3">
+    <div class="card"><b>at-most-once</b><br><span class="en">最大 1 回</span><p class="note" style="border:0;padding:0">リトライしない。消えることはあるが重複はない。ログ・計測向き。</p></div>
+    <div class="card"><b>at-least-once</b><br><span class="en">最低 1 回</span><p class="note" style="border:0;padding:0">届くまでリトライ。重複はあり得る。キュー（Cloudflare Queues・SQS など）の多くはこれ。</p></div>
+    <div class="card"><b>exactly-once</b><br><span class="en">ちょうど 1 回</span><p class="note" style="border:0;padding:0">ネットワークだけでは保証できない。<b>at-least-once ＋ 受け手の冪等処理</b>で「結果的に 1 回」を実現する。</p></div>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth card"><summary>CAP は 3 つのうち 2 つを自由に選べる</summary><p>分断（P）は起きるものなので、実際に選ぶのは「分断中に C と A のどちらを諦めるか」。分断していない平常時は C と A を両立できる。</p></details>
+  <details class="myth card"><summary>結果整合性 ＝ データが壊れることがある</summary><p>壊れるのではなく、一時的に古い値が見えるだけ。いずれ全ノードが同じ値に揃う。問題になるのは「古い値を見て判断する処理」を載せたとき。</p></details>
+  <details class="myth card"><summary>リトライは回数を増やすほど安全</summary><p>冪等でない操作では重複を増やし、障害中のサーバーには負荷を上乗せする。回数の上限・バックオフ・ジッター・リトライ対象の選別がセット。</p></details>
+  <details class="myth card"><summary>キューを使えば exactly-once になる</summary><p>多くのキューは at-least-once。同じメッセージが 2 回届く前提で、受け手を冪等に書く。</p></details>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      const p = t.dataset.panel && document.getElementById(t.dataset.panel);
+      if (p) p.hidden = !on;
+    });
+  });
+});
+document.querySelectorAll('[data-checklist]').forEach(box => {
+  const key = 'memo-check:' + location.pathname + ':' + box.dataset.checklist;
+  const inputs = [...box.querySelectorAll('input[type=checkbox]')];
+  const bar = box.querySelector('.bar div');
+  const count = box.querySelector('.count');
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {}
+  inputs.forEach((el, i) => { el.checked = !!saved[i]; });
+  const update = () => {
+    const n = inputs.filter(el => el.checked).length;
+    if (bar) bar.style.width = (n / inputs.length * 100) + '%';
+    if (count) count.textContent = n + ' / ' + inputs.length;
+    try { localStorage.setItem(key, JSON.stringify(inputs.map(el => el.checked))); } catch (e) {}
+  };
+  inputs.forEach(el => el.addEventListener('change', update));
+  update();
+});
+
+(() => {
+  const st = { cut: false, mode: 'CP', v1: 100, v2: 100 };
+  const $ = id => document.getElementById(id);
+  const log = msg => { $('sim-log').innerHTML = msg; };
+  const render = () => {
+    $('v1').textContent = st.v1; $('v2').textContent = st.v2;
+    $('lnk').textContent = st.cut ? '✕ 分断' : '⇄ 同期';
+    $('lnk').classList.toggle('cut', st.cut);
+    ['n1', 'n2'].forEach(n => $(n).classList.remove('err', 'stale'));
+  };
+  document.querySelectorAll('#cap-sim [data-mode]').forEach(b => b.addEventListener('click', () => {
+    st.mode = b.dataset.mode;
+    document.querySelectorAll('#cap-sim [data-mode]').forEach(x => x.classList.toggle('on', x === b));
+    log(st.mode === 'CP' ? 'CP：分断中は「正しくない値を返すくらいならエラー」を選ぶ。' : 'AP：分断中も「古いかもしれないが、とにかく返す」を選ぶ。');
+  }));
+  document.querySelectorAll('#cap-sim [data-act]').forEach(b => b.addEventListener('click', () => {
+    const a = b.dataset.act;
+    render();
+    if (a === 'cut') { st.cut = true; render(); log('東京と大阪の通信が切れました。どちらのノードもまだ動いています。'); }
+    if (a === 'write') {
+      if (st.cut && st.mode === 'CP') {
+        $('n1').classList.add('err'); $('v1').textContent = 'エラー';
+        log('<b>CP</b>：大阪に伝えられないので、東京は書き込みを拒否（または多数派側だけが受け付ける）。<b>可用性を諦めた。</b>');
+      } else {
+        st.v1 = 200; if (!st.cut) st.v2 = 200; render();
+        log(st.cut ? '<b>AP</b>：東京は 200 を受け付けた。大阪にはまだ伝わっていない。' : '通信が生きているので、両方 200 に揃いました。');
+      }
+    }
+    if (a === 'read') {
+      if (st.cut && st.mode === 'CP') {
+        $('n2').classList.add('err'); $('v2').textContent = 'エラー';
+        log('<b>CP</b>：大阪は最新かどうか確かめられないので、読み取りもエラー。<b>古い値は決して返さない。</b>');
+      } else if (st.cut && st.v1 !== st.v2) {
+        $('n2').classList.add('stale');
+        log('<b>AP</b>：大阪は手元の 100 を返す。<b>応答はするが古い値</b>（整合性を諦めた）。');
+      } else {
+        log('大阪は ' + st.v2 + ' を返しました。');
+      }
+    }
+    if (a === 'heal') {
+      st.cut = false; st.v2 = st.v1; render();
+      log('復旧。差分が伝わり両ノードが ' + st.v1 + ' に揃った（AP の場合はここで「結果的に」整合する）。');
+    }
+  }));
+
+  const rows = [0, 1, 2, 3];
+  const draw = jitter => {
+    const box = $('bo'); box.innerHTML = '';
+    const max = 16;
+    [['ジッターなし', false], ['ジッターあり', true]].forEach(([label, j]) => {
+      const row = document.createElement('div'); row.className = 'bo-row';
+      row.innerHTML = '<span>' + label + '</span><div class="bo-track"></div>';
+      const tr = row.querySelector('.bo-track');
+      ['', 'c2', 'c3'].forEach((cls, ci) => {
+        let t = 0;
+        rows.forEach(i => {
+          const base = 2 ** i;
+          t += j ? Math.random() * base : base;
+          const d = document.createElement('div');
+          d.className = 'bo-dot ' + cls;
+          d.style.left = 'calc(' + Math.min(t / max, 1) * 100 + '% - 3px)';
+          d.style.opacity = j ? 0.85 : 0.6;
+          tr.appendChild(d);
+        });
+      });
+      box.appendChild(row);
+    });
+    const ax = document.createElement('div'); ax.className = 'bo-row';
+    ax.innerHTML = '<span></span><span class="en">0s ─ 時間 → 16s　（ジッターなしは 3 色が同じ位置に重なる）</span>';
+    box.appendChild(ax);
+  };
+  draw();
+  $('bo-shuffle').addEventListener('click', () => draw());
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "東京と大阪の DB ノード間の通信が切れた。大阪で残高を読まれたとき「古い値を返すくらいならエラーにする」設計は、CAP のどれを選んでいる？",
+    "choices": ["AP（可用性を優先）", "CP（整合性を優先）", "CA（分断を無視）", "PACELC の EL"],
+    "answer": 1,
+    "explain": "分断中に正しさを守るため応答を諦めるのが CP。古くても返すのが AP。",
+    "ref": "#cap"
+  },
+  {
+    "q": "決済 API へのリクエストがタイムアウトした。二重課金を防ぎつつ安全にリトライするには？",
+    "choices": ["タイムアウトを長くして 1 回だけ送る", "リトライ時は新しい UUID を冪等キーとして付け直す", "最初と同じ冪等キーを付けてリトライし、サーバーは処理済みなら前回の結果を返す", "リトライせず、ユーザーにもう一度ボタンを押してもらう"],
+    "answer": 2,
+    "explain": "冪等キーはリトライで使い回すのがポイント。キーを変えると別の操作と見なされ二重課金になる。",
+    "ref": "#idem-key"
+  },
+  {
+    "q": "API が一時的に落ちた後、多数のクライアントが同じ間隔でリトライして復旧直後のサーバーがまた落ちた。何を足すべき？",
+    "choices": ["リトライ間隔にランダムなずれ（ジッター）を加える", "リトライ回数を増やす", "リトライ間隔を短くして早く成功させる", "全クライアントのリトライ時刻を揃える"],
+    "answer": 0,
+    "explain": "指数バックオフだけだと全員が同じタイミングで再送する。ジッターで分散させると負荷の山が崩れる。",
+    "ref": "#backoff"
+  },
+  {
+    "q": "在庫数を Workers KV に保存して、購入時に減らす実装にした。起こり得る問題は？",
+    "choices": ["KV は書き込みができないので動かない", "結果整合性なので、古い在庫数を見て売り越しが起き得る", "KV は 1 か所にしかないので読み取りが遅くなる", "特に問題はない"],
+    "answer": 1,
+    "explain": "KV は書き込みが各地に届くまで古い値が返り得る。同時更新を正しく扱うなら Durable Objects や D1 のような強い整合性を持つ場所に置く。",
+    "ref": "#cloudflare"
+  },
+  {
+    "q": "外部 API が 422 Unprocessable Content を返した。リトライの判断として適切なのは？",
+    "choices": ["指数バックオフでリトライする", "すぐに 1 回だけリトライする", "Retry-After ヘッダーの秒数待ってリトライする", "リトライせず、リクエスト内容を見直す"],
+    "answer": 3,
+    "explain": "4xx の多くはリクエスト自体の問題で、何度送っても結果は変わらない（429 は例外）。",
+    "ref": "#retry"
+  }
+]
+</script>
+</body>
+</html>

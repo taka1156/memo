@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アーキテクチャ比較</title>
+<meta name="description" content="レイヤード・ヘキサゴナル・オニオン・クリーンの 4 つを同じ例で図にし、何が同じで何が違うか・どう選ぶかを整理する">
+<meta name="memo:tags" content="設計">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #cf222e;
+  --c-warn: #9a6700;
+  --c-a: #0077b6;
+  --c-b: #8250df;
+  --c-c: #1a7f37;
+  --c-d: #bc4c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-a: #00d4ff;
+    --c-b: #bc8cff;
+    --c-c: #3fb950;
+    --c-d: #f0883e;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.2em; }
+ul.plain li { margin: 2px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+  margin: 10px 0;
+}
+.en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* 図 */
+.diagram { margin: 8px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
+.d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
+.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--accent); }
+.d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
+.d-ng-head { fill: var(--c-ng); }
+
+/* ステップ・フロー */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.flow span {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+.tbl td:first-child { font-weight: 700; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+
+/* チェックリスト */
+.progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
+.bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
+.checklist { list-style: none; }
+.checklist li { border-bottom: 1px solid var(--line); }
+.checklist li:last-child { border-bottom: none; }
+.checklist label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 2px; cursor: pointer; }
+.checklist input { margin-top: 5px; accent-color: var(--accent); flex: none; width: 16px; height: 16px; }
+.checklist .txt { flex: 1; }
+.checklist .txt small { display: block; color: var(--fg-2); font-size: 0.8rem; }
+.checklist input:checked + .txt { color: var(--fg-2); text-decoration: line-through; }
+.badge {
+  display: inline-block;
+  font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  color: var(--fg-2);
+}
+.badge.a { color: var(--c-a); }
+.badge.b { color: var(--c-b); }
+.badge.c { color: var(--c-c); }
+.badge.d { color: var(--c-d); }
+
+/* よくある誤解 */
+.myth { margin-bottom: 10px; }
+.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
+.myth summary::-webkit-details-marker { display: none; }
+.myth summary::before { content: '✕ '; color: var(--c-ng); }
+.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
+.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+/* OK / NG コード比較 */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.vs > div { min-width: 0; }
+.vs .lbl { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.ring-1 { fill: var(--chip); stroke: var(--line); stroke-width: 1.2; }
+.ring-2 { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+.ring-core { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.hex { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.port { fill: var(--accent); }
+.adapter { fill: var(--chip); stroke: var(--line); stroke-width: 1.2; }
+.d-small { fill: var(--fg); font: 500 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-side { fill: var(--fg-2); font: 700 10px 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .05em; }
+.arch-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 16px; margin-top: 10px; font-size: 0.86rem; }
+.arch-meta b { display: block; font-size: 0.75rem; color: var(--fg-2); }
+.svg-narrow { max-width: 420px; margin: 0 auto; }
+.map td:not(:first-child) { font-size: 0.82rem; }
+.map tr.hl td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="アーキテクチャ比較">
+<meta property="og:description" content="レイヤード・ヘキサゴナル・オニオン・クリーンの 4 つを同じ例で図にし、何が同じで何が違うか・どう選ぶかを整理する">
+<meta property="og:url" content="https://memo.taka1156.site/architecture-compare.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>アーキテクチャ比較</h1>
+  <p class="subtitle">レイヤード / ヘキサゴナル / オニオン / クリーン — 違うのは描き方と言葉、本質は「依存の向き」</p>
+<div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>レイヤード</b>だけが「上から下へ（DB に向かって）」依存する。残り 3 つは<b>依存性逆転で「外から内へ」依存</b>させ、ドメインを DB やフレームワークから守る。</li>
+      <li>ヘキサゴナル・オニオン・クリーンの違いは、<b>図の描き方と用語</b>、そして<b>中心をどこまで細かく分けるか</b>くらい。</li>
+      <li>実務では「依存の向きを守る」「I/O を境界の外に出す」ができていれば、どの名前を名乗っても大差ない。</li>
+    </ul>
+  </div>
+
+  <h2 id="diagrams">4 つを図で見る</h2>
+  <p>同じ「注文を受け付ける」アプリを、それぞれの描き方で表しています。矢印は依存（import）の向き。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="a-layered">レイヤード</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="a-hex">ヘキサゴナル</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="a-onion">オニオン</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="a-clean">クリーン</button>
+  </div>
+
+  <div class="panel card" id="a-layered">
+    <h3 id="layered" style="margin-top:0">レイヤードアーキテクチャ <span class="en">Layered Architecture</span></h3>
+    <div class="diagram svg-narrow">
+      <svg viewBox="0 0 320 300" role="img" aria-label="プレゼンテーション、ビジネス、データアクセス、データベースの 4 層が上から下へ依存する図">
+        <defs><marker id="m-l" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker></defs>
+        <rect x="30" y="10" width="260" height="50" rx="8" class="d-box"/>
+        <text x="160" y="32" text-anchor="middle" class="d-title">プレゼンテーション層</text>
+        <text x="160" y="50" text-anchor="middle" class="d-sub">Controller / View</text>
+        <line x1="160" y1="62" x2="160" y2="82" class="d-arrow" marker-end="url(#m-l)"/>
+        <rect x="30" y="86" width="260" height="50" rx="8" class="d-box hl"/>
+        <text x="160" y="108" text-anchor="middle" class="d-title">ビジネス層</text>
+        <text x="160" y="126" text-anchor="middle" class="d-sub">OrderService</text>
+        <line x1="160" y1="138" x2="160" y2="158" class="d-arrow" marker-end="url(#m-l)"/>
+        <rect x="30" y="162" width="260" height="50" rx="8" class="d-box"/>
+        <text x="160" y="184" text-anchor="middle" class="d-title">データアクセス層</text>
+        <text x="160" y="202" text-anchor="middle" class="d-sub">OrderDao (SQL)</text>
+        <line x1="160" y1="214" x2="160" y2="234" class="d-arrow" marker-end="url(#m-l)"/>
+        <rect x="30" y="238" width="260" height="50" rx="8" class="d-box"/>
+        <text x="160" y="260" text-anchor="middle" class="d-title">データベース</text>
+        <text x="160" y="278" text-anchor="middle" class="d-sub">MySQL</text>
+      </svg>
+    </div>
+    <div class="arch-meta">
+      <div><b>依存の向き</b>上 → 下（ビジネス層がデータアクセス層を知っている）</div>
+      <div><b>中心にあるもの</b>中心はない。最下層の DB が土台</div>
+      <div><b>良いところ</b>直感的。CRUD 中心なら最短で書ける</div>
+      <div><b>つらくなるところ</b>テーブル設計がビジネスロジックの形を決めてしまう。DB なしでテストしにくい</div>
+    </div>
+  </div>
+
+  <div class="panel card" id="a-hex" hidden>
+    <h3 id="hexagonal" style="margin-top:0">ヘキサゴナルアーキテクチャ <span class="en">Ports &amp; Adapters</span></h3>
+    <div class="diagram">
+      <svg viewBox="0 0 360 290" role="img" aria-label="六角形のアプリケーションの左側に駆動するアダプター、右側に駆動されるアダプターがポート経由でつながる図">
+        <defs><marker id="m-h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker></defs>
+        <text x="40" y="22" text-anchor="middle" class="d-side">DRIVING</text>
+        <text x="320" y="22" text-anchor="middle" class="d-side">DRIVEN</text>
+        <polygon points="180,52 252,94 252,178 180,220 108,178 108,94" class="hex"/>
+        <text x="180" y="130" text-anchor="middle" class="d-title">アプリケーション</text>
+        <text x="180" y="148" text-anchor="middle" class="d-sub">ドメイン＋ユースケース</text>
+        <circle cx="108" cy="112" r="5" class="port"/>
+        <circle cx="108" cy="160" r="5" class="port"/>
+        <circle cx="252" cy="112" r="5" class="port"/>
+        <circle cx="252" cy="160" r="5" class="port"/>
+        <rect x="4" y="94" width="72" height="34" rx="6" class="adapter"/>
+        <text x="40" y="116" text-anchor="middle" class="d-small">Web API</text>
+        <rect x="4" y="144" width="72" height="34" rx="6" class="adapter"/>
+        <text x="40" y="166" text-anchor="middle" class="d-small">テスト</text>
+        <line x1="78" y1="111" x2="100" y2="111" class="d-arrow" marker-end="url(#m-h)"/>
+        <line x1="78" y1="161" x2="100" y2="161" class="d-arrow" marker-end="url(#m-h)"/>
+        <rect x="284" y="94" width="72" height="34" rx="6" class="adapter"/>
+        <text x="320" y="116" text-anchor="middle" class="d-small">MySQL</text>
+        <rect x="284" y="144" width="72" height="34" rx="6" class="adapter"/>
+        <text x="320" y="166" text-anchor="middle" class="d-small">メール送信</text>
+        <line x1="282" y1="111" x2="260" y2="111" class="d-arrow" marker-end="url(#m-h)"/>
+        <line x1="282" y1="161" x2="260" y2="161" class="d-arrow" marker-end="url(#m-h)"/>
+        <circle cx="120" cy="252" r="5" class="port"/>
+        <text x="132" y="256" class="d-sub">= ポート（interface）</text>
+        <text x="180" y="280" text-anchor="middle" class="d-sub">アダプターはどちら側もポートに依存する</text>
+      </svg>
+    </div>
+    <div class="arch-meta">
+      <div><b>依存の向き</b>外側のアダプター → 内側のポート（左右どちらも内向き）</div>
+      <div><b>中心にあるもの</b>アプリケーション全体（中身の分け方は決めていない）</div>
+      <div><b>良いところ</b>「呼ぶ側（Driving）」と「呼ばれる側（Driven）」を左右に分けて考えられる。テストも Web も同じ入口から入れる</div>
+      <div><b>注意</b>六角形に意味はない（辺が多くて描きやすいだけ）。中の層構造は自分で決める</div>
+    </div>
+  </div>
+
+  <div class="panel card" id="a-onion" hidden>
+    <h3 id="onion" style="margin-top:0">オニオンアーキテクチャ <span class="en">Onion Architecture</span></h3>
+    <div class="diagram svg-narrow">
+      <svg viewBox="0 0 340 340" role="img" aria-label="中心からドメインモデル、ドメインサービス、アプリケーションサービス、外側にUI・インフラ・テストが並ぶ同心円の図">
+        <defs><marker id="m-o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker></defs>
+        <circle cx="170" cy="170" r="160" class="ring-1"/>
+        <circle cx="170" cy="170" r="118" class="ring-2"/>
+        <circle cx="170" cy="170" r="78" class="ring-1"/>
+        <circle cx="170" cy="170" r="40" class="ring-core"/>
+        <text x="170" y="166" text-anchor="middle" class="d-small">ドメイン</text>
+        <text x="170" y="180" text-anchor="middle" class="d-small">モデル</text>
+        <text x="170" y="114" text-anchor="middle" class="d-small">ドメインサービス</text>
+        <text x="170" y="72" text-anchor="middle" class="d-small">アプリケーションサービス</text>
+        <text x="170" y="32" text-anchor="middle" class="d-small">UI ・ インフラ ・ テスト</text>
+        <line x1="300" y1="250" x2="215" y2="200" class="d-arrow" marker-end="url(#m-o)"/>
+        <text x="170" y="300" text-anchor="middle" class="d-label">依存はすべて中心へ</text>
+      </svg>
+    </div>
+    <div class="arch-meta">
+      <div><b>依存の向き</b>外 → 内のみ。リポジトリの interface はドメイン側の層に置く</div>
+      <div><b>中心にあるもの</b>ドメインモデル（エンティティ・値オブジェクト）</div>
+      <div><b>良いところ</b>DDD の用語とそのまま対応し、ドメインの中も層に分けて描ける</div>
+      <div><b>注意</b>層の数に正解はない。小さいアプリでは「ドメイン／アプリ／外側」の 3 つで十分</div>
+    </div>
+    <p class="note">ディレクトリ構成やリクエストの流れは <a href="ddd-onion.html">DDD とオニオンアーキテクチャ</a> に詳しく書いています。</p>
+  </div>
+
+  <div class="panel card" id="a-clean" hidden>
+    <h3 id="clean" style="margin-top:0">クリーンアーキテクチャ <span class="en">Clean Architecture</span></h3>
+    <div class="diagram svg-narrow">
+      <svg viewBox="0 0 340 340" role="img" aria-label="中心からエンティティ、ユースケース、インターフェースアダプター、フレームワークとドライバーが並ぶ同心円の図">
+        <defs><marker id="m-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker></defs>
+        <circle cx="170" cy="170" r="160" class="ring-1"/>
+        <circle cx="170" cy="170" r="118" class="ring-2"/>
+        <circle cx="170" cy="170" r="78" class="ring-1"/>
+        <circle cx="170" cy="170" r="40" class="ring-core"/>
+        <text x="170" y="174" text-anchor="middle" class="d-small">Entities</text>
+        <text x="170" y="114" text-anchor="middle" class="d-small">Use Cases</text>
+        <text x="170" y="66" text-anchor="middle" class="d-small">Interface Adapters</text>
+        <text x="170" y="80" text-anchor="middle" class="d-sub">Controller / Presenter / Gateway</text>
+        <text x="170" y="26" text-anchor="middle" class="d-small">Frameworks &amp; Drivers</text>
+        <text x="170" y="40" text-anchor="middle" class="d-sub">Web / DB / UI</text>
+        <line x1="300" y1="250" x2="215" y2="200" class="d-arrow" marker-end="url(#m-c)"/>
+        <text x="170" y="300" text-anchor="middle" class="d-label">依存ルール：内側は外側を知らない</text>
+      </svg>
+    </div>
+    <div class="arch-meta">
+      <div><b>依存の向き</b>外 → 内のみ（「依存ルール」と呼ぶ）</div>
+      <div><b>中心にあるもの</b>エンティティ（業務ルール）</div>
+      <div><b>良いところ</b>ユースケース（Interactor）を独立した単位として書く、入力／出力の境界を明示するなど、作り方まで具体的（1 クラス 1 操作にするのはよく使われる流儀）</div>
+      <div><b>注意</b>Presenter・InputPort・OutputPort まで全部作るとファイルが大量に増える。円の数も「4 つでなくてよい」とされている</div>
+    </div>
+  </div>
+
+  <h2 id="mapping">用語の対応表</h2>
+  <p>同じものを違う名前で呼んでいるだけ、という部分が多いです。横に読むと対応がわかります。</p>
+  <div class="tbl-wrap"><table class="tbl map">
+    <tr><th>役割</th><th>レイヤード</th><th>ヘキサゴナル</th><th>オニオン</th><th>クリーン</th></tr>
+    <tr class="hl"><td>業務ルールの中心</td><td>ビジネス層</td><td>アプリケーション（内部）</td><td>ドメインモデル</td><td>Entities</td></tr>
+    <tr><td>操作の手順</td><td>ビジネス層（Service）</td><td>アプリケーション（内部）</td><td>アプリケーションサービス</td><td>Use Cases (Interactor)</td></tr>
+    <tr class="hl"><td>外との約束（interface）</td><td>（なし。DAO を直接呼ぶ）</td><td>ポート</td><td>ドメイン層のリポジトリ interface</td><td>Gateway / Input・Output Port</td></tr>
+    <tr><td>入口（HTTP・CLI）</td><td>プレゼンテーション層</td><td>駆動するアダプター (Driving)</td><td>UI（外周）</td><td>Controller</td></tr>
+    <tr><td>出口（DB・外部 API）</td><td>データアクセス層</td><td>駆動されるアダプター (Driven)</td><td>インフラ（外周）</td><td>Gateway 実装 / DB</td></tr>
+    <tr><td>依存の向き</td><td class="warn">上 → 下（DB へ）</td><td class="ok">外 → 内</td><td class="ok">外 → 内</td><td class="ok">外 → 内</td></tr>
+  </table></div>
+
+  <h2 id="difference">本当に違うのはここだけ</h2>
+  <div class="grid">
+    <div class="card"><b>1. 依存の向き</b><p class="note" style="border:0;padding:0">レイヤードだけが DB に向かって依存する。ほか 3 つは<a href="solid.html#dip">依存性逆転</a>でドメインに向ける。ここが最大の分かれ目。</p></div>
+    <div class="card"><b>2. 中心の分け方</b><p class="note" style="border:0;padding:0">ヘキサゴナルは中を分けない。オニオンはドメインを層に分ける。クリーンはエンティティとユースケースを分ける。</p></div>
+    <div class="card"><b>3. 境界の作り込み</b><p class="note" style="border:0;padding:0">クリーンは入出力の境界（Input/Output Port・Presenter）まで決めている。ヘキサゴナルは「ポートを置く」以上は決めない。</p></div>
+  </div>
+  <p class="note">補足：レイヤードでも「ビジネス層が interface を持ち、データアクセス層がそれを実装する」形にすれば、実質オニオンと同じになる。名前より矢印の向きを見る。</p>
+
+  <h2 id="choose">選び方</h2>
+  <div class="steps">
+    <div class="step"><b>Q1</b><p>ほぼ CRUD で、業務ルールは画面とテーブルの写しに近い？</p><p><span class="ok">はい →</span> レイヤード（またはフレームワーク標準の構成）で十分</p></div>
+    <div class="step"><b>Q2</b><p>DB・外部 API を差し替えたい／I/O なしでテストしたい？</p><p><span class="ok">はい →</span> ヘキサゴナルの「ポートとアダプター」だけ取り入れる</p></div>
+    <div class="step"><b>Q3</b><p>業務ルールが複雑で、DDD のモデリングをしている？</p><p><span class="ok">はい →</span> オニオン（DDD の用語とそのまま合う）</p></div>
+    <div class="step"><b>Q4</b><p>チームが大きく、ユースケース単位で書き方を揃えたい？</p><p><span class="ok">はい →</span> クリーン（ただし Presenter などは必要な所だけ）</p></div>
+  </div>
+  <p class="note">迷ったら「ヘキサゴナル程度（ドメイン／ユースケース／アダプター の 3 フォルダ）」から始めて、必要になった所だけ層を足すのが失敗しにくい。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth card"><summary>クリーンアーキテクチャは必ず 4 層（4 つの円）にする</summary><p>円の数は例にすぎず、必要に応じて増減してよいとされている。守るべきなのは「依存は内側へ」というルールだけ。</p></details>
+  <details class="myth card"><summary>ヘキサゴナルは 6 つのポートを持つ</summary><p>六角形は、ポートやアダプターを必要なだけ描き込める余白を作り、一次元の層の図から離れるために選ばれた形で、6 という数に意味はない。正式名も Ports and Adapters。</p></details>
+  <details class="myth card"><summary>オニオンとクリーンは別物なので混ぜてはいけない</summary><p>どちらも依存性逆転でドメインを中心にする同じ系統。オニオンの層分けにクリーンのユースケースクラスを使う、のような組み合わせは普通に行われている。</p></details>
+  <details class="myth card"><summary>レイヤードはもう古くて使うべきではない</summary><p>業務ルールが薄いアプリでは、最も少ないコードで済む合理的な選択。つらくなってから DIP を入れて内向きに変えればよい。</p></details>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      const p = t.dataset.panel && document.getElementById(t.dataset.panel);
+      if (p) p.hidden = !on;
+    });
+  });
+});
+document.querySelectorAll('[data-checklist]').forEach(box => {
+  const key = 'memo-check:' + location.pathname + ':' + box.dataset.checklist;
+  const inputs = [...box.querySelectorAll('input[type=checkbox]')];
+  const bar = box.querySelector('.bar div');
+  const count = box.querySelector('.count');
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {}
+  inputs.forEach((el, i) => { el.checked = !!saved[i]; });
+  const update = () => {
+    const n = inputs.filter(el => el.checked).length;
+    if (bar) bar.style.width = (n / inputs.length * 100) + '%';
+    if (count) count.textContent = n + ' / ' + inputs.length;
+    try { localStorage.setItem(key, JSON.stringify(inputs.map(el => el.checked))); } catch (e) {}
+  };
+  inputs.forEach(el => el.addEventListener('change', update));
+  update();
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "レイヤードアーキテクチャと、オニオン・クリーン・ヘキサゴナルとの一番大きな違いは？",
+    "choices": ["層の数", "依存の向き（DB に向かうか、ドメインに向かうか）", "使えるプログラミング言語", "フロントエンドを含むかどうか"],
+    "answer": 1,
+    "explain": "レイヤードは上位が下位（DB 側）に依存する。他の 3 つは依存性逆転で外側がドメインに依存する。",
+    "ref": "#difference"
+  },
+  {
+    "q": "ヘキサゴナルアーキテクチャで、Web API の Controller とテストコードはどちらも同じ側に描かれる。その理由は？",
+    "choices": ["どちらも DB に接続するから", "どちらもアプリケーションを呼び出す側（Driving）のアダプターだから", "どちらも六角形の中にあるから", "どちらもポートを実装するから"],
+    "answer": 1,
+    "explain": "左側はアプリを駆動する側。テストも Web も同じポートからアプリを呼ぶので、同じ入口から検証できる。",
+    "ref": "#hexagonal"
+  },
+  {
+    "q": "業務ルールはほとんどなく、画面とテーブルが 1 対 1 に近い社内ツールを作る。まず選ぶ構成として妥当なのは？",
+    "choices": ["クリーンアーキテクチャを Presenter まで完全に実装する", "オニオンでドメインを 4 層に分ける", "レイヤード（フレームワーク標準の構成）で始める", "マイクロサービスに分割する"],
+    "answer": 2,
+    "explain": "守るべき業務ルールが薄いなら、層を増やしてもコストに見合わない。必要になってから DIP を入れればよい。",
+    "ref": "#choose"
+  },
+  {
+    "q": "ヘキサゴナルの「ポート」は、オニオンアーキテクチャでは主に何に当たる？",
+    "choices": ["ドメイン側に置くリポジトリなどの interface", "外周の UI 層", "データベースそのもの", "アプリケーションサービスの実装クラス"],
+    "answer": 0,
+    "explain": "どちらも「内側が定義し、外側が実装する約束」。名前が違うだけで役割は同じ。",
+    "ref": "#mapping"
+  }
+]
+</script>
+</body>
+</html>
