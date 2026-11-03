@@ -114,6 +114,18 @@ python3 scripts/memo.py new NAME   # NAME は英小文字・ハイフン（例: 
 - セレクタ `*` を行頭に置くとき、Markdown 経由で `-` や `\*` に化けないよう、ファイルとして直接保存する。
 - 書いたら `python3 scripts/memo.py lint NAME` で確認する。
 
+## 会話内でプレビューするとき
+
+クイズの表示（CSS / JS）は `docs/assets/memo-quiz.*` を参照する形なので、HTML をそのまま送るとクイズが動かない。
+`preview` で中身を埋め込んだ 1 枚を作って送る（同じファイルから埋め込むだけなので、公開版と見た目・動きは変わらない）。下書きのファイルパスにも使える。
+
+```bash
+python3 scripts/memo.py lint 下書き.html --fix --backlink           # 自動生成ブロックを入れて崩れを直す
+python3 scripts/memo.py preview 下書き.html -o <スクラッチパッド>/NAME.html
+```
+
+送るのは preview の出力。保存（memo-publish）するときは元の下書きを使う。
+
 ## 書き終えたら
 
 memo-publish の手順 4 以降（lint → meta → build → commit/push → 報告）で登録する（`new` で作ったので取り込み手順 3 は不要）。

@@ -10,6 +10,7 @@
   python3 scripts/memo.py meta  MEMO [--title T] [--desc D] [--tags a,b] [--date YYYY-MM-DD]
   python3 scripts/memo.py build [--check]
   python3 scripts/memo.py list
+  python3 scripts/memo.py preview MEMO|index|quiz|FILE [-o OUT]   会話内プレビュー用に 1 枚へ埋め込んだ HTML を作る
 
 MEMO / NAME は「docker」「docker.html」「docs/docker.html」のどれでもよい
 （既存のファイルパスを渡した場合はそのファイルを対象にする）。
@@ -23,7 +24,9 @@ MEMO / NAME は「docker」「docker.html」「docs/docker.html」のどれで�
   <meta name="memo:date">         YYYY-MM-DD
 
 確認クイズ（任意）は <script type="application/json" id="memo-quiz"> に問題データだけを書く。
-表示用の UI はページ末尾に、トップのランダムクイズ用データは build で自動生成する。
+表示用の UI はページ末尾に自動で入れる（CSS / JS 本体は docs/assets/memo-quiz.*）。
+build は一覧を docs/memos.json、全問題を docs/quizzes.json に書き出し、
+トップページと quiz.html はそれらを読み込んで表示する。
 """
 from __future__ import annotations
 
@@ -35,6 +38,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -81,8 +85,6 @@ HEAD_END = "<!-- /memo:head -->"
 HEAD_RE = re.compile(r"<!-- memo:head.*?<!-- /memo:head -->\n?", re.S)
 TEMPLATE = ROOT / ".claude" / "skills" / "memo-style" / "template.html"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-BEGIN = "// MEMOS:BEGIN"
-END = "// MEMOS:END"
 BACKLINK_ID = "memo-backlink"
 # ページ下部のフッターに置く「一覧に戻る」リンク。どのページの CSS にも依存しないよう、
 # スタイルはすべてインラインで完結させる（独自の CSS 変数を参照しない）。
@@ -237,7 +239,7 @@ def refresh_head(path: Path) -> bool:
 #   explain / ref は任意。ref があると、間違えたときに本文の該当箇所へ飛ぶリンクが出る。
 #   </script>
 # 表示用の UI（<!-- memo:quiz --> ブロック）は memo.py がページ末尾に自動で入れる。
-# build は全メモの問題を集めてトップページの QUIZZES に埋め込む（ランダムクイズ用）。
+# build は全メモの問題を docs/quizzes.json に集める（トップのランダムクイズと quiz.html 用）。
 
 QUIZ_BEGIN = "<!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->"
 QUIZ_END = "<!-- /memo:quiz -->"
@@ -245,217 +247,22 @@ QUIZ_RE = re.compile(r"<!-- memo:quiz.*?<!-- /memo:quiz -->\n?", re.S)
 QUIZ_DATA_RE = re.compile(
     r"<script\b[^>]*\bid=[\"']memo-quiz[\"'][^>]*>(.*?)</script>", re.S | re.I)
 
-# どのページの CSS にも依存しないよう、スタイルは #memo-quiz-ui の中で完結させる。
-# ページ側の CSS 変数（memo-style のトークン）があれば使い、なければ代わりの色にする。
-QUIZ_BLOCK = QUIZ_BEGIN + r"""
+# 表示の CSS / JS は docs/assets/memo-quiz.css・memo-quiz.js に 1 つだけ置き、各メモからは参照する。
+# 会話内プレビューのように HTML 1 枚しか渡せない場面では、preview コマンドが中身を埋め込む。
+ASSETS = DOCS / "assets"
+QUIZ_CSS = ASSETS / "memo-quiz.css"
+QUIZ_JS = ASSETS / "memo-quiz.js"
+QUIZ_CSS_TAG = '<link rel="stylesheet" href="assets/memo-quiz.css">'
+QUIZ_JS_TAG = '<script src="assets/memo-quiz.js" defer></script>'
+QUIZ_BLOCK = QUIZ_BEGIN + """
+""" + QUIZ_CSS_TAG + """
 <section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
-<style>
-#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
-@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
-#memo-quiz-ui *{box-sizing:border-box}
-#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
-#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
-#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
-#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
-#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
-#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
-#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
-#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
-#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
-#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
-#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
-#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
-#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
-#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
-#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
-#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
-#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
-#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
-#memo-quiz-ui .mq-rv-q{font-weight:700}
-#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
-#memo-quiz-ui b.ok{color:var(--mq-ok)}
-#memo-quiz-ui b.ng{color:var(--mq-ng)}
-.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
-#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
-#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
-</style>
 <h2 id="memo-quiz-title">確認クイズ <small></small></h2>
 <div class="mq-list"></div>
 <div class="mq-result" hidden aria-live="polite"></div>
 <button type="button" class="mq-reset">やり直す</button>
 </section>
-<script>
-// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
-(function (run) {
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
-  else run();
-})(function () {
-  var data = document.getElementById('memo-quiz');
-  var ui = document.getElementById('memo-quiz-ui');
-  if (!data || !ui) return;
-  var qs;
-  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
-  if (!Array.isArray(qs)) return;
-  qs = qs.filter(function (q) {
-    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
-      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
-  });
-  if (!qs.length) return;
-  var list = ui.querySelector('.mq-list');
-  var score = ui.querySelector('h2 small');
-  var result = ui.querySelector('.mq-result');
-  var picks = [];
-  function el(tag, cls, text) {
-    var e = document.createElement(tag);
-    if (cls) e.className = cls;
-    if (text != null) e.textContent = text;
-    return e;
-  }
-  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
-  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
-  function controlFor(id) {
-    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
-    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
-    if (c) return c;
-    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
-    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
-    var all = document.querySelectorAll('[onclick]');
-    for (var i = 0; i < all.length; i++) {
-      var code = all[i].getAttribute('onclick');
-      for (var k = 0; k < keys.length; k++) {
-        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
-      }
-    }
-    return null;
-  }
-  function reveal(target) {
-    var chain = [];
-    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
-    chain.forEach(function (e) {
-      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
-      if (isShown(e)) return;
-      var c = e.id && controlFor(e.id);
-      if (c) c.click();
-      if (!isShown(e) && e.hidden) e.hidden = false;
-    });
-  }
-  function jump(id, smooth) {
-    var target = document.getElementById(id);
-    if (!target) return false;
-    reveal(target);
-    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
-    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
-    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
-    target.classList.add('mq-flash');
-    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
-    return true;
-  }
-  // 本文の該当箇所（ref = "#id"）へのリンク
-  function refLink(q, label) {
-    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
-    var id = q.ref.slice(1);
-    if (!document.getElementById(id)) return null;
-    var a = el('a', 'mq-ref', label);
-    a.href = q.ref;
-    a.addEventListener('click', function (ev) {
-      ev.preventDefault();
-      if (history.replaceState) history.replaceState(null, '', q.ref);
-      jump(id, true);
-    });
-    return a;
-  }
-  // クイズページなど他のページから page.html#id で来たとき
-  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
-    var initial = location.hash.slice(1);
-    setTimeout(function () { jump(initial, false); }, 0);
-  }
-  function count() {
-    var done = 0, ok = 0;
-    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
-    return { done: done, ok: ok };
-  }
-  function showResult() {
-    var c = count();
-    result.textContent = '';
-    var head = el('p', 'mq-score');
-    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
-    head.appendChild(document.createTextNode(' 問正解' +
-      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
-    result.appendChild(head);
-    var ol = el('ol', 'mq-review');
-    qs.forEach(function (q, i) {
-      var ok = picks[i] === q.answer;
-      var li = el('li', ok ? 'ok' : 'ng');
-      var top = el('div', 'mq-rv-q');
-      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
-      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
-      li.appendChild(top);
-      var ans = el('div', 'mq-rv-a');
-      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
-      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
-      li.appendChild(ans);
-      if (!ok) {
-        var link = refLink(q, '本文で確認する →');
-        if (link) li.appendChild(link);
-      }
-      ol.appendChild(li);
-    });
-    result.appendChild(ol);
-    result.hidden = false;
-  }
-  function update() {
-    var c = count();
-    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
-    if (c.done === qs.length) showResult();
-  }
-  function render() {
-    list.textContent = '';
-    result.hidden = true;
-    picks = qs.map(function () { return null; });
-    qs.forEach(function (q, i) {
-      var box = el('div', 'mq-q');
-      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
-      var ch = el('div', 'mq-choices');
-      var fb = el('p', 'mq-fb');
-      fb.hidden = true;
-      q.choices.forEach(function (c, j) {
-        var b = el('button', 'mq-c', c);
-        b.type = 'button';
-        b.addEventListener('click', function () {
-          var ok = j === q.answer;
-          Array.prototype.forEach.call(ch.children, function (x, k) {
-            x.disabled = true;
-            if (k === q.answer) x.classList.add('mq-ok');
-          });
-          if (!ok) b.classList.add('mq-ng');
-          fb.textContent = '';
-          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
-          fb.appendChild(document.createTextNode(
-            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
-          if (!ok) {
-            var link = refLink(q, '本文で確認する →');
-            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
-          }
-          fb.hidden = false;
-          picks[i] = j;
-          update();
-        });
-        ch.appendChild(b);
-      });
-      box.appendChild(ch);
-      box.appendChild(fb);
-      list.appendChild(box);
-    });
-    update();
-  }
-  ui.querySelector('.mq-reset').addEventListener('click', function () {
-    render();
-    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-  render();
-  ui.hidden = false;
-});
-</script>
+""" + QUIZ_JS_TAG + """
 """ + QUIZ_END + "\n"
 
 
@@ -1031,11 +838,29 @@ def build_markdown(memos: list[dict], check: bool) -> list[str]:
 
 # ---------------------------------------------------------------- build
 
-def render_block(memos: list[dict], quizzes: list[dict]) -> str:
-    body = json.dumps(memos, ensure_ascii=False, indent=2)
-    qbody = "[\n" + ",\n".join("  " + json.dumps(q, ensure_ascii=False) for q in quizzes) + "\n]" if quizzes else "[]"
-    return (f"{BEGIN}（scripts/memo.py build が自動生成。手で編集しない）\n"
-            f"const MEMOS = {body};\nconst QUIZZES = {qbody};\n{END}").replace("</", "<\\/")
+MEMOS_JSON = DOCS / "memos.json"      # 一覧（トップページと quiz.html が読む）
+QUIZZES_JSON = DOCS / "quizzes.json"  # 全メモの問題（ランダムクイズと quiz.html が読む）
+
+
+def memos_json(memos: list[dict], quizzes: list[dict]) -> str:
+    counts: dict[str, int] = {}
+    for q in quizzes:
+        counts[q["file"]] = counts.get(q["file"], 0) + 1
+    rows = [{**m, "quizzes": counts.get(m["file"], 0)} for m in memos]
+    return json.dumps(rows, ensure_ascii=False, indent=1) + "\n"
+
+
+def quizzes_json(quizzes: list[dict]) -> str:
+    # 1 問 1 行にして差分を読みやすくする
+    if not quizzes:
+        return "[]\n"
+    return "[\n" + ",\n".join(json.dumps(q, ensure_ascii=False) for q in quizzes) + "\n]\n"
+
+
+def site_data() -> tuple[list[dict], list[dict]]:
+    memos = sorted((read_meta(p) for p in memo_files()),
+                   key=lambda m: (m["date"], m["file"]), reverse=True)
+    return memos, collect_quizzes(memos)
 
 
 def collect_quizzes(memos: list[dict]) -> list[dict]:
@@ -1070,19 +895,18 @@ def cmd_build(args) -> int:
                 p.write_text(new, encoding="utf-8")
     if stale:
         print(("自動生成ブロックが古い: " if args.check else "自動生成ブロックを更新: ") + ", ".join(stale))
-    memos = sorted((read_meta(p) for p in memo_files()),
-                   key=lambda m: (m["date"], m["file"]), reverse=True)
-    quizzes = collect_quizzes(memos)
-    pat = re.compile(re.escape(BEGIN) + r".*?" + re.escape(END), re.S)
+    memos, quizzes = site_data()
     outdated = []
-    for page in SPECIAL_PAGES:
+    for path, body in ((MEMOS_JSON, memos_json(memos, quizzes)), (QUIZZES_JSON, quizzes_json(quizzes))):
+        if not path.is_file() or path.read_text(encoding="utf-8") != body:
+            outdated.append(path.name)
+            if not args.check:
+                path.write_text(body, encoding="utf-8")
+    for page in SPECIAL_PAGES:  # トップ・クイズページは head（アイコン・OGP）だけ更新する
         if not page.is_file():
             continue
         src = page.read_text(encoding="utf-8")
-        if not pat.search(src):
-            print(f"docs/{page.name} に {BEGIN} / {END} マーカーがありません", file=sys.stderr)
-            return 2
-        new = apply_head(pat.sub(lambda _: render_block(memos, quizzes), src, count=1), page.name)
+        new = apply_head(src, page.name)
         if new != src:
             outdated.append(page.name)
             if not args.check:
@@ -1090,7 +914,7 @@ def cmd_build(args) -> int:
     md_changed = build_markdown(memos, args.check)
     if args.check:
         if outdated or stale or md_changed:
-            names = [f"docs/{n}" for n in outdated + md_changed] or ["docs/index.html"]
+            names = [f"docs/{n}" for n in outdated + md_changed + stale] or ["docs/memos.json"]
             print(", ".join(names) + " が古いです（python3 scripts/memo.py build を実行）")
             return 1
         print("一覧データは最新です")
@@ -1150,6 +974,54 @@ def cmd_list(_args) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- preview
+#
+# 公開するページはクイズの CSS / JS を assets/ から、一覧データを memos.json などから読む。
+# 会話内のプレビューのように HTML 1 枚しか渡せない場面のために、それらを埋め込んだコピーを作る。
+# 中身は公開版と同じファイルから作るので、見た目と動きは公開版と変わらない。
+
+DATA_SCRIPT_RE = re.compile(r"<script\b", re.I)
+
+
+def _inline_tag(tag: str, body: str) -> str:
+    return f"<{tag}>\n" + body.replace("</" + tag, "<\\/" + tag) + f"\n</{tag}>"
+
+
+def preview_text(text: str, filename: str) -> str:
+    text = apply_generated(text, filename)
+    text = text.replace(QUIZ_CSS_TAG, _inline_tag("style", QUIZ_CSS.read_text(encoding="utf-8")))
+    text = text.replace(QUIZ_JS_TAG, _inline_tag("script", QUIZ_JS.read_text(encoding="utf-8")))
+    if filename in SPECIAL_NAMES:
+        memos, quizzes = site_data()
+        data = {MEMOS_JSON.name: json.loads(memos_json(memos, quizzes)),
+                QUIZZES_JSON.name: quizzes}
+        inject = ("<script>// memo.py preview が埋め込んだデータ（公開版は JSON ファイルを読み込む）\n"
+                  "window.MEMO_DATA = " + json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+                  + ";\n</script>\n")
+        body = re.search(r"<body\b[^>]*>", text, re.I)
+        m = DATA_SCRIPT_RE.search(text, body.end() if body else 0)
+        pos = m.start() if m else len(text)
+        text = text[:pos] + inject + text[pos:]
+    return text
+
+
+def cmd_preview(args) -> int:
+    p = Path(args.src)
+    if p.is_file():
+        src = p.resolve()
+    elif p.name.removesuffix(".html") + ".html" in SPECIAL_NAMES:
+        src = DOCS / (p.name.removesuffix(".html") + ".html")
+    else:
+        src = memo_path(args.src)
+    out = Path(args.out) if args.out else Path(tempfile.gettempdir()) / "memo-preview" / src.name
+    if out.resolve() == src:
+        sys.exit("出力先が元のファイルと同じです（-o で別の場所を指定）")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(preview_text(_strip_fence(src.read_text(encoding="utf-8")), src.name), encoding="utf-8")
+    print(out)
+    return 0
+
+
 # ----------------------------------------------------------------
 
 def main() -> int:
@@ -1189,12 +1061,17 @@ def main() -> int:
     p.add_argument("--date", nargs="?", const="", help="YYYY-MM-DD（値なしで今日。日本時間）")
     p.set_defaults(func=cmd_meta)
 
-    p = sub.add_parser("build", help="index.html・quiz.html の一覧データを再生成")
+    p = sub.add_parser("build", help="一覧データ（memos.json・quizzes.json）と Markdown 版を再生成")
     p.add_argument("--check", action="store_true")
     p.set_defaults(func=cmd_build)
 
     p = sub.add_parser("list", help="メモ一覧を表示")
     p.set_defaults(func=cmd_list)
+
+    p = sub.add_parser("preview", help="クイズの JS/CSS や一覧データを埋め込んだ 1 枚の HTML を書き出す（会話内プレビュー用）")
+    p.add_argument("src", help="メモ名・index・quiz、または下書きの HTML ファイル")
+    p.add_argument("-o", "--out", help="出力先（省略時は一時フォルダの memo-preview/）")
+    p.set_defaults(func=cmd_preview)
 
     args = ap.parse_args()
     return args.func(args)

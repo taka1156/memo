@@ -1,0 +1,665 @@
+[
+ {
+  "file": "tcp-ip.html",
+  "title": "TCP/IP とネットワーク基礎",
+  "desc": "階層とカプセル化、IP アドレスと CIDR の計算、ルーティングとデフォルトゲートウェイ、NAT、ポート、TCP と UDP の違い、調査コマンドまでを図解。HTTP の一段下の層。",
+  "tags": [
+   "ネットワーク",
+   "インフラ"
+  ],
+  "date": "2026-11-04",
+  "quizzes": 5
+ },
+ {
+  "file": "memory-management.html",
+  "title": "メモリ管理",
+  "desc": "スタックとヒープの違い、手動管理・ガベージコレクション・参照カウント・所有権という 4 つの解放方式、GC の到達可能性と世代別 GC、GC 言語でも起きるメモリリークの原因と調べ方までを図解。",
+  "tags": [
+   "言語",
+   "JavaScript"
+  ],
+  "date": "2026-11-04",
+  "quizzes": 5
+ },
+ {
+  "file": "llm-basics.html",
+  "title": "LLM の仕組み",
+  "desc": "トークン、次のトークンの予測と temperature、コンテキストウィンドウ、学習の段階、埋め込みと RAG、ツール呼び出しとエージェントのループまで、LLM を使う側が知っておきたい仕組みを図解。",
+  "tags": [
+   "AI"
+  ],
+  "date": "2026-11-04",
+  "quizzes": 5
+ },
+ {
+  "file": "event-loop.html",
+  "title": "JS のイベントループと非同期",
+  "desc": "コールスタック・タスクキュー・マイクロタスクキューの関係を、実行順をステップ実行で追いながら図解。await の正体、描画との関係、長いタスクの分け方、Node.js との違いまで。",
+  "tags": [
+   "JavaScript",
+   "フロントエンド"
+  ],
+  "date": "2026-11-04",
+  "quizzes": 5
+ },
+ {
+  "file": "crypto-basics.html",
+  "title": "暗号の基礎",
+  "desc": "ハッシュ・MAC・共通鍵・公開鍵（鍵交換と署名）・証明書チェーンを、何を守る道具なのかで整理し、TLS 1.3 でどう組み合わさるかまでを図解。",
+  "tags": [
+   "セキュリティ"
+  ],
+  "date": "2026-11-04",
+  "quizzes": 5
+ },
+ {
+  "file": "ci-cd.html",
+  "title": "CI/CD と GitHub Actions",
+  "desc": "CI と CD の役割、パイプラインの組み方、GitHub Actions のワークフロー・ジョブ・ステップの構造、速くする工夫、シークレットと権限の安全な扱い、デプロイ戦略までを図解。",
+  "tags": [
+   "開発ツール",
+   "インフラ"
+  ],
+  "date": "2026-11-04",
+  "quizzes": 5
+ },
+ {
+  "file": "webassembly.html",
+  "title": "WebAssembly",
+  "desc": "Wasm が何で、どうやって JS から呼ばれ、なぜ速い場面と速くない場面があるのかを、線形メモリ・サンドボックス・境界のコストで図解。WasmGC、WASI とコンポーネントモデルによるブラウザ外での利用まで。",
+  "tags": [
+   "フロントエンド",
+   "言語",
+   "JavaScript"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 4
+ },
+ {
+  "file": "web-vulnerabilities.html",
+  "title": "実装起因の脆弱性",
+  "desc": "XSS・CSRF・SQL インジェクション・OS コマンドインジェクション・セッションハイジャック・ReDoS に、パストラバーサル・SSRF・オープンリダイレクト・認可不備を加えて、攻撃の流れと NG/OK コードで図解。",
+  "tags": [
+   "セキュリティ"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "web-protocols.html",
+  "title": "HTTP/1.1・2・3 と TLS・DNS",
+  "desc": "URL を入れてから最初のバイトが届くまでの DNS・TCP・TLS・HTTP の流れと、HTTP/1.1→2→3 で何が解決されたか（多重化・ヘッドオブライン・QUIC）を図解。",
+  "tags": [
+   "ネットワーク",
+   "インフラ",
+   "フロントエンド"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "web-performance.html",
+  "title": "Core Web Vitals",
+  "desc": "LCP・INP・CLS の意味と基準値、それぞれを分解して遅い原因を見つける方法、画像・フォント・JS の具体的な改善策と、ラボデータとフィールドデータの違いを図解。",
+  "tags": [
+   "フロントエンド",
+   "JavaScript"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 4
+ },
+ {
+  "file": "web-components.html",
+  "title": "Web Components",
+  "desc": "Custom Elements・Shadow DOM・slot・template の 4 つの部品と、スタイルの通り方（CSS 変数・::part）、イベントの伝わり方、Declarative Shadow DOM による SSR、フォーム連携とアクセシビリティの注意点を、動くコピーボタン部品で図解。",
+  "tags": [
+   "フロントエンド",
+   "JavaScript",
+   "設計"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "vinext.html",
+  "title": "vinext と Next.js の比較",
+  "desc": "Cloudflare の vinext と本家 Next.js の違いと、Workers・Node.js・SSG の 3 つのデプロイパターンを図解。",
+  "tags": [
+   "JavaScript",
+   "フロントエンド"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "ui-design-styles.html",
+  "title": "UI デザインスタイル早見表",
+  "desc": "スキューモフィズムからリキッドグラスまで、主要な UI デザインスタイルを実物サンプルと CSS で比較。",
+  "tags": [
+   "デザイン",
+   "フロントエンド"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "typescript.html",
+  "title": "TypeScript 学習フローと仕組み",
+  "desc": "TypeScript を学ぶ6ステップと、型チェック・型消去・コンパイルの流れを図で整理。",
+  "tags": [
+   "言語",
+   "JavaScript"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "testing-strategy.html",
+  "title": "テスト戦略",
+  "desc": "静的チェック・単体・結合・E2E の役割分担と、場面ごとにどの層で書くかを選べるデモ、Vitest・Testing Library・Playwright・MSW の使いどころ、モックの境界、E2E の不安定さ（flaky）対策、ビジュアルリグレッションを図解。",
+  "tags": [
+   "開発ツール",
+   "JavaScript",
+   "設計"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 4
+ },
+ {
+  "file": "solid.html",
+  "title": "SOLID と依存性逆転",
+  "desc": "SOLID の 5 原則を「どんな症状を防ぐか」で整理し、オニオン／クリーンで内側に依存させる理由＝依存性逆転 (DIP) を図で説明する",
+  "tags": [
+   "設計"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "security-headers.html",
+  "title": "セキュリティヘッダー",
+  "desc": "CSP・HSTS・nosniff・frame-ancestors・Referrer-Policy・Permissions-Policy から COOP/CORP、Cookie 属性、使わなくなったヘッダーまで、何を防ぐか・推奨値・導入時の落とし穴を図解。",
+  "tags": [
+   "セキュリティ"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "s3-compatible.html",
+  "title": "S3 互換ストレージの仕組み",
+  "desc": "S3 API の仕組みと、互換ストレージの範囲・落とし穴・製品の違いを図解。",
+  "tags": [
+   "インフラ",
+   "データベース"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "rust.html",
+  "title": "Rust 学習フローと仕組み",
+  "desc": "Rust の学習ロードマップと、所有権・借用・ライフタイムなどコンパイラが安全性を保証する仕組みを図解。",
+  "tags": [
+   "言語"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "rendering-strategies.html",
+  "title": "レンダリング戦略",
+  "desc": "CSR・SSR・SSG・ISR・ストリーミング・Server Components・アイランドを「HTML をいつ・どこで作るか」と「JS をどこまで送るか」で比較し、ハイドレーションの仕組みと選び方を図解。",
+  "tags": [
+   "フロントエンド",
+   "JavaScript",
+   "設計"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "redis-valkey.html",
+  "title": "Redis と Valkey の仕組み",
+  "desc": "Redis と Valkey の速さの理由、永続化・複製・クラスター、両者の違いを図解。",
+  "tags": [
+   "データベース",
+   "インフラ"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "realtime-comm.html",
+  "title": "リアルタイム通信",
+  "desc": "ポーリング・ロングポーリング・SSE・WebSocket・WebTransport・WebRTC を、通信の向き・再接続・スケールのしかたで比較し、場面ごとの選び方と落とし穴を図解。",
+  "tags": [
+   "ネットワーク",
+   "フロントエンド",
+   "インフラ"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 4
+ },
+ {
+  "file": "pwa.html",
+  "title": "PWA の仕組みとチェックリスト",
+  "desc": "HTTPS・Manifest・Service Worker の役割、キャッシュ戦略、インストール条件と実装項目を図解。",
+  "tags": [
+   "フロントエンド"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "passkeys.html",
+  "title": "パスキー（WebAuthn）",
+  "desc": "公開鍵で署名するパスキーの登録・ログインの流れ、フィッシングに強い理由、同期型と端末固定型の違い、実装時のチェックリストまでを図解。",
+  "tags": [
+   "セキュリティ"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 4
+ },
+ {
+  "file": "js-web-standards.html",
+  "title": "JS と Web 標準の決まり方",
+  "desc": "JavaScript の言語は TC39、ブラウザ API は WHATWG と W3C、サーバー側ランタイムの共通 API は TC55（WinterTC）。4 つの団体の分担と、仕様が決まるまでの流れを図解。",
+  "tags": [
+   "JavaScript",
+   "フロントエンド"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "js-modules.html",
+  "title": "JS のモジュールと依存管理",
+  "desc": "ESM と CommonJS の違い、package.json の exports と条件による解決（動くデモつき）、import maps、npm・pnpm・Bun のインストール方式とロックファイル、モノレポのワークスペースを図解。",
+  "tags": [
+   "JavaScript",
+   "開発ツール"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "http-cache.html",
+  "title": "HTTP キャッシュ",
+  "desc": "Cache-Control の読み方、鮮度と再検証（ETag・304）、ブラウザと CDN の二段構え、用途別のおすすめ設定までを図解。",
+  "tags": [
+   "インフラ",
+   "フロントエンド"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "git-internals.html",
+  "title": "Git の内部構造",
+  "desc": "blob・tree・commit・ref の4つで Git を理解し、merge と rebase の違い、reset の3種類、reflog での復旧までを図解。",
+  "tags": [
+   "開発ツール"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "docker.html",
+  "title": "Docker 動作原理",
+  "desc": "イメージのレイヤー構造、名前空間、cgroups などコンテナが動く仕組みを図解。",
+  "tags": [
+   "インフラ"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "docker-files.html",
+  "title": "Dockerfile と Compose の書き方",
+  "desc": "Dockerfile・マルチステージビルド・compose.yaml・devcontainer.json の書き方を、注釈付きの例と落とし穴で整理。",
+  "tags": [
+   "インフラ",
+   "開発ツール"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "distributed-basics.html",
+  "title": "分散システムの基本",
+  "desc": "CAP 定理・整合性モデル・冪等性・リトライを、ネットワークが切れる／遅れる前提で図解し、Cloudflare の KV・D1・Durable Objects がどこに当たるかも整理する",
+  "tags": [
+   "設計",
+   "インフラ"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "design-tokens.html",
+  "title": "デザイントークン",
+  "desc": "色・余白・文字サイズなどの決定を名前付きの変数（デザイントークン）で管理する考え方を、3 階層の構造・CSS 変数での実装・テーマ切り替えのデモで説明する",
+  "tags": [
+   "デザイン",
+   "フロントエンド"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 4
+ },
+ {
+  "file": "ddd-onion.html",
+  "title": "DDD とオニオンアーキテクチャ",
+  "desc": "DDD の要素と依存の向きを図解し、Hono・Void での構成例と AI 時代向けの軽量版を比較。",
+  "tags": [
+   "設計"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "db-internals.html",
+  "title": "DB のしくみ",
+  "desc": "SQL が結果になるまでの流れ、ページとバッファプール、WAL によるクラッシュ復旧、行指向と列指向、そして D1 などクラウドでも使われるようになった SQLite を図解。",
+  "tags": [
+   "データベース"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "db-index-transaction.html",
+  "title": "インデックスとトランザクション",
+  "desc": "B木インデックスが効く条件・効かない条件（複合インデックスの順序、関数、LIKE）と、分離レベルで防げる異常、MVCC、更新の取りこぼし対策までを図解。",
+  "tags": [
+   "データベース"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "css-layout.html",
+  "title": "CSS レイアウト",
+  "desc": "Flexbox（1 次元）と Grid（2 次元）の使い分けを触って比べられるデモつきで整理し、subgrid・コンテナクエリ・カスケードレイヤー・:has()・論理プロパティなど今どきの CSS と定番レシピをまとめる。",
+  "tags": [
+   "フロントエンド",
+   "デザイン"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 4
+ },
+ {
+  "file": "component-design.html",
+  "title": "コンポーネント設計",
+  "desc": "Atomic Design がなぜ下火になったかを踏まえ、デザイントークン・Headless UI・機能単位の配置で組む今どきの UI コンポーネント設計を図とコードで整理する",
+  "tags": [
+   "設計",
+   "デザイン",
+   "フロントエンド"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 4
+ },
+ {
+  "file": "color-basics.html",
+  "title": "色の基礎",
+  "desc": "コントラスト比の基準と計算、ダークモードの色の作り方、HSL ではなく OKLCH でパレットを作る理由を、チェッカーと見比べられる色見本で説明する",
+  "tags": [
+   "デザイン",
+   "フロントエンド"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 4
+ },
+ {
+  "file": "cloudflare-databases.html",
+  "title": "D1 と Hyperdrive＋PlanetScale",
+  "desc": "Cloudflare Workers から使う DB を、SQLite ベースの D1 と、Hyperdrive 経由の PlanetScale（Postgres / MySQL）で比較。仕組み・得意不得意・選び方を図解。",
+  "tags": [
+   "インフラ",
+   "データベース"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "browser-storage.html",
+  "title": "ブラウザのストレージ",
+  "desc": "Cookie・localStorage・sessionStorage・IndexedDB・Cache API・OPFS を、容量・同期か非同期か・サーバーに送られるか・いつ消えるかで比べ、用途別の選び方と、実際に書き込んで確かめられるデモで図解。",
+  "tags": [
+   "フロントエンド",
+   "セキュリティ",
+   "JavaScript"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 4
+ },
+ {
+  "file": "browser-rendering.html",
+  "title": "ブラウザのレンダリング",
+  "desc": "HTML と CSS が DOM・CSSOM・レイアウト・ペイント・合成を経て画面になるまでと、どの CSS 変更がどこからやり直しになるか、ブロッキングとレイアウトスラッシングを図解。",
+  "tags": [
+   "フロントエンド",
+   "JavaScript"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 4
+ },
+ {
+  "file": "architecture-compare.html",
+  "title": "アーキテクチャ比較",
+  "desc": "レイヤード・ヘキサゴナル・オニオン・クリーンの 4 つを同じ例で図にし、何が同じで何が違うか・どう選ぶかを整理する",
+  "tags": [
+   "設計"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 4
+ },
+ {
+  "file": "api-styles.html",
+  "title": "REST・GraphQL・gRPC・tRPC",
+  "desc": "同じ「ユーザーと最新の投稿を取る」API を REST・GraphQL・gRPC・tRPC で書き比べ、契約の持ち方・キャッシュ・型共有の違いと、REST 設計の基本（冪等性・ステータス・ページング・エラー形式）を図解。",
+  "tags": [
+   "設計",
+   "フロントエンド",
+   "インフラ"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "a11y-checklist.html",
+  "title": "アクセシビリティ チェックリスト",
+  "desc": "WCAG 2.2 の AA 基準から Web 開発で押さえるべき項目を、キーボード・色・フォーム・ARIA などの分類ごとのチェックリストとコード例でまとめる",
+  "tags": [
+   "デザイン",
+   "フロントエンド"
+  ],
+  "date": "2026-11-03",
+  "quizzes": 5
+ },
+ {
+  "file": "vue-vs-svelte.html",
+  "title": "Vue と Svelte",
+  "desc": "Vue の Proxy リアクティブと仮想 DOM、Vapor Mode、Svelte のコンパイラと runes を、コンパイル結果と依存追跡のデモで比較。",
+  "tags": [
+   "JavaScript",
+   "フロントエンド"
+  ],
+  "date": "2026-11-02",
+  "quizzes": 5
+ },
+ {
+  "file": "tsrs-vs-tsgo.html",
+  "title": "tsrs と tsgo の比較",
+  "desc": "TypeScript のネイティブ実装 tsgo（Go）と tsrs（Rust）の仕組み・性能・使い分けを図で比較。",
+  "tags": [
+   "言語"
+  ],
+  "date": "2026-11-02",
+  "quizzes": 5
+ },
+ {
+  "file": "reactivity-models.html",
+  "title": "UI 更新の3つの方式",
+  "desc": "仮想 DOM・シグナル・コンパイラという UI フレームワークの更新方式を、同じ操作で何が再実行されるかで比較し、React・Vue・Solid・Svelte を地図に配置。",
+  "tags": [
+   "JavaScript",
+   "フロントエンド"
+  ],
+  "date": "2026-11-02",
+  "quizzes": 5
+ },
+ {
+  "file": "react-vs-solid.html",
+  "title": "React と Solid",
+  "desc": "見た目はそっくりな JSX で、中身は正反対。React の再レンダーと Fiber、Solid のシグナルとコンパイル結果を、同じカウンターで比較。",
+  "tags": [
+   "JavaScript",
+   "フロントエンド"
+  ],
+  "date": "2026-11-02",
+  "quizzes": 5
+ },
+ {
+  "file": "oauth-oidc.html",
+  "title": "OAuth 2.0 / OIDC のフロー",
+  "desc": "認証と認可の違いから、認可コードフロー＋PKCE の全手順、OIDC の ID トークンまでを図解。",
+  "tags": [
+   "セキュリティ"
+  ],
+  "date": "2026-11-02",
+  "quizzes": 5
+ },
+ {
+  "file": "mcp.html",
+  "title": "MCP の仕組み",
+  "desc": "AI アプリと外部ツールをつなぐ Model Context Protocol の構成、3つのプリミティブ、通信方式、2026-07-28 版の変更点を図解。",
+  "tags": [
+   "AI"
+  ],
+  "date": "2026-11-02",
+  "quizzes": 5
+ },
+ {
+  "file": "jwt-vs-session.html",
+  "title": "JWT とセッション",
+  "desc": "JWT の中身と署名、セッションとの違い、失効の難しさ、Cookie と localStorage のどちらに置くかまでを図解。",
+  "tags": [
+   "セキュリティ"
+  ],
+  "date": "2026-11-02",
+  "quizzes": 5
+ },
+ {
+  "file": "js-runtimes.html",
+  "title": "JS ランタイム比較",
+  "desc": "Node.js・Bun・Cloudflare Workers の内部構造、プロセス型と isolate 型の違い、API・互換性・制限を比較。",
+  "tags": [
+   "JavaScript"
+  ],
+  "date": "2026-11-02",
+  "quizzes": 5
+ },
+ {
+  "file": "docker-images.html",
+  "title": "Docker イメージの種類",
+  "desc": "slim・alpine・bookworm から distroless 等の本番向け最小イメージまで、分類と glibc・musl・ABI の違いを図解。",
+  "tags": [
+   "インフラ"
+  ],
+  "date": "2026-11-02",
+  "quizzes": 5
+ },
+ {
+  "file": "cors-sop.html",
+  "title": "CORS と同一オリジンポリシー",
+  "desc": "オリジンの判定、ブラウザが何を止めているのか、単純リクエストとプリフライト、Cookie 付きの制約までを図解。",
+  "tags": [
+   "セキュリティ"
+  ],
+  "date": "2026-11-02",
+  "quizzes": 5
+ },
+ {
+  "file": "agent-instructions.html",
+  "title": "CLAUDE.md / AGENTS.md / Skills",
+  "desc": "AI コーディングエージェントへの指示ファイルと Skills の違いを、コンテキストに載るタイミングと置き場所から図解。",
+  "tags": [
+   "AI"
+  ],
+  "date": "2026-11-02",
+  "quizzes": 5
+ },
+ {
+  "file": "vite-toolchain.html",
+  "title": "Vite ツールチェーン図解",
+  "desc": "Vite 8 を支える Rolldown・Oxc・Lightning CSS と、Vitest・Oxlint・Oxfmt を束ねる Vite+ の構成を図解。",
+  "tags": [
+   "JavaScript",
+   "開発ツール"
+  ],
+  "date": "2026-11-01",
+  "quizzes": 5
+ },
+ {
+  "file": "spec-kit.html",
+  "title": "Spec Kit の流れと役割",
+  "desc": "Spec Kit の仕様駆動開発の流れ、各コマンドと人間・AI の役割、生成ファイルを図解。",
+  "tags": [
+   "AI"
+  ],
+  "date": "2026-11-01",
+  "quizzes": 5
+ },
+ {
+  "file": "opentofu.html",
+  "title": "OpenTofu 概念図",
+  "desc": "設定ファイル(.tf)からState・Providerを経てインフラに反映されるまでの流れと、役割ごとのファイル名を図解。",
+  "tags": [
+   "インフラ"
+  ],
+  "date": "2026-11-01",
+  "quizzes": 5
+ },
+ {
+  "file": "language-genealogy.html",
+  "title": "プログラミング言語の系譜",
+  "desc": "OCaml→Rust、JS→TypeScriptのような言語間の親子・孫関係を、派生・影響・実装の3種類でたどれる系譜図。",
+  "tags": [
+   "言語"
+  ],
+  "date": "2026-11-01",
+  "quizzes": 3
+ },
+ {
+  "file": "github-services.html",
+  "title": "GitHub サービス",
+  "desc": "Actions・Pages・Codespaces など GitHub の 9 サービスを、開発の流れに沿った図と使い分けで整理。",
+  "tags": [
+   "開発ツール"
+  ],
+  "date": "2026-11-01",
+  "quizzes": 5
+ },
+ {
+  "file": "cloudflare-services.html",
+  "title": "Cloudflare サービス",
+  "desc": "Workers・Pages・R2・D1 など Cloudflare の 9 サービスを、リクエストの流れに沿った図と使い分けで整理。",
+  "tags": [
+   "インフラ"
+  ],
+  "date": "2026-11-01",
+  "quizzes": 5
+ },
+ {
+  "file": "ansible.html",
+  "title": "Ansible 概念図",
+  "desc": "Control NodeからManaged Nodesまでの流れと、役割ごとのファイル名の対応を図解。",
+  "tags": [
+   "インフラ"
+  ],
+  "date": "2026-11-01",
+  "quizzes": 5
+ }
+]

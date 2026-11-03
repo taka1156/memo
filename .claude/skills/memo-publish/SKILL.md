@@ -87,11 +87,13 @@ python3 scripts/memo.py meta NAME \
 
 ```bash
 python3 scripts/memo.py lint NAME   # OK になること
-python3 scripts/memo.py build       # トップページの一覧を再生成
+python3 scripts/memo.py build       # 一覧データ（memos.json・quizzes.json）を再生成
 python3 scripts/memo.py list
 ```
 
-トップページとクイズページ（`quiz.html`）の `// MEMOS:BEGIN` 〜 `// MEMOS:END` は自動生成なので手で編集しない。ページ末尾の `<!-- memo:quiz -->` 〜 `<!-- /memo:quiz -->`（クイズの表示部分）も自動生成。
+`docs/memos.json`・`docs/quizzes.json`（トップページとクイズページが読み込む一覧・問題）は自動生成なので手で編集しない。ページ末尾の `<!-- memo:quiz -->` 〜 `<!-- /memo:quiz -->`（クイズの表示部分。本体は `docs/assets/memo-quiz.*` を参照）も自動生成。
+
+登録したページを会話内で見せるときは、ファイルをそのまま送らず `python3 scripts/memo.py preview NAME -o <スクラッチパッド>/NAME.html` で作った 1 枚版を送る（そのままだとクイズの JS/CSS が届かず動かない）。
 
 ## 7. commit / push
 

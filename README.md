@@ -29,7 +29,7 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 
 | 依頼 | 使うスキル | 保存 |
 | --- | --- | --- |
-| 「〇〇を HTML で（図とともに）まとめて」「図解ページにして」 | `memo-style` で作り、HTML ファイルとして会話内でプレビューする（`memo.py new` は使わずテンプレートをコピー） | **しない**。「保存して」と言われたら `memo-publish` で登録 |
+| 「〇〇を HTML で（図とともに）まとめて」「図解ページにして」 | `memo-style` で作り、`memo.py preview` で 1 枚にまとめた HTML を会話内でプレビューする（`memo.py new` は使わずテンプレートをコピー） | **しない**。「保存して」と言われたら `memo-publish` で登録 |
 | 「保存して」「MEMO に入れて」 | `memo-publish` | する |
 | 「さっきの説明を MEMO にして」 | `memo-from-chat` | する |
 | 「ファクトチェックして」 | `memo-factcheck` | 指摘を確認してもらってから修正・push |
@@ -50,8 +50,8 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
   <meta name="memo:date" content="2026-10-31">
   ```
 
-- `docs/index.html` と `docs/quiz.html` の `// MEMOS:BEGIN`〜`// MEMOS:END` は自動生成です。手で編集しません
-- 確認クイズは各メモに問題データだけを書きます（書式と作問ルールは `.claude/skills/memo-style/SKILL.md`）。表示部分の `<!-- memo:quiz -->` ブロックはページ末尾に自動で入り、全メモの問題はトップのランダムクイズと `quiz.html` に集められます
+- 一覧は `docs/memos.json`、全メモの問題は `docs/quizzes.json` に `build` が書き出します（手で編集しません）。`docs/index.html` と `docs/quiz.html` はそれを読み込んで表示します
+- 確認クイズは各メモに問題データだけを書きます（書式と作問ルールは `.claude/skills/memo-style/SKILL.md`）。表示部分の `<!-- memo:quiz -->` ブロックはページ末尾に自動で入り、本体の CSS / JS は `docs/assets/memo-quiz.css`・`memo-quiz.js` の 1 か所だけにあります。全メモの問題はトップのランダムクイズと `quiz.html` に集められます
 
   ```
   <script type="application/json" id="memo-quiz">
@@ -60,6 +60,12 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
   ```
 - 全ページの `<!-- memo:head -->` ブロック（ファビコン・iOS アイコン・OGP）も自動生成です。og:title / og:description は各ページの title / description から作られます
 - 画像は `docs/assets/`（`favicon.ico`, `icon-32.png`, `icon-192.png`, `apple-touch-icon.png`, `og.png`）。生成元は `branding/`（`og.html`・`icon.html` を `python3 branding/render.py` で書き出し。非公開）
+- 共通ファイル（クイズの JS/CSS、JSON）を読み込むため、HTML をファイルとして直接開いたり会話内でプレビューしたりすると、クイズや一覧が出ません。確認には `python3 -m http.server -d docs` を使うか、次のコマンドで 1 枚に埋め込んだコピーを作ります（下書きのファイルにも使えます）
+
+  ```bash
+  python3 scripts/memo.py preview NAME -o /tmp/NAME.html   # index / quiz / 下書きの HTML パスも可
+  ```
+
 - master に `docs/*.html` が push されると、GitHub Actions が一覧を再生成します（GitHub の画面から HTML を直接アップロードしても載ります）
 - `build` は AI 向けの Markdown 版も自動生成します（手で編集しません）
   - `docs/llms.txt`: 全メモの目次（タイトル・説明・タグ・日付と各 Markdown 版へのリンク）
@@ -73,7 +79,7 @@ python3 scripts/memo.py add ~/Downloads/foo.html foo   # docs/foo.html として
 python3 scripts/memo.py new foo                        # またはテンプレートから新規作成
 python3 scripts/memo.py lint foo --fix --backlink      # 崩れチェック・修正
 python3 scripts/memo.py meta foo --title "…" --desc "…" --tags "a,b" --date
-python3 scripts/memo.py build                          # 一覧を再生成
+python3 scripts/memo.py build                          # 一覧（memos.json・quizzes.json）と Markdown 版を再生成
 python3 scripts/memo.py list                           # 一覧を表示
 ```
 
