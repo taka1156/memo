@@ -9,7 +9,7 @@ on:
     paths:
       - "docs/*.html"
       - "docs/CNAME" # ドメインが変わったら OGP の URL も更新
-      - "scripts/memo.py"
+      - "scripts/**" # memo.py と memolib/
       - "docs/assets/og.png" # 差し替えたら og:image の ?v= を更新
   workflow_dispatch:
 

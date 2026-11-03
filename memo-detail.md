@@ -1,6 +1,7 @@
 # memo.py の仕組み
 
 `scripts/memo.py` は、MEMO リポジトリのメモ（`docs/*.html`）を登録・点検し、一覧や AI 向けの Markdown 版を生成するツールです。
+入口は `scripts/memo.py`、処理の本体は `scripts/memolib/` にあり、テストは `tests/` にあります。
 標準ライブラリだけで動き、どのディレクトリから実行してもかまいません。
 
 使い方の入口は [README](README.md)、ページのデザイン規約とクイズの書き方は [memo-style](.claude/skills/memo-style/SKILL.md)、登録の手順は [memo-publish](.claude/skills/memo-publish/SKILL.md) にあります。このファイルは「スクリプトが何をどこに書くか」の説明です。
@@ -19,6 +20,7 @@
 - [日付と URL の決まり方](#日付と-url-の決まり方)
 - [表示の確認とプレビュー](#表示の確認とプレビュー)
 - [GitHub Actions](#github-actions)
+- [コードの構成とテスト](#コードの構成とテスト)
 - [変更したいときはどこを触るか](#変更したいときはどこを触るか)
 
 ## 基本の考え方
@@ -358,11 +360,71 @@ python3 scripts/memo.py preview 下書き.html -o /tmp/NAME.html
 
 | 項目 | 内容 |
 | --- | --- |
-| 起動する変更 | `docs/*.html`・`docs/CNAME`・`scripts/memo.py`・`docs/assets/og.png`（手動実行も可） |
+| 起動する変更 | `docs/*.html`・`docs/CNAME`・`scripts/` 以下・`docs/assets/og.png`（手動実行も可） |
 | 手順 | 履歴ごと checkout（日付の推定に使う）→ 全メモを `lint`（報告のみ）→ `build` |
 | コミット | `docs/` に変更（新しく生成されたファイルを含む）があれば `Rebuild MEMO index` としてコミット・push |
 
 ローカルで `build` してから push していれば、Actions 側では差分が出ません。
+
+もう 1 つの `.github/workflows/test.yml`（`Test memo.py`）は、`scripts/`・`tests/`・クイズの共通ファイル・テンプレートが変わったとき（PR も含む）にテストを流します。リポジトリは書き換えません。
+
+## コードの構成とテスト
+
+入口の `scripts/memo.py` はコマンドを受け付けるだけで、処理の本体は `scripts/memolib/` に役割ごとに分かれています。
+コードを直すときの手順（テストの流し方、出力が変わっていないことの確かめ方、更新するドキュメント）は [memo-maintain](.claude/skills/memo-maintain/SKILL.md) にあります。
+
+```mermaid
+flowchart LR
+  cli["scripts/memo.py<br/>コマンドの受け付け"]
+  subgraph lib["scripts/memolib/"]
+    direction LR
+    config["config.py<br/>置き場所・URL・日付<br/>ブロックの目印"]
+    meta["meta.py<br/>メタ情報の読み書き<br/>名前→パス"]
+    blocks["blocks.py<br/>memo:head・memo:quiz<br/>フッター・問題データ"]
+    lint["lint.py<br/>崩れチェック"]
+    md["markdown.py<br/>Markdown 版"]
+    site["site.py<br/>memos.json・quizzes.json<br/>preview"]
+  end
+  cli --> lint & md & site & meta & blocks & config
+  lint --> blocks
+  md --> blocks
+  site --> blocks
+  site --> meta
+  blocks --> meta
+  md --> config
+  blocks --> config
+  meta --> config
+```
+
+矢印は「使っている」向きです。依存は一方向（`config` ← `meta` ← `blocks` ← `lint`・`markdown`・`site` ← `memo.py`）で、逆向きの import はありません。
+
+| ファイル | 役割 | 主な関数 |
+| --- | --- | --- |
+| `scripts/memo.py` | コマンドの受け付け | `cmd_build`・`cmd_lint`・`cmd_preview` など、`main` |
+| `memolib/config.py` | 置き場所・公開 URL・日付（日本時間）・自動生成ブロックの目印 | `today_jst`・`site_url`・`asset_version` |
+| `memolib/meta.py` | `<head>` のメタ情報の読み書き、名前からパスへの解決 | `read_meta`・`set_meta`・`memo_path`・`memo_files` |
+| `memolib/blocks.py` | 自動生成ブロック、「一覧に戻る」フッター、クイズの問題データ | `head_block`・`apply_quiz`・`apply_generated`・`read_quiz`・`validate_quiz` |
+| `memolib/lint.py` | 崩れのチェックと自動修正 | `lint_text` |
+| `memolib/markdown.py` | AI 向けの Markdown 版 | `html_to_markdown`・`memo_markdown`・`llms_txt`・`build_markdown` |
+| `memolib/site.py` | 一覧・問題の JSON、会話内プレビュー用の 1 枚の HTML | `site_data`・`memos_json`・`quizzes_json`・`preview_text` |
+
+多くの関数は「HTML の文字列を受け取って文字列を返す」だけで、ファイルを書き換えるのは `memo.py` の各コマンドです。そのため関数単位でテストできます。
+
+### テスト
+
+標準ライブラリの `unittest` だけで動きます。リポジトリを一時フォルダにコピーして動かすので、リポジトリ自体は書き換えません。
+
+```bash
+python3 -B -m unittest discover -s tests       # 全部（15 秒ほど）
+python3 -B tests/snapshot.py OUTDIR            # 全コマンドの出力を保存（前後比較用）
+```
+
+| ファイル | 中身 |
+| --- | --- |
+| `tests/test_cli.py` | コマンドを外から動かす結合テスト。生成物が最新か、生成物を全部消して `build` するとリポジトリと同じ中身に戻るか、2 回目の `build` で何も変わらないか、`lint --fix`・`new`・`add`・`meta`・`preview` の動きなど |
+| `tests/test_units.py` | 関数ごとの単体テスト。日本時間の日付、問題データの検証、ブロックの差し込み位置と冪等性、CSS の化けの修正、Markdown 変換、`</script>` のエスケープなど |
+| `tests/snapshot.py` | テストではなく道具。全メモの `build`・`lint`・`preview` と各コマンドの出力をフォルダに保存する。リファクタリングの前後で 1 回ずつ実行し、`diff -r` で何も出なければ出力は変わっていない |
+| `tests/helpers.py` | リポジトリを一時フォルダにコピーした「作業用リポジトリ」を作る共通処理 |
 
 ## 変更したいときはどこを触るか
 
@@ -371,11 +433,12 @@ python3 scripts/memo.py preview 下書き.html -o /tmp/NAME.html
 | メモの本文・問題 | `docs/NAME.html` | `lint NAME` → `build` |
 | タイトル・説明・タグ・日付 | `meta NAME ...` | `build` |
 | 確認クイズの見た目・動き | `docs/assets/memo-quiz.css`・`.js` | 何もしなくてよい（全メモに反映） |
-| クイズ表示の枠（HTML）・入る場所 | `scripts/memo.py` の `QUIZ_BLOCK`・`apply_quiz` | `build`（全メモが書き換わる） |
-| アイコン・OGP のタグ | `scripts/memo.py` の `head_block` | `build`（全ページが書き換わる） |
+| クイズ表示の枠（HTML）・入る場所 | `memolib/blocks.py` の `QUIZ_BLOCK`・`apply_quiz` | `build`（全メモが書き換わる） |
+| アイコン・OGP のタグ | `memolib/blocks.py` の `head_block` | `build`（全ページが書き換わる） |
 | アイコン・OGP 画像 | `branding/` | `python3 branding/render.py` → `build` |
 | トップページ・クイズページの見た目 | `docs/index.html`・`docs/quiz.html` | 何もしなくてよい |
-| 一覧に載せる項目 | `scripts/memo.py` の `read_meta`・`memos_json` | `build` |
-| Markdown 版の変換ルール | `scripts/memo.py` の `_ToMarkdown`・`html_to_markdown` | `build`（全 Markdown 版が書き換わる） |
+| 一覧に載せる項目 | `memolib/meta.py` の `read_meta`、`memolib/site.py` の `memos_json` | `build` |
+| Markdown 版の変換ルール | `memolib/markdown.py` の `_ToMarkdown`・`html_to_markdown` | `build`（全 Markdown 版が書き換わる） |
 | 新しいメモの雛形 | `.claude/skills/memo-style/template.html` | 何もしなくてよい |
 | 公開ドメイン | `docs/CNAME` | `build`（OGP の URL が変わる） |
+| 上の表にないスクリプトの処理 | `scripts/memolib/` の該当モジュール（[コードの構成とテスト](#コードの構成とテスト)） | [memo-maintain](.claude/skills/memo-maintain/SKILL.md) の手順でテストと前後比較 |

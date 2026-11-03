@@ -1,0 +1,37 @@
+name: Test memo.py
+
+# scripts/（memo.py・memolib）やテストを変えたら、テストを流す。
+# テストはリポジトリを一時フォルダにコピーして動かすので、リポジトリ自体は書き換えない。
+on:
+  push:
+    branches: [master]
+    paths:
+      - "scripts/**"
+      - "tests/**"
+      - "docs/assets/memo-quiz.*"
+      - ".claude/skills/memo-style/template.html"
+      - ".github/workflows/test.yml"
+  pull_request:
+    paths:
+      - "scripts/**"
+      - "tests/**"
+      - "docs/assets/memo-quiz.*"
+      - ".claude/skills/memo-style/template.html"
+      - ".github/workflows/test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Unit and integration tests
+        run: python3 -m unittest discover -s tests -v
