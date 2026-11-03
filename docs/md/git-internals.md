@@ -40,7 +40,7 @@ TAG（注釈付き）
 
 ## つながり方
 
-（図: HEAD / main / C2 / commit / C1 / parent / tree / README / app.js v2 / app.js v1）
+（図: HEAD / main / C2 / commit / C1 / parent / tree / README / app.js v2 / app.js v1 → https://memo.taka1156.site/git-internals.html#graph）
 
 ref（ポインタ） commit tree blob
 
@@ -95,19 +95,19 @@ rebase
 
 squash merge
 
-（図: A / B / C / D / E / main / feature）
+（図: A / B / C / D / E / main / feature → https://memo.taka1156.site/git-internals.html#merge-rebase）
 
 B から分岐したあと、main にも C が入った状態。
 
-（図: A / B / C / D / E / M / main）
+（図: A / B / C / D / E / M / main → https://memo.taka1156.site/git-internals.html#merge-rebase）
 
 **親を2つ持つマージコミット M** を作る。既存のコミットは一切書き換えないので、共有ブランチでも安全。分岐した事実が履歴に残る。
 
-（図: A / B / C / D' / E' / D / E / feature / 参照なし（reflog には残る））
+（図: A / B / C / D' / E' / D / E / feature / 参照なし（reflog には残る） → https://memo.taka1156.site/git-internals.html#merge-rebase）
 
 D・E の変更を C の後ろに **新しいコミット D'・E' として作り直す** 。親が変わるのでハッシュも別物。履歴は一直線になるが、元の D・E を持っている人とは食い違う。 **push 済みの共有ブランチでは使わない** のが原則。
 
-（図: A / B / C / S / D / E / main）
+（図: A / B / C / S / D / E / main → https://memo.taka1156.site/git-internals.html#merge-rebase）
 
 D＋E の変更をまとめた **親が1つだけの普通のコミット S** を作る（GitHub の「Squash and merge」）。main はきれいだが、feature の D・E とはつながっていないので、Git は「feature は取り込み済み」と判定できない。feature ブランチはそのまま使い続けず消す。
 

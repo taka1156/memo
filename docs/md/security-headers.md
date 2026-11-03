@@ -129,6 +129,8 @@ app.use(helmet({
 
 helmet は既定で nosniff・X-Frame-Options・Referrer-Policy・COOP/CORP などを付け、 `X-Powered-By` を外し、 `X-XSS-Protection: 0` を返します。Permissions-Policy は helmet に含まれないので、必要なら自分で `res.setHeader` します。
 
+（元のページで操作できます → https://memo.taka1156.site/security-headers.html#recommended）
+
 ## Content-Security-Policy (CSP)
 
 「このページで **どこから来たスクリプト・画像・通信先なら使ってよいか** 」をブラウザに伝えるヘッダー。XSS でタグを差し込まれても、許可されていないスクリプトは実行されません。XSS 対策の **2 枚目の壁** です（1 枚目は出力時のエスケープ）。
@@ -194,6 +196,8 @@ Content-Security-Policy-Report-Only: script-src 'nonce-R4nd0m' 'strict-dynamic';
 
 `require-trusted-types-for 'script'` を CSP に足すと、 `innerHTML` や `eval` などの危険な API に **素の文字列を渡すとエラー** になり、DOM ベース XSS の入口を強制的に塞げます。サニタイザーを通した値（TrustedHTML）だけが通ります。Chromium 系が先行し、Safari 26・Firefox 148 も対応したので、2026 年 2 月から主要ブラウザすべてで使えます（Baseline 2026）。古いブラウザも対象なら、まず Report-Only で試すのがおすすめです。
 
+（元のページで操作できます → https://memo.taka1156.site/security-headers.html#csp）
+
 ## Strict-Transport-Security (HSTS)
 
 「このサイトには **今後 https でしかつながない** で」とブラウザに覚えさせるヘッダー。http → https のリダイレクトだけだと、 **最初の http リクエスト** が平文で飛ぶので、公衆 Wi-Fi などで書き換えられます（SSL ストリップ）。
@@ -225,6 +229,8 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 
 **導入時の注意:** `includeSubDomains` を付けると、http でしか動かない社内サブドメイン（古い管理画面など）が **開けなくなります** 。最初は `max-age=300` 程度の短い値で試し、問題がなければ伸ばします。HSTS は https のレスポンスに付けたものだけが有効です（http のレスポンスの HSTS は無視される）。
 
+（元のページで操作できます → https://memo.taka1156.site/security-headers.html#hsts）
+
 ## X-Content-Type-Options: nosniff
 
 ブラウザには、 `Content-Type` が怪しいときに中身を見て種類を推測する **MIME スニッフィング** という機能があります。これを止めるヘッダーです。
@@ -244,7 +250,7 @@ X-Content-Type-Options: nosniff
 
 攻撃者のページが、あなたのサイトを **透明な iframe** で重ね、ユーザーに見えているボタン（罠）を押させて、実際には下に隠れたあなたのサイトのボタンを押させる攻撃です。
 
-（図: 罠サイト（ユーザーに見えている） / 🎉 おめでとうございます！ / 賞品を受け取る / 透明な iframe（opacity: 0） / 本物の「送金を確定」 / クリックは / いちばん上の / iframe に届く / ログイン中なら / 本当に送金される）
+（図: 罠サイト（ユーザーに見えている） / 🎉 おめでとうございます！ / 賞品を受け取る / 透明な iframe（opacity: 0） / 本物の「送金を確定」 / クリックは / いちばん上の / iframe に届く / ログイン中なら / 本当に送金される → https://memo.taka1156.site/security-headers.html#framing）
 
 見えている罠のボタンと、見えない本物のボタンの位置を合わせておく
 
@@ -345,6 +351,8 @@ Chrome 系は `SameSite` 未指定を `Lax` 扱いにしますが、ブラウザ
 | --- | --- | --- |
 
 簡易チェックです。CSP の中身が実際に安全かは、ページの作りによって変わります。
+
+（元のページで操作できます → https://memo.taka1156.site/security-headers.html#checker）
 
 ## よくある誤解
 

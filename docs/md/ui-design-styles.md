@@ -62,6 +62,8 @@ Button
 
 ※ ダークモードでもサンプルは各スタイル本来の配色で表示しています。
 
+（元のページで操作できます → https://memo.taka1156.site/ui-design-styles.html#samples）
+
 ## スタイル別の特徴と CSS
 
 スキューモ
@@ -85,6 +87,8 @@ M3
 ブルータル
 
 Button
+
+（元のページで操作できます → https://memo.taka1156.site/ui-design-styles.html#details）
 
 ### スキューモフィズム (Skeuomorphism)
 

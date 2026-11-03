@@ -30,9 +30,11 @@
 
 クリーン
 
+（元のページで操作できます → https://memo.taka1156.site/architecture-compare.html#diagrams）
+
 ### レイヤードアーキテクチャ Layered Architecture
 
-（図: プレゼンテーション層 / Controller / View / ビジネス層 / OrderService / データアクセス層 / OrderDao (SQL) / データベース / MySQL）
+（図: プレゼンテーション層 / Controller / View / ビジネス層 / OrderService / データアクセス層 / OrderDao (SQL) / データベース / MySQL → https://memo.taka1156.site/architecture-compare.html#layered）
 
 **依存の向き** 上 → 下（ビジネス層がデータアクセス層を知っている）
 
@@ -44,7 +46,7 @@
 
 ### ヘキサゴナルアーキテクチャ Ports & Adapters
 
-（図: DRIVING / DRIVEN / アプリケーション / ドメイン＋ユースケース / Web API / テスト / MySQL / メール送信 / = ポート（interface） / アダプターはどちら側もポートに依存する）
+（図: DRIVING / DRIVEN / アプリケーション / ドメイン＋ユースケース / Web API / テスト / MySQL / メール送信 / = ポート（interface） / アダプターはどちら側もポートに依存する → https://memo.taka1156.site/architecture-compare.html#hexagonal）
 
 **依存の向き** 外側のアダプター → 内側のポート（左右どちらも内向き）
 
@@ -56,7 +58,7 @@
 
 ### オニオンアーキテクチャ Onion Architecture
 
-（図: ドメイン / モデル / ドメインサービス / アプリケーションサービス / UI ・ インフラ ・ テスト / 依存はすべて中心へ）
+（図: ドメイン / モデル / ドメインサービス / アプリケーションサービス / UI ・ インフラ ・ テスト / 依存はすべて中心へ → https://memo.taka1156.site/architecture-compare.html#onion）
 
 **依存の向き** 外 → 内のみ。リポジトリの interface はドメイン側の層に置く
 
@@ -70,7 +72,7 @@
 
 ### クリーンアーキテクチャ Clean Architecture
 
-（図: Entities / Use Cases / Interface Adapters / Controller / Presenter / Gateway / Frameworks & Drivers / Web / DB / UI / 依存ルール：内側は外側を知らない）
+（図: Entities / Use Cases / Interface Adapters / Controller / Presenter / Gateway / Frameworks & Drivers / Web / DB / UI / 依存ルール：内側は外側を知らない → https://memo.taka1156.site/architecture-compare.html#clean）
 
 **依存の向き** 外 → 内のみ（「依存ルール」と呼ぶ）
 

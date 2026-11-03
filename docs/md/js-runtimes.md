@@ -137,6 +137,8 @@ export default {
 
 Bun と Workers は **Request → Response** という Web 標準の形に揃っている。Hono のようなフレームワークは、この共通の形の上に作られているので、同じコードがどのランタイムでも動く。
 
+（元のページで操作できます → https://memo.taka1156.site/js-runtimes.html#code）
+
 ## 比較表
 
 | 観点 | Node.js | Bun | Workers |
@@ -163,6 +165,8 @@ Bun
 Workers
 
 **基準となる存在** 。npm のエコシステムはすべて Node を前提に作られている。2026年10月に LTS になった 26 では、新しい日時 API の Temporal が標準で有効になった。
+
+（元のページで操作できます → https://memo.taka1156.site/js-runtimes.html#features）
 
 ### イベントループ（簡略版）
 

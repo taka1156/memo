@@ -286,6 +286,8 @@ AI がやること
 
 `tasks.md` ほか → ソースコード・テスト
 
+（元のページで操作できます → https://memo.taka1156.site/spec-kit.html#commands）
+
 ## できあがるファイル
 
 ```

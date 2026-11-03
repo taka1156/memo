@@ -66,6 +66,8 @@ SKILL.md 本文
 
 CLAUDE.md と MCP のツール定義は **毎回** 場所を取る。CLAUDE.md を長くしたり MCP サーバーを入れすぎたりすると、肝心の作業に使える領域が減り、指示も埋もれる。
 
+（元のページで操作できます → https://memo.taka1156.site/agent-instructions.html#context）
+
 ## CLAUDE.md
 
 書くもの
@@ -127,6 +129,8 @@ ln -s AGENTS.md CLAUDE.md
 ```
 
 中身は完全に同じになる。Windows では扱いに注意。
+
+（元のページで操作できます → https://memo.taka1156.site/agent-instructions.html#agents-md）
 
 ### ツールごとの指示ファイル
 

@@ -176,6 +176,8 @@ OK：排他的な variant と合成
 
 同時に成り立たない選択肢は 1 つの union 型にまとめる。中身の差し込みは props より children（合成）のほうが拡張に強い。
 
+（元のページで操作できます → https://memo.taka1156.site/component-design.html#code）
+
 ## 合成で作る（コンパウンドコンポーネント）
 
 1 つの部品に設定用 props を詰め込む代わりに、 **小さな部品を組み合わせて使う** 形。Headless ライブラリの多くがこの形です。

@@ -214,6 +214,8 @@ $ docker build --target dev -t myapp:dev .
 $ docker build -t myapp .
 ```
 
+（元のページで操作できます → https://memo.taka1156.site/docker-files.html#multistage）
+
 ## compose.yaml
 
 compose.yaml
@@ -358,6 +360,8 @@ DB などの相棒コンテナが要らない、単体のアプリ向け。ソ�
 ```
 
 いちばん手軽。開発用に作り込まれた公式の devcontainers イメージ＋ features で足りるならこれ。
+
+（元のページで操作できます → https://memo.taka1156.site/docker-files.html#devcontainer）
 
 ### いつ実行されるか
 

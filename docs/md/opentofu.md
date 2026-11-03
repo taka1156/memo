@@ -22,7 +22,7 @@
 
 青＝自分で書く定義ファイル、緑＝実行時の処理ステップ、紫＝State（実行結果の記録）、黄＝外部との接続。破線は参照・取り込みを表す。
 
-（図: 設定ファイル（*.tf / HCL） / Managed Infrastructure（クラウド上の実体） / Local / CI 環境 / tofu コマンドを実行 / Provider 設定 / 使う API・バージョンの宣言 / Resource / 作りたいインフラの定義 / Variables / 入力値 / Module / Resource のまとめ・再利用 / tofu init / Provider・Module を取得 / tofu plan / 設定と State の差分を計算 / tofu apply / 差分を実行 / State / 現在管理している実体の記録 / Provider Plugin / クラウド API を実際に呼ぶ / Resource A / Resource B / 読み込む / 実行 / module で呼ぶ / var. / 参照される / 読み込み / 差分の比較 / 実行させる / 結果を保存 / API 呼び出し）
+（図: 設定ファイル（*.tf / HCL） / Managed Infrastructure（クラウド上の実体） / Local / CI 環境 / tofu コマンドを実行 / Provider 設定 / 使う API・バージョンの宣言 / Resource / 作りたいインフラの定義 / Variables / 入力値 / Module / Resource のまとめ・再利用 / tofu init / Provider・Module を取得 / tofu plan / 設定と State の差分を計算 / tofu apply / 差分を実行 / State / 現在管理している実体の記録 / Provider Plugin / クラウド API を実際に呼ぶ / Resource A / Resource B / 読み込む / 実行 / module で呼ぶ / var. / 参照される / 読み込み / 差分の比較 / 実行させる / 結果を保存 / API 呼び出し → https://memo.taka1156.site/opentofu.html#overview）
 
 定義ファイル 実行ステップ State（記録） 外部との接続 破線＝参照・取り込み
 
@@ -98,6 +98,8 @@ variable "env" {
 # terraform.tfvars（実際の値）
 env = "staging"
 ```
+
+（元のページで操作できます → https://memo.taka1156.site/opentofu.html）
 
 ## 各要素の考え方
 

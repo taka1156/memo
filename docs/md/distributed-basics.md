@@ -68,6 +68,8 @@ AP を選ぶ
 
 ①〜④を順に押してください。CP / AP を切り替えると、分断中の振る舞いが変わります。
 
+（元のページで操作できます → https://memo.taka1156.site/distributed-basics.html#cap）
+
 ### 分断していない平常時は？ — PACELC
 
 CAP は「分断中」の話だけ。平常時にも **「速さ (Latency) と整合性 (Consistency) のどちらを取るか」** という選択があります。これを足したのが PACELC。
@@ -200,6 +202,8 @@ async function withRetry(fn, max = 5) {
 ```
 
 さらに、失敗が続く相手にはしばらく呼ぶこと自体をやめる **サーキットブレーカー** を組み合わせると、障害の連鎖を止められる。
+
+（元のページで操作できます → https://memo.taka1156.site/distributed-basics.html#backoff）
 
 ## 配送保証：「ちょうど 1 回」は作るもの
 

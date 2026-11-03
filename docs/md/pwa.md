@@ -36,7 +36,7 @@ Service Worker は通信を書き換えられるため、HTTPS でしか動か�
 
 ## 全体の構成図
 
-（図: HTTPS / キャッシュ / Cache Storage / ページ / main.js / Service Worker / sw.js / ネットワーク / サーバー / Manifest / .webmanifest / ホーム画面 / install / fetch / ① 確認 / ② なければ / link で読込）
+（図: HTTPS / キャッシュ / Cache Storage / ページ / main.js / Service Worker / sw.js / ネットワーク / サーバー / Manifest / .webmanifest / ホーム画面 / install / fetch / ① 確認 / ② なければ / link で読込 → https://memo.taka1156.site/pwa.html#overview）
 
 ページの通信はすべて Service Worker を通る。SW はキャッシュにあればそれを返し、なければネットワークに取りに行く（どちらを先にするかは「キャッシュ戦略」で決める）。
 
@@ -89,6 +89,8 @@ Stale-While-Revalidate
 **向いているもの：** アバター画像やニュース一覧など、多少古くてもすぐ表示したいもの。
 
 表示は速く、次回には新しくなる。そのかわり、今回表示する内容は 1 つ前の版になる。
+
+（元のページで操作できます → https://memo.taka1156.site/pwa.html#cache）
 
 ## 最小構成のコード
 
@@ -155,6 +157,8 @@ self.addEventListener('fetch', e => {
 
 手書きが大変なら Workbox、Vite なら `vite-plugin-pwa` 、Next.js なら `@serwist/next` で生成できる。
 
+（元のページで操作できます → https://memo.taka1156.site/pwa.html#code）
+
 ## プラットフォームごとの違い
 
 | 項目 | Chrome / Edge（Android・PC） | iOS / iPadOS Safari |
@@ -179,6 +183,8 @@ self.addEventListener('fetch', e => {
 - 必須 Service Worker を登録している 現在の Chrome のインストール判定には含まれないが、オフライン対応に必要
 - 必須 `sw.js` をサイトのルートに置いている 置いた場所以下しか制御できない（スコープ）。広げるにはサーバーが `Service-Worker-Allowed` ヘッダーを返す必要がある
 
+（元のページで操作できます → https://memo.taka1156.site/pwa.html#checklist）
+
 ### オフラインとキャッシュ
 
 - 推奨 install で主要ファイルを事前キャッシュしている
@@ -186,10 +192,14 @@ self.addEventListener('fetch', e => {
 - 推奨 静的ファイルと API でキャッシュ戦略を分けている
 - 推奨 activate で古いキャッシュを削除している
 
+（元のページで操作できます → https://memo.taka1156.site/pwa.html#checklist）
+
 ### 更新
 
 - 推奨 `sw.js` 自体を HTTP キャッシュさせていない 例: `Cache-Control: no-cache`
 - 推奨 新しい版を検知したら「更新があります」と知らせ、 `skipWaiting()` で切り替えられる
+
+（元のページで操作できます → https://memo.taka1156.site/pwa.html#checklist）
 
 ### 見た目と端末対応
 
@@ -199,11 +209,15 @@ self.addEventListener('fetch', e => {
 - 推奨 `apple-touch-icon` を指定している
 - 推奨 iOS 向けに「ホーム画面に追加」の案内がある
 
+（元のページで操作できます → https://memo.taka1156.site/pwa.html#checklist）
+
 ### 確認
 
 - 推奨 DevTools の Application タブで Manifest・SW・Cache を確認した
 - 推奨 Network タブを Offline にして動作を確認した
 - 推奨 Lighthouse で問題点を確認した
+
+（元のページで操作できます → https://memo.taka1156.site/pwa.html#checklist）
 
 ## よくある誤解
 

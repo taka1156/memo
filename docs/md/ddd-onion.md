@@ -72,6 +72,8 @@ ID で識別され、状態が変わっても同一とみなされるもの。�
 
 複雑な生成手順をまとめる役。小さなうちは `Task.create()` のような静的メソッドで十分。
 
+（元のページで操作できます → https://memo.taka1156.site/ddd-onion.html#ddd）
+
 ### ユビキタス言語 (Ubiquitous Language)
 
 業務の人と開発者が同じ言葉を使い、その言葉をそのままクラス名・メソッド名にする。「タスクを完了する」と話すなら `task.complete()` 。 `updateStatus(2)` のような名前は避ける。
@@ -102,7 +104,7 @@ Hono のプロジェクトでは、コンテキストが増えたら `src/` 直�
 
 Jeffrey Palermo が 2008 年に提唱した層構造。玉ねぎのように同心円で層を重ね、 **依存は外側から内側へだけ** 向かいます。
 
-（図: Domain / Model / Domain Services / Application / Repository IF はここ / Presentation / Hono routes / Infrastructure / D1 / 外部 API / Tests / 依存）
+（図: Domain / Model / Domain Services / Application / Repository IF はここ / Presentation / Hono routes / Infrastructure / D1 / 外部 API / Tests / 依存 → https://memo.taka1156.site/ddd-onion.html#onion）
 
 - Domain Model
   エンティティ・値オブジェクト。 **何にも依存しない** 純粋な TypeScript。
@@ -117,7 +119,7 @@ Jeffrey Palermo が 2008 年に提唱した層構造。玉ねぎのように同�
 
 ユースケースは DB に保存したい。でも Application が Infrastructure を import したら矢印が外向きになってしまう。そこで:
 
-（図: CompleteTaskUseCase / application / «interface» / TaskRepository / domain / D1TaskRepository / infrastructure / 使う（import） / implements / どちらの矢印も内側（domain）を向く → D1 を Postgres やメモリに替えても内側は無傷）
+（図: CompleteTaskUseCase / application / «interface» / TaskRepository / domain / D1TaskRepository / infrastructure / 使う（import） / implements / どちらの矢印も内側（domain）を向く → D1 を Postgres やメモリに替えても内側は無傷 → https://memo.taka1156.site/ddd-onion.html#onion）
 
 ### import してよい方向（Hono プロジェクトでのルール）
 
@@ -147,6 +149,8 @@ Jeffrey Palermo が 2008 年に提唱した層構造。玉ねぎのように同�
 Hono ルーティングを自分で組む
 
 Void VoidZero のフルスタック FW
+
+（元のページで操作できます → https://memo.taka1156.site/ddd-onion.html#code）
 
 ### Hono 版のディレクトリ構成
 
@@ -641,6 +645,8 @@ describe('CompleteTaskUseCase', () => {
 
 HTTP まで含めて確かめたいときは、Hono の `app.request('/tasks', { method: 'POST', ... })` でテストできます。その場合も DI ミドルウェアを差し替えれば D1 なしで動かせます。
 
+（元のページで操作できます → https://memo.taka1156.site/ddd-onion.html#code）
+
 ### Void とは
 
 Void は、Vite・Vitest・Rolldown などを開発する VoidZero（2026 年に Cloudflare に合流）が出している、オープンソースのフルスタックフレームワーク兼デプロイ CLI です。中身のルーティングとミドルウェアは **Hono** で、Cloudflare Workers に向けて動きます。主な特徴は次の 3 つです。
@@ -898,6 +904,8 @@ export default defineConfig({
 tests **Hono 版の `test/complete-task.test.ts` がそのまま動きます。**
 
 テストが触るのは application と InMemory リポジトリだけで、Void も Drizzle も読み込みません。フレームワークを移しても、ユースケースのテストは書き直さずに済みます。
+
+（元のページで操作できます → https://memo.taka1156.site/ddd-onion.html#code）
 
 ### Hono と Void で変わるもの・変わらないもの
 
@@ -1202,6 +1210,8 @@ describe('taskUseCases', () => {
   })
 })
 ```
+
+（元のページで操作できます → https://memo.taka1156.site/ddd-onion.html#lite）
 
 ### 削ったもの・戻す目安
 

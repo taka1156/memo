@@ -26,6 +26,8 @@ count++
 
 count = 0
 
+（元のページで操作できます → https://memo.taka1156.site/reactivity-models.html#same-op）
+
 ### 仮想 DOM
 
 React（メモ化なし）

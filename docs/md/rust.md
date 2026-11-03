@@ -139,7 +139,7 @@ clone
 
 Copy 型
 
-（図: スタック / ヒープ / s1 / 無効（ムーブ済） / s2 / ptr/len/cap / "hello"）
+（図: スタック / ヒープ / s1 / 無効（ムーブ済） / s2 / ptr/len/cap / "hello" → https://memo.taka1156.site/rust.html#ownership）
 
 ```
 let s1 = String::from("hello");
@@ -150,7 +150,7 @@ println!("{s2}");      // ○
 
 ヒープのデータはコピーされず、 **持ち主の名札だけが付け替わる** 。もし s1 も有効なままだと、スコープを抜けたとき同じメモリを 2 回解放してしまう（二重解放）。Rust はそれをコンパイル時に禁止する。
 
-（図: スタック / ヒープ / s1 / 有効 / s2 / "hello" / ↑ 複製）
+（図: スタック / ヒープ / s1 / 有効 / s2 / "hello" / ↑ 複製 → https://memo.taka1156.site/rust.html#ownership）
 
 ```
 let s1 = String::from("hello");
@@ -160,7 +160,7 @@ println!("{s1} {s2}"); // ○ 両方使える
 
 持ち主が 2 人になる代わりに、 **データも 2 つ** になる。コストがあるので明示的に `.clone()` と書かせる設計。
 
-（図: スタック / ヒープ / s1 / 所有者 / &s1 / 借用（参照） / "hello"）
+（図: スタック / ヒープ / s1 / 所有者 / &s1 / 借用（参照） / "hello" → https://memo.taka1156.site/rust.html#ownership）
 
 ```
 fn len(s: &String) -> usize { s.len() }
@@ -244,6 +244,8 @@ match read_config() {
 ```
 
 例外 (exception) はない。失敗の可能性は **戻り値の型に現れる** ので、呼び出し側は無視できない（match しないと値を取り出せない）。
+
+（元のページで操作できます → https://memo.taka1156.site/rust.html#lifetime-error）
 
 ## メモリ管理の比較
 

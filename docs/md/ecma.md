@@ -32,6 +32,8 @@ JavaScript関連(活動中) その他の活動中TC プログラミング言語�
 
 出典: [Ecma International Technical Committees](https://ecma-international.org/technical-committees/) 、 [TCs which have accomplished their tasks](https://ecma-international.org/technical-committees/tcs-which-have-accomplished-their-tasks/) (2026年10月31日時点)。日本語名は要約です。
 
+（元のページで操作できます → https://memo.taka1156.site/ecma.html）
+
 ## ページ内のデータ（JavaScript で描画される部分）
 
 ```js

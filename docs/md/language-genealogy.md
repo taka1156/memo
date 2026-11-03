@@ -27,6 +27,8 @@ OCaml → Rust のような「親子・孫」関係を、クリックでたど�
 
 ← 図は横にスクロールできます →
 
+（元のページで操作できます → https://memo.taka1156.site/language-genealogy.html#genealogy）
+
 ## 関係の 3 種類
 
 ### 派生（直系）

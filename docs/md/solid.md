@@ -155,19 +155,21 @@ D **依存性逆転の原則** Dependency Inversion Principle
 
 詳しくは次のセクションで図にしています → 依存性逆転を図で見る
 
+（元のページで操作できます → https://memo.taka1156.site/solid.html#principles）
+
 ## 依存性逆転を図で見る
 
 矢印は「知っている（import している）」方向。 **処理が流れる向き** と **依存の向き** を分けて考えるのがポイントです。
 
 ### 逆転前 ：上が下を直接知っている
 
-（図: OrderService / ビジネスルール（上位） / import / MySqlOrderRepo / DB の詳細（下位））
+（図: OrderService / ビジネスルール（上位） / import / MySqlOrderRepo / DB の詳細（下位） → https://memo.taka1156.site/solid.html#dip）
 
 処理の流れも依存も上→下で同じ向き。DB を変えると上位まで修正が波及する。
 
 ### 逆転後 ：下が上の約束に合わせる
 
-（図: ドメイン側が所有 / OrderService / ビジネスルール / «interface» / OrderRepository / implements / MySqlOrderRepo / インフラ層）
+（図: ドメイン側が所有 / OrderService / ビジネスルール / «interface» / OrderRepository / implements / MySqlOrderRepo / インフラ層 → https://memo.taka1156.site/solid.html#dip）
 
 処理は上→下に流れるが、依存の矢印は下→上に **逆転** 。DB を変えても枠の中は無傷。
 

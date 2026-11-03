@@ -107,6 +107,8 @@ glibc 必須（workerd・Prisma・ネイティブ拡張）
 
 D
 
+（元のページで操作できます → https://memo.taka1156.site/docker-images.html#images）
+
 ### bookworm / trixie
 
 Debian フル版（buildpack-deps ベース）
@@ -291,7 +293,7 @@ workerd ✕ 静的バイナリ ◎
 
 ### マルチステージで「太く作って、細く出す」
 
-（図: ビルドステージ / node:24-trixie / golang / *-dev / gcc・make・npm・git・シェル / devDependencies・キャッシュ / 成果物 / COPY --from=build / それ以外は捨てる / ランタイムステージ / distroless / chainguard / ＋ libc・証明書だけ）
+（図: ビルドステージ / node:24-trixie / golang / *-dev / gcc・make・npm・git・シェル / devDependencies・キャッシュ / 成果物 / COPY --from=build / それ以外は捨てる / ランタイムステージ / distroless / chainguard / ＋ libc・証明書だけ → https://memo.taka1156.site/docker-images.html#minimal）
 
 ### シェルが無いのにどうデバッグする？
 
@@ -312,7 +314,7 @@ glibc vs musl
 
 **API** は「ソースコードで呼べる関数の約束」、 **ABI (Application Binary Interface)** は「 **コンパイル済みバイナリ同士** の約束」。関数のシンボル名、引数の渡し方、構造体のレイアウト、どのローダーで起動するか、まで含む。
 
-（図: あなたのアプリ（コンパイル済みバイナリ） / printf() や getaddrinfo() を呼ぶ / ↕ libc の ABI ← ここが glibc と musl で違う / glibc / ld-linux-x86-64.so.2 / memcpy@GLIBC_2.14 / musl / ld-musl-x86_64.so.1 / シンボルのバージョン管理なし / ↕ カーネルの ABI（システムコール）← 全イメージ共通・極めて安定 / Linux カーネル（ホスト） / read / write / clone / mmap …）
+（図: あなたのアプリ（コンパイル済みバイナリ） / printf() や getaddrinfo() を呼ぶ / ↕ libc の ABI ← ここが glibc と musl で違う / glibc / ld-linux-x86-64.so.2 / memcpy@GLIBC_2.14 / musl / ld-musl-x86_64.so.1 / シンボルのバージョン管理なし / ↕ カーネルの ABI（システムコール）← 全イメージ共通・極めて安定 / Linux カーネル（ホスト） / read / write / clone / mmap … → https://memo.taka1156.site/docker-images.html#libc）
 
 ソース（API）レベルでは glibc も musl もほぼ同じ C 標準関数を提供するので、 **ソースから再ビルドすれば** どちらでも動くことが多い。困るのは「glibc 向けにビルド済みのバイナリ」を musl 環境に持ち込むとき。
 
@@ -409,6 +411,8 @@ COPY . .
 CMD ["node", "server.js"]
 # ネイティブ依存を足すときは linux-x64-musl 版があるか先に確認
 ```
+
+（元のページで操作できます → https://memo.taka1156.site/docker-images.html#patterns）
 
 ## よくある誤解
 

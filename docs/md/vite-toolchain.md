@@ -46,7 +46,7 @@ Parser Resolver Transformer（TS/JSX 除去・構文変換） Minifier Oxlint Ox
 
 ## ビルドの流れ（ `vite build` ）
 
-（図: .ts .tsx / .js .vue … / .css / import された CSS / Rolldown / 解析・解決 / Oxc parser / + resolver / 変換 / Oxc / transformer / 結合・分割 / tree shaking / chunking / 圧縮 / minifier / 前処理（任意） / PostCSS / Sass / 変換・圧縮 / Lightning CSS / dist/ / .js .css / 緑枠 = Oxc の部品 ／ 橙枠 = Rolldown 本体 ／ 桃枠 = Lightning CSS）
+（図: .ts .tsx / .js .vue … / .css / import された CSS / Rolldown / 解析・解決 / Oxc parser / + resolver / 変換 / Oxc / transformer / 結合・分割 / tree shaking / chunking / 圧縮 / minifier / 前処理（任意） / PostCSS / Sass / 変換・圧縮 / Lightning CSS / dist/ / .js .css / 緑枠 = Oxc の部品 ／ 橙枠 = Rolldown 本体 ／ 桃枠 = Lightning CSS → https://memo.taka1156.site/vite-toolchain.html#build-flow）
 
 dev サーバーでも同じ部品が使われる（ファイルを個別に変換して配信）。将来の「Full Bundle Mode」では dev でも Rolldown でバンドルする方向で、Vite 8 時点では実験的機能。
 
@@ -92,7 +92,7 @@ Lightning CSS
 
 同じ土台（Vite のパイプライン、Rolldown、Oxc）の上に **Vitest** ・ **Oxlint** ・ **Oxfmt** が載っている。これを 1 つの CLI `vp` と 1 つの設定ファイルにまとめたのが **Vite+** （MIT、2026-09 時点で 1.0）。
 
-（図: Vite+ （vp） / vp check = lint + fmt + 型チェック / vp dev/build / vp test / vp pack / vp lint / vp fmt / Vite / dev サーバー / 本番ビルド / Vitest / テスト / Jest 互換 API / tsdown / ライブラリ用 / ビルド / Oxlint / リンター / 型: tsgolint / Oxfmt / フォーマッター / Prettier 互換 / Vite のプラグイン・変換処理 / Rolldown / Oxc / parser · transformer · minifier · resolver（全員の共通部品） / vite.config.ts 1 枚に設定を集約 / server · build · test · pack · lint · fmt · run · staged / Oxc の / パーサーを / 直接使う）
+（図: Vite+ （vp） / vp check = lint + fmt + 型チェック / vp dev/build / vp test / vp pack / vp lint / vp fmt / Vite / dev サーバー / 本番ビルド / Vitest / テスト / Jest 互換 API / tsdown / ライブラリ用 / ビルド / Oxlint / リンター / 型: tsgolint / Oxfmt / フォーマッター / Prettier 互換 / Vite のプラグイン・変換処理 / Rolldown / Oxc / parser · transformer · minifier · resolver（全員の共通部品） / vite.config.ts 1 枚に設定を集約 / server · build · test · pack · lint · fmt · run · staged / Oxc の / パーサーを / 直接使う → https://memo.taka1156.site/vite-toolchain.html#vite-plus）
 
 ほかに `vp create` （雛形作成）、 `vp run` （モノレポのタスク実行＋キャッシュ）、Node.js とパッケージマネージャーの管理も担う。
 
@@ -136,6 +136,8 @@ vp dev      vp build     vp test
 vp check    # Oxfmt → Oxlint → 型チェック をまとめて実行
 ```
 
+（元のページで操作できます → https://memo.taka1156.site/vite-toolchain.html#vite-plus）
+
 ## ツール比較
 
 一覧表
@@ -178,6 +180,8 @@ export default defineConfig({
 ```
 
 Oxc は Vite／Rolldown の内部部品として動くので、普段は直接設定しない。リンターとして使うなら `npx oxlint` で単体実行できる。
+
+（元のページで操作できます → https://memo.taka1156.site/vite-toolchain.html#tools）
 
 ## よくある誤解
 

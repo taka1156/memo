@@ -22,7 +22,7 @@
 
 S3 はファイルシステムではなく **巨大なキーバリューストア** です。値（オブジェクト）は丸ごと置き換えるもので、途中だけ書き換えたり追記したりはできません（一部の特殊なストレージクラスを除く）。
 
-（図: バケット photos-prod / 名前空間・権限・設定の単位 / キー（文字列） / 2026/11/cat.jpg / 値（バイト列 ＋ メタデータ） / JPEG 本体 / Content-Type, ETag, x-amz-meta-* / キー / 2026/11/dog.jpg / 値 / index.json / JSON）
+（図: バケット photos-prod / 名前空間・権限・設定の単位 / キー（文字列） / 2026/11/cat.jpg / 値（バイト列 ＋ メタデータ） / JPEG 本体 / Content-Type, ETag, x-amz-meta-* / キー / 2026/11/dog.jpg / 値 / index.json / JSON → https://memo.taka1156.site/s3-compatible.html#model）
 
 ### フォルダは無い ─ プレフィックスと区切り文字
 
@@ -40,6 +40,8 @@ ListObjectsV2 の結果
 
 「フォルダの名前変更」は全キーのコピー＋削除になります。1 回の List で返るのは最大 1000 件で、続きは `ContinuationToken` で取ります。
 
+（元のページで操作できます → https://memo.taka1156.site/s3-compatible.html#folders）
+
 ## リクエストの中身 ─ エンドポイントと SigV4 署名
 
 S3 API の呼び出しは、ただの HTTPS リクエストです。 **どこに送るか** （エンドポイントとアドレス形式）と、 **誰が送ったか** （署名）さえ合っていれば、相手が AWS でなくても通じます。
@@ -54,15 +56,17 @@ path-style
 
 AWS は **virtual-hosted 形式** （バケット名がホスト名に入る）を標準にしています。セルフホストでは DNS やワイルドカード証明書を用意しにくいので **path-style** を使うことが多く、SDK に `forcePathStyle: true` （boto3 なら `addressing_style: path` ）を指定します。
 
+（元のページで操作できます → https://memo.taka1156.site/s3-compatible.html#addressing）
+
 ### SigV4 署名：秘密鍵そのものは送らない
 
-（図: ① 正規化リクエスト / メソッド / パス / クエリ / 署名するヘッダー / 本文の SHA-256 / SHA256 / ② 署名対象文字列 / AWS4-HMAC-SHA256 / 日時 / スコープ / ①のハッシュ / 秘密鍵 / 手元から出ない / 日付 / リージョン / s3 / aws4_request / HMAC を 4 回重ねて「その日・そのリージョン・S3 専用」の署名鍵を作る / ③ 署名 / HMAC(鍵, ②) / → Authorization ヘッダー / （またはクエリ文字列）に入れて送る）
+（図: ① 正規化リクエスト / メソッド / パス / クエリ / 署名するヘッダー / 本文の SHA-256 / SHA256 / ② 署名対象文字列 / AWS4-HMAC-SHA256 / 日時 / スコープ / ①のハッシュ / 秘密鍵 / 手元から出ない / 日付 / リージョン / s3 / aws4_request / HMAC を 4 回重ねて「その日・そのリージョン・S3 専用」の署名鍵を作る / ③ 署名 / HMAC(鍵, ②) / → Authorization ヘッダー / （またはクエリ文字列）に入れて送る → https://memo.taka1156.site/s3-compatible.html#sigv4）
 
 サーバー側も同じ秘密鍵で同じ計算をし、署名が一致するかを見ます。 **リージョン名が署名に入る** ので、相手が期待するリージョン（R2 なら `auto` 、セルフホストなら設定した値。多くは `us-east-1` ）とずれると `SignatureDoesNotMatch` になります。
 
 ### 署名付き URL：ブラウザから直接アップロード
 
-（図: ブラウザ / 鍵を持たない / アプリサーバー / 鍵を持つ・署名だけする / ストレージ / 署名を検証 / ① アップロードしたい / ② 期限付き URL を返す / ③ その URL に直接 PUT（ファイル本体はアプリを通らない））
+（図: ブラウザ / 鍵を持たない / アプリサーバー / 鍵を持つ・署名だけする / ストレージ / 署名を検証 / ① アップロードしたい / ② 期限付き URL を返す / ③ その URL に直接 PUT（ファイル本体はアプリを通らない） → https://memo.taka1156.site/s3-compatible.html#presign）
 
 署名・期限・対象キー・メソッドが URL のクエリに入っていて、ストレージ側がそれを検証します。期限は最長 7 日（一時的な認証情報で署名した場合は、その認証情報が切れた時点で無効）。純粋に計算だけで作れるので、ほとんどの互換ストレージで使えます。
 
@@ -70,7 +74,7 @@ AWS は **virtual-hosted 形式** （バケット名がホスト名に入る）�
 
 1 回の PUT で送れるのは AWS S3 で 5 GB まで。それより大きいもの、または途中で切れても再送を小さくしたいものは、パートに分けて並列に送ります。
 
-（図: CreateMultipartUpload / UploadId をもらう / UploadPart #1 → ETag / UploadPart #2 → ETag / UploadPart #N → ETag / 並列可 / CompleteMultipartUpload / 番号と ETag の一覧で結合）
+（図: CreateMultipartUpload / UploadId をもらう / UploadPart #1 → ETag / UploadPart #2 → ETag / UploadPart #N → ETag / 並列可 / CompleteMultipartUpload / 番号と ETag の一覧で結合 → https://memo.taka1156.site/s3-compatible.html#multipart）
 
 パート数を計算（AWS S3 の制限で判定）
 
@@ -98,6 +102,8 @@ S3 にはロックがありません。2 つのプロセスが同じキーに同
 | `If-Match: "<ETag>"` | 今の ETag が読んだときと同じなら書く | 読み→変更→書き戻しの楽観ロック（マニフェスト・インデックスの更新） |
 
 条件を満たさないと `412 Precondition Failed` が返ります。AWS S3 では 2024 年に対応しました（8 月に `If-None-Match` 、11 月に `If-Match` ）。 **互換ストレージでは未対応・部分対応のこともあり、無視されると競合を検出できないまま上書きされる** ので、使う前に必ず動作を確かめます。
+
+（元のページで操作できます → https://memo.taka1156.site/s3-compatible.html#consistency）
 
 ## 「互換」の範囲 ─ どこまで同じか
 

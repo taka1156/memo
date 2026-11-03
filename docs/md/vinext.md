@@ -174,6 +174,8 @@ SSG
 
 ※ SSG で追加プラグイン不要という点は、README の記述からの推論（静的書き出しのみでの動作は未検証）。
 
+（元のページで操作できます → https://memo.taka1156.site/vinext.html#deploy）
+
 ## よくある誤解
 
 vinext は Next.js のフォーク

@@ -22,7 +22,7 @@ Control Node から Managed Nodes までの流れと、役割ごとのファイ�
 
 青＝自分で書く定義ファイル、緑＝実行時に組み立てられる処理、黄＝接続方式。破線は参照・取り込みを表す。
 
-（図: 設定・定義ファイル（YAML / INI） / Managed Nodes（管理対象） / Control Node / ansible / ansible-playbook を実行 / Inventory / 管理対象ホストの定義 / Playbook / 実行手順の定義 / Variables / 設定値 / Roles / 処理の再利用・分割 / Play / 対象ホスト × 実行内容 / Tasks / 1 つ 1 つの操作 / Modules / apt / copy / service など / Connection Plugin / SSH（Linux）/ WinRM（Windows） / Server A / Server B / 読み込む / 実行 / roles: で呼ぶ / vars: / ホストに紐付く / 分解 / Role の tasks / モジュールを転送）
+（図: 設定・定義ファイル（YAML / INI） / Managed Nodes（管理対象） / Control Node / ansible / ansible-playbook を実行 / Inventory / 管理対象ホストの定義 / Playbook / 実行手順の定義 / Variables / 設定値 / Roles / 処理の再利用・分割 / Play / 対象ホスト × 実行内容 / Tasks / 1 つ 1 つの操作 / Modules / apt / copy / service など / Connection Plugin / SSH（Linux）/ WinRM（Windows） / Server A / Server B / 読み込む / 実行 / roles: で呼ぶ / vars: / ホストに紐付く / 分解 / Role の tasks / モジュールを転送 → https://memo.taka1156.site/ansible.html#overview）
 
 定義ファイル 実行時の処理単位 接続方式 破線＝参照・取り込み
 
@@ -99,6 +99,8 @@ all:
       ansible.builtin.apt:  # Module
         update_cache: true
 ```
+
+（元のページで操作できます → https://memo.taka1156.site/ansible.html）
 
 ## 各要素の考え方
 

@@ -28,6 +28,8 @@ https スキーム :// app.example.com ホスト : 443 ポート /users?id=1 関
 
 自分で URL を入力して試す：
 
+（元のページで操作できます → https://memo.taka1156.site/cors-sop.html#origin）
+
 ## SOP が止めるもの・止めないもの
 
 ### 止める：読み取り
@@ -46,7 +48,7 @@ Web は昔から「他サイトの画像を貼る」「他サイトにフォー�
 
 ## どこで止まっているのか
 
-（図: ページの JS / app.example.com / ブラウザ / CORS をチェック / API サーバー / api.other.com / ① fetch() → リクエストは届く / ② 処理して 200 を返す / 許可ヘッダーなし / ③ JS には渡さない）
+（図: ページの JS / app.example.com / ブラウザ / CORS をチェック / API サーバー / api.other.com / ① fetch() → リクエストは届く / ② 処理して 200 を返す / 許可ヘッダーなし / ③ JS には渡さない → https://memo.taka1156.site/cors-sop.html#where）
 
 このため、単純リクエストの POST などは **サーバー側で処理が完了している** こともある。「CORS で失敗したから何も起きていない」とは限らない。プリフライトが必要なリクエストだけは、許可が出るまで本番のリクエスト自体が送られない。
 
@@ -59,6 +61,8 @@ Web は昔から「他サイトの画像を貼る」「他サイトにフォー�
 Content-Type （なし） application/x-www-form-urlencoded multipart/form-data text/plain application/json
 
 追加ヘッダー （なし） Accept-Language Authorization X-Requested-With
+
+（元のページで操作できます → https://memo.taka1156.site/cors-sop.html#preflight）
 
 ### プリフライトのやり取り
 
@@ -153,6 +157,8 @@ export default {
 ```
 
 本番でも、フロントと API を同じドメインの配下に置く（リバースプロキシ）と CORS 設定が不要になる。 [Vite ツールチェーン](https://memo.taka1156.site/md/vite-toolchain.md) も参照。
+
+（元のページで操作できます → https://memo.taka1156.site/cors-sop.html#debug）
 
 ## よくある誤解
 

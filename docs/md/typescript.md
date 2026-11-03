@@ -22,7 +22,7 @@
 
 TypeScript のコンパイラ（ `tsc` ）の中では、ソースコードが次の順に処理されます。 紫の点線 は「型の情報」の流れで、 **出力される JS には届きません** 。
 
-（図: app.ts / ソースコード / ① Scanner / 文字 → トークン / ② Parser / トークン → 構文木 / AST / 抽象構文木 / 型の世界（実行時には存在しない） / ③ Binder / 名前とスコープを結びつけ / ④ Checker / 型を推論・照合しエラー検出 / エラー表示 / エディタの赤波線 / tsc の出力 / app.d.ts / 型だけを書き出した宣言 / ⑤ Emitter / 型注釈を削って出力 / app.js / 型エラーがあっても JS は出る / （noEmitOnError で止められる））
+（図: app.ts / ソースコード / ① Scanner / 文字 → トークン / ② Parser / トークン → 構文木 / AST / 抽象構文木 / 型の世界（実行時には存在しない） / ③ Binder / 名前とスコープを結びつけ / ④ Checker / 型を推論・照合しエラー検出 / エラー表示 / エディタの赤波線 / tsc の出力 / app.d.ts / 型だけを書き出した宣言 / ⑤ Emitter / 型注釈を削って出力 / app.js / 型エラーがあっても JS は出る / （noEmitOnError で止められる） → https://memo.taka1156.site/typescript.html#pipeline）
 
 型の情報（JS に残らない） 実行される JS 開発者へのフィードバック
 
@@ -67,6 +67,8 @@ tsc 単体
 
 ランタイム直実行
 
+（元のページで操作できます → https://memo.taka1156.site/typescript.html#tools）
+
 ### tsc が両方やる（基本形）
 
 `tsc` が型チェックしてから JS を出力。ライブラリの公開（ `.d.ts` も必要）や学習の最初はこれ。
@@ -103,7 +105,7 @@ Node の型除去は「消すだけ」なので、 `enum` など JS コードを
 
 TypeScript は「名前」ではなく「 **形（持っているプロパティ）** 」で型の互換性を判断する（構造的型付け / structural typing）。
 
-（図: type Point / x: number / y: number / { x, y, z } / x, y を持つ / ＋ 余分な z / ◯ Point として渡せる / { x } / y が足りない / ✕ 型エラー）
+（図: type Point / x: number / y: number / { x, y, z } / x, y を持つ / ＋ 余分な z / ◯ Point として渡せる / { x } / y が足りない / ✕ 型エラー → https://memo.taka1156.site/typescript.html#structural）
 
 ※ オブジェクトリテラルを直接書いた場合だけは、余分なプロパティもエラーになる（excess property check）。
 

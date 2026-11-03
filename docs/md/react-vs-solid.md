@@ -78,6 +78,8 @@ Counter の実行回数： **1**
 
 React ではクリックのたびに「Counter 実行」が出る。Solid では最初の1回きりで、以後はテキストノードを書き換える処理だけが動く。Solid のコンポーネントは **「DOM を組み立てて、更新の配線をするセットアップ関数」** であって、描画関数ではない。
 
+（元のページで操作できます → https://memo.taka1156.site/react-vs-solid.html#click）
+
 ## React の内部
 
 ### 更新の3段階
@@ -105,6 +107,8 @@ React はコンポーネントの木を **Fiber** というノードの連結リ
 再実行モデルの弱点は「変化と関係ない子コンポーネントや計算まで毎回やり直す」こと。これまでは `memo` ・ `useMemo` ・ `useCallback` を手で書いて防いでいた。
 
 **React Compiler** （1.0 で安定版）はビルド時にコードを解析し、これらのメモ化を自動で挿入する。手書きのメモ化はほぼ不要になる。ただし「状態が変わったらコンポーネントを再実行する」というモデル自体は変わらない。
+
+（元のページで操作できます → https://memo.taka1156.site/react-vs-solid.html#react-internals）
 
 ## Solid の内部
 
@@ -186,6 +190,8 @@ Solid
 - **props の分割代入** ： `function Row({ item })` と書くと、その瞬間の値を取り出して追跡が切れる。 `props.item` のまま使うか `splitProps` （2.0 では `omit` に改名）を使う。2.0 では開発時に警告が出る
 - **コンポーネント内での早期 return** ： `if (!user()) return <Login />` は一度しか評価されないので、後から user が変わっても切り替わらない。 `<Show>` を使う
 - **追跡の外で読む** ：イベントハンドラや `setTimeout` の中で読んだシグナルは依存にならない（意図通りのことも多い）
+
+（元のページで操作できます → https://memo.taka1156.site/react-vs-solid.html#pitfalls）
 
 ## よくある誤解
 

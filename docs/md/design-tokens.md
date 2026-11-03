@@ -76,6 +76,8 @@ TIER 3
 
 NEW
 
+（元のページで操作できます → https://memo.taka1156.site/design-tokens.html#demo）
+
 #### プランをアップグレード
 
 部品は --button-bg や --card-bg しか知らない。色コードはどこにも書いていない。
@@ -83,6 +85,8 @@ NEW
 申し込む
 
 詳細
+
+（元のページで操作できます → https://memo.taka1156.site/design-tokens.html#demo）
 
 ## CSS 変数での書き方
 

@@ -80,7 +80,7 @@ OIDC の文脈では、認可サーバーを **OP** （OpenID Provider）、ク�
 
 フロントチャネル（ブラウザのリダイレクト経由。URL に乗るので見られうる） バックチャネル（サーバー同士の直接通信）
 
-（図: ユーザー / クライアント / 認可サーバー / API / 1 / ログイン / verifier を生成 / 2 / /authorize / 3 / ログイン ＋ 同意 / 4 / code ＋ state / 5 / /token ＋ verifier / 6 / トークン / 7 / Bearer アクセストークン / 8 / データ）
+（図: ユーザー / クライアント / 認可サーバー / API / 1 / ログイン / verifier を生成 / 2 / /authorize / 3 / ログイン ＋ 同意 / 4 / code ＋ state / 5 / /token ＋ verifier / 6 / トークン / 7 / Bearer アクセストークン / 8 / データ → https://memo.taka1156.site/oauth-oidc.html#flow）
 
 ← 前へ
 
@@ -218,6 +218,8 @@ grant_type=client_credentials
 **リソースオーナーパスワード (ROPC)** ：アプリがユーザーのパスワードを直接受け取る方式。OAuth の目的（パスワードを渡さない）に反するので使わない。
 
 どちらも RFC 9700 で非推奨とされ、OAuth 2.1 のドラフトでは削除されている。
+
+（元のページで操作できます → https://memo.taka1156.site/oauth-oidc.html#grants）
 
 ## よくある誤解
 

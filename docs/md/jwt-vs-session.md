@@ -62,6 +62,8 @@ payload を改ざんしてみる（role を admin に）
 
 ヘッダーとペイロードは **Base64URL でエンコードしただけ** で、暗号化はされていない。誰でもデコードして読める。守られているのは「改ざんされていないこと」だけ。
 
+（元のページで操作できます → https://memo.taka1156.site/jwt-vs-session.html#contents）
+
 ### 署名の2つの方式
 
 HS256（共通鍵）
@@ -168,6 +170,8 @@ SPA
 同じドメインに API があるなら、 **セッション Cookie** でよい。外部 IdP の OAuth/OIDC を使うなら **BFF** に寄せる。JWT を localStorage に置くのは、XSS 対策に自信がある場合に限る。
 
 **JWT が本領を発揮する場面** 。マイクロサービス間で「誰の何のリクエストか」を伝える、別組織の API に渡す、ID トークンでログイン結果を伝える、など。寿命は短くする。
+
+（元のページで操作できます → https://memo.taka1156.site/jwt-vs-session.html#usage）
 
 ## JWT を検証するときのチェックリスト
 

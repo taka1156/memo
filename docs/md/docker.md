@@ -44,6 +44,8 @@
 
 **層を選んでください** どの層が何を持っているかを表示します。
 
+（元のページで操作できます → https://memo.taka1156.site/docker.html#layers）
+
 ## OverlayFS と Copy-on-Write
 
 **upperdir** 読み書きできる層（コンテナ専用） `…/overlay2/<id>/diff`

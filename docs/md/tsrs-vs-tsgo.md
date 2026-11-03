@@ -90,6 +90,8 @@ tsrs の内部
 
 メモリと Wasm
 
+（元のページで操作できます → https://memo.taka1156.site/tsrs-vs-tsgo.html#internals）
+
 ### checker プール（既定 4 個）
 
 import 関係をグラフとみなし、 **関係の深いファイルを同じ checker に寄せつつ負荷を均す** ように分割（FENNEL 系のグラフ分割を重み付きで応用）。ファイルの重さは構文ノード数・文字数・import 数から見積もる。

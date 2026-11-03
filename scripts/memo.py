@@ -708,8 +708,12 @@ _MD_SCRIPT_RE = re.compile(
 class _ToMarkdown(HTMLParser):
     """HTML の本文を Markdown に近いテキストにする（見た目の再現ではなく、読むための抽出）。"""
 
-    def __init__(self) -> None:
+    def __init__(self, page_url: str = "") -> None:
         super().__init__(convert_charrefs=True)
+        self.page_url = page_url  # 図へのリンクに使う元ページの URL（空ならリンクを付けない）
+        self.anchor = ""  # いま読んでいる節の見出しの id
+        self.interactive = False  # この節に操作できるパーツ（ボタンなど）があったか
+        self.linked = False  # この節で図へのリンクをもう出したか
         self.blocks: list[str] = []
         self.line: list[str] = []
         self.prefix = ""
@@ -747,6 +751,16 @@ class _ToMarkdown(HTMLParser):
         if self.line and not self.line[-1].endswith((" ", "\n")):
             self.line.append(" ")
 
+    def here(self) -> str:
+        """いまの節を元ページで開く URL。"""
+        return self.page_url + (f"#{self.anchor}" if self.anchor else "")
+
+    def close_section(self) -> None:
+        """節の終わり。操作できる図解があったのに図のリンクを出していなければ案内を出す。"""
+        if self.page_url and self.interactive and not self.linked:
+            self.emit(f"（元のページで操作できます → {self.here()}）")
+        self.interactive = self.linked = False
+
     # -- タグ
     def handle_starttag(self, tag, attrs):
         a = {k: (v or "") for k, v in attrs}
@@ -764,6 +778,9 @@ class _ToMarkdown(HTMLParser):
             elif tag in ("text", "title") and self.svg_cur is None:
                 self.svg_cur = []
             return
+        if tag in ("button", "select", "textarea") or "onclick" in a or (
+                tag == "input" and a.get("type") != "hidden"):
+            self.interactive = True
         if tag == "svg":
             self.flush()
             self.svg, self.svg_texts = 1, []
@@ -774,7 +791,11 @@ class _ToMarkdown(HTMLParser):
             self.flush()
             self.pre, self.pre_buf = 1, []
         elif re.fullmatch(r"h[1-6]", tag):
-            self.flush()
+            self.close_section()
+            if a.get("id"):
+                self.anchor = a["id"]
+            elif int(tag[1]) <= 2:  # id のない大見出しはページ先頭へのリンクにする
+                self.anchor = ""
             self.prefix, self.cont = "#" * int(tag[1]) + " ", ""
         elif tag == "table":
             self.flush()
@@ -832,7 +853,9 @@ class _ToMarkdown(HTMLParser):
             elif tag == "svg":
                 self.svg -= 1
                 if not self.svg and self.svg_texts:
-                    self.emit("（図: " + " / ".join(self.svg_texts) + "）")
+                    link = f" → {self.here()}" if self.page_url else ""
+                    self.emit("（図: " + " / ".join(self.svg_texts) + link + "）")
+                    self.linked = bool(link)
             return
         if self.pre:
             if tag == "pre":
@@ -901,6 +924,7 @@ class _ToMarkdown(HTMLParser):
 
     def result(self) -> str:
         self.close()
+        self.close_section()
         self.flush()
         out = ""
         for i, b in enumerate(self.blocks):  # リストの項目どうしは空行を挟まずにつなぐ
@@ -921,14 +945,15 @@ def _md_link(href: str) -> str:
     return ""
 
 
-def html_to_markdown(text: str) -> str:
+def html_to_markdown(text: str, page_url: str = "") -> str:
     """メモの HTML から本文を Markdown として取り出す（<head>・CSS・JS・クイズ UI は除く）。
 
     本文の大半を JavaScript のデータから描画するページは、HTML だけでは中身が取れない。
+    page_url を渡すと、図や操作できるパーツのある節に、元ページのその節へのリンクを付ける。
     取れた本文がごく短く、ページ内に大きなスクリプトがあるときは、そのスクリプトを
     （データ配列ごと）コードブロックとして末尾に付ける。"""
     text = QUIZ_RE.sub("", HEAD_RE.sub("", text))
-    p = _ToMarkdown()
+    p = _ToMarkdown(page_url)
     p.feed(text)
     body = p.result()
     scripts = [s.strip() for s in _MD_SCRIPT_RE.findall(text) if s.strip()]
@@ -940,7 +965,7 @@ def html_to_markdown(text: str) -> str:
 
 def memo_markdown(text: str, meta: dict) -> str:
     """1 本のメモの Markdown 版（メタ情報＋本文）。"""
-    body = html_to_markdown(text)
+    body = html_to_markdown(text, SITE_URL + meta["file"])
     title = meta["title"]
     # 本文の先頭がページタイトルの h1 なら重複するので落とす
     body = re.sub(rf"\A#\s+{re.escape(title)}\s*(\n+|\Z)", "", body)

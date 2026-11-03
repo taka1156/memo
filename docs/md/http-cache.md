@@ -68,6 +68,8 @@ stale
 
 0s 60s 180s 300s
 
+（元のページで操作できます → https://memo.taka1156.site/http-cache.html#sim）
+
 ## Cache-Control の主な指定
 
 | 指定 | 意味 |
@@ -112,6 +114,8 @@ Cache-Control: private, no-cache
 Cache-Control: public, max-age=0, s-maxage=60, stale-while-revalidate=300
 
 ブラウザは max-age=0 なのですぐ古くなり、CDN は 60 秒間オリジンに聞かない。 `stale-while-revalidate` はブラウザと CDN の両方に効くので、期限切れ後も5分間はどちらも古い値を即返しつつ裏で取り直す。 **オリジンの負荷と応答の速さを両立** できる（ブラウザには毎回確認を待たせたいなら、SWR を `CDN-Cache-Control` など CDN 専用のヘッダーに分ける）。
+
+（元のページで操作できます → https://memo.taka1156.site/http-cache.html#recipes）
 
 ## Vary：同じ URL でも中身が変わるとき
 

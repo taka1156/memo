@@ -22,19 +22,19 @@ Model Context Protocol — AI アプリと外部ツールをつなぐ共通の�
 
 MCP 以前：N × M
 
-（図: アプリA / アプリB / アプリC / GitHub / Slack / DB / Drive）
+（図: アプリA / アプリB / アプリC / GitHub / Slack / DB / Drive → https://memo.taka1156.site/mcp.html#why）
 
 3 × 4 = 12 通りの専用連携を、各社がばらばらに作る。
 
 MCP 以後：N ＋ M
 
-（図: アプリA / アプリB / アプリC / MCP / GitHub / Slack / DB / Drive）
+（図: アプリA / アプリB / アプリC / MCP / GitHub / Slack / DB / Drive → https://memo.taka1156.site/mcp.html#why）
 
 3 ＋ 4 = 7 。アプリはクライアントを1回、サービスはサーバーを1回作れば、どの組み合わせでも動く。
 
 ## 登場人物と構成
 
-（図: ホスト（AI アプリ） / Claude、Claude Code、IDE など / LLM / クライアント 1 / クライアント 2 / クライアント 3 / stdio / HTTP / ファイル系 / DB 系 / SaaS 系 / MCP サーバー / ローカルの FS / PostgreSQL / 外部の API）
+（図: ホスト（AI アプリ） / Claude、Claude Code、IDE など / LLM / クライアント 1 / クライアント 2 / クライアント 3 / stdio / HTTP / ファイル系 / DB 系 / SaaS 系 / MCP サーバー / ローカルの FS / PostgreSQL / 外部の API → https://memo.taka1156.site/mcp.html#actors）
 
 stdio（同じマシンの子プロセス） Streamable HTTP（ネットワーク越し）
 
@@ -157,6 +157,8 @@ REST などの API は人間の開発者向けで、呼び方はサービスご�
 **Skills** は「手順書とスクリプトの束」で、必要なときに読み込まれる **知識** 。MCP は外部システムへの **接続** 。「Slack に繋ぐ」のが MCP、「うちのチームの週報の書き方」が Skill。
 
 [CLAUDE.md / AGENTS.md / Skills のメモ →](https://memo.taka1156.site/md/agent-instructions.md)
+
+（元のページで操作できます → https://memo.taka1156.site/mcp.html#compare）
 
 ## セキュリティの注意点
 

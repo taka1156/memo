@@ -82,6 +82,8 @@ RP（Relying Party）＝ログインさせる側のサイト。RP ID は通常�
 
 偽物 examp1e.com
 
+（元のページで操作できます → https://memo.taka1156.site/passkeys.html#phishing）
+
 ## 同期型と端末固定型
 
 同期パスキー（synced）

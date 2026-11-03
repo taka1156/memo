@@ -154,6 +154,8 @@ const u = new URL(user.website);
 if (['https:', 'http:'].includes(u.protocol)) link.href = u.href;
 ```
 
+（元のページで操作できます → https://memo.taka1156.site/web-vulnerabilities.html#xss）
+
 ### エスケープは「どこに出すか」で変わる
 
 | 出力先 | 例 | 必要な処理 |
@@ -412,6 +414,8 @@ app.post('/logout', (req, res) =>
 
 パスワード変更・メールアドレス変更・送金などの重要操作では、セッションがあっても **パスワードやパスキーで再確認** すると、ID を盗まれたときの被害を限定できます。
 
+（元のページで操作できます → https://memo.taka1156.site/web-vulnerabilities.html#session）
+
 ## ReDoS Regular expression Denial of Service
 
 多くの言語の正規表現エンジン（JavaScript・Python・Java・PHP など）は、失敗すると別の分け方を試し直す **バックトラック** 方式です。 `(a+)+` のように **量指定子が入れ子** になっていると、マッチに失敗する入力で分け方の組み合わせが **指数関数的** に増えます。
@@ -431,6 +435,8 @@ app.post('/logout', (req, res) =>
 計測する
 
 **Node.js では特に致命的:** JS の正規表現は同期処理なので、マッチ中は **イベントループが止まり、他のすべてのリクエストが待たされます** 。30 文字程度の入力 1 回で、サーバー全体が数秒〜数分止まります。 `async` にしても try/catch しても防げません。
+
+（元のページで操作できます → https://memo.taka1156.site/web-vulnerabilities.html#redos）
 
 ### 危ない形
 
