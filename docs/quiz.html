@@ -348,6 +348,16 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
+    "file": "typescript.html",
+    "title": "TypeScript 学習フローと仕組み",
+    "desc": "TypeScript を学ぶ6ステップと、型チェック・型消去・コンパイルの流れを図で整理。",
+    "tags": [
+      "言語",
+      "JavaScript"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "testing-strategy.html",
     "title": "テスト戦略",
     "desc": "静的チェック・単体・結合・E2E の役割分担と、場面ごとにどの層で書くかを選べるデモ、Vitest・Testing Library・Playwright・MSW の使いどころ、モックの境界、E2E の不安定さ（flaky）対策、ビジュアルリグレッションを図解。",
@@ -653,16 +663,6 @@ const MEMOS = [
     "date": "2026-11-02"
   },
   {
-    "file": "typescript.html",
-    "title": "TypeScript 学習フローと仕組み",
-    "desc": "TypeScript を学ぶ6ステップと、型チェック・型消去・コンパイルの流れを図で整理。",
-    "tags": [
-      "言語",
-      "JavaScript"
-    ],
-    "date": "2026-11-02"
-  },
-  {
     "file": "tsrs-vs-tsgo.html",
     "title": "tsrs と tsgo の比較",
     "desc": "TypeScript のネイティブ実装 tsgo（Go）と tsrs（Rust）の仕組み・性能・使い分けを図で比較。",
@@ -883,6 +883,11 @@ const QUIZZES = [
   {"file": "ui-design-styles.html", "title": "UI デザインスタイル早見表", "q": "ボタンをすべてニューモーフィズムにしたら、使いにくいと言われた。主な原因は？", "choices": ["CSS では再現できず画像になっているから", "コントラストが低く、押した状態とも区別しにくいから", "影の数が少なく、立体感が足りないから"], "answer": 1, "explain": "WCAG の基準を満たしにくい。使うなら小さな部品のアクセント程度にとどめる。", "ref": "#neu"},
   {"file": "ui-design-styles.html", "title": "UI デザインスタイル早見表", "q": "フラットデザインのアプリで「どこが押せるのかわからない」という声が出た。どう手直しする？", "choices": ["装飾をさらに減らして色も 1 色にする", "ボタンにだけ控えめな影や角丸を戻す", "全体をスキューモフィズムに作り直す"], "answer": 1, "explain": "フラットの弱点は「ボタンとただの色面の区別がつきにくい」こと。薄い影で浮いていることを示すだけで押せる場所が伝わる。", "ref": "#flat2"},
   {"file": "ui-design-styles.html", "title": "UI デザインスタイル早見表", "q": "記事の読みやすさは保ちつつ、画面に今っぽい奥行きも出したい。スタイルの使い方として一般的なのは？", "choices": ["本文はフラット 2.0 にし、上に浮くナビやモーダルだけをガラス表現にする", "1 つのスタイルを選んだら全画面で統一しなければならない", "すべての要素をグラスモーフィズムで統一する"], "answer": 0, "explain": "層ごとに使い分けるのが一般的。Liquid Glass もナビゲーション層に使い、内容はフラットに保つ前提。", "ref": "#myths"},
+  {"file": "typescript.html", "title": "TypeScript 学習フローと仕組み", "q": "API のレスポンスに User 型を付けて使っていたら、実行時に想定と違う形のデータが来て落ちた。どう防ぐ？", "choices": ["型は実行前に消えるので、zod などで実行時に検証する", "strict: true にすれば実行時にもチェックされる", "型注釈をもっと厳密に書けば、実行時にもチェックされる"], "answer": 0, "explain": "型は開発時だけ働き、出力される JS には残らない（型消去）。外部から来るデータは実行時に検証する。", "ref": "#erasure"},
+  {"file": "typescript.html", "title": "TypeScript 学習フローと仕組み", "q": "Vite のプロジェクトで、型エラーがあるのにビルドが通って画面も動いてしまう。型エラーを確実に止めるには？", "choices": ["型エラーがあると Vite は本来ビルドを止めるので、設定が壊れている", "CI で tsc --noEmit を実行する", "vite build のオプションで型チェックを有効にする"], "answer": 1, "explain": "Vite（Oxc）や SWC は型を削るだけで、型を理解しない。型の検査は tsc やエディタが担当する。", "ref": "#tools"},
+  {"file": "typescript.html", "title": "TypeScript 学習フローと仕組み", "q": "node app.ts で TypeScript を直接実行したら、enum を使った箇所でエラーになった。理由は？", "choices": ["Node は .ts ファイルを実行できない", "Node は型を消すだけなので、JS を生成する enum は使えない", "Node は型チェックをしていて、enum が型エラーになった"], "answer": 1, "explain": "erasableSyntaxOnly を有効にすると、消すだけでは済まない構文を事前に検出できる。", "ref": "#w3"},
+  {"file": "typescript.html", "title": "TypeScript 学習フローと仕組み", "q": "外部ライブラリから受け取った値の型がわからない。どう受けるのがよい？", "choices": ["とりあえず string と書いておく", "any で受けてそのまま使う", "unknown で受け、絞り込んでから使う"], "answer": 2, "explain": "any はチェックを止めてしまう。unknown なら絞り込むまで使えないので安全。", "ref": "#myths"},
+  {"file": "typescript.html", "title": "TypeScript 学習フローと仕組み", "q": "type Point = { x: number; y: number } を受け取る関数に、変数に入れておいた { x: 1, y: 2, z: 3 } を渡した。どうなる？", "choices": ["渡せる。持っているプロパティの形で判断するから", "エラー。型の名前が Point ではないから", "エラー。余分な z があるから"], "answer": 0, "explain": "ただし、オブジェクトリテラルを引数に直接書いた場合だけは、余分なプロパティもエラーになる（excess property check）。", "ref": "#structural"},
   {"file": "testing-strategy.html", "title": "テスト戦略", "q": "送料の計算ロジック（地域・重さ・会員ランクで 30 通り以上の組み合わせ）を確かめたい。主に書くべきテストは？", "choices": ["画面から入力する E2E テストを 30 本", "計算関数の単体テストで組み合わせを表にして並べる", "スクリーンショット比較"], "answer": 1, "explain": "入力と出力で決まる計算は単体テストが速く確実。E2E で組み合わせを網羅するのは遅く、失敗時の原因も追いにくい。", "ref": "#pick"},
   {"file": "testing-strategy.html", "title": "テスト戦略", "q": "コンポーネントのテストで、自作の子コンポーネントと API クライアント関数をすべてモックしたら、テストは通るのに本番で表示が壊れた。どう直すべき？", "choices": ["子コンポーネントは本物を使い、API はネットワークの境界（MSW など）で差し替える", "モックをさらに増やして網羅する", "スナップショットテストを追加する"], "answer": 0, "explain": "内部をモックすると組み合わせたときのズレが見えなくなる。差し替えるのは外部との境界だけにする。", "ref": "#mock"},
   {"file": "testing-strategy.html", "title": "テスト戦略", "q": "E2E テストが CI でだけ時々落ちる。コードには page.waitForTimeout(1000) が多用されている。根本的な対策は？", "choices": ["待ち時間を 3000ms に延ばす", "CI のリトライ回数を増やす", "表示や URL など、状態を待つアサーションに置き換える"], "answer": 2, "explain": "固定時間の待ちは遅い環境で足りなくなる。Playwright の expect は条件を満たすまで自動で待つ。", "ref": "#flaky"},
@@ -1028,11 +1033,6 @@ const QUIZZES = [
   {"file": "vue-vs-svelte.html", "title": "Vue と Svelte", "q": "Svelte 5 で、複数のコンポーネントで共有するリアクティブな状態を、コンポーネントの外に切り出したい。どうする？", "choices": [".svelte.js / .svelte.ts ファイルで $state を使う", "外には切り出せないので親コンポーネントに置く", "普通の .js ファイルで let を export する"], "answer": 0, "explain": "runes は明示的な目印なので、.svelte.js などのファイルでも使える。Svelte 4 の書き方ではコンポーネントの外で使えなかった。", "ref": "#s5"},
   {"file": "vue-vs-svelte.html", "title": "Vue と Svelte", "q": "既存の大きな Vue アプリで、更新の多い一部のコンポーネントだけ仮想 DOM なしの方式にしたい。どうする？", "choices": ["そのコンポーネントだけ <script setup vapor> にする", "Options API のまま vapor オプションを付ける", "アプリ全体を一度に Vapor Mode へ書き換える"], "answer": 0, "explain": "Vapor Mode はコンポーネント単位で選べ、少しずつ移行できる。<script setup> 専用で Options API には対応しない。", "ref": "#vue-internals"},
   {"file": "vue-vs-svelte.html", "title": "Vue と Svelte", "q": "Vue の reactive なオブジェクトで、どの描画や computed からも読まれていないプロパティを変更した。何が起きる？", "choices": ["そのオブジェクトを持つコンポーネントがすべて再描画される", "何も再実行されない", "アプリ全体の仮想 DOM が比較し直される"], "answer": 1, "explain": "Proxy は読まれたときに「どの処理が読んだか」を記録し、書かれたときにその処理だけを再実行する。", "ref": "#vue-internals"},
-  {"file": "typescript.html", "title": "TypeScript 学習フローと仕組み", "q": "API のレスポンスに User 型を付けて使っていたら、実行時に想定と違う形のデータが来て落ちた。どう防ぐ？", "choices": ["型は実行前に消えるので、zod などで実行時に検証する", "strict: true にすれば実行時にもチェックされる", "型注釈をもっと厳密に書けば、実行時にもチェックされる"], "answer": 0, "explain": "型は開発時だけ働き、出力される JS には残らない（型消去）。外部から来るデータは実行時に検証する。", "ref": "#erasure"},
-  {"file": "typescript.html", "title": "TypeScript 学習フローと仕組み", "q": "Vite のプロジェクトで、型エラーがあるのにビルドが通って画面も動いてしまう。型エラーを確実に止めるには？", "choices": ["型エラーがあると Vite は本来ビルドを止めるので、設定が壊れている", "CI で tsc --noEmit を実行する", "vite build のオプションで型チェックを有効にする"], "answer": 1, "explain": "Vite（Oxc）や SWC は型を削るだけで、型を理解しない。型の検査は tsc やエディタが担当する。", "ref": "#tools"},
-  {"file": "typescript.html", "title": "TypeScript 学習フローと仕組み", "q": "node app.ts で TypeScript を直接実行したら、enum を使った箇所でエラーになった。理由は？", "choices": ["Node は .ts ファイルを実行できない", "Node は型を消すだけなので、JS を生成する enum は使えない", "Node は型チェックをしていて、enum が型エラーになった"], "answer": 1, "explain": "erasableSyntaxOnly を有効にすると、消すだけでは済まない構文を事前に検出できる。", "ref": "#w3"},
-  {"file": "typescript.html", "title": "TypeScript 学習フローと仕組み", "q": "外部ライブラリから受け取った値の型がわからない。どう受けるのがよい？", "choices": ["とりあえず string と書いておく", "any で受けてそのまま使う", "unknown で受け、絞り込んでから使う"], "answer": 2, "explain": "any はチェックを止めてしまう。unknown なら絞り込むまで使えないので安全。", "ref": "#myths"},
-  {"file": "typescript.html", "title": "TypeScript 学習フローと仕組み", "q": "type Point = { x: number; y: number } を受け取る関数に、変数に入れておいた { x: 1, y: 2, z: 3 } を渡した。どうなる？", "choices": ["渡せる。持っているプロパティの形で判断するから", "エラー。型の名前が Point ではないから", "エラー。余分な z があるから"], "answer": 0, "explain": "ただし、オブジェクトリテラルを引数に直接書いた場合だけは、余分なプロパティもエラーになる（excess property check）。", "ref": "#structural"},
   {"file": "tsrs-vs-tsgo.html", "title": "tsrs と tsgo の比較", "q": "CI と本番ビルドの型チェックを速くしたい。公式サポートと互換性を最優先するなら、どちらを使う？", "choices": ["esbuild", "tsrs", "tsgo"], "answer": 2, "explain": "tsgo は公式の正式版。tsrs は実験版で、診断の順序などに差異があるため、試すなら結果を tsgo と突き合わせる。", "ref": "#choose"},
   {"file": "tsrs-vs-tsgo.html", "title": "tsrs と tsgo の比較", "q": "プロジェクトで typescript-eslint など TypeScript の API に依存するツールを使っている。TypeScript 7.0 に移行するときの注意点は？", "choices": ["7.0 には安定したプログラム API がないので、当面は TypeScript 6 系と併用する", "API 依存のツールも自動で 10 倍速くなる", "7.0 にすると typescript-eslint は使えなくなるので削除する"], "answer": 0, "explain": "API に依存するツールは 7.1 待ち。それまでは @typescript/typescript6（tsc6）と併用する。", "ref": "#myths"},
   {"file": "tsrs-vs-tsgo.html", "title": "tsrs と tsgo の比較", "q": "ビルドに swc や esbuild を使っている。これで型チェックも済んでいる？", "choices": ["済んでいる。tsrs と同じ仕組みで動いている", "済んでいない。型を剥がすだけなので、型チェックは tsc（tsgo）などで別に行う", "済んでいる。Rust / Go 製なので型チェックも速く行う"], "answer": 1, "explain": "tsgo と tsrs は型チェックまでやる本物のコンパイラ。swc / esbuild / Biome は型を剥がすだけ。", "ref": "#myths"},
