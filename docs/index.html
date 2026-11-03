@@ -295,6 +295,17 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
+    "file": "testing-strategy.html",
+    "title": "テスト戦略",
+    "desc": "静的チェック・単体・結合・E2E の役割分担と、場面ごとにどの層で書くかを選べるデモ、Vitest・Testing Library・Playwright・MSW の使いどころ、モックの境界、E2E の不安定さ（flaky）対策、ビジュアルリグレッションを図解。",
+    "tags": [
+      "開発ツール",
+      "JavaScript",
+      "設計"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "solid.html",
     "title": "SOLID と依存性逆転",
     "desc": "SOLID の 5 原則を「どんな症状を防ぐか」で整理し、オニオン／クリーンで内側に依存させる理由＝依存性逆転 (DIP) を図で説明する",
@@ -388,6 +399,16 @@ const MEMOS = [
     "tags": [
       "JavaScript",
       "フロントエンド"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "js-modules.html",
+    "title": "JS のモジュールと依存管理",
+    "desc": "ESM と CommonJS の違い、package.json の exports と条件による解決（動くデモつき）、import maps、npm・pnpm・Bun のインストール方式とロックファイル、モノレポのワークスペースを図解。",
+    "tags": [
+      "JavaScript",
+      "開発ツール"
     ],
     "date": "2026-11-03"
   },
@@ -514,6 +535,17 @@ const MEMOS = [
     "tags": [
       "インフラ",
       "データベース"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "browser-storage.html",
+    "title": "ブラウザのストレージ",
+    "desc": "Cookie・localStorage・sessionStorage・IndexedDB・Cache API・OPFS を、容量・同期か非同期か・サーバーに送られるか・いつ消えるかで比べ、用途別の選び方と、実際に書き込んで確かめられるデモで図解。",
+    "tags": [
+      "フロントエンド",
+      "セキュリティ",
+      "JavaScript"
     ],
     "date": "2026-11-03"
   },
@@ -768,6 +800,10 @@ const QUIZZES = [
   {"file": "ui-design-styles.html", "title": "UI デザインスタイル早見表", "q": "ボタンをすべてニューモーフィズムにしたら、使いにくいと言われた。主な原因は？", "choices": ["CSS では再現できず画像になっているから", "コントラストが低く、押した状態とも区別しにくいから", "影の数が少なく、立体感が足りないから"], "answer": 1, "explain": "WCAG の基準を満たしにくい。使うなら小さな部品のアクセント程度にとどめる。", "ref": "#neu"},
   {"file": "ui-design-styles.html", "title": "UI デザインスタイル早見表", "q": "フラットデザインのアプリで「どこが押せるのかわからない」という声が出た。どう手直しする？", "choices": ["装飾をさらに減らして色も 1 色にする", "ボタンにだけ控えめな影や角丸を戻す", "全体をスキューモフィズムに作り直す"], "answer": 1, "explain": "フラットの弱点は「ボタンとただの色面の区別がつきにくい」こと。薄い影で浮いていることを示すだけで押せる場所が伝わる。", "ref": "#flat2"},
   {"file": "ui-design-styles.html", "title": "UI デザインスタイル早見表", "q": "記事の読みやすさは保ちつつ、画面に今っぽい奥行きも出したい。スタイルの使い方として一般的なのは？", "choices": ["本文はフラット 2.0 にし、上に浮くナビやモーダルだけをガラス表現にする", "1 つのスタイルを選んだら全画面で統一しなければならない", "すべての要素をグラスモーフィズムで統一する"], "answer": 0, "explain": "層ごとに使い分けるのが一般的。Liquid Glass もナビゲーション層に使い、内容はフラットに保つ前提。", "ref": "#myths"},
+  {"file": "testing-strategy.html", "title": "テスト戦略", "q": "送料の計算ロジック（地域・重さ・会員ランクで 30 通り以上の組み合わせ）を確かめたい。主に書くべきテストは？", "choices": ["画面から入力する E2E テストを 30 本", "計算関数の単体テストで組み合わせを表にして並べる", "スクリーンショット比較"], "answer": 1, "explain": "入力と出力で決まる計算は単体テストが速く確実。E2E で組み合わせを網羅するのは遅く、失敗時の原因も追いにくい。", "ref": "#pick"},
+  {"file": "testing-strategy.html", "title": "テスト戦略", "q": "コンポーネントのテストで、自作の子コンポーネントと API クライアント関数をすべてモックしたら、テストは通るのに本番で表示が壊れた。どう直すべき？", "choices": ["子コンポーネントは本物を使い、API はネットワークの境界（MSW など）で差し替える", "モックをさらに増やして網羅する", "スナップショットテストを追加する"], "answer": 0, "explain": "内部をモックすると組み合わせたときのズレが見えなくなる。差し替えるのは外部との境界だけにする。", "ref": "#mock"},
+  {"file": "testing-strategy.html", "title": "テスト戦略", "q": "E2E テストが CI でだけ時々落ちる。コードには page.waitForTimeout(1000) が多用されている。根本的な対策は？", "choices": ["待ち時間を 3000ms に延ばす", "CI のリトライ回数を増やす", "表示や URL など、状態を待つアサーションに置き換える"], "answer": 2, "explain": "固定時間の待ちは遅い環境で足りなくなる。Playwright の expect は条件を満たすまで自動で待つ。", "ref": "#flaky"},
+  {"file": "testing-strategy.html", "title": "テスト戦略", "q": "Testing Library で送信ボタンを探す書き方として、推奨されるのは？", "choices": ["container.querySelector('.btn-primary')", "screen.getByRole('button', { name: '送信' })", "screen.getByTestId('submit') を常に使う"], "answer": 1, "explain": "ユーザーやスクリーンリーダーと同じ手がかり（役割と名前）で探すと、見た目の実装を変えても壊れない。data-testid は他で探せないときの最後の手段。", "ref": "#tools"},
   {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "注文処理のロジックが MySQL のリポジトリクラスを直接 import している。DB を差し替えても注文ロジックを書き直さずに済むようにするには、インターフェースをどこに置く？", "choices": ["infra 層に置き、MySQL クラスの隣で定義する", "ドメイン（注文処理を使う側）に置き、MySQL クラスがそれを実装する", "共通の utils フォルダに置き、どちらからも参照する", "インターフェースは作らず DI コンテナに任せる"], "answer": 1, "explain": "DIP では抽象を上位（使う側）が所有する。下位がその約束を実装することで、依存の向きが詳細→抽象に逆転する。", "ref": "#who-owns"},
   {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "コンストラクタで OrderRepository を受け取るようにしたが、引数の型は MySqlOrderRepository（具体クラス）のまま。この状態の説明として正しいのは？", "choices": ["DI はしているが、DIP はまだできていない", "DIP はできているが、DI はできていない", "DI も DIP もできている", "DI コンテナがないのでどちらもできていない"], "answer": 0, "explain": "外から渡しているので DI ではあるが、具体クラスに依存しているので依存の向きは逆転していない。", "ref": "#dip-di-ioc"},
   {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "経理の依頼で給与計算を直したら、人事向けの勤怠レポートの出力が変わってしまった。どの原則に違反している可能性が高い？", "choices": ["リスコフの置換原則", "インターフェース分離の原則", "単一責任の原則", "開放閉鎖の原則"], "answer": 2, "explain": "変更の理由（依頼元）が異なる処理が 1 つのクラスに同居していると、片方の修正がもう片方を壊す。", "ref": "#principles"},
@@ -816,6 +852,11 @@ const QUIZZES = [
   {"file": "js-web-standards.html", "title": "JS と Web 標準の決まり方", "q": "気になっていた JavaScript の提案が Stage 2.7 になった。本番のコードで使い始めてよい？", "choices": ["使ってよい。設計が完成したので全ブラウザに入っている", "使ってよい。Stage 2.7 からは名前や構文が変わらないことが保証されている", "まだ待つ。テストと試作で検証中で、ブラウザの実装が本格化するのは Stage 3 から"], "answer": 2, "explain": "Stage 2.7 は検証の段階で、テストや試作の結果によっては変わりうる。Stage 3 以降で、実装状況を確かめてから使う。", "ref": "#tc39"},
   {"file": "js-web-standards.html", "title": "JS と Web 標準の決まり方", "q": "HTML の仕様の最新の内容を確認したい。どれを見るのがよい？", "choices": ["WHATWG の HTML Living Standard", "W3C の HTML の勧告。WHATWG 版とは内容が別物", "W3C の勧告と WHATWG 版の両方を読み比べて、新しい方を採用する"], "answer": 0, "explain": "HTML と DOM の本体は WHATWG の Living Standard。W3C の勧告はそのスナップショットに承認を付けたもので、内容は同じ。", "ref": "#whatwg-w3c"},
   {"file": "js-web-standards.html", "title": "JS と Web 標準の決まり方", "q": "Workers から外部 API に fetch したら、ブラウザでは付いていた Origin ヘッダーや Cookie が送られていなかった。どう考える？", "choices": ["ランタイムのバグなので、修正を待つ", "サーバーにはページのオリジンや Cookie の保存場所がないので、付かないのが前提。必要なら自分でヘッダーを付ける", "CORS の設定を有効にすれば自動で付くようになる"], "answer": 1, "explain": "サーバー側の fetch には「今開いているページ」がない。Origin や Cookie が必要な API には、自分でヘッダーを組み立てて送る。", "ref": "#tc55"},
+  {"file": "js-modules.html", "title": "JS のモジュールと依存管理", "q": "package.json に \"type\": \"module\" を付けたら、CommonJS で書かれた設定ファイル config.js が読み込めなくなった。一番手早い直し方は？", "choices": ["config.js を config.cjs にリネームする", "\"type\" を外して全部 CommonJS に戻す", "config.js の先頭に \"use strict\" を書く"], "answer": 0, "explain": "拡張子 .cjs は package.json の type より優先され、常に CommonJS として読まれる。", "ref": "#which-mode"},
+  {"file": "js-modules.html", "title": "JS のモジュールと依存管理", "q": "ライブラリの exports に import・require・types を書いたが、TypeScript が型を見つけられない。types は一番下に書いてある。原因は？", "choices": ["types 条件は exports では使えない", "条件は上から順に見るので、先に import が合って types まで届いていない", "TypeScript は exports を読まない"], "answer": 1, "explain": "最初に合った条件で決まる。types は先頭、default は最後に置く。", "ref": "#exports"},
+  {"file": "js-modules.html", "title": "JS のモジュールと依存管理", "q": "npm で入れたプロジェクトで、package.json に書いていない lodash を import しても動いていたが、別の依存を更新したら急に見つからなくなった。何が起きた？", "choices": ["lodash が npm から削除された", "間接依存として平らに置かれていた lodash が、依存の更新で外れた（幽霊依存）", "ロックファイルが壊れた"], "answer": 1, "explain": "npm は依存の依存も node_modules 直下に並べるので、書いていないものも import できてしまう。pnpm は直接の依存しか見せないので、この問題が最初から表に出る。", "ref": "#pm"},
+  {"file": "js-modules.html", "title": "JS のモジュールと依存管理", "q": "CI で毎回 npm install していたら、手元と違う版の依存が入ってテストが落ちた。正しい対策は？", "choices": ["package.json の版指定を全部 \"*\" にする", "ロックファイルをコミットし、CI では npm ci を使う", "CI で node_modules をキャッシュしない"], "answer": 1, "explain": "ロックファイルが実際の版を固定する。npm ci はロックファイルどおりに入れ、食い違えば失敗する。", "ref": "#lock"},
+  {"file": "js-modules.html", "title": "JS のモジュールと依存管理", "q": "バンドラーを使わない小さなサイトで、ブラウザから import { h } from 'preact' と書きたい。必要なものは？", "choices": ["import map で preact と URL の対応を書く", "package.json に preact を追加する", "type=\"module\" を外す"], "answer": 0, "explain": "ブラウザはパッケージ名だけの指定を解決できない。import map が名前と URL の対応を教える。", "ref": "#import-maps"},
   {"file": "http-cache.html", "title": "HTTP キャッシュ", "q": "デプロイしても一部のユーザーに古い画面が出続ける。HTML に Cache-Control: max-age=86400 が付いていた。根本的な対策は？", "choices": ["CDN をパージする", "HTML は no-cache（毎回再検証）にし、JS/CSS はファイル名ハッシュで長期キャッシュする", "HTML も JS も no-store にする"], "answer": 1, "explain": "URL が固定の HTML を長くキャッシュすると、ブラウザに残った分はパージでも消せない。HTML は毎回再検証、中身が変わると URL も変わるアセットは長期キャッシュ、が定番。no-store はキャッシュの利点を全部捨ててしまう。", "ref": "#recipes"},
   {"file": "http-cache.html", "title": "HTTP キャッシュ", "q": "ブラウザにキャッシュされた ETag 付きレスポンスが古くなった。次のアクセスでサーバーの内容が変わっていなければ何が返る？", "choices": ["本文なしの 304 Not Modified", "同じ本文の 200 OK", "キャッシュが古いので 410 Gone"], "answer": 0, "explain": "ブラウザは If-None-Match で手元の ETag を送り、一致すればサーバーは本文なしの 304 を返す。ブラウザは手元のコピーを使い、鮮度もリセットされる。", "ref": "#flow"},
   {"file": "http-cache.html", "title": "HTTP キャッシュ", "q": "マイページの API 応答が CDN にキャッシュされ、別のユーザーに他人の情報が表示された。最低限付けるべき指定は？", "choices": ["Cache-Control: no-cache", "Cache-Control: public, max-age=0", "Cache-Control: private（機微な情報なら no-store）"], "answer": 2, "explain": "private は共有キャッシュ（CDN）への保存を禁止する。no-cache は保存自体は許すので、CDN に残り得る。", "ref": "#layers"},
@@ -877,6 +918,10 @@ const QUIZZES = [
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "Hyperdrive 経由の PlanetScale を使っている。プロフィールを更新した直後の画面で、古い名前が表示されることがある。原因として考えられるのは？", "choices": ["PlanetScale の書き込みが失敗している", "Hyperdrive の読み取りクエリのキャッシュが古い結果を返している", "Placement の設定が間違っている"], "answer": 1, "explain": "Hyperdrive は読み取りクエリの結果を既定でキャッシュし、書き込みがあってもキャッシュを消さない。書いた直後に読む画面では、キャッシュを無効にした別の Hyperdrive 設定（バインディング）を経由して読む。", "ref": "#myths"},
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "PlanetScale の DB は us-east-1 にある。Worker が各国の最寄りで動くため、1リクエストで何本もクエリを投げる API が遅い。効く対策は？", "choices": ["D1 の読み取りレプリカを増やす", "クエリを並列にしてさらに本数を増やす", "Placement で Worker を DB の近く（aws:us-east-1）で動かす"], "answer": 2, "explain": "クエリのたびに Worker と DB の間を往復するので、距離 × 本数だけ遅くなる。Worker を DB の近くで動かせば、ユーザーとの往復は1回、DB との往復は短くなる。", "ref": "#arch"},
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "D1 で1つの DB に全ユーザーの書き込みが集中し、遅くなってきた。読み取りレプリカを有効にすれば解決する？", "choices": ["解決する。レプリカが書き込みも分担するから", "解決しない。レプリカは読み取り専用なので、書き込みは DB を分けて散らす", "解決する。レプリカがあると書き込みがキャッシュされるから"], "answer": 1, "explain": "D1 の各 DB はシングルスレッドで、書き込みはプライマリに集まる。書き込みを増やしたいなら DB を分けるか、共有データが中心なら PlanetScale のようなサーバー型 DB を検討する。", "ref": "#myths"},
+  {"file": "browser-storage.html", "title": "ブラウザのストレージ", "q": "SPA でユーザーのテーマ設定（ライト／ダーク）を保存したい。サーバー側の描画には使わない。合う置き場所は？", "choices": ["localStorage", "Cookie", "IndexedDB"], "answer": 0, "explain": "小さくて消えても困らない設定は localStorage で十分。Cookie に入れると全リクエストに乗って無駄に送られる。", "ref": "#choose"},
+  {"file": "browser-storage.html", "title": "ブラウザのストレージ", "q": "数 MB の JSON を localStorage に保存・読み込みするたびに画面が固まる。改善策は？", "choices": ["JSON を圧縮して文字数を減らす", "IndexedDB に移して、オブジェクトのまま非同期で読み書きする", "sessionStorage に移す"], "answer": 1, "explain": "localStorage は同期 API でメインスレッドを止める。sessionStorage も同じ。IndexedDB は非同期で、文字列化も要らない。", "ref": "#web-storage"},
+  {"file": "browser-storage.html", "title": "ブラウザのストレージ", "q": "ログインセッションの ID を保存する場所として最も安全なのは？", "choices": ["localStorage", "HttpOnly・Secure・SameSite を付けた Cookie", "sessionStorage"], "answer": 1, "explain": "HttpOnly なら JS から読めないので XSS で盗まれにくい。Web Storage は JS から全部読める。", "ref": "#cookie"},
+  {"file": "browser-storage.html", "title": "ブラウザのストレージ", "q": "オフライン対応のメモアプリで、iPhone の Safari で使っていたら 1 週間ぶりに開いたときデータが消えていた。考えられる理由と対策は？", "choices": ["IndexedDB の容量上限に達した。データを圧縮する", "Cookie の有効期限が切れた。Max-Age を延ばす", "Safari がしばらく操作のないサイトのストレージを消した。ホーム画面に追加してもらうか、サーバーにも同期する"], "answer": 2, "explain": "Safari は、Safari を使った日で数えて 7 日間操作のないサイトの、JS で書いたストレージを消すことがある。ホーム画面に追加した Web アプリは使用日数を別に数えるので、使っていれば消えにくい。消えて困るデータはサーバーにも持つ。", "ref": "#evict"},
   {"file": "browser-rendering.html", "title": "ブラウザのレンダリング", "q": "モーダルを右からスライドインさせたい。メインスレッドが重いときでもカクつきにくい書き方は？", "choices": ["left を -100% から 0 へアニメーションする", "transform: translateX(100%) から 0 へアニメーションする", "width を 0 から 400px へアニメーションする"], "answer": 1, "explain": "transform と opacity は合成だけで済み、コンポジタースレッドで動かせる。left や width は毎フレームレイアウトが走る。", "ref": "#cost"},
   {"file": "browser-rendering.html", "title": "ブラウザのレンダリング", "q": "アプリ本体の JS（複数ファイル、実行順が大事）を head に置きたい。HTML の解析を止めず、順番も守るには？", "choices": ["async を付ける", "defer を付ける", "何も付けずに body の先頭に置く"], "answer": 1, "explain": "defer は取得を並行して進め、解析後に書いた順で実行する。async は取れた順に実行するので順番が崩れうる。", "ref": "#blocking"},
   {"file": "browser-rendering.html", "title": "ブラウザのレンダリング", "q": "リストの各要素の幅を、ループ内で container.offsetWidth を読みながら設定したら極端に遅くなった。原因は？", "choices": ["offsetWidth の読み取りが、直前のスタイル変更を反映するためにその場でレイアウトを強制するから", "style.width への代入はペイントを毎回走らせるから", "ループの中で DOM を参照すること自体が遅いから"], "answer": 0, "explain": "書いた直後に読むと強制同期レイアウトが発生し、要素数だけレイアウトが走る。読みをループの外に出す。", "ref": "#thrash"},
