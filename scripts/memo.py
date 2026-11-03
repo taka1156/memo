@@ -5,16 +5,18 @@
   python3 scripts/memo.py new   NAME                  テンプレートから docs/NAME.html を作る
   python3 scripts/memo.py add   SRC NAME [--force]    外部の HTML を docs/NAME.html として取り込む
   python3 scripts/memo.py path  NAME [--md]           docs/NAME.html（--md なら Markdown 版）の絶対パスを表示
-  python3 scripts/memo.py url   [NAME]                公開 URL を表示（docs/CNAME の独自ドメイン）
+  python3 scripts/memo.py url   [NAME]                公開 URL を表示（docs/CNAME、なければ GitHub Pages の URL）
   python3 scripts/memo.py lint  MEMO... [--fix] [--backlink]
   python3 scripts/memo.py meta  MEMO [--title T] [--desc D] [--tags a,b] [--date YYYY-MM-DD]
   python3 scripts/memo.py build [--check]
   python3 scripts/memo.py list
+  python3 scripts/memo.py config [KEY]                memo.config.json の設定を表示（例: config branch）
   python3 scripts/memo.py preview MEMO|index|quiz|FILE [-o OUT]   会話内プレビュー用に 1 枚へ埋め込んだ HTML を作る
 
 MEMO / NAME は「docker」「docker.html」「docs/docker.html」のどれでもよい
 （既存のファイルパスを渡した場合はそのファイルを対象にする）。
 置き場所（docs/）やテンプレートの場所はこのスクリプトだけが知っている。
+サイト名・リポジトリ・ブランチ・タイムゾーンなど、サイトごとの値はリポジトリ直下の memo.config.json に書く。
 
 メモ = docs/ 直下の *.html（index.html・quiz.html 以外）。docs/ が GitHub Pages で公開される。
 一覧情報は各メモの <head> 内の次のタグから読み取る:
@@ -27,6 +29,7 @@ MEMO / NAME は「docker」「docker.html」「docs/docker.html」のどれで�
 表示用の UI はページ末尾に自動で入れる（CSS / JS 本体は docs/assets/memo-quiz.*）。
 build は一覧を docs/memos.json、全問題を docs/quizzes.json に書き出し、
 トップページと quiz.html はそれらを読み込んで表示する。
+あわせて、アプリ（claude.ai）に置く入口スキル entry-skill/SKILL.md も memo.config.json から生成する。
 
 このファイルはコマンドの入口だけで、処理の本体は scripts/memolib/ にある。
 """
@@ -41,8 +44,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-from memolib.blocks import apply_generated, apply_head
-from memolib.config import DOCS, ROOT, SITE_URL, SPECIAL_NAMES, SPECIAL_PAGES, TEMPLATE, today_jst
+from memolib.blocks import apply_generated
+from memolib.config import (CONFIG, CONFIG_FILE, DOCS, ENTRY_SKILL, ROOT, SITE_URL, SPECIAL_NAMES, SPECIAL_PAGES,
+                            TEMPLATE, today)
+from memolib.entry import entry_skill
 from memolib.lint import lint_text
 from memolib.markdown import MD_DIR, build_markdown
 from memolib.meta import set_meta, memo_files, memo_path, read_meta
@@ -89,7 +94,7 @@ def cmd_meta(args) -> int:
         tags = ", ".join(t.strip() for t in args.tags.split(",") if t.strip())
         text = set_meta(text, "memo:tags", tags)
     if args.date is not None:
-        date = args.date or today_jst()
+        date = args.date or today()
         dt.date.fromisoformat(date)  # 形式チェック
         text = set_meta(text, "memo:date", date)
     path.write_text(apply_generated(text, path.name), encoding="utf-8")
@@ -115,28 +120,36 @@ def cmd_build(args) -> int:
             outdated.append(path.name)
             if not args.check:
                 path.write_text(body, encoding="utf-8")
-    for page in SPECIAL_PAGES:  # トップ・クイズページは head（アイコン・OGP）だけ更新する
+    for page in SPECIAL_PAGES:  # トップ・クイズページは head（アイコン・OGP）とサイト設定だけ更新する
         if not page.is_file():
             continue
         src = page.read_text(encoding="utf-8")
-        new = apply_head(src, page.name)
+        new = apply_generated(src, page.name)
         if new != src:
             outdated.append(page.name)
             if not args.check:
                 page.write_text(new, encoding="utf-8")
     md_changed = build_markdown(memos, args.check)
+    entry = entry_skill()
+    entry_changed = not ENTRY_SKILL.is_file() or ENTRY_SKILL.read_text(encoding="utf-8") != entry
+    if entry_changed and not args.check:
+        ENTRY_SKILL.parent.mkdir(parents=True, exist_ok=True)
+        ENTRY_SKILL.write_text(entry, encoding="utf-8")
+    entry_name = [str(ENTRY_SKILL.relative_to(ROOT))] if entry_changed else []
     if args.check:
-        if outdated or stale or md_changed:
-            names = [f"docs/{n}" for n in outdated + md_changed + stale] or ["docs/memos.json"]
+        if outdated or stale or md_changed or entry_changed:
+            names = [f"docs/{n}" for n in outdated + md_changed + stale] + entry_name or ["docs/memos.json"]
             print(", ".join(names) + " が古いです（python3 scripts/memo.py build を実行）")
             return 1
         print("一覧データは最新です")
         return 0
     if md_changed:
         print(f"Markdown 版を更新: {len(md_changed)} ファイル（docs/md/, docs/llms.txt）")
+    if entry_changed:
+        print(f"入口スキルを更新: {entry_name[0]}")
     if outdated:
         print(f"{', '.join(outdated)} を更新（{len(memos)} 件、クイズ {len(quizzes)} 問）")
-    elif not md_changed:
+    elif not md_changed and not entry_changed:
         print(f"変更なし（{len(memos)} 件、クイズ {len(quizzes)} 問）")
     return 0
 
@@ -175,6 +188,20 @@ def cmd_url(args) -> int:
     return 0
 
 
+def cmd_config(args) -> int:
+    if args.key is None:
+        print(json.dumps({**CONFIG, "site_url": SITE_URL}, ensure_ascii=False, indent=2))
+        return 0
+    if args.key == "site_url":
+        print(SITE_URL)
+        return 0
+    if args.key not in CONFIG:
+        print(f"{args.key} という設定はありません（{CONFIG_FILE.name}: {', '.join(CONFIG)}, site_url）", file=sys.stderr)
+        return 1
+    print(CONFIG[args.key])
+    return 0
+
+
 def cmd_list(_args) -> int:
     for p in memo_files():
         m = read_meta(p)
@@ -202,7 +229,7 @@ def cmd_preview(args) -> int:
 # ----------------------------------------------------------------
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="MEMO リポジトリ用ツール")
+    ap = argparse.ArgumentParser(description="MEMO（Claude の解説ページ置き場）用ツール")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("new", help="テンプレートから新しいメモを作る")
@@ -235,12 +262,16 @@ def main() -> int:
     p.add_argument("--title")
     p.add_argument("--desc")
     p.add_argument("--tags", help="カンマ区切り")
-    p.add_argument("--date", nargs="?", const="", help="YYYY-MM-DD（値なしで今日。日本時間）")
+    p.add_argument("--date", nargs="?", const="", help="YYYY-MM-DD（値なしで今日。タイムゾーンは memo.config.json）")
     p.set_defaults(func=cmd_meta)
 
-    p = sub.add_parser("build", help="一覧データ（memos.json・quizzes.json）と Markdown 版を再生成")
+    p = sub.add_parser("build", help="一覧データ（memos.json・quizzes.json）・Markdown 版・入口スキルを再生成")
     p.add_argument("--check", action="store_true")
     p.set_defaults(func=cmd_build)
+
+    p = sub.add_parser("config", help="memo.config.json の設定を表示（KEY を付けるとその値だけ）")
+    p.add_argument("key", nargs="?")
+    p.set_defaults(func=cmd_config)
 
     p = sub.add_parser("list", help="メモ一覧を表示")
     p.set_defaults(func=cmd_list)

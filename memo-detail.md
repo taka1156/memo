@@ -17,16 +17,19 @@
 - [自動生成ブロック](#自動生成ブロック)
 - [確認クイズのデータの流れ](#確認クイズのデータの流れ)
 - [AI 向けの Markdown 版](#ai-向けの-markdown-版)
+- [サイトごとの設定（memo.config.json）](#サイトごとの設定memoconfigjson)
 - [日付と URL の決まり方](#日付と-url-の決まり方)
 - [表示の確認とプレビュー](#表示の確認とプレビュー)
 - [GitHub Actions](#github-actions)
 - [コードの構成とテスト](#コードの構成とテスト)
 - [変更したいときはどこを触るか](#変更したいときはどこを触るか)
+- [仕組みだけを取り出す](#仕組みだけを取り出す)
 
 ## 基本の考え方
 
 - **原本は人（または Claude）が書く。それ以外はすべて生成する。** 原本は各メモの本文・`<head>` のメタ情報・クイズの問題データの 3 つだけで、一覧や Markdown 版、各ページに差し込むタグはスクリプトが作ります。生成されたものは手で編集しません（次の `build` で上書きされます）。
 - **同じものを 2 か所に書かない。** クイズの表示（CSS / JS）は `docs/assets/memo-quiz.*` に 1 つだけ置き、各メモは参照するだけです。
+- **サイトごとの値は `memo.config.json` だけに書く。** サイト名・リポジトリ・ブランチ・タイムゾーンをコードやスキル、ページに直接書きません（[サイトごとの設定](#サイトごとの設定memoconfigjson)）。
 - **置き場所を知っているのはスクリプトだけ。** メモは名前（`docker` など）で指定し、パスは `memo.py path NAME` で引きます。スキル側でパスを組み立てません。
 - **公開されるのは `docs/` だけ。** GitHub Pages の公開元が `docs/` なので、スクリプト・スキル・このファイルは公開されません。
 
@@ -46,6 +49,7 @@ flowchart LR
     CSS["docs/assets/memo-quiz.css"]
     JS["docs/assets/memo-quiz.js"]
     IMG["docs/assets/*.png・favicon.ico<br/>（branding/ から生成）"]
+    CFG["memo.config.json<br/>サイト名・リポジトリ・ブランチ"]
   end
 
   B(["memo.py build"])
@@ -56,6 +60,7 @@ flowchart LR
     QJ["docs/quizzes.json<br/>全メモの問題"]
     MD["docs/md/NAME.md<br/>docs/llms.txt"]
     BLK["各メモの自動生成ブロック<br/>memo:head / memo:quiz"]
+    ENT["entry-skill/SKILL.md<br/>アプリ側の入口スキル"]
   end
 
   subgraph PAGES["公開ページ"]
@@ -68,7 +73,9 @@ flowchart LR
   H --> B
   M --> B
   Q --> B
-  B --> MJ & QJ & MD & BLK
+  CFG --> B
+  B --> MJ & QJ & MD & BLK & ENT
+  B -->|サイト名などを差し込む| IDX & QP
   MJ -- fetch --> IDX
   QJ -- fetch --> IDX
   MJ -- fetch --> QP
@@ -82,8 +89,10 @@ flowchart LR
 | ファイル | 種類 | 作る人 | 中身 |
 | --- | --- | --- | --- |
 | `docs/NAME.html` | メモ | 人＋スクリプト | 本文とメタ情報と問題データは人が書く。`memo:head`・`memo:quiz` ブロックはスクリプトが入れる |
-| `docs/index.html` | トップページ | 人 | 一覧・検索・タグ絞り込み・ランダムクイズ。データは JSON から読む |
-| `docs/quiz.html` | クイズページ | 人 | ランダム 10 問・カテゴリ別 10 問。データは JSON から読む |
+| `docs/index.html` | トップページ | 人＋スクリプト | 一覧・検索・タグ絞り込み・ランダムクイズ。データは JSON から読む。サイト名・説明・リポジトリへのリンクは `build` が `memo.config.json` から入れる |
+| `docs/quiz.html` | クイズページ | 人＋スクリプト | ランダム 10 問・カテゴリ別 10 問。データは JSON から読む。サイト名は `build` が入れる |
+| `memo.config.json` | 設定 | 人 | サイト名・説明・リポジトリ・ブランチ・タイムゾーン |
+| `entry-skill/SKILL.md` | 生成物 | `build` | claude.ai のアプリ側に置く入口スキル（リポジトリ名とブランチ入り） |
 | `docs/memos.json` | 生成物 | `build` | 全メモのタイトル・説明・タグ・日付・問題数 |
 | `docs/quizzes.json` | 生成物 | `build` | 全メモの問題（どのメモの問題かも含む）。1 問 1 行 |
 | `docs/md/NAME.md` | 生成物 | `build` | 各メモの本文を Markdown にしたもの |
@@ -220,7 +229,7 @@ GitHub の画面から HTML を直接アップロードした場合も、Actions
 指定した項目だけを書き換え、最後に自動生成ブロックを作り直します（OGP のタイトル・説明が新しいメタ情報に追従します）。
 
 - `--tags` はカンマ区切りで渡し、前後の空白を整えて保存します。
-- `--date` は値を付ければその日付、値なしなら**日本時間の今日**です（[日付と URL の決まり方](#日付と-url-の決まり方)）。
+- `--date` は値を付ければその日付、値なしなら**設定のタイムゾーン（このリポジトリは日本時間）の今日**です（[日付と URL の決まり方](#日付と-url-の決まり方)）。
 
 ### build
 
@@ -232,9 +241,10 @@ flowchart TB
   s2["② 全メモの &lt;head&gt; を読んで一覧を作る<br/>日付の新しい順"]
   s3["③ 全メモの問題データを集める<br/>形の崩れた問題は飛ばして警告"]
   s4["④ docs/memos.json と docs/quizzes.json を書く"]
-  s5["⑤ index.html・quiz.html の memo:head を最新にする"]
+  s5["⑤ index.html・quiz.html のサイト名などと memo:head を最新にする"]
   s6["⑥ docs/md/*.md と docs/llms.txt を書く<br/>消えたメモの Markdown 版は削除"]
-  s1 --> s2 --> s3 --> s4 --> s5 --> s6
+  s7["⑦ entry-skill/SKILL.md を書く"]
+  s1 --> s2 --> s3 --> s4 --> s5 --> s6 --> s7
 ```
 
 - `--check` は何も書き込まず、古いファイルがあれば名前を表示して終了コード 1 を返します。
@@ -271,6 +281,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | `<!-- memo:head -->` 〜 `<!-- /memo:head -->` | `</head>` の直前 | ファビコン・iOS アイコン・OGP（`og:title` / `og:description` は title / description から） | `lint`・`meta`・`build`・`preview` |
 | `<!-- memo:quiz -->` 〜 `<!-- /memo:quiz -->` | フッターの直前（無ければ `</body>` の直前） | クイズ表示の枠と、`assets/memo-quiz.css`・`.js` への参照。問題データが無いメモには入らない | `lint`・`meta`・`build`・`preview` |
+| `data-memo-site` の付いた要素・属性 | `index.html`・`quiz.html` の書いた場所 | `memo.config.json` の値（[サイトごとの設定](#サイトごとの設定memoconfigjson)）。目印の属性は残る | `build`・`preview` |
 | `<footer id="memo-backlink">` | `</body>` の直前 | 「← 一覧に戻る」リンク。スタイルはインラインで完結 | `lint --backlink`（無いときだけ追加） |
 
 ## 確認クイズのデータの流れ
@@ -314,7 +325,39 @@ flowchart LR
 - 本文の大半を JavaScript のデータから描画するページは、HTML からは中身が取れないので、そのスクリプトをコードブロックとして末尾に付けます。
 - 別のメモへのリンクは、そのメモの Markdown 版へのリンクに置き換えます。
 
-公開 URL は `https://memo.taka1156.site/llms.txt` です。リポジトリを繋いでいない会話でも、この URL を渡せば Claude が過去のメモを参照できます。
+公開 URL は `python3 scripts/memo.py url` の後ろに `llms.txt` を付けたもの（このリポジトリは `https://memo.taka1156.site/llms.txt`）です。リポジトリを繋いでいない会話でも、この URL を渡せば Claude が過去のメモを参照できます。
+
+## サイトごとの設定（memo.config.json）
+
+サイトごとに変わる値は、リポジトリ直下の `memo.config.json` に 1 か所だけ書きます。コード・スキル・ページはここから読むので、別のリポジトリで使うときもこのファイルと `docs/CNAME` を変えれば済みます。
+
+| 項目 | 使われる場所 | このリポジトリの値 |
+| --- | --- | --- |
+| `site_name` | 各ページの OGP・iOS アイコン名、トップとクイズのページの `<title>`・見出し、`llms.txt` の見出し | `MEMO` |
+| `description` | トップページの説明（本文と `<meta name="description">`、OGP） | Claude に作ってもらった解説ページの置き場 |
+| `llms_description` | `llms.txt` の冒頭の説明（空なら書かない） | Claude に作ってもらった技術解説ページ… |
+| `repository` | トップページのリンク、`docs/CNAME` が無いときの公開 URL、入口スキル | `taka1156/memo` |
+| `branch` | スキルの push 先（`python3 scripts/memo.py config branch` で読む）、入口スキルの raw URL | `master` |
+| `utc_offset_hours` | `meta --date` の「今日」 | `9`（日本時間） |
+
+- 書かなかった項目は既定値（`scripts/memolib/config.py` の `DEFAULTS`）になります。知らない項目があるとエラーで止まります（綴りの間違いに気づけるように）。
+- `python3 scripts/memo.py config` で今の設定（と公開 URL）を表示できます。
+
+**トップとクイズのページへの差し込み**
+
+`docs/index.html`・`docs/quiz.html` のサイト名などは手で書かず、目印の属性を付けておくと `build` が設定の値で書き換えます。書式の中では `{site_name}`・`{description}`・`{repository}` が使えます。
+
+```html
+<h1 data-memo-site="{site_name}">MEMO</h1>                       <!-- 中身のテキストを置き換える -->
+<a href="…" data-memo-site-href="https://github.com/{repository}">  <!-- href 属性を置き換える -->
+<meta name="description" content="…" data-memo-site-content="{description}">  <!-- content 属性を置き換える -->
+```
+
+目印の属性は残るので、何度 `build` しても同じ結果になります。中身がテキストだけの要素に使います（子要素があると中身ごと置き換わります）。
+
+**アプリ側の入口スキル**
+
+claude.ai のアプリに置く入口スキルは「このリポジトリを取ってきて、ここのスキルに従う」だけのものです。リポジトリ名とブランチだけはアプリ側で知っている必要があるので、`build` が設定から `entry-skill/SKILL.md` を作ります。設定を変えたら、これをアプリ側のスキルに貼り直します。
 
 ## 日付と URL の決まり方
 
@@ -326,13 +369,13 @@ flowchart LR
   a -- ない --> c["git でそのファイルが<br/>最初に追加された日"]
 ```
 
-- `meta --date` を値なしで実行すると、**日本時間（UTC+9）の今日**が入ります。実行環境の時計が UTC でも、日本時間の朝 9 時前に前日の日付になることはありません。
+- `meta --date` を値なしで実行すると、**`memo.config.json` の `utc_offset_hours` のタイムゾーンでの今日**が入ります（このリポジトリは 9 = 日本時間）。実行環境の時計が UTC でも、日本時間の朝 9 時前に前日の日付になることはありません。
 - `meta --date 2026-11-04` のように値を付ければその日付になります。
 - 登録後は `memo.py list` で日付を確認します。
 
 **URL**
 
-- 公開 URL は `docs/CNAME` の独自ドメインから決まります（無ければ `https://taka1156.github.io/memo/`）。`og:url`・`og:image` の絶対 URL にも使います。
+- 公開 URL は `docs/CNAME` の独自ドメインから決まります（無ければ `memo.config.json` の `repository` から GitHub Pages の URL `https://OWNER.github.io/REPO/` を作ります）。`og:url`・`og:image` の絶対 URL にも使います。
 - `og:image` には `og.png` の中身から作った短いハッシュ（`?v=…`）を付けます。画像を差し替えると URL が変わり、SNS 側の画像キャッシュが古いまま残るのを防げます。
 - アイコンと OGP 画像の生成元は `branding/`（`og.html`・`icon.html`）で、`python3 branding/render.py` で `docs/assets/` に書き出します（`branding/` は公開されません）。
 
@@ -356,17 +399,17 @@ python3 scripts/memo.py preview 下書き.html -o /tmp/NAME.html
 
 ## GitHub Actions
 
-`.github/workflows/build-index.yml` が、master への push で生成物を作り直します。
+`.github/workflows/build-index.yml` が、デフォルトブランチへの push で生成物を作り直します（ブランチ名はワークフローに書いていないので、`main` でも `master` でも動きます）。
 
 | 項目 | 内容 |
 | --- | --- |
-| 起動する変更 | `docs/*.html`・`docs/CNAME`・`scripts/` 以下・`docs/assets/og.png`（手動実行も可） |
+| 起動する変更 | `docs/*.html`・`docs/CNAME`・`scripts/` 以下・`docs/assets/og.png`・`memo.config.json`（手動実行も可） |
 | 手順 | 履歴ごと checkout（日付の推定に使う）→ 全メモを `lint`（報告のみ）→ `build` |
-| コミット | `docs/` に変更（新しく生成されたファイルを含む）があれば `Rebuild MEMO index` としてコミット・push |
+| コミット | `docs/`・`entry-skill/` に変更（新しく生成されたファイルを含む）があれば `Rebuild MEMO index` としてコミット・push |
 
 ローカルで `build` してから push していれば、Actions 側では差分が出ません。
 
-もう 1 つの `.github/workflows/test.yml`（`Test memo.py`）は、`scripts/`・`tests/`・クイズの共通ファイル・テンプレートが変わったとき（PR も含む）にテストを流します。リポジトリは書き換えません。
+もう 1 つの `.github/workflows/test.yml`（`Test memo.py`）は、`scripts/`・`tests/`・クイズの共通ファイル・トップとクイズのページ・`memo.config.json`・テンプレートが変わったとき（どのブランチでも、PR も含む）にテストを流します。リポジトリは書き換えません。
 
 ## コードの構成とテスト
 
@@ -378,14 +421,16 @@ flowchart LR
   cli["scripts/memo.py<br/>コマンドの受け付け"]
   subgraph lib["scripts/memolib/"]
     direction LR
-    config["config.py<br/>置き場所・URL・日付<br/>ブロックの目印"]
+    config["config.py<br/>置き場所・設定の読み込み<br/>URL・日付・ブロックの目印"]
+    entry["entry.py<br/>入口スキル"]
     meta["meta.py<br/>メタ情報の読み書き<br/>名前→パス"]
     blocks["blocks.py<br/>memo:head・memo:quiz<br/>フッター・問題データ"]
     lint["lint.py<br/>崩れチェック"]
     md["markdown.py<br/>Markdown 版"]
     site["site.py<br/>memos.json・quizzes.json<br/>preview"]
   end
-  cli --> lint & md & site & meta & blocks & config
+  cli --> lint & md & site & meta & blocks & config & entry
+  entry --> config
   lint --> blocks
   md --> blocks
   site --> blocks
@@ -396,14 +441,15 @@ flowchart LR
   meta --> config
 ```
 
-矢印は「使っている」向きです。依存は一方向（`config` ← `meta` ← `blocks` ← `lint`・`markdown`・`site` ← `memo.py`）で、逆向きの import はありません。
+矢印は「使っている」向きです。依存は一方向（`config` ← `meta` ← `blocks` ← `lint`・`markdown`・`site` ← `memo.py`、`config` ← `entry` ← `memo.py`）で、逆向きの import はありません。
 
 | ファイル | 役割 | 主な関数 |
 | --- | --- | --- |
 | `scripts/memo.py` | コマンドの受け付け | `cmd_build`・`cmd_lint`・`cmd_preview` など、`main` |
-| `memolib/config.py` | 置き場所・公開 URL・日付（日本時間）・自動生成ブロックの目印 | `today_jst`・`site_url`・`asset_version` |
+| `memolib/config.py` | 置き場所・`memo.config.json` の読み込み・公開 URL・日付・自動生成ブロックの目印 | `load_config`・`today`・`site_url`・`pages_url`・`asset_version` |
 | `memolib/meta.py` | `<head>` のメタ情報の読み書き、名前からパスへの解決 | `read_meta`・`set_meta`・`memo_path`・`memo_files` |
-| `memolib/blocks.py` | 自動生成ブロック、「一覧に戻る」フッター、クイズの問題データ | `head_block`・`apply_quiz`・`apply_generated`・`read_quiz`・`validate_quiz` |
+| `memolib/blocks.py` | 自動生成ブロック、サイト設定の差し込み、「一覧に戻る」フッター、クイズの問題データ | `head_block`・`apply_site`・`apply_quiz`・`apply_generated`・`read_quiz`・`validate_quiz` |
+| `memolib/entry.py` | アプリ側の入口スキルの中身 | `entry_skill` |
 | `memolib/lint.py` | 崩れのチェックと自動修正 | `lint_text` |
 | `memolib/markdown.py` | AI 向けの Markdown 版 | `html_to_markdown`・`memo_markdown`・`llms_txt`・`build_markdown` |
 | `memolib/site.py` | 一覧・問題の JSON、会話内プレビュー用の 1 枚の HTML | `site_data`・`memos_json`・`quizzes_json`・`preview_text` |
@@ -412,19 +458,22 @@ flowchart LR
 
 ### テスト
 
-標準ライブラリの `unittest` だけで動きます。リポジトリを一時フォルダにコピーして動かすので、リポジトリ自体は書き換えません。
+標準ライブラリの `unittest` だけで動きます。一時フォルダに作った「作業用リポジトリ」で動かすので、リポジトリ自体は書き換えません。
+
+ほとんどのテストは、仕組みのファイル（`scripts/`・テンプレート・`docs/` の `index.html`・`quiz.html`・`assets/`）に `tests/fixtures/` のサンプルのメモ 2 本と設定を組み合わせて動きます。本物のメモが 1 本もない（仕組みだけを取り出した）リポジトリでも通ります。本物のメモを確かめるテスト（コミット済みの生成物が最新か、全メモが lint を通るか）は、メモがあるときだけ動きます。
 
 ```bash
 python3 -B -m unittest discover -s tests       # 全部（15 秒ほど）
-python3 -B tests/snapshot.py OUTDIR            # 全コマンドの出力を保存（前後比較用）
+python3 -B tests/snapshot.py OUTDIR            # 全コマンドの出力を保存（前後比較用。メモがなければサンプルで）
 ```
 
 | ファイル | 中身 |
 | --- | --- |
-| `tests/test_cli.py` | コマンドを外から動かす結合テスト。生成物が最新か、生成物を全部消して `build` するとリポジトリと同じ中身に戻るか、2 回目の `build` で何も変わらないか、`lint --fix`・`new`・`add`・`meta`・`preview` の動きなど |
-| `tests/test_units.py` | 関数ごとの単体テスト。日本時間の日付、問題データの検証、ブロックの差し込み位置と冪等性、CSS の化けの修正、Markdown 変換、`</script>` のエスケープなど |
+| `tests/test_cli.py` | コマンドを外から動かす結合テスト。生成物を全部消して `build` すると同じ中身に戻るか、2 回目の `build` で何も変わらないか、`memo.config.json` を変えるとページ・入口スキル・URL が変わるか、`lint --fix`・`new`・`add`・`meta`・`preview`・`config` の動きなど。`RepositoryTest` だけは本物のメモで、コミット済みの生成物が最新か・全メモが lint を通るかを見る |
+| `tests/test_units.py` | 関数ごとの単体テスト。設定の読み込みとタイムゾーンの日付、サイト設定の差し込み、問題データの検証、ブロックの差し込み位置と冪等性、CSS の化けの修正、Markdown 変換、`</script>` のエスケープなど |
 | `tests/snapshot.py` | テストではなく道具。全メモの `build`・`lint`・`preview` と各コマンドの出力をフォルダに保存する。リファクタリングの前後で 1 回ずつ実行し、`diff -r` で何も出なければ出力は変わっていない |
-| `tests/helpers.py` | リポジトリを一時フォルダにコピーした「作業用リポジトリ」を作る共通処理 |
+| `tests/helpers.py` | 「作業用リポジトリ」を作る共通処理（`Workspace()` はサンプル、`Workspace(real=True)` は本物のメモ） |
+| `tests/fixtures/` | テスト用のサンプルのメモ（`docs/`）と設定（`memo.config.json`） |
 
 ## 変更したいときはどこを触るか
 
@@ -436,9 +485,48 @@ python3 -B tests/snapshot.py OUTDIR            # 全コマンドの出力を保�
 | クイズ表示の枠（HTML）・入る場所 | `memolib/blocks.py` の `QUIZ_BLOCK`・`apply_quiz` | `build`（全メモが書き換わる） |
 | アイコン・OGP のタグ | `memolib/blocks.py` の `head_block` | `build`（全ページが書き換わる） |
 | アイコン・OGP 画像 | `branding/` | `python3 branding/render.py` → `build` |
-| トップページ・クイズページの見た目 | `docs/index.html`・`docs/quiz.html` | 何もしなくてよい |
+| トップページ・クイズページの見た目 | `docs/index.html`・`docs/quiz.html` | 何もしなくてよい（サイト名などを入れる場所を増やしたら `build`） |
+| サイト名・説明・リポジトリ・ブランチ・タイムゾーン | `memo.config.json` | `build`（全ページ・入口スキルが書き換わる。入口スキルはアプリ側にも貼り直す） |
 | 一覧に載せる項目 | `memolib/meta.py` の `read_meta`、`memolib/site.py` の `memos_json` | `build` |
 | Markdown 版の変換ルール | `memolib/markdown.py` の `_ToMarkdown`・`html_to_markdown` | `build`（全 Markdown 版が書き換わる） |
 | 新しいメモの雛形 | `.claude/skills/memo-style/template.html` | 何もしなくてよい |
 | 公開ドメイン | `docs/CNAME` | `build`（OGP の URL が変わる） |
 | 上の表にないスクリプトの処理 | `scripts/memolib/` の該当モジュール（[コードの構成とテスト](#コードの構成とテスト)） | [memo-maintain](.claude/skills/memo-maintain/SKILL.md) の手順でテストと前後比較 |
+
+
+## 仕組みだけを取り出す
+
+このリポジトリはメモ（中身）と仕組みが同じ場所にありますが、仕組みだけを別のリポジトリにして使えるように分けてあります。
+
+**仕組み（持っていくもの）**
+
+| 場所 | 中身 |
+| --- | --- |
+| `scripts/`・`tests/`（`tests/fixtures/` を含む） | `memo.py` とテスト |
+| `.claude/skills/` | スキルとメモの雛形 |
+| `.github/workflows/` | 生成とテストのワークフロー |
+| `docs/index.html`・`docs/quiz.html`・`docs/assets/` | トップ・クイズのページ、クイズの共通ファイル、アイコン |
+| `branding/` | アイコンと OGP 画像の生成元 |
+| `memo.config.json`・`README.md`・`memo-detail.md`・`.gitignore` | 設定と説明 |
+
+**中身（持っていかないもの）**
+
+| 場所 | 中身 |
+| --- | --- |
+| `docs/` 直下の上記以外の `*.html` | メモ本体 |
+| `docs/md/`・`docs/memos.json`・`docs/quizzes.json`・`docs/llms.txt`・`entry-skill/` | 生成物（`build` で作り直す） |
+| `docs/CNAME` | このサイトの独自ドメイン |
+
+**手順**
+
+```bash
+# 1. メモと生成物、独自ドメインを消す
+find docs -maxdepth 1 -name '*.html' ! -name index.html ! -name quiz.html -delete
+rm -rf docs/md docs/memos.json docs/quizzes.json docs/llms.txt docs/CNAME entry-skill
+# 2. memo.config.json の site_name・description・repository・branch・utc_offset_hours を新しいリポジトリに合わせる
+# 3. 作り直して確かめる
+python3 scripts/memo.py build
+python3 -B -m unittest discover -s tests   # 本物のメモを見るテストは飛ばされる
+```
+
+あとは必要に応じて `branding/` から自分のアイコン・OGP 画像を作り直し（`python3 branding/render.py`）、README の公開 URL や説明を書き換え、GitHub Pages の公開元を `docs/` にします。`entry-skill/SKILL.md` をアプリ側のスキルとして登録すれば、アプリからも使えます。

@@ -63,10 +63,11 @@ HTML を読むのは次のときだけ:
 ```bash
 python3 scripts/memo.py lint NAME      # OK になること
 python3 scripts/memo.py build          # 一覧と Markdown 版を更新
-git fetch origin master                # 遅れていれば rebase
+BRANCH="$(python3 scripts/memo.py config branch)"   # push 先（memo.config.json）
+git fetch origin "$BRANCH"              # 遅れていれば rebase
 git add -A "$(dirname "$(python3 scripts/memo.py path NAME)")"
 git commit -m "Update memo: <タイトル>"
-git push origin HEAD:master
+git push origin HEAD:"$BRANCH"
 ```
 
 - `memo:date` は更新しない（作成日のまま）。タイトルや説明が変わる修正なら `memo.py meta` で直す。

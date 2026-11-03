@@ -5,7 +5,7 @@ import re
 from html.parser import HTMLParser
 
 from .blocks import BACKLINK_ID, QUIZ_RE
-from .config import DOCS, HEAD_RE, SITE_NAME, SITE_URL, SPECIAL_NAMES
+from .config import CONFIG, DOCS, HEAD_RE, SITE_NAME, SITE_URL, SPECIAL_NAMES
 
 #
 # build は各メモの本文を Markdown にして docs/md/NAME.md に、全メモの目次を docs/llms.txt に書き出す。
@@ -307,15 +307,10 @@ def memo_markdown(text: str, meta: dict) -> str:
 
 def llms_txt(memos: list[dict]) -> str:
     """全メモの目次（llms.txt の形式）。"""
-    lines = [
-        f"# {SITE_NAME}",
-        "",
-        "> Claude に作ってもらった技術解説ページ（図解つき HTML）の集まり。"
-        "各リンク先は本文を Markdown にしたもので、元のページへの URL も含む。",
-        "",
-        "## Memos",
-        "",
-    ]
+    lines = [f"# {SITE_NAME}", ""]
+    if CONFIG["llms_description"]:
+        lines += [f"> {CONFIG['llms_description']}", ""]
+    lines += ["## Memos", ""]
     for m in memos:
         name = m["file"][:-5]
         extra = " / ".join(x for x in (", ".join(m["tags"]), m["date"]) if x)

@@ -6,7 +6,7 @@ import html
 import json
 import re
 
-from .config import (ASSETS, HEAD_BEGIN, HEAD_END, HEAD_RE, OG_VERSION, SITE_NAME, SITE_URL,
+from .config import (ASSETS, CONFIG, HEAD_BEGIN, HEAD_END, HEAD_RE, OG_VERSION, SITE_NAME, SITE_URL,
                      SPECIAL_NAMES)
 from .meta import parse_meta
 
@@ -162,7 +162,50 @@ def apply_quiz(text: str) -> str:
     return text[:pos] + QUIZ_BLOCK + text[pos:]
 
 
+# ---------------------------------------------------------------- サイト設定の差し込み
+#
+# トップ・クイズページの「サイト名」「説明」「リポジトリへのリンク」は memo.config.json から入れる。
+# ページ側では書き換えたい要素に属性で目印を付ける（値は {site_name} などを埋め込んだ書式）。
+#   <h1 data-memo-site="{site_name}">…</h1>                → 要素の中身（テキスト）を置き換える
+#   <a href="…" data-memo-site-href="https://…/{repository}">  → 同じタグの href 属性を置き換える
+#   <meta … content="…" data-memo-site-content="{description}"> → content 属性を置き換える
+# 目印の属性はそのまま残るので、何度 build しても同じ結果になる。
+
+SITE_TEXT_RE = re.compile(r'(<([a-zA-Z][\w-]*)\b[^>]*?\sdata-memo-site="([^"]*)"[^>]*>)(.*?)(</\2\s*>)', re.S)
+SITE_TAG_RE = re.compile(r'<[a-zA-Z][\w-]*\b[^>]*\sdata-memo-site-[a-z]+="[^"]*"[^>]*>')
+SITE_ATTR_RE = re.compile(r'\sdata-memo-site-([a-z]+)="([^"]*)"')
+
+
+def site_fields() -> dict[str, str]:
+    return {"site_name": CONFIG["site_name"], "description": CONFIG["description"],
+            "repository": CONFIG["repository"]}
+
+
+def _fill(template: str) -> str:
+    try:
+        return html.unescape(template).format(**site_fields())
+    except (KeyError, IndexError, ValueError) as e:
+        raise SystemExit(f"data-memo-site の書式が読めない: {template!r}（使える名前: "
+                         + ", ".join("{" + k + "}" for k in site_fields()) + f"）: {e}")
+
+
+def apply_site(text: str) -> str:
+    """data-memo-site の目印が付いた要素・属性を memo.config.json の値で置き換える。"""
+    text = SITE_TEXT_RE.sub(
+        lambda m: m.group(1) + html.escape(_fill(m.group(3)), quote=False) + m.group(5), text)
+
+    def tag(m: re.Match) -> str:
+        t = m.group(0)
+        for name, tmpl in SITE_ATTR_RE.findall(t):
+            value = html.escape(_fill(tmpl), quote=True)
+            attr = re.compile(rf'(\s{name}=)"[^"]*"')
+            t = attr.sub(lambda a: f'{a.group(1)}"{value}"', t, count=1) if attr.search(t) \
+                else re.sub(r"\s*/?>$", lambda e: f' {name}="{value}"' + e.group(0), t, count=1)
+        return t
+    return SITE_TAG_RE.sub(tag, text)
+
+
 def apply_generated(text: str, filename: str) -> str:
-    """自動生成ブロック（head・クイズ）をすべて最新にする。"""
-    text = apply_head(text, filename)
+    """自動生成ブロック（head・クイズ）とサイト設定の差し込みをすべて最新にする。"""
+    text = apply_head(apply_site(text), filename)
     return text if filename in SPECIAL_NAMES else apply_quiz(text)

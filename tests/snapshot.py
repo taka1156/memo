@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """memo.py の全コマンドの出力をフォルダに保存する（リファクタリングの前後比較用）。
 
-    python3 tests/snapshot.py OUTDIR
+    python3 tests/snapshot.py OUTDIR [--fixtures]
 
 リポジトリを一時フォルダにコピーし、そのコピーの上で次を実行して結果を OUTDIR に保存する。
-リポジトリ自体は書き換えない。
+リポジトリ自体は書き換えない。本物のメモがないとき（仕組みだけのリポジトリ）や --fixtures を
+付けたときは、tests/fixtures/ のサンプルのメモで実行する。
 
 - 自動生成ブロックと生成物をすべて消してから build（docs/ 全体を build/ に保存）
 - 全メモの lint と preview、index / quiz の preview
@@ -19,7 +20,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from helpers import Workspace
+from helpers import ENTRY_REL, Workspace, repo_has_memos
 
 BROKEN_DRAFT = (
     "<html><head><title>T</title>"
@@ -32,10 +33,10 @@ BROKEN_DRAFT = (
 )
 
 
-def main(out: Path) -> None:
+def main(out: Path, fixtures: bool) -> None:
     if out.exists():
         sys.exit(f"{out} はすでにあります（空のフォルダ名を指定）")
-    with Workspace() as ws:
+    with Workspace(real=not fixtures) as ws:
         log: list[str] = []
 
         def run(*args: str) -> str:
@@ -54,12 +55,15 @@ def main(out: Path) -> None:
             (ws.docs / name).unlink()
         for md in (ws.docs / "md").glob("*.md"):
             md.unlink()
+        (ws.root / ENTRY_REL).unlink(missing_ok=True)
         run("build")
         run("build", "--check")
         run("list")
         shutil.copytree(ws.docs, out / "build")
+        shutil.copy(ws.root / ENTRY_REL, out / "entry-skill.md")
 
-        names = sorted(p.stem for p in ws.docs.glob("*.html") if p.name not in ("index.html", "quiz.html"))
+        names = ws.memo_names()
+        first = names[0]  # add / path / url を試すメモ
         for n in names:
             run("lint", n)
             run("preview", n, "-o", str(out / "preview" / f"{n}.html"))
@@ -74,18 +78,19 @@ def main(out: Path) -> None:
         run("preview", str(draft), "-o", str(out / "draft-preview.html"))
 
         run("new", "zz-new")
-        run("add", str(ws.docs / "docker.html"), "zz-add")
+        run("add", str(ws.docs / f"{first}.html"), "zz-add")
         run("meta", "zz-add", "--title", "T <x>", "--desc", 'D "q"', "--tags", " a, b ,,", "--date", "2026-01-02")
         shutil.copy(ws.docs / "zz-add.html", out / "meta.html")
         run("lint", "zz-new")
-        for args in (("path", "docker"), ("path", "docker", "--md"), ("url", "docker"), ("url",),
-                     ("new", "index"), ("new", "Bad_Name")):
+        for args in (("path", first), ("path", first, "--md"), ("url", first), ("url",),
+                     ("new", "index"), ("new", "Bad_Name"), ("config",)):
             run(*args)
         (out / "log.txt").write_text("\n".join(log), encoding="utf-8")
     print(out)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
+    argv = [a for a in sys.argv[1:] if a != "--fixtures"]
+    if len(argv) != 1:
         sys.exit(__doc__)
-    main(Path(sys.argv[1]).resolve())
+    main(Path(argv[0]).resolve(), fixtures="--fixtures" in sys.argv or not repo_has_memos())

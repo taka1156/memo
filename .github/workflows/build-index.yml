@@ -3,14 +3,17 @@ name: Build MEMO index
 # メモ（docs/*.html）が push されたら、一覧データ（memos.json・quizzes.json）・Markdown 版と
 # 各ページの自動生成ブロック（アイコン・OGP・クイズ表示）を再生成してコミットする。
 # GitHub の画面から HTML を直接アップロードしても一覧に載る。
+# 動くのはデフォルトブランチへの push だけ（ブランチ名は書かない。フォークしても main / master どちらでも動く）。
 on:
   push:
-    branches: [master]
     paths:
       - "docs/*.html"
       - "docs/CNAME" # ドメインが変わったら OGP の URL も更新
       - "scripts/**" # memo.py と memolib/
       - "docs/assets/og.png" # 差し替えたら og:image の ?v= を更新
+      - "docs/index.html" # トップ・クイズページのサイト名などの差し込み
+      - "docs/quiz.html"
+      - "memo.config.json" # サイト名・リポジトリ・ブランチを変えたら差し込み直す
   workflow_dispatch:
 
 permissions:
@@ -18,6 +21,7 @@ permissions:
 
 jobs:
   build:
+    if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,12 +41,12 @@ jobs:
       - name: Commit if changed
         run: |
           # 新しく生成されたファイル（未追跡）も含めて変更を確認する
-          if [ -z "$(git status --porcelain -- docs)" ]; then
+          if [ -z "$(git status --porcelain -- docs entry-skill)" ]; then
             echo "docs は最新です"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs
+          git add docs entry-skill
           git commit -m "Rebuild MEMO index"
           git push

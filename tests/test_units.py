@@ -27,13 +27,34 @@ def quiz_script(data) -> str:
 
 
 class ConfigTest(unittest.TestCase):
-    def test_today_is_japan_time(self):
-        jst = dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).date().isoformat()
-        self.assertEqual(config.today_jst(), jst)
+    def test_today_uses_configured_timezone(self):
+        tz = dt.timezone(dt.timedelta(hours=config.CONFIG["utc_offset_hours"]))
+        self.assertEqual(config.today(), dt.datetime.now(tz).date().isoformat())
 
-    def test_site_url_comes_from_cname(self):
-        cname = (config.DOCS / "CNAME").read_text(encoding="utf-8").strip()
-        self.assertEqual(config.SITE_URL, f"https://{cname}/")
+    def test_site_url_comes_from_cname_or_repository(self):
+        cname = config.DOCS / "CNAME"
+        if cname.is_file():
+            self.assertEqual(config.SITE_URL, f"https://{cname.read_text(encoding='utf-8').strip()}/")
+        else:
+            self.assertEqual(config.SITE_URL, config.pages_url(config.REPOSITORY))
+
+    def test_pages_url(self):
+        self.assertEqual(config.pages_url("Alice/notes"), "https://alice.github.io/notes/")
+        self.assertEqual(config.pages_url("alice/alice.github.io"), "https://alice.github.io/")
+        self.assertEqual(config.pages_url(""), "")
+
+    def test_load_config_fills_defaults_and_rejects_unknown_keys(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "memo.config.json"
+            self.assertEqual(config.load_config(f), config.DEFAULTS)  # ファイルがなくても既定値で動く
+            f.write_text('{"site_name": "X"}', encoding="utf-8")
+            self.assertEqual(config.load_config(f)["site_name"], "X")
+            self.assertEqual(config.load_config(f)["branch"], config.DEFAULTS["branch"])
+            f.write_text('{"sitename": "X"}', encoding="utf-8")
+            with self.assertRaises(SystemExit):
+                config.load_config(f)
 
     def test_name_rule(self):
         for ok in ("docker", "git-rebase", "a1-b2"):
@@ -60,8 +81,8 @@ class MetaTest(unittest.TestCase):
         self.assertLess(text.index('name="description"'), text.index("</head>"))
 
     def test_memo_path_resolves_names(self):
-        target = config.DOCS / "docker.html"
-        for arg in ("docker", "docker.html", "docs/docker.html"):
+        target = config.DOCS / "sample.html"
+        for arg in ("sample", "sample.html", "docs/sample.html"):
             self.assertEqual(meta.memo_path(arg, must_exist=False), target)
 
     def test_memo_path_rejects_reserved_and_bad_names(self):
@@ -70,8 +91,7 @@ class MetaTest(unittest.TestCase):
                 meta.memo_path(arg, must_exist=False)
 
     def test_memo_files_excludes_special_pages(self):
-        names = {p.name for p in meta.memo_files()}
-        self.assertTrue(names)
+        names = {p.name for p in meta.memo_files()}  # 仕組みだけのリポジトリでは空でもよい
         self.assertFalse(names & config.SPECIAL_NAMES)
 
 
@@ -250,10 +270,49 @@ class SiteTest(unittest.TestCase):
     def test_inline_tag_escapes_its_closing_tag(self):
         self.assertEqual(site._inline_tag("script", "a</script>b"), "<script>\na<\\/script>b\n</script>")
 
-    def test_collect_quizzes_skips_broken_questions(self):
+    @unittest.skipUnless(helpers.repo_has_memos(), "本物のメモがない（仕組みだけのリポジトリ）")
+    def test_collect_quizzes_from_repository_are_valid(self):
         qs = site.collect_quizzes(site.site_data()[0])
         self.assertTrue(qs)
         self.assertEqual(blocks.validate_quiz(qs and [{k: q[k] for k in ("q", "choices", "answer")} for q in qs]), [])
+
+
+class SiteFieldsTest(unittest.TestCase):
+    def fields(self):
+        return blocks.site_fields()
+
+    def test_text_and_attributes_are_filled(self):
+        f = self.fields()
+        src = ('<title data-memo-site="{site_name} クイズ">古い</title>\n'
+               '<meta name="description" content="古い" data-memo-site-content="{description}">\n'
+               '<a href="x" data-memo-site="github.com/{repository}" data-memo-site-href="https://github.com/{repository}">古い</a>\n'
+               '<p>そのまま</p>')
+        out = blocks.apply_site(src)
+        self.assertIn(f'>{f["site_name"]} クイズ</title>', out)
+        self.assertIn(f'content="{f["description"]}" data-memo-site-content="{{description}}"', out)
+        self.assertIn(f'<a href="https://github.com/{f["repository"]}"', out)
+        self.assertIn(f'>github.com/{f["repository"]}</a>', out)
+        self.assertIn("<p>そのまま</p>", out)
+        self.assertEqual(blocks.apply_site(out), out)  # 何度やっても同じ
+
+    def test_missing_attribute_is_added(self):
+        out = blocks.apply_site('<a data-memo-site-href="https://github.com/{repository}">x</a>')
+        self.assertIn(f'href="https://github.com/{self.fields()["repository"]}"', out)
+
+    def test_values_are_escaped(self):
+        orig = dict(blocks.CONFIG)
+        try:
+            blocks.CONFIG["site_name"] = 'A & "B" <C>'
+            out = blocks.apply_site('<h1 data-memo-site="{site_name}">x</h1><meta content="" data-memo-site-content="{site_name}">')
+            self.assertIn('>A &amp; "B" &lt;C&gt;</h1>', out)
+            self.assertIn('content="A &amp; &quot;B&quot; &lt;C&gt;"', out)
+        finally:
+            blocks.CONFIG.clear()
+            blocks.CONFIG.update(orig)
+
+    def test_unknown_field_is_an_error(self):
+        with self.assertRaises(SystemExit):
+            blocks.apply_site('<h1 data-memo-site="{nope}">x</h1>')
 
 
 if __name__ == "__main__":

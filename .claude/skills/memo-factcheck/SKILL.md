@@ -93,10 +93,11 @@ python3 scripts/memo.py path NAME     # 実ファイルのパス
 ```bash
 python3 scripts/memo.py lint NAME      # OK になること
 python3 scripts/memo.py build
-git fetch origin master                # 遅れていれば rebase
+BRANCH="$(python3 scripts/memo.py config branch)"   # push 先（memo.config.json）
+git fetch origin "$BRANCH"              # 遅れていれば rebase
 git add -A "$(dirname "$(python3 scripts/memo.py path NAME)")"
 git commit -m "Fix memo: <タイトル>（ファクトチェック）"
-git push origin HEAD:master
+git push origin HEAD:"$BRANCH"
 ```
 
 - 修正では事実の記述だけを変え、構成やデザインは変えない。`memo:date` は更新しない（作成日のまま）。
