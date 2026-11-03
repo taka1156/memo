@@ -223,6 +223,64 @@ footer a { color: var(--accent); }
 // MEMOS:BEGIN（scripts/memo.py build が自動生成。手で編集しない）
 const MEMOS = [
   {
+    "file": "tcp-ip.html",
+    "title": "TCP/IP とネットワーク基礎",
+    "desc": "階層とカプセル化、IP アドレスと CIDR の計算、ルーティングとデフォルトゲートウェイ、NAT、ポート、TCP と UDP の違い、調査コマンドまでを図解。HTTP の一段下の層。",
+    "tags": [
+      "ネットワーク",
+      "インフラ"
+    ],
+    "date": "2026-11-04"
+  },
+  {
+    "file": "memory-management.html",
+    "title": "メモリ管理",
+    "desc": "スタックとヒープの違い、手動管理・ガベージコレクション・参照カウント・所有権という 4 つの解放方式、GC の到達可能性と世代別 GC、GC 言語でも起きるメモリリークの原因と調べ方までを図解。",
+    "tags": [
+      "言語",
+      "JavaScript"
+    ],
+    "date": "2026-11-04"
+  },
+  {
+    "file": "llm-basics.html",
+    "title": "LLM の仕組み",
+    "desc": "トークン、次のトークンの予測と temperature、コンテキストウィンドウ、学習の段階、埋め込みと RAG、ツール呼び出しとエージェントのループまで、LLM を使う側が知っておきたい仕組みを図解。",
+    "tags": [
+      "AI"
+    ],
+    "date": "2026-11-04"
+  },
+  {
+    "file": "event-loop.html",
+    "title": "JS のイベントループと非同期",
+    "desc": "コールスタック・タスクキュー・マイクロタスクキューの関係を、実行順をステップ実行で追いながら図解。await の正体、描画との関係、長いタスクの分け方、Node.js との違いまで。",
+    "tags": [
+      "JavaScript",
+      "フロントエンド"
+    ],
+    "date": "2026-11-04"
+  },
+  {
+    "file": "crypto-basics.html",
+    "title": "暗号の基礎",
+    "desc": "ハッシュ・MAC・共通鍵・公開鍵（鍵交換と署名）・証明書チェーンを、何を守る道具なのかで整理し、TLS 1.3 でどう組み合わさるかまでを図解。",
+    "tags": [
+      "セキュリティ"
+    ],
+    "date": "2026-11-04"
+  },
+  {
+    "file": "ci-cd.html",
+    "title": "CI/CD と GitHub Actions",
+    "desc": "CI と CD の役割、パイプラインの組み方、GitHub Actions のワークフロー・ジョブ・ステップの構造、速くする工夫、シークレットと権限の安全な扱い、デプロイ戦略までを図解。",
+    "tags": [
+      "開発ツール",
+      "インフラ"
+    ],
+    "date": "2026-11-04"
+  },
+  {
     "file": "webassembly.html",
     "title": "WebAssembly",
     "desc": "Wasm が何で、どうやって JS から呼ばれ、なぜ速い場面と速くない場面があるのかを、線形メモリ・サンドボックス・境界のコストで図解。WasmGC、WASI とコンポーネントモデルによるブラウザ外での利用まで。",
@@ -302,16 +360,6 @@ const MEMOS = [
       "開発ツール",
       "JavaScript",
       "設計"
-    ],
-    "date": "2026-11-03"
-  },
-  {
-    "file": "tcp-ip.html",
-    "title": "TCP/IP とネットワーク基礎",
-    "desc": "階層とカプセル化、IP アドレスと CIDR の計算、ルーティングとデフォルトゲートウェイ、NAT、ポート、TCP と UDP の違い、調査コマンドまでを図解。HTTP の一段下の層。",
-    "tags": [
-      "ネットワーク",
-      "インフラ"
     ],
     "date": "2026-11-03"
   },
@@ -403,25 +451,6 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
-    "file": "memory-management.html",
-    "title": "メモリ管理",
-    "desc": "スタックとヒープの違い、手動管理・ガベージコレクション・参照カウント・所有権という 4 つの解放方式、GC の到達可能性と世代別 GC、GC 言語でも起きるメモリリークの原因と調べ方までを図解。",
-    "tags": [
-      "言語",
-      "JavaScript"
-    ],
-    "date": "2026-11-03"
-  },
-  {
-    "file": "llm-basics.html",
-    "title": "LLM の仕組み",
-    "desc": "トークン、次のトークンの予測と temperature、コンテキストウィンドウ、学習の段階、埋め込みと RAG、ツール呼び出しとエージェントのループまで、LLM を使う側が知っておきたい仕組みを図解。",
-    "tags": [
-      "AI"
-    ],
-    "date": "2026-11-03"
-  },
-  {
     "file": "js-web-standards.html",
     "title": "JS と Web 標準の決まり方",
     "desc": "JavaScript の言語は TC39、ブラウザ API は WHATWG と W3C、サーバー側ランタイムの共通 API は TC55（WinterTC）。4 つの団体の分担と、仕様が決まるまでの流れを図解。",
@@ -457,16 +486,6 @@ const MEMOS = [
     "desc": "blob・tree・commit・ref の4つで Git を理解し、merge と rebase の違い、reset の3種類、reflog での復旧までを図解。",
     "tags": [
       "開発ツール"
-    ],
-    "date": "2026-11-03"
-  },
-  {
-    "file": "event-loop.html",
-    "title": "JS のイベントループと非同期",
-    "desc": "コールスタック・タスクキュー・マイクロタスクキューの関係を、実行順をステップ実行で追いながら図解。await の正体、描画との関係、長いタスクの分け方、Node.js との違いまで。",
-    "tags": [
-      "JavaScript",
-      "フロントエンド"
     ],
     "date": "2026-11-03"
   },
@@ -547,15 +566,6 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
-    "file": "crypto-basics.html",
-    "title": "暗号の基礎",
-    "desc": "ハッシュ・MAC・共通鍵・公開鍵（鍵交換と署名）・証明書チェーンを、何を守る道具なのかで整理し、TLS 1.3 でどう組み合わさるかまでを図解。",
-    "tags": [
-      "セキュリティ"
-    ],
-    "date": "2026-11-03"
-  },
-  {
     "file": "component-design.html",
     "title": "コンポーネント設計",
     "desc": "Atomic Design がなぜ下火になったかを踏まえ、デザイントークン・Headless UI・機能単位の配置で組む今どきの UI コンポーネント設計を図とコードで整理する",
@@ -583,16 +593,6 @@ const MEMOS = [
     "tags": [
       "インフラ",
       "データベース"
-    ],
-    "date": "2026-11-03"
-  },
-  {
-    "file": "ci-cd.html",
-    "title": "CI/CD と GitHub Actions",
-    "desc": "CI と CD の役割、パイプラインの組み方、GitHub Actions のワークフロー・ジョブ・ステップの構造、速くする工夫、シークレットと権限の安全な扱い、デプロイ戦略までを図解。",
-    "tags": [
-      "開発ツール",
-      "インフラ"
     ],
     "date": "2026-11-03"
   },
@@ -825,6 +825,36 @@ const MEMOS = [
   }
 ];
 const QUIZZES = [
+  {"file": "tcp-ip.html", "title": "TCP/IP とネットワーク基礎", "q": "Docker コンテナ内で Node.js サーバーを 127.0.0.1:3000 で起動し、docker run -p 3000:3000 で公開した。ホストのブラウザから開けない。原因は？", "choices": ["コンテナ内のループバックでしか待ち受けておらず、転送されてきた通信を受け取れないから", "3000 番はウェルノウンポートなので使えないから", "-p は UDP しか転送しないから"], "answer": 0, "explain": "127.0.0.1 はコンテナ自身の中だけ。外から転送された通信はコンテナのネットワークインターフェースに届くので、0.0.0.0 で待ち受ける必要がある。", "ref": "#ports"},
+  {"file": "tcp-ip.html", "title": "TCP/IP とネットワーク基礎", "q": "自分が 10.0.1.15/24 のとき、10.0.2.8 宛てのパケットはまずどこに送られる？", "choices": ["10.0.2.8 に直接", "デフォルトゲートウェイ（ルーター）", "DNS サーバー"], "answer": 1, "explain": "/24 なので同じネットワークは 10.0.1.0〜10.0.1.255。10.0.2.8 は範囲外なのでルーターに渡す。", "ref": "#routing"},
+  {"file": "tcp-ip.html", "title": "TCP/IP とネットワーク基礎", "q": "社内ネットワーク 10.0.0.0/16 と VPN でつなぐ新しい VPC のアドレス範囲を決める。避けるべきなのは？", "choices": ["172.20.0.0/16", "10.0.128.0/20", "192.168.100.0/24"], "answer": 1, "explain": "10.0.128.0/20 は 10.0.0.0/16 の中に含まれ、範囲が重なる。重なるとどちらに送るべきか決められず、つながらなくなる。", "ref": "#cidr"},
+  {"file": "tcp-ip.html", "title": "TCP/IP とネットワーク基礎", "q": "DB サーバーに nc -zv で接続すると、すぐに「Connection refused」が返る。まず疑うのは？", "choices": ["途中のファイアウォールでパケットが黙って破棄されている", "DNS で名前が解決できていない", "相手には届いているが、そのポートで待ち受けているプロセスがない（または待ち受けアドレスが違う）"], "answer": 2, "explain": "refused は相手のホストが「そのポートは誰も聞いていない」と即座に拒否した応答。黙って破棄される場合はタイムアウトになる。", "ref": "#debug"},
+  {"file": "tcp-ip.html", "title": "TCP/IP とネットワーク基礎", "q": "家庭のルーターの内側にある PC で動かしているサーバーに、外出先から直接つなげない。なぜ？", "choices": ["NAT の変換表は内側から始めた通信の分しか作られず、外から来た通信をどの機器に渡すか決められないから", "プライベートアドレスは TCP を使えないから", "ルーターが TLS を復号できないから"], "answer": 0, "explain": "外から内側に届けるには、ポートフォワーディングで静的な対応を設定するか、トンネル（VPN やトンネルサービス）を使う。", "ref": "#nat"},
+  {"file": "memory-management.html", "title": "メモリ管理", "q": "SPA で画面を開閉するたびにメモリ使用量が増え続ける。コンポーネントは表示のたびに window.addEventListener('resize', handler) を呼んでいる。原因として最も疑わしいのは？", "choices": ["GC が古い世代を回収しないから", "リスナーを外していないため、window から handler とそのクロージャ（コンポーネントの状態）が参照され続けているから", "resize イベントはブラウザがキャッシュするから"], "answer": 1, "explain": "window はルートから常にたどれるので、そこに登録されたリスナーと、それが参照するものは回収されない。アンマウント時に解除する。", "ref": "#leak"},
+  {"file": "memory-management.html", "title": "メモリ管理", "q": "親オブジェクトが子を持ち、子も親を参照している。参照カウント方式の言語（Swift など）で、どちらも使わなくなったのに解放されないのを防ぐには？", "choices": ["片方の参照を弱参照（weak）にする", "両方の変数に一度だけ値を再代入する", "参照カウントの言語では循環しても自動で回収されるので何もしなくてよい"], "answer": 0, "explain": "互いに指し合うとカウントが 0 にならない。片方を weak にするとカウントに数えられず、循環が切れる。", "ref": "#ways"},
+  {"file": "memory-management.html", "title": "メモリ管理", "q": "JS で、DOM 要素ごとに追加情報を持たせたい。要素が削除されたら情報も自動で消えてほしい。何を使う？", "choices": ["グローバルな Map に要素をキーとして保存する", "要素の id 文字列をキーにしたオブジェクトに保存する", "WeakMap に要素をキーとして保存する"], "answer": 2, "explain": "WeakMap のキーは弱く参照されるので、要素が他から参照されなくなれば値ごと回収される。Map だとキーとして要素を持ち続けてしまう。", "ref": "#leak"},
+  {"file": "memory-management.html", "title": "メモリ管理", "q": "再帰で深い木構造をたどる処理が、入力が大きいときだけ stack overflow で落ちる。メモリの観点で何が起きている？", "choices": ["ヒープが足りなくなった", "関数呼び出しごとにスタックへフレームが積まれ、上限の小さいスタックを使い切った", "GC が間に合わなかった"], "answer": 1, "explain": "スタックは数 MB 程度と小さい。再帰をループと自前のスタック（配列）に書き換えると、データはヒープに置かれるので深さに耐えられる。", "ref": "#stack-heap"},
+  {"file": "memory-management.html", "title": "メモリ管理", "q": "Rust で let b = a; とした後に a を使うとコンパイルエラーになる。なぜそういうルールなのか？", "choices": ["a と b が同じヒープ領域を持ち主として解放し、二回解放になるのを防ぐため", "a の値がスタックからヒープにコピーされるため", "変数の再代入が禁止されているため"], "answer": 0, "explain": "所有権を b に移す（ムーブ）ことで持ち主を 1 人に保ち、スコープ終了時の解放が一度だけになるようにしている。", "ref": "#ownership"},
+  {"file": "llm-basics.html", "title": "LLM の仕組み", "q": "社内規程について質問できるチャットを作りたい。規程は数千ページあり、毎月改定される。まず検討する構成は？", "choices": ["規程を埋め込みでベクトル DB に入れ、質問ごとに関連箇所を検索してプロンプトに入れる（RAG）", "毎月、規程でモデルを追加学習し直す", "規程を全部システムプロンプトに入れておく"], "answer": 0, "explain": "量が多く頻繁に変わる知識は、検索して必要な部分だけ渡す RAG が向く。更新は DB を差し替えるだけで済み、出典も示せる。", "ref": "#rag"},
+  {"file": "llm-basics.html", "title": "LLM の仕組み", "q": "問い合わせメールから「注文番号・カテゴリ」を JSON で抜き出す処理。出力のばらつきを抑えたい。temperature はどうする？", "choices": ["高めにして多様な候補から選ばせる", "低めにして確率の高いトークンを選ばせる", "temperature は出力形式に影響しないので気にしなくてよい"], "answer": 1, "explain": "低い temperature は分布を尖らせ、最も確からしい選択に寄せる。抽出や分類のように正解が決まっているタスク向き。", "ref": "#predict"},
+  {"file": "llm-basics.html", "title": "LLM の仕組み", "q": "長い会話の後半で、序盤に伝えた条件をモデルが守らなくなった。考えられる原因は？", "choices": ["モデルが会話の途中で学習内容を上書きしたから", "temperature が自動的に上がったから", "履歴がコンテキストの上限に近づき、アプリが古い部分を削ったり要約したりしたか、長い入力の中で埋もれたから"], "answer": 2, "explain": "モデルが見えるのはコンテキストに入っている分だけ。重要な条件はシステムプロンプトに置くか、要所で再提示する。", "ref": "#context"},
+  {"file": "llm-basics.html", "title": "LLM の仕組み", "q": "同じ長いマニュアルを毎回参照させつつ、質問だけ変えて何度も呼び出す。プロンプトキャッシュを効かせるには？", "choices": ["マニュアルを先頭に、毎回変わる質問を末尾に置く", "質問を先頭に、マニュアルを末尾に置く", "マニュアルを毎回少しずつ要約し直して短くする"], "answer": 0, "explain": "キャッシュは先頭から一致している部分に効く。変わらない部分を前に固定し、変わる部分を後ろに置く。", "ref": "#context"},
+  {"file": "llm-basics.html", "title": "LLM の仕組み", "q": "エージェントに「ファイル削除」ツールを渡す。ツール呼び出しの仕組みを踏まえて、安全策を入れるべき場所は？", "choices": ["モデルのシステムプロンプトに「慎重に」と書けば十分", "ツールを実行するアプリ側で、対象の制限や人の確認を挟む", "temperature を 0 にすれば誤った削除は起きない"], "answer": 1, "explain": "モデルは呼び出したいツールを出力するだけで、実行はアプリが行う。権限の制限や確認はアプリ側で確実に行う。", "ref": "#agent"},
+  {"file": "event-loop.html", "title": "JS のイベントループと非同期", "q": "console.log('1'); setTimeout(() => console.log('2'), 0); Promise.resolve().then(() => console.log('3')); console.log('4'); の出力順は？", "choices": ["1 2 3 4", "1 4 2 3", "1 4 3 2", "1 3 4 2"], "answer": 2, "explain": "同期処理（1, 4）が先。スクリプトというタスクが終わるとマイクロタスク（3）を全部実行し、その後で次のタスク（setTimeout の 2）が動く。", "ref": "#order"},
+  {"file": "event-loop.html", "title": "JS のイベントループと非同期", "q": "重いループの途中に await Promise.resolve() を挟んだのに、処理中ずっと画面が固まる。なぜ？", "choices": ["await の続きはマイクロタスクなので、同じタスクの続きとして描画の前に全部実行されてしまうから", "Promise.resolve() は同期的に完了するので await が無視されるから", "ブラウザは async 関数の実行中は描画しない仕様だから"], "answer": 0, "explain": "マイクロタスクキューは空になるまで実行される。描画の機会を作るには setTimeout や scheduler.yield() でタスクを区切る必要がある。", "ref": "#block"},
+  {"file": "event-loop.html", "title": "JS のイベントループと非同期", "q": "ユーザー情報と通知一覧を、互いに依存しない 2 つの API から取得する。待ち時間を短くする書き方は？", "choices": ["const u = await getUser(); const n = await getNotices();", "const [u, n] = await Promise.all([getUser(), getNotices()]);", "両方を async 関数で包めば自動的に並行になるので、どちらでも同じ"], "answer": 1, "explain": "await を直列に並べると 1 つ目の完了を待ってから 2 つ目を開始する。先に両方開始してから Promise.all でまとめて待つと、待ち時間が重なる。", "ref": "#await"},
+  {"file": "event-loop.html", "title": "JS のイベントループと非同期", "q": "画像を数秒かけて加工する処理を入れたら、ボタンのクリック反応が悪くなった。根本的な対策は？", "choices": ["加工処理を async 関数にする", "加工処理を Web Worker に移し、結果を postMessage で受け取る", "requestAnimationFrame の中で加工処理を呼ぶ"], "answer": 1, "explain": "async にしても同じメインスレッドで計算する。CPU を使う処理は Worker で別スレッドに移すと、メインスレッドが入力と描画に専念できる。", "ref": "#block"},
+  {"file": "event-loop.html", "title": "JS のイベントループと非同期", "q": "Node.js の CommonJS スクリプト（require を使う形式）で、process.nextTick と Promise.then を同じ同期処理の中で登録した。先に実行されるのは？", "choices": ["Promise.then のコールバック", "登録した順", "process.nextTick のコールバック"], "answer": 2, "explain": "CommonJS では、各コールバックの後に nextTick のキューを先に空にしてから Promise のマイクロタスクを処理する。ES Modules ではモジュール本体がマイクロタスクとして動くため、順番が逆になる。", "ref": "#node"},
+  {"file": "crypto-basics.html", "title": "暗号の基礎", "q": "ユーザーのパスワードを DB に保存する。どう保存する？", "choices": ["SHA-256 でハッシュ化して保存する", "Argon2id などの専用関数で、ソルト付きでハッシュ化する", "AES で暗号化し、鍵はアプリの設定ファイルに置く", "Base64 でエンコードして保存する"], "answer": 1, "explain": "汎用ハッシュは速すぎて総当たりに弱い。暗号化は鍵が漏れれば全員分が戻せる。パスワード専用の遅いハッシュ関数を使う。", "ref": "#password"},
+  {"file": "crypto-basics.html", "title": "暗号の基礎", "q": "Webhook を受け取る API で「確かに送信元サービスから来た、書き換えられていない」と確かめたい。送信元とは共有シークレットを事前に交換してある。何を使う？", "choices": ["本文の SHA-256 をヘッダーに付けてもらう", "本文を AES で暗号化してもらう", "共有シークレットで計算した HMAC を付けてもらい、受信側で再計算して比べる"], "answer": 2, "explain": "鍵のないハッシュは改ざん者も計算し直せる。共通鍵を混ぜた HMAC なら、鍵を知らない人は正しい値を作れない。", "ref": "#mac"},
+  {"file": "crypto-basics.html", "title": "暗号の基礎", "q": "複数の API サーバーで JWT を検証したいが、検証側からトークンを発行できるようにはしたくない。どの方式にする？", "choices": ["RS256 や ES256 などの署名方式にし、検証側には公開鍵だけを配る", "HS256 にして、全サーバーに同じ秘密鍵を配る", "JWT を Base64 で二重にエンコードする"], "answer": 0, "explain": "HMAC (HS256) は検証できる鍵で発行もできてしまう。署名方式なら発行には秘密鍵が必要で、検証側は公開鍵だけで足りる。", "ref": "#asymmetric"},
+  {"file": "crypto-basics.html", "title": "暗号の基礎", "q": "自前の HTTPS サーバーが、ブラウザでは問題ないのに curl から「証明書を検証できない」と失敗する。よくある原因は？", "choices": ["サーバー証明書の秘密鍵が短すぎる", "中間 CA の証明書を一緒に送っておらず、チェーンがつながらない", "curl は TLS 1.3 に対応していない"], "answer": 1, "explain": "ブラウザはキャッシュや自動取得で中間証明書を補えることがあるが、curl などは補えない。fullchain を設定する。", "ref": "#cert"},
+  {"file": "crypto-basics.html", "title": "暗号の基礎", "q": "TLS 1.3 で、サーバーの秘密鍵が将来漏えいしても、過去に録音された通信が復号されないのはなぜ？", "choices": ["通信本体が公開鍵暗号で暗号化されているから", "証明書の有効期限が切れると過去の通信も無効になるから", "接続ごとに使い捨ての鍵ペアで鍵交換（ECDHE）しており、サーバーの秘密鍵は署名にしか使わないから"], "answer": 2, "explain": "共通鍵は使い捨ての鍵交換から作られ、終われば捨てられる。証明書の秘密鍵は本人確認の署名にだけ使うので、漏れても過去の鍵は計算できない（前方秘匿性）。", "ref": "#tls"},
+  {"file": "ci-cd.html", "title": "CI/CD と GitHub Actions", "q": "PR ごとの CI に 15 分かかり、そのうち最初の 10 分は E2E テスト、lint は最後に 30 秒。lint エラーで落ちることが多い。まず何をする？", "choices": ["lint・型チェックを最初（または別ジョブで並列）に動かし、速く失敗させる", "E2E テストを削除する", "ランナーのマシンを大きくする"], "answer": 0, "explain": "失敗しやすく速いチェックを先に置くと、待ち時間が大きく減る。独立したジョブにすれば並列にもなる。", "ref": "#pipeline"},
+  {"file": "ci-cd.html", "title": "CI/CD と GitHub Actions", "q": "PR タイトルを使う step で run: echo \"${{ github.event.pull_request.title }}\" と書いていた。何が問題？", "choices": ["タイトルが長いとログが切れる", "式がシェルに渡る前に展開されるため、タイトルに仕込まれたコマンドが実行されうる", "PR タイトルはフォークからは取得できない"], "answer": 1, "explain": "${{ }} はスクリプトの文字列に埋め込まれてからシェルが実行する。env: で環境変数に入れ、\"$TITLE\" として参照する。", "ref": "#security"},
+  {"file": "ci-cd.html", "title": "CI/CD と GitHub Actions", "q": "GitHub Actions から AWS にデプロイする。認証情報の渡し方として推奨されるのは？", "choices": ["IAM ユーザーのアクセスキーを Secrets に保存する", "アクセスキーをリポジトリの暗号化ファイルに入れる", "OIDC（id-token: write）で、実行ごとに短期の認証情報を取得する"], "answer": 2, "explain": "OIDC ならリポジトリやブランチを条件に、その実行だけ有効な認証情報をもらえる。漏れても長く使えない。", "ref": "#security"},
+  {"file": "ci-cd.html", "title": "CI/CD と GitHub Actions", "q": "test ジョブで npm run build した dist/ を、deploy ジョブでそのまま使おうとしたらファイルが無かった。なぜ？", "choices": ["ジョブごとに別のランナーで動くので、ファイルは引き継がれない。artifact で受け渡す", "needs を付けると作業ディレクトリが削除される", "dist/ は .gitignore にあるので Actions では作れない"], "answer": 0, "explain": "同じジョブ内のステップはファイルを共有するが、ジョブ同士は別マシン。upload-artifact / download-artifact で渡す。", "ref": "#structure"},
+  {"file": "ci-cd.html", "title": "CI/CD と GitHub Actions", "q": "新バージョンで、問題が起きたら数秒で元に戻したい。追加のサーバー費用は一時的に許容できる。合うデプロイ方式は？", "choices": ["ローリングアップデート", "ブルーグリーンデプロイ", "PR ごとのプレビュー環境"], "answer": 1, "explain": "旧環境を残したまま新環境に切り替えるので、戻すのもトラフィックを戻すだけ。その間は 2 環境分のリソースが要る。", "ref": "#deploy"},
   {"file": "webassembly.html", "title": "WebAssembly", "q": "画像フィルターを Wasm にしたのに JS 版より遅くなった。ピクセルごとに JS から Wasm の関数を呼んでいる。どう直す？", "choices": ["画像全体を線形メモリに 1 回コピーし、Wasm の中でループさせて結果を 1 回で返す", "Wasm を JS に戻す（Wasm は JS より遅いので）", "関数呼び出しを async にする"], "answer": 0, "explain": "JS と Wasm の境界を越えるたびに呼び出しと変換のコストがかかる。越える回数を減らし、中で長く計算させると速くなる。", "ref": "#memory"},
   {"file": "webassembly.html", "title": "WebAssembly", "q": "リスト表示が重いので、DOM 更新を Wasm で書き直そうとしている。期待できる効果は？", "choices": ["大きく速くなる。Wasm は DOM を直接速く操作できる", "あまり期待できない。Wasm は DOM に直接触れず JS 経由になり、重いのはブラウザ側のレイアウトだから", "Wasm は DOM を一切扱えないので実装できない"], "answer": 1, "explain": "DOM 操作は imports 経由で JS を呼ぶので、むしろ境界のコストが増える。描画の重さはレイアウト・ペイント側の問題。", "ref": "#when"},
   {"file": "webassembly.html", "title": "WebAssembly", "q": "信頼できないユーザー入力を、古い C 製のパーサーを Wasm 化したものに渡す。正しい理解は？", "choices": ["Wasm 化したのでバッファオーバーフローは起きない", "オーバーフローは線形メモリ内では起こりうるが、ブラウザや他のメモリには出られない", "オーバーフローするとブラウザのメモリまで書き換えられる"], "answer": 1, "explain": "Wasm のサンドボックスは外への影響を防ぐが、モジュール内部のメモリ安全性までは保証しない。", "ref": "#sandbox"},
@@ -862,11 +892,6 @@ const QUIZZES = [
   {"file": "testing-strategy.html", "title": "テスト戦略", "q": "コンポーネントのテストで、自作の子コンポーネントと API クライアント関数をすべてモックしたら、テストは通るのに本番で表示が壊れた。どう直すべき？", "choices": ["子コンポーネントは本物を使い、API はネットワークの境界（MSW など）で差し替える", "モックをさらに増やして網羅する", "スナップショットテストを追加する"], "answer": 0, "explain": "内部をモックすると組み合わせたときのズレが見えなくなる。差し替えるのは外部との境界だけにする。", "ref": "#mock"},
   {"file": "testing-strategy.html", "title": "テスト戦略", "q": "E2E テストが CI でだけ時々落ちる。コードには page.waitForTimeout(1000) が多用されている。根本的な対策は？", "choices": ["待ち時間を 3000ms に延ばす", "CI のリトライ回数を増やす", "表示や URL など、状態を待つアサーションに置き換える"], "answer": 2, "explain": "固定時間の待ちは遅い環境で足りなくなる。Playwright の expect は条件を満たすまで自動で待つ。", "ref": "#flaky"},
   {"file": "testing-strategy.html", "title": "テスト戦略", "q": "Testing Library で送信ボタンを探す書き方として、推奨されるのは？", "choices": ["container.querySelector('.btn-primary')", "screen.getByRole('button', { name: '送信' })", "screen.getByTestId('submit') を常に使う"], "answer": 1, "explain": "ユーザーやスクリーンリーダーと同じ手がかり（役割と名前）で探すと、見た目の実装を変えても壊れない。data-testid は他で探せないときの最後の手段。", "ref": "#tools"},
-  {"file": "tcp-ip.html", "title": "TCP/IP とネットワーク基礎", "q": "Docker コンテナ内で Node.js サーバーを 127.0.0.1:3000 で起動し、docker run -p 3000:3000 で公開した。ホストのブラウザから開けない。原因は？", "choices": ["コンテナ内のループバックでしか待ち受けておらず、転送されてきた通信を受け取れないから", "3000 番はウェルノウンポートなので使えないから", "-p は UDP しか転送しないから"], "answer": 0, "explain": "127.0.0.1 はコンテナ自身の中だけ。外から転送された通信はコンテナのネットワークインターフェースに届くので、0.0.0.0 で待ち受ける必要がある。", "ref": "#ports"},
-  {"file": "tcp-ip.html", "title": "TCP/IP とネットワーク基礎", "q": "自分が 10.0.1.15/24 のとき、10.0.2.8 宛てのパケットはまずどこに送られる？", "choices": ["10.0.2.8 に直接", "デフォルトゲートウェイ（ルーター）", "DNS サーバー"], "answer": 1, "explain": "/24 なので同じネットワークは 10.0.1.0〜10.0.1.255。10.0.2.8 は範囲外なのでルーターに渡す。", "ref": "#routing"},
-  {"file": "tcp-ip.html", "title": "TCP/IP とネットワーク基礎", "q": "社内ネットワーク 10.0.0.0/16 と VPN でつなぐ新しい VPC のアドレス範囲を決める。避けるべきなのは？", "choices": ["172.20.0.0/16", "10.0.128.0/20", "192.168.100.0/24"], "answer": 1, "explain": "10.0.128.0/20 は 10.0.0.0/16 の中に含まれ、範囲が重なる。重なるとどちらに送るべきか決められず、つながらなくなる。", "ref": "#cidr"},
-  {"file": "tcp-ip.html", "title": "TCP/IP とネットワーク基礎", "q": "DB サーバーに nc -zv で接続すると、すぐに「Connection refused」が返る。まず疑うのは？", "choices": ["途中のファイアウォールでパケットが黙って破棄されている", "DNS で名前が解決できていない", "相手には届いているが、そのポートで待ち受けているプロセスがない（または待ち受けアドレスが違う）"], "answer": 2, "explain": "refused は相手のホストが「そのポートは誰も聞いていない」と即座に拒否した応答。黙って破棄される場合はタイムアウトになる。", "ref": "#debug"},
-  {"file": "tcp-ip.html", "title": "TCP/IP とネットワーク基礎", "q": "家庭のルーターの内側にある PC で動かしているサーバーに、外出先から直接つなげない。なぜ？", "choices": ["NAT の変換表は内側から始めた通信の分しか作られず、外から来た通信をどの機器に渡すか決められないから", "プライベートアドレスは TCP を使えないから", "ルーターが TLS を復号できないから"], "answer": 0, "explain": "外から内側に届けるには、ポートフォワーディングで静的な対応を設定するか、トンネル（VPN やトンネルサービス）を使う。", "ref": "#nat"},
   {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "注文処理のロジックが MySQL のリポジトリクラスを直接 import している。DB を差し替えても注文ロジックを書き直さずに済むようにするには、インターフェースをどこに置く？", "choices": ["infra 層に置き、MySQL クラスの隣で定義する", "ドメイン（注文処理を使う側）に置き、MySQL クラスがそれを実装する", "共通の utils フォルダに置き、どちらからも参照する", "インターフェースは作らず DI コンテナに任せる"], "answer": 1, "explain": "DIP では抽象を上位（使う側）が所有する。下位がその約束を実装することで、依存の向きが詳細→抽象に逆転する。", "ref": "#who-owns"},
   {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "コンストラクタで OrderRepository を受け取るようにしたが、引数の型は MySqlOrderRepository（具体クラス）のまま。この状態の説明として正しいのは？", "choices": ["DI はしているが、DIP はまだできていない", "DIP はできているが、DI はできていない", "DI も DIP もできている", "DI コンテナがないのでどちらもできていない"], "answer": 0, "explain": "外から渡しているので DI ではあるが、具体クラスに依存しているので依存の向きは逆転していない。", "ref": "#dip-di-ioc"},
   {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "経理の依頼で給与計算を直したら、人事向けの勤怠レポートの出力が変わってしまった。どの原則に違反している可能性が高い？", "choices": ["リスコフの置換原則", "インターフェース分離の原則", "単一責任の原則", "開放閉鎖の原則"], "answer": 2, "explain": "変更の理由（依頼元）が異なる処理が 1 つのクラスに同居していると、片方の修正がもう片方を壊す。", "ref": "#principles"},
@@ -910,16 +935,6 @@ const QUIZZES = [
   {"file": "passkeys.html", "title": "パスキー（WebAuthn）", "q": "本物そっくりの偽サイトが、入力内容をリアルタイムで本物に中継する攻撃。SMS コードの二段階認証では防げないのに、パスキーでは防げるのはなぜ？", "choices": ["パスキーは署名がドメイン（RP ID・オリジン）に紐づき、ブラウザが偽ドメインでは使わせないから", "パスキーの方がコードの桁数が多いから", "パスキーは通信を暗号化するから"], "answer": 0, "explain": "SMS コードはただの文字列なので中継できる。パスキーはブラウザが今のオリジンを確認し、署名にもオリジンが含まれるので、偽ドメインからは本物で通る署名を得られない。", "ref": "#phishing"},
   {"file": "passkeys.html", "title": "パスキー（WebAuthn）", "q": "社内の管理者アカウントで、鍵がクラウドに同期されることを避けたい。合う構成は？", "choices": ["同期パスキーだけを許可する", "パスワード＋TOTP に戻す", "YubiKey などの端末固定パスキーを使い、予備のキーも登録する"], "answer": 2, "explain": "端末固定パスキーは鍵をコピーできず、そのハードウェアの中にしか存在しない。失くすと使えないので予備の登録が前提。", "ref": "#types"},
   {"file": "passkeys.html", "title": "パスキー（WebAuthn）", "q": "パスキーを導入したが「ボタンを探さないと使えない」と利用率が低い。ユーザー名欄の入力候補にパスキーを出すには？", "choices": ["パスワード欄を削除する", "ユーザー名欄に autocomplete=\"username webauthn\" を付け、mediation: 'conditional' で get() を呼ぶ", "ページを開いたら自動で create() を呼ぶ"], "answer": 1, "explain": "conditional mediation を使うと、パスワードの自動入力と同じ場所にパスキーが候補として並ぶ。勝手に create() を呼ぶと毎回登録ダイアログが出てしまう。", "ref": "#implement"},
-  {"file": "memory-management.html", "title": "メモリ管理", "q": "SPA で画面を開閉するたびにメモリ使用量が増え続ける。コンポーネントは表示のたびに window.addEventListener('resize', handler) を呼んでいる。原因として最も疑わしいのは？", "choices": ["GC が古い世代を回収しないから", "リスナーを外していないため、window から handler とそのクロージャ（コンポーネントの状態）が参照され続けているから", "resize イベントはブラウザがキャッシュするから"], "answer": 1, "explain": "window はルートから常にたどれるので、そこに登録されたリスナーと、それが参照するものは回収されない。アンマウント時に解除する。", "ref": "#leak"},
-  {"file": "memory-management.html", "title": "メモリ管理", "q": "親オブジェクトが子を持ち、子も親を参照している。参照カウント方式の言語（Swift など）で、どちらも使わなくなったのに解放されないのを防ぐには？", "choices": ["片方の参照を弱参照（weak）にする", "両方の変数に一度だけ値を再代入する", "参照カウントの言語では循環しても自動で回収されるので何もしなくてよい"], "answer": 0, "explain": "互いに指し合うとカウントが 0 にならない。片方を weak にするとカウントに数えられず、循環が切れる。", "ref": "#ways"},
-  {"file": "memory-management.html", "title": "メモリ管理", "q": "JS で、DOM 要素ごとに追加情報を持たせたい。要素が削除されたら情報も自動で消えてほしい。何を使う？", "choices": ["グローバルな Map に要素をキーとして保存する", "要素の id 文字列をキーにしたオブジェクトに保存する", "WeakMap に要素をキーとして保存する"], "answer": 2, "explain": "WeakMap のキーは弱く参照されるので、要素が他から参照されなくなれば値ごと回収される。Map だとキーとして要素を持ち続けてしまう。", "ref": "#leak"},
-  {"file": "memory-management.html", "title": "メモリ管理", "q": "再帰で深い木構造をたどる処理が、入力が大きいときだけ stack overflow で落ちる。メモリの観点で何が起きている？", "choices": ["ヒープが足りなくなった", "関数呼び出しごとにスタックへフレームが積まれ、上限の小さいスタックを使い切った", "GC が間に合わなかった"], "answer": 1, "explain": "スタックは数 MB 程度と小さい。再帰をループと自前のスタック（配列）に書き換えると、データはヒープに置かれるので深さに耐えられる。", "ref": "#stack-heap"},
-  {"file": "memory-management.html", "title": "メモリ管理", "q": "Rust で let b = a; とした後に a を使うとコンパイルエラーになる。なぜそういうルールなのか？", "choices": ["a と b が同じヒープ領域を持ち主として解放し、二回解放になるのを防ぐため", "a の値がスタックからヒープにコピーされるため", "変数の再代入が禁止されているため"], "answer": 0, "explain": "所有権を b に移す（ムーブ）ことで持ち主を 1 人に保ち、スコープ終了時の解放が一度だけになるようにしている。", "ref": "#ownership"},
-  {"file": "llm-basics.html", "title": "LLM の仕組み", "q": "社内規程について質問できるチャットを作りたい。規程は数千ページあり、毎月改定される。まず検討する構成は？", "choices": ["規程を埋め込みでベクトル DB に入れ、質問ごとに関連箇所を検索してプロンプトに入れる（RAG）", "毎月、規程でモデルを追加学習し直す", "規程を全部システムプロンプトに入れておく"], "answer": 0, "explain": "量が多く頻繁に変わる知識は、検索して必要な部分だけ渡す RAG が向く。更新は DB を差し替えるだけで済み、出典も示せる。", "ref": "#rag"},
-  {"file": "llm-basics.html", "title": "LLM の仕組み", "q": "問い合わせメールから「注文番号・カテゴリ」を JSON で抜き出す処理。出力のばらつきを抑えたい。temperature はどうする？", "choices": ["高めにして多様な候補から選ばせる", "低めにして確率の高いトークンを選ばせる", "temperature は出力形式に影響しないので気にしなくてよい"], "answer": 1, "explain": "低い temperature は分布を尖らせ、最も確からしい選択に寄せる。抽出や分類のように正解が決まっているタスク向き。", "ref": "#predict"},
-  {"file": "llm-basics.html", "title": "LLM の仕組み", "q": "長い会話の後半で、序盤に伝えた条件をモデルが守らなくなった。考えられる原因は？", "choices": ["モデルが会話の途中で学習内容を上書きしたから", "temperature が自動的に上がったから", "履歴がコンテキストの上限に近づき、アプリが古い部分を削ったり要約したりしたか、長い入力の中で埋もれたから"], "answer": 2, "explain": "モデルが見えるのはコンテキストに入っている分だけ。重要な条件はシステムプロンプトに置くか、要所で再提示する。", "ref": "#context"},
-  {"file": "llm-basics.html", "title": "LLM の仕組み", "q": "同じ長いマニュアルを毎回参照させつつ、質問だけ変えて何度も呼び出す。プロンプトキャッシュを効かせるには？", "choices": ["マニュアルを先頭に、毎回変わる質問を末尾に置く", "質問を先頭に、マニュアルを末尾に置く", "マニュアルを毎回少しずつ要約し直して短くする"], "answer": 0, "explain": "キャッシュは先頭から一致している部分に効く。変わらない部分を前に固定し、変わる部分を後ろに置く。", "ref": "#context"},
-  {"file": "llm-basics.html", "title": "LLM の仕組み", "q": "エージェントに「ファイル削除」ツールを渡す。ツール呼び出しの仕組みを踏まえて、安全策を入れるべき場所は？", "choices": ["モデルのシステムプロンプトに「慎重に」と書けば十分", "ツールを実行するアプリ側で、対象の制限や人の確認を挟む", "temperature を 0 にすれば誤った削除は起きない"], "answer": 1, "explain": "モデルは呼び出したいツールを出力するだけで、実行はアプリが行う。権限の制限や確認はアプリ側で確実に行う。", "ref": "#agent"},
   {"file": "js-web-standards.html", "title": "JS と Web 標準の決まり方", "q": "ブラウザでも Node.js・Cloudflare Workers でも動くライブラリを作りたい。依存してよい API の目安は？", "choices": ["TC55 の Minimum Common API（ECMA-429）に入っている API", "ブラウザで動く API なら何でもよい（document や localStorage も含む）", "Node.js の node: モジュールなら、他のランタイムでも必ず動く"], "answer": 0, "explain": "Minimum Common API は、サーバー側ランタイムが共通で実装する Web API の範囲。document や localStorage は入っておらず、node: モジュールは標準の外。", "ref": "#mca"},
   {"file": "js-web-standards.html", "title": "JS と Web 標準の決まり方", "q": "ブラウザでの setTimeout の正確な挙動（遅延の扱いなど）を仕様で確かめたい。どこを見る？", "choices": ["ECMAScript の仕様（ECMA-262）", "WHATWG の HTML Standard", "W3C の CSS の仕様"], "answer": 1, "explain": "タイマーとイベントループは言語ではなく HTML Standard で決まっている。Node.js は自前で実装しているので、挙動が違うことがある。", "ref": "#layers"},
   {"file": "js-web-standards.html", "title": "JS と Web 標準の決まり方", "q": "気になっていた JavaScript の提案が Stage 2.7 になった。本番のコードで使い始めてよい？", "choices": ["使ってよい。設計が完成したので全ブラウザに入っている", "使ってよい。Stage 2.7 からは名前や構文が変わらないことが保証されている", "まだ待つ。テストと試作で検証中で、ブラウザの実装が本格化するのは Stage 3 から"], "answer": 2, "explain": "Stage 2.7 は検証の段階で、テストや試作の結果によっては変わりうる。Stage 3 以降で、実装状況を確かめてから使う。", "ref": "#tc39"},
@@ -940,11 +955,6 @@ const QUIZZES = [
   {"file": "git-internals.html", "title": "Git の内部構造", "q": "チームで共有している develop ブランチ（push 済み）に main の最新を取り込みたい。安全なのは？", "choices": ["git merge main", "git rebase main して force push", "git reset --hard main"], "answer": 0, "explain": "merge は既存コミットを書き換えず新しいマージコミットを足すだけ。rebase はコミットを作り直すため、同じブランチを持つ他の人の履歴と食い違う。", "ref": "#merge-rebase"},
   {"file": "git-internals.html", "title": "Git の内部構造", "q": "直前のコミットに入れるべきファイルを入れ忘れた。変更は消さずに、コミットだけ作り直したい。合うのは？", "choices": ["git reset --hard HEAD~1", "git reset --soft HEAD~1", "git revert HEAD"], "answer": 1, "explain": "--soft はブランチだけを1つ前に戻し、インデックスと作業ツリーはそのまま。ファイルを add して commit し直せる（git commit --amend でも同じことができる）。", "ref": "#reset"},
   {"file": "git-internals.html", "title": "Git の内部構造", "q": "GitHub で feature を「Squash and merge」した後、同じ feature ブランチで作業を続けて再度 PR を出したら、前に取り込んだはずの変更まで差分に出てきた。なぜ？", "choices": ["squash で main 側のコミットが壊れたから", "GitHub のキャッシュが古いから", "squash したコミットは feature のコミットとつながっておらず、Git が取り込み済みと判定できないから"], "answer": 2, "explain": "squash merge は変更をまとめた新しいコミットを作るだけで、feature の元コミットを親に持たない。そのため Git から見ると feature の元コミットは main に未取り込みのまま。", "ref": "#merge-rebase"},
-  {"file": "event-loop.html", "title": "JS のイベントループと非同期", "q": "console.log('1'); setTimeout(() => console.log('2'), 0); Promise.resolve().then(() => console.log('3')); console.log('4'); の出力順は？", "choices": ["1 2 3 4", "1 4 2 3", "1 4 3 2", "1 3 4 2"], "answer": 2, "explain": "同期処理（1, 4）が先。スクリプトというタスクが終わるとマイクロタスク（3）を全部実行し、その後で次のタスク（setTimeout の 2）が動く。", "ref": "#order"},
-  {"file": "event-loop.html", "title": "JS のイベントループと非同期", "q": "重いループの途中に await Promise.resolve() を挟んだのに、処理中ずっと画面が固まる。なぜ？", "choices": ["await の続きはマイクロタスクなので、同じタスクの続きとして描画の前に全部実行されてしまうから", "Promise.resolve() は同期的に完了するので await が無視されるから", "ブラウザは async 関数の実行中は描画しない仕様だから"], "answer": 0, "explain": "マイクロタスクキューは空になるまで実行される。描画の機会を作るには setTimeout や scheduler.yield() でタスクを区切る必要がある。", "ref": "#block"},
-  {"file": "event-loop.html", "title": "JS のイベントループと非同期", "q": "ユーザー情報と通知一覧を、互いに依存しない 2 つの API から取得する。待ち時間を短くする書き方は？", "choices": ["const u = await getUser(); const n = await getNotices();", "const [u, n] = await Promise.all([getUser(), getNotices()]);", "両方を async 関数で包めば自動的に並行になるので、どちらでも同じ"], "answer": 1, "explain": "await を直列に並べると 1 つ目の完了を待ってから 2 つ目を開始する。先に両方開始してから Promise.all でまとめて待つと、待ち時間が重なる。", "ref": "#await"},
-  {"file": "event-loop.html", "title": "JS のイベントループと非同期", "q": "画像を数秒かけて加工する処理を入れたら、ボタンのクリック反応が悪くなった。根本的な対策は？", "choices": ["加工処理を async 関数にする", "加工処理を Web Worker に移し、結果を postMessage で受け取る", "requestAnimationFrame の中で加工処理を呼ぶ"], "answer": 1, "explain": "async にしても同じメインスレッドで計算する。CPU を使う処理は Worker で別スレッドに移すと、メインスレッドが入力と描画に専念できる。", "ref": "#block"},
-  {"file": "event-loop.html", "title": "JS のイベントループと非同期", "q": "Node.js の CommonJS スクリプト（require を使う形式）で、process.nextTick と Promise.then を同じ同期処理の中で登録した。先に実行されるのは？", "choices": ["Promise.then のコールバック", "登録した順", "process.nextTick のコールバック"], "answer": 2, "explain": "CommonJS では、各コールバックの後に nextTick のキューを先に空にしてから Promise のマイクロタスクを処理する。ES Modules ではモジュール本体がマイクロタスクとして動くため、順番が逆になる。", "ref": "#node"},
   {"file": "docker.html", "title": "Docker 動作原理", "q": "コンテナの中で設定ファイルを書き換えたあと、そのコンテナを削除した。書き換えた内容と元のイメージはどうなる？", "choices": ["イメージごと削除される", "書き換えはコンテナ用の書き込み層にだけあったので消え、イメージは元のまま", "書き換えはイメージに保存され、次に起動したコンテナにも残る"], "answer": 1, "explain": "書き込みは Copy-on-Write で upperdir（コンテナ層）にだけ入る。コンテナを消すと upperdir だけが消え、読み取り専用のイメージ層はそのまま再利用できる。", "ref": "#overlayfs"},
   {"file": "docker.html", "title": "Docker 動作原理", "q": "同じイメージからコンテナを 10 個起動した。ディスクの使われ方として正しいのは？", "choices": ["読み取り専用のイメージ層は共有し、各コンテナは自分の差分だけを持つ", "コンテナごとにイメージ全体がコピーされる", "最初の 1 個だけがイメージを持ち、残りは起動できない"], "answer": 0, "explain": "イメージ層は読み取り専用なので複数のコンテナで共有でき、書き込みは各コンテナの Container Layer に差分として入る。", "ref": "#layers"},
   {"file": "docker.html", "title": "Docker 動作原理", "q": "あるコンテナがメモリを使いすぎてホストが重くなる。コンテナのメモリを 512MB までに抑えるのに使われる仕組みは？", "choices": ["OverlayFS", "名前空間（namespace）", "cgroups（-m 512m）"], "answer": 2, "explain": "名前空間は「見える範囲」を分ける仕組みで、使える量を制限するのは cgroups。", "ref": "#cgroups"},
@@ -983,11 +993,6 @@ const QUIZZES = [
   {"file": "css-layout.html", "title": "CSS レイアウト", "q": "記事カード部品を、メインカラムでは横並び、狭いサイドバーでは縦並びで表示したい。画面幅は同じ。使うべきものは？", "choices": ["メディアクエリ", "コンテナクエリ", "flex-wrap"], "answer": 1, "explain": "画面幅ではなく、カードが置かれた場所の幅で切り替えたいのでコンテナクエリ。", "ref": "#cq"},
   {"file": "css-layout.html", "title": "CSS レイアウト", "q": "UI ライブラリの CSS（#app .btn のような詳細度の高いセレクタ）を、自分の .btn-primary で上書きしたい。!important を使わない方法は？", "choices": ["ライブラリを低いカスケードレイヤーに入れて読み込む", "自分のセレクタに ID を足して詳細度を上げる", "自分の CSS を先に読み込む"], "answer": 0, "explain": "レイヤーの順位は詳細度より先に比べられる。ライブラリを下の層に入れれば、詳細度に関係なく自分のスタイルが勝つ。", "ref": "#cascade"},
   {"file": "css-layout.html", "title": "CSS レイアウト", "q": "モーダルに z-index: 9999 を付けたのに、別のヘッダーの下に隠れる。モーダルの親には transform が付いている。原因は？", "choices": ["z-index の上限が 999 だから", "親の transform が新しい重ね合わせコンテキストを作り、その中でしか比べられないから", "position: static のままだから z-index が効いていない"], "answer": 1, "explain": "transform などは重ね合わせコンテキストを作る。子の z-index はその中だけの順位になり、外のヘッダーとは親同士で比べられる。", "ref": "#myths"},
-  {"file": "crypto-basics.html", "title": "暗号の基礎", "q": "ユーザーのパスワードを DB に保存する。どう保存する？", "choices": ["SHA-256 でハッシュ化して保存する", "Argon2id などの専用関数で、ソルト付きでハッシュ化する", "AES で暗号化し、鍵はアプリの設定ファイルに置く", "Base64 でエンコードして保存する"], "answer": 1, "explain": "汎用ハッシュは速すぎて総当たりに弱い。暗号化は鍵が漏れれば全員分が戻せる。パスワード専用の遅いハッシュ関数を使う。", "ref": "#password"},
-  {"file": "crypto-basics.html", "title": "暗号の基礎", "q": "Webhook を受け取る API で「確かに送信元サービスから来た、書き換えられていない」と確かめたい。送信元とは共有シークレットを事前に交換してある。何を使う？", "choices": ["本文の SHA-256 をヘッダーに付けてもらう", "本文を AES で暗号化してもらう", "共有シークレットで計算した HMAC を付けてもらい、受信側で再計算して比べる"], "answer": 2, "explain": "鍵のないハッシュは改ざん者も計算し直せる。共通鍵を混ぜた HMAC なら、鍵を知らない人は正しい値を作れない。", "ref": "#mac"},
-  {"file": "crypto-basics.html", "title": "暗号の基礎", "q": "複数の API サーバーで JWT を検証したいが、検証側からトークンを発行できるようにはしたくない。どの方式にする？", "choices": ["RS256 や ES256 などの署名方式にし、検証側には公開鍵だけを配る", "HS256 にして、全サーバーに同じ秘密鍵を配る", "JWT を Base64 で二重にエンコードする"], "answer": 0, "explain": "HMAC (HS256) は検証できる鍵で発行もできてしまう。署名方式なら発行には秘密鍵が必要で、検証側は公開鍵だけで足りる。", "ref": "#asymmetric"},
-  {"file": "crypto-basics.html", "title": "暗号の基礎", "q": "自前の HTTPS サーバーが、ブラウザでは問題ないのに curl から「証明書を検証できない」と失敗する。よくある原因は？", "choices": ["サーバー証明書の秘密鍵が短すぎる", "中間 CA の証明書を一緒に送っておらず、チェーンがつながらない", "curl は TLS 1.3 に対応していない"], "answer": 1, "explain": "ブラウザはキャッシュや自動取得で中間証明書を補えることがあるが、curl などは補えない。fullchain を設定する。", "ref": "#cert"},
-  {"file": "crypto-basics.html", "title": "暗号の基礎", "q": "TLS 1.3 で、サーバーの秘密鍵が将来漏えいしても、過去に録音された通信が復号されないのはなぜ？", "choices": ["通信本体が公開鍵暗号で暗号化されているから", "証明書の有効期限が切れると過去の通信も無効になるから", "接続ごとに使い捨ての鍵ペアで鍵交換（ECDHE）しており、サーバーの秘密鍵は署名にしか使わないから"], "answer": 2, "explain": "共通鍵は使い捨ての鍵交換から作られ、終われば捨てられる。証明書の秘密鍵は本人確認の署名にだけ使うので、漏れても過去の鍵は計算できない（前方秘匿性）。", "ref": "#tls"},
   {"file": "component-design.html", "title": "コンポーネント設計", "q": "atoms / molecules / organisms のフォルダ構成で、「カート」の仕様変更のたびに 3 つのフォルダを行き来している。根本的な改善は？", "choices": ["機能（features/cart）ごとにまとめ、業務を知らない共通部品だけを ui/ に置く", "templates/ フォルダを追加してまとめる", "カート関連の部品をすべて organisms に移す", "部品をさらに細かく atoms に分解する"], "answer": 0, "explain": "粒度での分類は変更の理由と無関係なので、1 機能の修正が散らばる。機能単位に置けば変更がフォルダ内で完結する。", "ref": "#folders"},
   {"file": "component-design.html", "title": "コンポーネント設計", "q": "自作のモーダルで、Esc で閉じない・Tab で背後の要素に移ってしまう、という指摘を受けた。見た目は今のまま変えたくない。どうする？", "choices": ["見た目ごと UI ライブラリの既製モーダルに置き換える", "Esc キーのイベントだけ追加して様子を見る", "Headless UI（または <dialog> 要素）に振る舞いを任せ、今のスタイルを当てる", "モーダルをやめて別ページに遷移させる"], "answer": 2, "explain": "Headless は振る舞い（キー操作・フォーカス管理・ARIA）だけを提供するので、見た目を保ったまま難しい部分を任せられる。", "ref": "#headless"},
   {"file": "component-design.html", "title": "コンポーネント設計", "q": "Button に primary・danger・outline などの真偽値 props が増え、同時に true にされると見た目が壊れる。設計の直し方は？", "choices": ["props の数を減らすため、className を直接渡させる", "同時に成り立たないものを variant: 'primary' | 'danger' … の 1 つの型にまとめる", "真偽値の組み合わせごとに別のコンポーネントを作る", "優先順位をコメントで書いておく"], "answer": 1, "explain": "排他的な選択肢を union 型にすれば、ありえない組み合わせを型で防げる。", "ref": "#c-variant"},
@@ -1001,11 +1006,6 @@ const QUIZZES = [
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "Hyperdrive 経由の PlanetScale を使っている。プロフィールを更新した直後の画面で、古い名前が表示されることがある。原因として考えられるのは？", "choices": ["PlanetScale の書き込みが失敗している", "Hyperdrive の読み取りクエリのキャッシュが古い結果を返している", "Placement の設定が間違っている"], "answer": 1, "explain": "Hyperdrive は読み取りクエリの結果を既定でキャッシュし、書き込みがあってもキャッシュを消さない。書いた直後に読む画面では、キャッシュを無効にした別の Hyperdrive 設定（バインディング）を経由して読む。", "ref": "#myths"},
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "PlanetScale の DB は us-east-1 にある。Worker が各国の最寄りで動くため、1リクエストで何本もクエリを投げる API が遅い。効く対策は？", "choices": ["D1 の読み取りレプリカを増やす", "クエリを並列にしてさらに本数を増やす", "Placement で Worker を DB の近く（aws:us-east-1）で動かす"], "answer": 2, "explain": "クエリのたびに Worker と DB の間を往復するので、距離 × 本数だけ遅くなる。Worker を DB の近くで動かせば、ユーザーとの往復は1回、DB との往復は短くなる。", "ref": "#arch"},
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "D1 で1つの DB に全ユーザーの書き込みが集中し、遅くなってきた。読み取りレプリカを有効にすれば解決する？", "choices": ["解決する。レプリカが書き込みも分担するから", "解決しない。レプリカは読み取り専用なので、書き込みは DB を分けて散らす", "解決する。レプリカがあると書き込みがキャッシュされるから"], "answer": 1, "explain": "D1 の各 DB はシングルスレッドで、書き込みはプライマリに集まる。書き込みを増やしたいなら DB を分けるか、共有データが中心なら PlanetScale のようなサーバー型 DB を検討する。", "ref": "#myths"},
-  {"file": "ci-cd.html", "title": "CI/CD と GitHub Actions", "q": "PR ごとの CI に 15 分かかり、そのうち最初の 10 分は E2E テスト、lint は最後に 30 秒。lint エラーで落ちることが多い。まず何をする？", "choices": ["lint・型チェックを最初（または別ジョブで並列）に動かし、速く失敗させる", "E2E テストを削除する", "ランナーのマシンを大きくする"], "answer": 0, "explain": "失敗しやすく速いチェックを先に置くと、待ち時間が大きく減る。独立したジョブにすれば並列にもなる。", "ref": "#pipeline"},
-  {"file": "ci-cd.html", "title": "CI/CD と GitHub Actions", "q": "PR タイトルを使う step で run: echo \"${{ github.event.pull_request.title }}\" と書いていた。何が問題？", "choices": ["タイトルが長いとログが切れる", "式がシェルに渡る前に展開されるため、タイトルに仕込まれたコマンドが実行されうる", "PR タイトルはフォークからは取得できない"], "answer": 1, "explain": "${{ }} はスクリプトの文字列に埋め込まれてからシェルが実行する。env: で環境変数に入れ、\"$TITLE\" として参照する。", "ref": "#security"},
-  {"file": "ci-cd.html", "title": "CI/CD と GitHub Actions", "q": "GitHub Actions から AWS にデプロイする。認証情報の渡し方として推奨されるのは？", "choices": ["IAM ユーザーのアクセスキーを Secrets に保存する", "アクセスキーをリポジトリの暗号化ファイルに入れる", "OIDC（id-token: write）で、実行ごとに短期の認証情報を取得する"], "answer": 2, "explain": "OIDC ならリポジトリやブランチを条件に、その実行だけ有効な認証情報をもらえる。漏れても長く使えない。", "ref": "#security"},
-  {"file": "ci-cd.html", "title": "CI/CD と GitHub Actions", "q": "test ジョブで npm run build した dist/ を、deploy ジョブでそのまま使おうとしたらファイルが無かった。なぜ？", "choices": ["ジョブごとに別のランナーで動くので、ファイルは引き継がれない。artifact で受け渡す", "needs を付けると作業ディレクトリが削除される", "dist/ は .gitignore にあるので Actions では作れない"], "answer": 0, "explain": "同じジョブ内のステップはファイルを共有するが、ジョブ同士は別マシン。upload-artifact / download-artifact で渡す。", "ref": "#structure"},
-  {"file": "ci-cd.html", "title": "CI/CD と GitHub Actions", "q": "新バージョンで、問題が起きたら数秒で元に戻したい。追加のサーバー費用は一時的に許容できる。合うデプロイ方式は？", "choices": ["ローリングアップデート", "ブルーグリーンデプロイ", "PR ごとのプレビュー環境"], "answer": 1, "explain": "旧環境を残したまま新環境に切り替えるので、戻すのもトラフィックを戻すだけ。その間は 2 環境分のリソースが要る。", "ref": "#deploy"},
   {"file": "browser-storage.html", "title": "ブラウザのストレージ", "q": "SPA でユーザーのテーマ設定（ライト／ダーク）を保存したい。サーバー側の描画には使わない。合う置き場所は？", "choices": ["localStorage", "Cookie", "IndexedDB"], "answer": 0, "explain": "小さくて消えても困らない設定は localStorage で十分。Cookie に入れると全リクエストに乗って無駄に送られる。", "ref": "#choose"},
   {"file": "browser-storage.html", "title": "ブラウザのストレージ", "q": "数 MB の JSON を localStorage に保存・読み込みするたびに画面が固まる。改善策は？", "choices": ["JSON を圧縮して文字数を減らす", "IndexedDB に移して、オブジェクトのまま非同期で読み書きする", "sessionStorage に移す"], "answer": 1, "explain": "localStorage は同期 API でメインスレッドを止める。sessionStorage も同じ。IndexedDB は非同期で、文字列化も要らない。", "ref": "#web-storage"},
   {"file": "browser-storage.html", "title": "ブラウザのストレージ", "q": "ログインセッションの ID を保存する場所として最も安全なのは？", "choices": ["localStorage", "HttpOnly・Secure・SameSite を付けた Cookie", "sessionStorage"], "answer": 1, "explain": "HttpOnly なら JS から読めないので XSS で盗まれにくい。Web Storage は JS から全部読める。", "ref": "#cookie"},

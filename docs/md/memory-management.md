@@ -6,7 +6,7 @@
 
 - URL: https://memo.taka1156.site/memory-management.html
 - タグ: 言語, JavaScript
-- 日付: 2026-11-03
+- 日付: 2026-11-04
 
 ---
 
