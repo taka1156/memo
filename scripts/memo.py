@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MEMO リポジトリ用ツール（標準ライブラリのみ）
+"""MEMO リポジトリ用ツール（標準ライブラリのみ）。仕組みの解説はリポジトリ直下の memo-detail.md
 
 使い方（どのディレクトリから実行してもよい）:
   python3 scripts/memo.py new   NAME                  テンプレートから docs/NAME.html を作る
@@ -46,7 +46,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"  # GitHub Pages の公開元
 INDEX = DOCS / "index.html"
 QUIZ_PAGE = DOCS / "quiz.html"  # 全メモの問題から 10 問解くページ
-# メモではない特別なページ（一覧に載せない・メモ名に使えない）。build が一覧データを埋め込む
+# メモではない特別なページ（一覧に載せない・メモ名に使えない）。一覧データは memos.json などから読み込む
 SPECIAL_PAGES = (INDEX, QUIZ_PAGE)
 SPECIAL_NAMES = {p.name for p in SPECIAL_PAGES}
 FALLBACK_URL = "https://taka1156.github.io/memo/"
