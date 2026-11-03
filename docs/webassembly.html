@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebAssembly</title>
+<meta name="description" content="Wasm が何で、どうやって JS から呼ばれ、なぜ速い場面と速くない場面があるのかを、線形メモリ・サンドボックス・境界のコストで図解。WasmGC、WASI とコンポーネントモデルによるブラウザ外での利用まで。">
+<meta name="memo:tags" content="フロントエンド, 言語, JavaScript">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-warn: #b45309;
+  --c-a: #7c3aed;
+  --c-b: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-warn: #fbbf24;
+    --c-a: #c4b5fd;
+    --c-b: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.list, ol.list { margin: 6px 0 6px 1.3em; }
+ul.list li, ol.list li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* ステップ */
+ol.steps { list-style: none; counter-reset: st; }
+ol.steps > li {
+  counter-increment: st;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 12px; top: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps b { display: block; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.fig .sub { fill: var(--fg-2); font-family: 'Noto Sans JP', sans-serif; }
+.fig .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+details.card summary { cursor: pointer; font-weight: 700; }
+details.card[open] summary { margin-bottom: 8px; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.hdr { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); padding: 8px 12px; border-radius: 8px; word-break: break-all; margin: 6px 0; }
+.lane { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .lane { grid-template-columns: 1fr; } }
+.lane .flow { flex-direction: column; align-items: stretch; }
+.lane .arrow { text-align: center; font-size: 0.75rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; }
+.svgwrap { overflow-x: auto; }
+.lane > *, .grid2 > *, .grid3 > * { min-width: 0; }
+.svgwrap > svg { min-width: 560px; }
+@media (max-width: 560px) {
+  .flow { flex-direction: column; align-items: stretch; }
+  .flow .arrow { align-self: center; transform: rotate(90deg); line-height: 1; }
+}
+
+/* ---- このページ専用 ---- */
+.mem { display: flex; gap: 2px; margin: 10px 0; flex-wrap: wrap; }
+.mem span { flex: 0 0 34px; height: 30px; border: 1px solid var(--line); border-radius: 4px; display: flex; align-items: center; justify-content: center; font: 700 0.65rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); }
+.mem span.u { background: var(--c-a); color: var(--bg); border-color: var(--c-a); }
+.mem span.s { background: var(--c-b); color: var(--bg); border-color: var(--c-b); }
+.bridge { display: grid; grid-template-columns: 1fr 110px 1fr; gap: 8px; align-items: center; }
+.stackd { display: grid; grid-template-columns: 1fr 200px; gap: 12px; align-items: start; }
+@media (max-width: 600px) { .stackd { grid-template-columns: 1fr; } }
+.stackd .comps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stackd .ly { border: 2px solid var(--line); border-radius: 8px; padding: 8px 10px; text-align: center; background: var(--surface); }
+.stackd .ly b { display: block; font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; }
+.stackd .ly small { color: var(--fg-2); font-size: 0.72rem; }
+.stackd .wit { text-align: center; font-size: 0.72rem; color: var(--fg-2); margin: 6px 0; }
+.stackd .cap { border-left: 3px solid var(--accent); padding-left: 10px; font-size: 0.82rem; }
+.stackd .cap b { color: var(--accent); display: block; }
+.bridge .side { border: 2px solid var(--line); border-radius: 10px; padding: 10px; text-align: center; }
+.bridge .side b { font-family: 'JetBrains Mono', ui-monospace, monospace; display: block; }
+.bridge .side small { color: var(--fg-2); font-size: 0.72rem; }
+.bridge .mid { text-align: center; font-size: 0.68rem; color: var(--fg-2); }
+.bridge .mid div { height: 2px; background: var(--c-warn); margin: 4px 0; }
+@media (max-width: 480px) { .bridge { grid-template-columns: 1fr; } }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="WebAssembly">
+<meta property="og:description" content="Wasm が何で、どうやって JS から呼ばれ、なぜ速い場面と速くない場面があるのかを、線形メモリ・サンドボックス・境界のコストで図解。WasmGC、WASI とコンポーネントモデルによるブラウザ外での利用まで。">
+<meta property="og:url" content="https://memo.taka1156.site/webassembly.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>WebAssembly</h1>
+  <p class="subtitle">「JS の代わり」ではなく「JS が呼び出す、速くて安全な計算部品」</p>
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>WebAssembly（Wasm）は、ブラウザなどで動く<b>コンパクトなバイナリ形式の命令セット</b>。Rust・C/C++・Go・Zig などからコンパイルして作る。</li>
+      <li>速いのは<b>計算が詰まった処理</b>（画像・動画・圧縮・暗号・物理演算・既存の C ライブラリ）。DOM 操作は JS を経由するので、細かく行き来すると<b>境界のコスト</b>でむしろ遅くなる。</li>
+      <li>Wasm は自分の<b>線形メモリ</b>の外に触れず、使えるのは渡された関数だけ（サンドボックス）。この性質を活かして、ブラウザ外（サーバー・エッジ・プラグイン）でも WASI とコンポーネントモデルで使われている。</li>
+    </ul>
+  </div>
+
+  <h2 id="pipeline">作られ方と動き方</h2>
+  <div class="card">
+    <div class="flow">
+      <div class="box">Rust / C++ / Go…<small>ソースコード</small></div><div class="arrow">→</div>
+      <div class="box">コンパイラ<small>LLVM・wasm-pack・Emscripten</small></div><div class="arrow">→</div>
+      <div class="box">.wasm<small>バイナリ＋JS の接着コード</small></div><div class="arrow">→</div>
+      <div class="box">ブラウザ<small>検証 → 機械語にコンパイル</small></div>
+    </div>
+    <p>JS はまず文字列を構文解析し、実行しながら型を推測して最適化する。Wasm は<b>型が最初から決まった低レベルの命令</b>なので、読み込みながら（ストリーミングで）すぐ機械語にでき、速度のぶれも小さい。ただし「JS の何倍も速い」とは限らず、最適化の効いた JS とは同程度のことも多い。差が出るのは、メモリの配置を細かく制御できる処理や、JS の最適化が外れやすい処理。</p>
+<pre><span class="cm">// .wasm を読み込んで関数を呼ぶ（ストリーミングでコンパイル）</span>
+const { instance } = await WebAssembly.instantiateStreaming(
+  fetch('/blur.wasm'),
+  { env: { log: (n) =&gt; console.log(n) } }   <span class="cm">// Wasm に渡す関数（imports）</span>
+);
+instance.exports.blur(ptr, width, height);   <span class="cm">// Wasm が公開した関数（exports）</span></pre>
+    <p class="note">サーバーは <code>Content-Type: application/wasm</code> で返す必要がある（instantiateStreaming の条件）。Rust なら wasm-bindgen が文字列や配列の受け渡し用の JS を生成してくれるので、上のような低レベルの呼び方を直接書くことは少ない。</p>
+  </div>
+
+  <h2 id="memory">線形メモリと境界のコスト</h2>
+  <div class="card">
+    <div class="bridge">
+      <div class="side" style="border-color:var(--accent)"><b>JS の世界</b><small>オブジェクト・文字列・DOM・GC</small></div>
+      <div class="mid">文字列・配列はコピー<div></div>数値・参照は素通り</div>
+      <div class="side" style="border-color:var(--c-a)"><b>Wasm の世界</b><small>数値・参照と線形メモリ</small></div>
+    </div>
+    <p style="margin-top:12px">Wasm の関数がやり取りする値は、基本的に<b>数値</b>（i32 / i64 / f32 / f64 など）と<b>参照</b>（<code>externref</code> など）だけ。文字列や配列の中身を Wasm で処理するときは、Wasm の線形メモリ（1 本の大きなバイト配列）に書き込んで、その<b>位置（ポインタ）と長さ</b>を渡すのが一般的。JS のオブジェクトや DOM 要素は <code>externref</code> で参照のまま受け渡せるが、Wasm から中身は読めず、JS の関数に渡し返して操作する。</p>
+    <div class="mem" aria-label="線形メモリの例">
+      <span>0</span><span>…</span><span class="s">h</span><span class="s">e</span><span class="s">l</span><span class="s">l</span><span class="s">o</span><span>…</span><span class="u">px</span><span class="u">px</span><span class="u">px</span><span class="u">px</span><span>…</span>
+    </div>
+    <p class="note">橙は文字列 "hello" を UTF-8 で書き込んだ場所、紫は画像のピクセル。JS 側からは <code>new Uint8Array(memory.buffer)</code> で同じバイト列が見える。</p>
+  </div>
+  <div class="lane" style="margin-top:12px">
+    <div class="card"><span class="label ng">遅くなる使い方</span><p>ピクセル 1 つごとに JS から Wasm の関数を呼ぶ。DOM の要素 1 つごとに Wasm から JS を呼ぶ。毎回の呼び出しと変換のコストが計算より大きくなる。</p></div>
+    <div class="card"><span class="label ok">速くなる使い方</span><p>画像全体を 1 回線形メモリにコピーし、Wasm の中でループを回し、結果を 1 回で返す。<b>境界を越える回数を減らし、中で長く計算させる</b>。</p></div>
+  </div>
+
+  <h2 id="sandbox">安全性：何から守られているか</h2>
+  <div class="grid2">
+    <div class="card"><span class="label">守られる</span><p>Wasm は自分の線形メモリの外（ブラウザのメモリ、JS のオブジェクト）を読み書きできない。ファイル・ネットワーク・DOM には、<b>呼び出し側が imports で渡した関数を通してしか</b>触れない（能力ベース）。ブラウザの同一オリジンポリシーや CSP もそのまま効く。</p></div>
+    <div class="card"><span class="label">守られない</span><p>C/C++ のバッファオーバーフローは<b>線形メモリの中では普通に起きる</b>。外には出られないが、同じモジュール内のデータは壊れうる。信頼できない入力を古い C ライブラリに渡すなら、Wasm 化しても入力検証は必要。</p></div>
+  </div>
+
+  <h2 id="uses">実際の使われ方</h2>
+  <div class="card table-wrap">
+    <table>
+      <tr><th>分野</th><th>例</th><th>Wasm を使う理由</th></tr>
+      <tr><td>既存ライブラリの移植</td><td>SQLite・FFmpeg・画像コーデック・PDF 描画</td><td>C/C++ の資産をそのままブラウザで動かせる</td></tr>
+      <tr><td>重い計算</td><td>デザインツール、CAD、動画編集、ゲームエンジン</td><td>メモリ配置を制御でき、速度が安定する</td></tr>
+      <tr><td>開発ツール</td><td>ブラウザ上で動くコンパイラ・リンター・プレイグラウンド</td><td>サーバーなしで同じツールを配れる</td></tr>
+      <tr><td>他言語の UI</td><td>Kotlin・Dart（Flutter）などの Web 版</td><td>WasmGC で GC 付き言語も自前の GC を同梱せず、ブラウザの GC を使って動く</td></tr>
+      <tr><td>サーバー・エッジ</td><td>エッジの関数、プロキシのフィルター、プラグイン</td><td>起動が速く、隔離が強く、言語を選ばない</td></tr>
+    </table>
+  </div>
+  <p class="note"><b>WasmGC</b>：もとの Wasm は GC を持たず、GC が必要な言語はランタイムごと同梱していた。WasmGC は Wasm に構造体や配列の型を追加し、<b>ブラウザの GC にオブジェクトを管理させる</b>ので、出力が小さくなり JS とのオブジェクト共有もしやすくなった。主要ブラウザで使える。</p>
+
+  <h2 id="wasi">ブラウザの外：WASI とコンポーネントモデル</h2>
+  <div class="card">
+    <div class="stackd">
+      <div>
+        <div class="comps">
+          <div class="ly" style="border-color:var(--c-a)"><b>コンポーネント A</b><small>Rust 製</small></div>
+          <div class="ly" style="border-color:var(--c-b)"><b>コンポーネント B</b><small>Go や Python 製</small></div>
+        </div>
+        <div class="wit">↕ WIT で型付きのインターフェースを定義し、言語をまたいで呼び合う</div>
+        <div class="ly" style="border-color:var(--accent)"><b>WASI</b><small>ファイル・時計・乱数・ソケット・HTTP などの標準 API</small></div>
+        <div class="wit">↓</div>
+        <div class="ly"><b>ランタイム</b><small>Wasmtime・WasmEdge・エッジ基盤など</small></div>
+      </div>
+      <div class="cap"><b>能力ベース</b>「/data だけ読める」「この宛先だけ通信できる」といった権限をホストが渡す。渡されていないものには触れない。</div>
+    </div>
+    <p><b>WASI</b> はブラウザ以外で Wasm が OS の機能を使うための標準インターフェース。<b>コンポーネントモデル</b>は、文字列やリストなどの高水準な型（WIT で定義）でモジュール同士をつなぐ仕組みで、別言語で書いた部品を組み合わせられる。WASI の新しい版はこのコンポーネントモデルの上に定義されている。</p>
+    <p class="note">「コンテナの次」と言われることがあるが、置き換えというより用途が違う。Wasm は起動がミリ秒単位で小さく隔離が強いので、<b>リクエストごとに起動する関数やプラグイン</b>に向く。既存の Linux アプリをそのまま動かすならコンテナ。WASI はまだ版を重ねている途中なので、使うランタイムがどの版に対応しているかを確認する。</p>
+  </div>
+
+  <h2 id="when">使うべきか</h2>
+  <ol class="steps">
+    <li><b>ボトルネックは計算か？</b>まず DevTools で測る。遅いのが DOM 更新やネットワーク待ちなら Wasm は効かない。</li>
+    <li><b>既存の C/C++/Rust ライブラリがあるか？</b>あるなら移植の価値が高い。JS で書き直すより正確で速いことが多い。</li>
+    <li><b>境界をまたぐ回数を減らせる設計か？</b>大きなデータを 1 回渡して中で処理できるなら効果が出る。</li>
+    <li><b>ダウンロードサイズは許容できるか？</b>.wasm は数百 KB〜数 MB になることがある。必要になったときに遅延読み込みし、Worker で動かしてメインスレッドを空ける。</li>
+  </ol>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="rust.html">Rust</a><a href="js-runtimes.html">JS ランタイム比較</a><a href="js-web-standards.html">JS と Web 標準の決まり方</a><a href="cloudflare-services.html">Cloudflare サービス</a><a href="browser-rendering.html">ブラウザのレンダリング</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://webassembly.org/">WebAssembly</a></li>
+    <li><a href="https://developer.mozilla.org/ja/docs/WebAssembly">MDN: WebAssembly</a></li>
+    <li><a href="https://wasi.dev/">WASI</a></li>
+    <li><a href="https://component-model.bytecodealliance.org/">The WebAssembly Component Model</a></li>
+    <li><a href="https://github.com/wasm-bindgen/wasm-bindgen">wasm-bindgen（rustwasm org の終了後、wasm-bindgen org に移った）</a></li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Value_types/externref">MDN: externref</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {"q": "画像フィルターを Wasm にしたのに JS 版より遅くなった。ピクセルごとに JS から Wasm の関数を呼んでいる。どう直す？", "choices": ["画像全体を線形メモリに 1 回コピーし、Wasm の中でループさせて結果を 1 回で返す", "Wasm を JS に戻す（Wasm は JS より遅いので）", "関数呼び出しを async にする"], "answer": 0, "explain": "JS と Wasm の境界を越えるたびに呼び出しと変換のコストがかかる。越える回数を減らし、中で長く計算させると速くなる。", "ref": "#memory"},
+  {"q": "リスト表示が重いので、DOM 更新を Wasm で書き直そうとしている。期待できる効果は？", "choices": ["大きく速くなる。Wasm は DOM を直接速く操作できる", "あまり期待できない。Wasm は DOM に直接触れず JS 経由になり、重いのはブラウザ側のレイアウトだから", "Wasm は DOM を一切扱えないので実装できない"], "answer": 1, "explain": "DOM 操作は imports 経由で JS を呼ぶので、むしろ境界のコストが増える。描画の重さはレイアウト・ペイント側の問題。", "ref": "#when"},
+  {"q": "信頼できないユーザー入力を、古い C 製のパーサーを Wasm 化したものに渡す。正しい理解は？", "choices": ["Wasm 化したのでバッファオーバーフローは起きない", "オーバーフローは線形メモリ内では起こりうるが、ブラウザや他のメモリには出られない", "オーバーフローするとブラウザのメモリまで書き換えられる"], "answer": 1, "explain": "Wasm のサンドボックスは外への影響を防ぐが、モジュール内部のメモリ安全性までは保証しない。", "ref": "#sandbox"},
+  {"q": "サーバー側でユーザーが書いたプラグインを安全に、リクエストごとに素早く起動して動かしたい。合う選択は？", "choices": ["プラグインを WASI 対応の Wasm として動かし、必要な能力だけ渡す", "プラグインを同じプロセスに eval で読み込む", "プラグインごとに VM を立ち上げる"], "answer": 0, "explain": "Wasm は起動が速く、渡した能力以外に触れない。プラグインの隔離に向いている。", "ref": "#wasi"}
+]
+</script>
+</body>
+</html>

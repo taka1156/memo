@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Core Web Vitals</title>
+<meta name="description" content="LCP・INP・CLS の意味と基準値、それぞれを分解して遅い原因を見つける方法、画像・フォント・JS の具体的な改善策と、ラボデータとフィールドデータの違いを図解。">
+<meta name="memo:tags" content="フロントエンド, JavaScript">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-warn: #b45309;
+  --c-a: #7c3aed;
+  --c-b: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-warn: #fbbf24;
+    --c-a: #c4b5fd;
+    --c-b: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.list, ol.list { margin: 6px 0 6px 1.3em; }
+ul.list li, ol.list li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* ステップ */
+ol.steps { list-style: none; counter-reset: st; }
+ol.steps > li {
+  counter-increment: st;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 12px; top: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps b { display: block; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.fig .sub { fill: var(--fg-2); font-family: 'Noto Sans JP', sans-serif; }
+.fig .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+details.card summary { cursor: pointer; font-weight: 700; }
+details.card[open] summary { margin-bottom: 8px; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.hdr { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); padding: 8px 12px; border-radius: 8px; word-break: break-all; margin: 6px 0; }
+.lane { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .lane { grid-template-columns: 1fr; } }
+.lane .flow { flex-direction: column; align-items: stretch; }
+.lane .arrow { text-align: center; font-size: 0.75rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; }
+.svgwrap { overflow-x: auto; }
+.lane > *, .grid2 > *, .grid3 > * { min-width: 0; }
+.svgwrap > svg { min-width: 560px; }
+@media (max-width: 560px) {
+  .flow { flex-direction: column; align-items: stretch; }
+  .flow .arrow { align-self: center; transform: rotate(90deg); line-height: 1; }
+}
+
+/* ---- このページ専用 ---- */
+.vit { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.vit .card h3 { font: 700 1.1rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.scale3 { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin: 8px 0 4px; }
+.scale3 span:nth-child(1) { background: var(--c-ok); flex: 1; }
+.scale3 span:nth-child(2) { background: var(--c-warn); flex: 1; }
+.scale3 span:nth-child(3) { background: var(--c-ng); flex: 1; }
+.th { display: flex; justify-content: space-between; font: 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.stack { display: flex; height: 34px; border-radius: 6px; overflow: hidden; margin: 10px 0 4px; }
+.stack div { display: flex; align-items: center; justify-content: center; font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace; color: var(--bg); padding: 0 4px; text-align: center; line-height: 1.1; }
+.k1 { background: var(--c-a); } .k2 { background: var(--c-b); } .k3 { background: var(--c-warn); } .k4 { background: var(--c-ok); }
+.calc { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.calc label { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; display: block; }
+.calc input { width: 100%; accent-color: var(--accent); }
+.calc output { font: 700 0.9rem 'JetBrains Mono', ui-monospace, monospace; }
+.verdict { margin-top: 10px; padding: 10px 12px; border-radius: 8px; border: 2px solid var(--line); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="Core Web Vitals">
+<meta property="og:description" content="LCP・INP・CLS の意味と基準値、それぞれを分解して遅い原因を見つける方法、画像・フォント・JS の具体的な改善策と、ラボデータとフィールドデータの違いを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/web-performance.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>Core Web Vitals</h1>
+  <p class="subtitle">「表示が速いか・反応が速いか・ズレないか」を 3 つの数字で測って直す</p>
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>LCP</b>（一番大きい要素が表示されるまで）・<b>INP</b>（操作してから画面が反応するまで）・<b>CLS</b>（レイアウトのズレ）の 3 つ。実ユーザーの <b>75 パーセンタイル</b>で判定する。</li>
+      <li>数字が悪いときは分解する。LCP は「サーバー応答・読み込み開始の遅れ・読み込み時間・描画の遅れ」の 4 つ、INP は「待ち・処理・描画」の 3 つのどこが長いかを見る。</li>
+      <li>Lighthouse（ラボ）は手元の 1 回の計測、CrUX や RUM（フィールド）は実ユーザーの集計。<b>合否はフィールドで決まる</b>。INP は操作しないと出ないので、読み込むだけのラボ計測では測れない。</li>
+    </ul>
+  </div>
+
+  <h2 id="metrics">3 つの指標と基準値</h2>
+  <div class="vit">
+    <div class="card"><h3>LCP</h3><p class="muted">Largest Contentful Paint</p><p>画面内で一番大きい画像やテキストブロックが描かれた時刻。「メインの中身が見えた」の代わり。</p><div class="scale3"><span></span><span></span><span></span></div><div class="th"><span>良好</span><span>2.5s</span><span>4.0s</span><span>不良</span></div></div>
+    <div class="card"><h3>INP</h3><p class="muted">Interaction to Next Paint</p><p>クリック・タップ・キー入力から、次に画面が描かれるまで。ページ滞在中の操作のうちほぼ最悪のもの。</p><div class="scale3"><span></span><span></span><span></span></div><div class="th"><span>良好</span><span>200ms</span><span>500ms</span><span>不良</span></div></div>
+    <div class="card"><h3>CLS</h3><p class="muted">Cumulative Layout Shift</p><p>予期しないレイアウトのズレの大きさ。ズレた面積 × 移動距離の割合で、一番ひどいまとまり（5 秒の窓）の合計。</p><div class="scale3"><span></span><span></span><span></span></div><div class="th"><span>良好</span><span>0.1</span><span>0.25</span><span>不良</span></div></div>
+  </div>
+  <p class="note">ユーザー操作の直後 0.5 秒以内のズレ（アコーディオンを開いたなど）は CLS に数えない。INP は 2024 年に FID（最初の入力の待ち時間だけを測る指標）を置き換えた。</p>
+
+  <h2 id="judge">判定してみる</h2>
+  <div class="card">
+    <p>実ユーザーの値を動かしてみる。3 つとも 75 パーセンタイルで「良好」なら合格。</p>
+    <div class="calc">
+      <div><label for="lcp">LCP <output id="lcpv"></output></label><input type="range" id="lcp" min="500" max="6000" step="100" value="3100"></div>
+      <div><label for="inp">INP <output id="inpv"></output></label><input type="range" id="inp" min="20" max="800" step="10" value="180"></div>
+      <div><label for="cls">CLS <output id="clsv"></output></label><input type="range" id="cls" min="0" max="0.5" step="0.01" value="0.05"></div>
+    </div>
+    <div class="verdict" id="verdict" aria-live="polite"></div>
+  </div>
+
+  <h2 id="lcp-parts">LCP を分解する</h2>
+  <div class="card">
+    <div class="stack">
+      <div class="k1" style="flex:3">TTFB</div>
+      <div class="k2" style="flex:2">読み込み開始の遅れ</div>
+      <div class="k3" style="flex:3">読み込み時間</div>
+      <div class="k4" style="flex:1.5">描画の遅れ</div>
+    </div>
+    <div class="table-wrap" style="margin-top:12px">
+      <table>
+        <tr><th>部分</th><th>長いときの原因</th><th>対策</th></tr>
+        <tr><td>TTFB</td><td>サーバー処理・DB・距離・リダイレクト</td><td>CDN キャッシュ、HTML のストリーミング、リダイレクトをなくす</td></tr>
+        <tr><td>開始の遅れ</td><td>LCP 画像が CSS 背景や JS で後から入る、<code>loading="lazy"</code> が付いている</td><td><code>&lt;img&gt;</code> で HTML に直接書く、<code>fetchpriority="high"</code>、必要なら <code>preload</code></td></tr>
+        <tr><td>読み込み時間</td><td>画像が重い・大きすぎる</td><td>AVIF / WebP、<code>srcset</code> と <code>sizes</code> で画面に合ったサイズ</td></tr>
+        <tr><td>描画の遅れ</td><td>レンダリングをブロックする CSS / JS、Web フォント待ち、クライアント描画</td><td>重要な CSS を小さく、JS は defer、SSR / SSG</td></tr>
+      </table>
+    </div>
+  </div>
+<pre><span class="cm">&lt;!-- LCP になるヒーロー画像：遅延読み込みしない・優先度を上げる・サイズを予約する --&gt;</span>
+&lt;img src="hero-1200.avif"
+     srcset="hero-600.avif 600w, hero-1200.avif 1200w"
+     sizes="(max-width: 600px) 100vw, 1200px"
+     width="1200" height="600" fetchpriority="high" alt="…"&gt;
+
+<span class="cm">&lt;!-- それ以外の画面外の画像 --&gt;</span>
+&lt;img src="card.avif" width="400" height="300" loading="lazy" decoding="async" alt="…"&gt;</pre>
+
+  <h2 id="inp-parts">INP を分解する</h2>
+  <div class="card">
+    <div class="stack">
+      <div class="k1" style="flex:2">入力の遅延</div>
+      <div class="k2" style="flex:4">処理時間</div>
+      <div class="k4" style="flex:2">表示の遅延</div>
+    </div>
+    <ul style="margin:10px 0 0 1.2em">
+      <li><b>入力の遅延</b>：クリックした時点で別の JS（読み込み直後のハイドレーション、計測タグなど）が走っていて待たされる。→ ロングタスクを減らす、サードパーティを遅らせる。</li>
+      <li><b>処理時間</b>：イベントハンドラーそのものが重い。→ 見た目の更新だけ先にして、重い処理は後回し。</li>
+      <li><b>表示の遅延</b>：更新した DOM が大きく、スタイル・レイアウトに時間がかかる。→ DOM を小さく、<code>content-visibility</code>。</li>
+    </ul>
+  </div>
+<pre><span class="cm">// 先に「押された」表示を描かせてから、重い処理を続ける</span>
+button.addEventListener('click', async () =&gt; {
+  button.classList.add('loading');        <span class="cm">// 1. 見た目をすぐ変える</span>
+  await yieldToMain();                    <span class="cm">// 2. ここで一度ブラウザに描画させる</span>
+  runHeavyFilter();                       <span class="cm">// 3. 重い処理</span>
+});
+
+function yieldToMain() {
+  if (globalThis.scheduler?.yield) return scheduler.yield();   <span class="cm">// 対応ブラウザ</span>
+  return new Promise(r =&gt; setTimeout(r, 0));
+}</pre>
+
+  <h2 id="cls-fix">CLS の主な原因</h2>
+  <div class="grid2">
+    <div class="card"><span class="label">サイズのない画像・動画・iframe</span><p><code>width</code> / <code>height</code> 属性か CSS の <code>aspect-ratio</code> で場所を確保する。CSS で <code>width:100%; height:auto</code> にしても属性の比率は使われる。</p></div>
+    <div class="card"><span class="label">後から差し込む広告・バナー</span><p>出る場所に <code>min-height</code> を確保しておく。上に差し込まず、下か重ねて表示する。</p></div>
+    <div class="card"><span class="label">Web フォントの切り替え</span><p>代替フォントと字幅が違うと行が折り返し直される。<code>size-adjust</code> などで代替フォントの字幅を合わせる、重要なフォントは <code>preload</code>。</p></div>
+    <div class="card"><span class="label">レイアウトを動かすアニメーション</span><p><code>top</code> や <code>margin</code> を動かすとズレとして数えられる。<code>transform</code> で動かす。</p></div>
+  </div>
+
+  <h2 id="lab-field">ラボとフィールド</h2>
+  <div class="card table-wrap">
+    <table>
+      <tr><th></th><th>ラボ（Lighthouse・DevTools）</th><th>フィールド（CrUX・RUM）</th></tr>
+      <tr><td>誰の値</td><td>自分の端末・決めた回線での 1 回</td><td>実ユーザー全体の分布（28 日間など）</td></tr>
+      <tr><td>INP</td><td>読み込むだけの計測では出ない（代わりに TBT）。DevTools の Local metrics や Lighthouse の timespan モードなら、自分で操作した分だけ測れる</td><td>測れる</td></tr>
+      <tr><td>向いている用途</td><td>原因の調査、修正前後の比較、CI での退行検知</td><td>合否の判定、本当に困っているページ・端末の特定</td></tr>
+    </table>
+  </div>
+<pre><span class="cm">// 自前で実ユーザーの値を集める（web-vitals ライブラリ）</span>
+import { onLCP, onINP, onCLS } from 'web-vitals/attribution';
+const send = (m) =&gt; navigator.sendBeacon('/rum', JSON.stringify({
+  name: m.name, value: m.value, rating: m.rating, attribution: m.attribution,
+}));
+onLCP(send); onINP(send); onCLS(send);</pre>
+  <p class="note"><code>attribution</code> 付きで集めると、LCP の要素や 4 分割の内訳、INP を起こした操作の対象まで送れる。数字だけ集めても直す場所がわからない。</p>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="browser-rendering.html">ブラウザのレンダリング</a><a href="rendering-strategies.html">レンダリング戦略</a><a href="http-cache.html">HTTP キャッシュ</a><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://web.dev/articles/vitals">web.dev: Web Vitals</a></li>
+    <li><a href="https://web.dev/articles/optimize-lcp">web.dev: Optimize LCP</a></li>
+    <li><a href="https://web.dev/articles/inp">web.dev: Interaction to Next Paint</a></li>
+    <li><a href="https://web.dev/articles/cls">web.dev: Cumulative Layout Shift</a></li>
+    <li><a href="https://github.com/GoogleChrome/web-vitals">GoogleChrome/web-vitals</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const rate = (v, a, b) => v <= a ? 'good' : v <= b ? 'ni' : 'poor';
+  const lbl = { good: '良好', ni: '要改善', poor: '不良' };
+  const col = { good: 'var(--c-ok)', ni: 'var(--c-warn)', poor: 'var(--c-ng)' };
+  function upd() {
+    const l = +$('lcp').value, i = +$('inp').value, c = +$('cls').value;
+    const r = [['LCP', rate(l, 2500, 4000)], ['INP', rate(i, 200, 500)], ['CLS', rate(c, 0.1, 0.25)]];
+    $('lcpv').textContent = (l / 1000).toFixed(1) + 's';
+    $('inpv').textContent = i + 'ms';
+    $('clsv').textContent = c.toFixed(2);
+    const ok = r.every(x => x[1] === 'good');
+    const worst = r.find(x => x[1] === 'poor') ? 'poor' : ok ? 'good' : 'ni';
+    $('verdict').style.borderColor = col[worst];
+    $('verdict').innerHTML = '<b>' + (ok ? '合格：3 つとも良好' : '不合格：良好でない指標がある') + '</b>' +
+      r.map(x => x[0] + ' = <span style="color:' + col[x[1]] + ';font-weight:700">' + lbl[x[1]] + '</span>').join('　');
+  }
+  ['lcp', 'inp', 'cls'].forEach(id => $(id).addEventListener('input', upd));
+  upd();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {"q": "トップのヒーロー画像が LCP 要素で、LCP が 4 秒かかっている。画像には loading=\"lazy\" が付いていた。まずやることは？", "choices": ["lazy を外し、fetchpriority=\"high\" を付ける", "画像を CSS の background-image に移す", "画像の decoding を sync にする"], "answer": 0, "explain": "lazy は画面内か判定するまで読み込みを始めないので、LCP の「読み込み開始の遅れ」が伸びる。CSS 背景にするとプリロードスキャナーに見つからず、もっと遅れる。", "ref": "#lcp-parts"},
+  {"q": "Lighthouse ではスコア 98 なのに、Search Console では INP が「不良」と出ている。どう解釈する？", "choices": ["Lighthouse が正しいので気にしなくてよい", "Lighthouse は操作をしないので INP を測れない。実ユーザーの操作で遅いところがあるので、RUM で操作の対象を調べる", "Search Console の集計バグなので再計測を待つ"], "answer": 1, "explain": "INP はユーザーの操作がないと測れない。合否は実ユーザーのデータ（フィールド）で決まる。", "ref": "#lab-field"},
+  {"q": "フィルターボタンを押すと 300ms 後に一覧が更新されるが、その間ボタンの見た目も変わらない。INP を改善しやすい書き方は？", "choices": ["ボタンの見た目を先に変えて一度描画させてから、重いフィルター処理をする", "フィルター処理を setInterval で定期的に実行しておく", "ボタンに will-change を付ける"], "answer": 0, "explain": "INP は「次の描画」までの時間。先に見た目だけ更新してメインスレッドを譲れば、次の描画が早く来る。", "ref": "#inp-parts"},
+  {"q": "記事ページで画像の読み込み後に本文が下にずれ、CLS が 0.3 になっている。正しい対策は？", "choices": ["img に width と height 属性を付けて場所を先に確保する", "画像を loading=\"lazy\" にする", "画像を小さく圧縮して早く読み込ませる"], "answer": 0, "explain": "サイズがわからないと高さ 0 で配置され、読み込み後に押し下げる。属性か aspect-ratio で場所を予約すればズレない。", "ref": "#cls-fix"}
+]
+</script>
+</body>
+</html>

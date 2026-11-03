@@ -218,11 +218,54 @@ footer a { color: var(--accent); }
 // MEMOS:BEGIN（scripts/memo.py build が自動生成。手で編集しない）
 const MEMOS = [
   {
+    "file": "webassembly.html",
+    "title": "WebAssembly",
+    "desc": "Wasm が何で、どうやって JS から呼ばれ、なぜ速い場面と速くない場面があるのかを、線形メモリ・サンドボックス・境界のコストで図解。WasmGC、WASI とコンポーネントモデルによるブラウザ外での利用まで。",
+    "tags": [
+      "フロントエンド",
+      "言語",
+      "JavaScript"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "web-vulnerabilities.html",
     "title": "実装起因の脆弱性",
     "desc": "XSS・CSRF・SQL インジェクション・OS コマンドインジェクション・セッションハイジャック・ReDoS に、パストラバーサル・SSRF・オープンリダイレクト・認可不備を加えて、攻撃の流れと NG/OK コードで図解。",
     "tags": [
       "セキュリティ"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "web-protocols.html",
+    "title": "HTTP/1.1・2・3 と TLS・DNS",
+    "desc": "URL を入れてから最初のバイトが届くまでの DNS・TCP・TLS・HTTP の流れと、HTTP/1.1→2→3 で何が解決されたか（多重化・ヘッドオブライン・QUIC）を図解。",
+    "tags": [
+      "ネットワーク",
+      "インフラ",
+      "フロントエンド"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "web-performance.html",
+    "title": "Core Web Vitals",
+    "desc": "LCP・INP・CLS の意味と基準値、それぞれを分解して遅い原因を見つける方法、画像・フォント・JS の具体的な改善策と、ラボデータとフィールドデータの違いを図解。",
+    "tags": [
+      "フロントエンド",
+      "JavaScript"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "web-components.html",
+    "title": "Web Components",
+    "desc": "Custom Elements・Shadow DOM・slot・template の 4 つの部品と、スタイルの通り方（CSS 変数・::part）、イベントの伝わり方、Declarative Shadow DOM による SSR、フォーム連携とアクセシビリティの注意点を、動くコピーボタン部品で図解。",
+    "tags": [
+      "フロントエンド",
+      "JavaScript",
+      "設計"
     ],
     "date": "2026-11-03"
   },
@@ -284,11 +327,33 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
+    "file": "rendering-strategies.html",
+    "title": "レンダリング戦略",
+    "desc": "CSR・SSR・SSG・ISR・ストリーミング・Server Components・アイランドを「HTML をいつ・どこで作るか」と「JS をどこまで送るか」で比較し、ハイドレーションの仕組みと選び方を図解。",
+    "tags": [
+      "フロントエンド",
+      "JavaScript",
+      "設計"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "redis-valkey.html",
     "title": "Redis と Valkey の仕組み",
     "desc": "Redis と Valkey の速さの理由、永続化・複製・クラスター、両者の違いを図解。",
     "tags": [
       "データベース",
+      "インフラ"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "realtime-comm.html",
+    "title": "リアルタイム通信",
+    "desc": "ポーリング・ロングポーリング・SSE・WebSocket・WebTransport・WebRTC を、通信の向き・再接続・スケールのしかたで比較し、場面ごとの選び方と落とし穴を図解。",
+    "tags": [
+      "ネットワーク",
+      "フロントエンド",
       "インフラ"
     ],
     "date": "2026-11-03"
@@ -407,6 +472,16 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
+    "file": "css-layout.html",
+    "title": "CSS レイアウト",
+    "desc": "Flexbox（1 次元）と Grid（2 次元）の使い分けを触って比べられるデモつきで整理し、subgrid・コンテナクエリ・カスケードレイヤー・:has()・論理プロパティなど今どきの CSS と定番レシピをまとめる。",
+    "tags": [
+      "フロントエンド",
+      "デザイン"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "component-design.html",
     "title": "コンポーネント設計",
     "desc": "Atomic Design がなぜ下火になったかを踏まえ、デザイントークン・Headless UI・機能単位の配置で組む今どきの UI コンポーネント設計を図とコードで整理する",
@@ -438,11 +513,32 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
+    "file": "browser-rendering.html",
+    "title": "ブラウザのレンダリング",
+    "desc": "HTML と CSS が DOM・CSSOM・レイアウト・ペイント・合成を経て画面になるまでと、どの CSS 変更がどこからやり直しになるか、ブロッキングとレイアウトスラッシングを図解。",
+    "tags": [
+      "フロントエンド",
+      "JavaScript"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "architecture-compare.html",
     "title": "アーキテクチャ比較",
     "desc": "レイヤード・ヘキサゴナル・オニオン・クリーンの 4 つを同じ例で図にし、何が同じで何が違うか・どう選ぶかを整理する",
     "tags": [
       "設計"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "api-styles.html",
+    "title": "REST・GraphQL・gRPC・tRPC",
+    "desc": "同じ「ユーザーと最新の投稿を取る」API を REST・GraphQL・gRPC・tRPC で書き比べ、契約の持ち方・キャッシュ・型共有の違いと、REST 設計の基本（冪等性・ステータス・ページング・エラー形式）を図解。",
+    "tags": [
+      "設計",
+      "フロントエンド",
+      "インフラ"
     ],
     "date": "2026-11-03"
   },
@@ -634,11 +730,29 @@ const MEMOS = [
   }
 ];
 const QUIZZES = [
+  {"file": "webassembly.html", "title": "WebAssembly", "q": "画像フィルターを Wasm にしたのに JS 版より遅くなった。ピクセルごとに JS から Wasm の関数を呼んでいる。どう直す？", "choices": ["画像全体を線形メモリに 1 回コピーし、Wasm の中でループさせて結果を 1 回で返す", "Wasm を JS に戻す（Wasm は JS より遅いので）", "関数呼び出しを async にする"], "answer": 0, "explain": "JS と Wasm の境界を越えるたびに呼び出しと変換のコストがかかる。越える回数を減らし、中で長く計算させると速くなる。", "ref": "#memory"},
+  {"file": "webassembly.html", "title": "WebAssembly", "q": "リスト表示が重いので、DOM 更新を Wasm で書き直そうとしている。期待できる効果は？", "choices": ["大きく速くなる。Wasm は DOM を直接速く操作できる", "あまり期待できない。Wasm は DOM に直接触れず JS 経由になり、重いのはブラウザ側のレイアウトだから", "Wasm は DOM を一切扱えないので実装できない"], "answer": 1, "explain": "DOM 操作は imports 経由で JS を呼ぶので、むしろ境界のコストが増える。描画の重さはレイアウト・ペイント側の問題。", "ref": "#when"},
+  {"file": "webassembly.html", "title": "WebAssembly", "q": "信頼できないユーザー入力を、古い C 製のパーサーを Wasm 化したものに渡す。正しい理解は？", "choices": ["Wasm 化したのでバッファオーバーフローは起きない", "オーバーフローは線形メモリ内では起こりうるが、ブラウザや他のメモリには出られない", "オーバーフローするとブラウザのメモリまで書き換えられる"], "answer": 1, "explain": "Wasm のサンドボックスは外への影響を防ぐが、モジュール内部のメモリ安全性までは保証しない。", "ref": "#sandbox"},
+  {"file": "webassembly.html", "title": "WebAssembly", "q": "サーバー側でユーザーが書いたプラグインを安全に、リクエストごとに素早く起動して動かしたい。合う選択は？", "choices": ["プラグインを WASI 対応の Wasm として動かし、必要な能力だけ渡す", "プラグインを同じプロセスに eval で読み込む", "プラグインごとに VM を立ち上げる"], "answer": 0, "explain": "Wasm は起動が速く、渡した能力以外に触れない。プラグインの隔離に向いている。", "ref": "#wasi"},
   {"file": "web-vulnerabilities.html", "title": "実装起因の脆弱性", "q": "一覧 API で ?sort=price のように並び替え列を受け取り、SQL の ORDER BY に入れたい。安全なのは？", "choices": ["ORDER BY $1 としてプレースホルダで渡す", "受け取った値から ' と ; を取り除いてから埋め込む", "受け取った値をキーに、許可した列名と並び順の対応表から選んで埋め込む", "ORM を使っているので、そのまま渡してよい"], "answer": 2, "explain": "列名や ASC/DESC はプレースホルダにできない（値として扱われる）。拒否リストでの除去は回避されうるので、許可リストから選ぶ。", "ref": "#sqli"},
   {"file": "web-vulnerabilities.html", "title": "実装起因の脆弱性", "q": "攻撃者が用意したセッション ID のまま被害者にログインさせ、乗っ取る攻撃を防ぐには？", "choices": ["ログイン成功時にセッション ID を新しく作り直す", "セッション Cookie に HttpOnly を付ける", "セッション ID を URL にも載せて照合する", "ログイン画面だけ https にする"], "answer": 0, "explain": "セッション固定攻撃は、ログイン前後で ID が変わらないことを利用する。再生成すれば攻撃者の持つ ID は無効になる。", "ref": "#session"},
   {"file": "web-vulnerabilities.html", "title": "実装起因の脆弱性", "q": "Node.js で exec(`ping -c 1 ${host}`) を execFile('ping', ['-c', '1', host]) に変えると安全になる主な理由は？", "choices": ["execFile は非同期なので攻撃の影響が小さい", "execFile は自動で入力をエスケープしてくれる", "execFile は実行時間に上限がある", "シェルを起動しないので、; や | や $() がコマンドの区切りとして解釈されない"], "answer": 3, "explain": "exec は sh -c で文字列を解釈する。execFile は引数を配列のまま渡すので、シェルの記号はただの文字になる。ただし - で始まる値のオプション解釈は別途検証が必要。", "ref": "#oscmd"},
   {"file": "web-vulnerabilities.html", "title": "実装起因の脆弱性", "q": "Node.js の API でユーザー入力を /^(\\w+\\s?)*$/ で検証していて、短い入力でサーバー全体が固まった。有効な対策は？", "choices": ["正規表現の呼び出しを try/catch で囲む", "量指定子の入れ子をなくすよう書き換え、入力長に上限を設ける（必要なら線形時間のエンジンを使う）", "検証処理を async 関数にする", "g フラグを付けて最初の一致で止める"], "answer": 1, "explain": "ReDoS は例外ではなく、バックトラックで CPU を使い続けるのが原因。JS の正規表現は同期実行なので async でも止まる。パターンの修正・長さ制限・線形エンジンで防ぐ。", "ref": "#redos"},
   {"file": "web-vulnerabilities.html", "title": "実装起因の脆弱性", "q": "セッション Cookie を SameSite=Lax にした。それでも CSRF の被害が残るのはどんな実装？", "choices": ["状態を変える操作（削除など）を GET リクエストで受け付けている", "POST のフォームで CSRF トークンを使っている", "Cookie に HttpOnly を付けている", "API が Authorization ヘッダーのトークンで認証している"], "answer": 0, "explain": "Lax の Cookie は、別サイトからのトップレベルの GET 遷移（リンククリック）では送られる。GET で状態を変えるとリンク 1 つで操作させられる。", "ref": "#csrf"},
+  {"file": "web-protocols.html", "title": "HTTP/1.1・2・3 と TLS・DNS", "q": "海外のサーバーにあるサイトの初回表示が遅い。転送量は小さいのに、DevTools の Timing を見ると Initial connection と SSL が長い。最も効く対策は？", "choices": ["画像を WebP に変換して軽くする", "CDN でユーザーの近くに TLS の終端を置き、TLS 1.3 / HTTP/3 を有効にする", "JS を 1 ファイルに結合してリクエスト数を減らす"], "answer": 1, "explain": "接続と TLS の時間は往復回数 × RTT で決まる。距離を縮め（CDN）、往復を減らす（TLS 1.3・QUIC）のが直接効く。", "ref": "#journey"},
+  {"file": "web-protocols.html", "title": "HTTP/1.1・2・3 と TLS・DNS", "q": "回線が不安定なモバイルで、HTTP/2 にしたらかえって遅くなった。考えられる理由は？", "choices": ["HTTP/2 はヘッダーを圧縮しないから", "1 本の TCP 接続で 1 つのパケットが欠けると、全ストリームが再送を待たされるから", "HTTP/2 は同時に 1 リクエストしか送れないから"], "answer": 1, "explain": "多重化した全ストリームが 1 本の TCP の順序保証に縛られる。HTTP/3 は QUIC でこの影響をストリーム単位に閉じ込めた。", "ref": "#hol"},
+  {"file": "web-protocols.html", "title": "HTTP/1.1・2・3 と TLS・DNS", "q": "サーバーを移行するので DNS の A レコードを新しい IP に切り替えたい。古い IP へのアクセスが残る時間を短くするには？", "choices": ["切り替えの数日前から TTL を短くしておく", "切り替えと同時に TTL を短くする", "CNAME に変えればすぐ反映される"], "answer": 0, "explain": "リゾルバは古いレコードを古い TTL の間キャッシュし続ける。切り替え時点で TTL が短くなっていないと効果がない。", "ref": "#dns"},
+  {"file": "web-protocols.html", "title": "HTTP/1.1・2・3 と TLS・DNS", "q": "HTTP/3 の 0-RTT を有効にした。0-RTT のデータとして送らせてよいリクエストは？", "choices": ["決済を確定する POST", "記事一覧を取得する GET", "どちらも問題ない（TLS で守られているので）"], "answer": 1, "explain": "0-RTT のデータは攻撃者に再送（リプレイ）されうる。何度実行しても結果が同じリクエストに限るのが原則。", "ref": "#tls"},
+  {"file": "web-protocols.html", "title": "HTTP/1.1・2・3 と TLS・DNS", "q": "HTTPS の鍵マークが表示されているサイトについて、正しいのは？", "choices": ["運営者が信頼できることを CA が保証している", "通信が暗号化され、証明書の名前と接続先が一致している", "通信先のドメイン名も第三者からは一切見えない"], "answer": 1, "explain": "TLS が保証するのは暗号化と相手の名前の確認まで。運営者の善悪は保証しない。ドメイン名は SNI や DNS から見えうる。", "ref": "#tls"},
+  {"file": "web-performance.html", "title": "Core Web Vitals", "q": "トップのヒーロー画像が LCP 要素で、LCP が 4 秒かかっている。画像には loading=\"lazy\" が付いていた。まずやることは？", "choices": ["lazy を外し、fetchpriority=\"high\" を付ける", "画像を CSS の background-image に移す", "画像の decoding を sync にする"], "answer": 0, "explain": "lazy は画面内か判定するまで読み込みを始めないので、LCP の「読み込み開始の遅れ」が伸びる。CSS 背景にするとプリロードスキャナーに見つからず、もっと遅れる。", "ref": "#lcp-parts"},
+  {"file": "web-performance.html", "title": "Core Web Vitals", "q": "Lighthouse ではスコア 98 なのに、Search Console では INP が「不良」と出ている。どう解釈する？", "choices": ["Lighthouse が正しいので気にしなくてよい", "Lighthouse は操作をしないので INP を測れない。実ユーザーの操作で遅いところがあるので、RUM で操作の対象を調べる", "Search Console の集計バグなので再計測を待つ"], "answer": 1, "explain": "INP はユーザーの操作がないと測れない。合否は実ユーザーのデータ（フィールド）で決まる。", "ref": "#lab-field"},
+  {"file": "web-performance.html", "title": "Core Web Vitals", "q": "フィルターボタンを押すと 300ms 後に一覧が更新されるが、その間ボタンの見た目も変わらない。INP を改善しやすい書き方は？", "choices": ["ボタンの見た目を先に変えて一度描画させてから、重いフィルター処理をする", "フィルター処理を setInterval で定期的に実行しておく", "ボタンに will-change を付ける"], "answer": 0, "explain": "INP は「次の描画」までの時間。先に見た目だけ更新してメインスレッドを譲れば、次の描画が早く来る。", "ref": "#inp-parts"},
+  {"file": "web-performance.html", "title": "Core Web Vitals", "q": "記事ページで画像の読み込み後に本文が下にずれ、CLS が 0.3 になっている。正しい対策は？", "choices": ["img に width と height 属性を付けて場所を先に確保する", "画像を loading=\"lazy\" にする", "画像を小さく圧縮して早く読み込ませる"], "answer": 0, "explain": "サイズがわからないと高さ 0 で配置され、読み込み後に押し下げる。属性か aspect-ratio で場所を予約すればズレない。", "ref": "#cls-fix"},
+  {"file": "web-components.html", "title": "Web Components", "q": "社内のデザインシステムのボタンを、React・Vue・素の HTML のサイトすべてで同じように使わせたい。合う作り方は？", "choices": ["React コンポーネントとして作り、他は iframe で埋め込む", "Web Components として作る", "各フレームワークで別々に作り直す"], "answer": 1, "explain": "Custom Elements はブラウザ標準なので、どのフレームワークからも普通のタグとして使える。", "ref": "#vs"},
+  {"file": "web-components.html", "title": "Web Components", "q": "Shadow DOM を使った部品の中のボタンの色を、使う側のテーマに合わせて変えさせたい。部品側で用意すべきものは？", "choices": ["var(--button-color, 既定値) のような CSS 変数の受け口", "!important を外すこと", "使う側に .component button のセレクタを書いてもらう"], "answer": 0, "explain": "普通のセレクタは Shadow DOM の中に届かない。CSS 変数は境界を越えて継承されるので、テーマの公式な受け口になる。", "ref": "#styling"},
+  {"file": "web-components.html", "title": "Web Components", "q": "Shadow DOM 内に input を持つ自作の日付入力を form に入れたが、送信データに値が含まれない。対処は？", "choices": ["form に novalidate を付ける", "formAssociated を有効にし、ElementInternals の setFormValue で値を渡す", "Shadow DOM の mode を open にする"], "answer": 1, "explain": "Shadow DOM 内の入力欄は外のフォームに参加しない。部品自体をフォーム部品にする仕組みが ElementInternals。", "ref": "#a11y"},
+  {"file": "web-components.html", "title": "Web Components", "q": "部品の Shadow DOM の中にある button 要素から、bubbles: true だけを付けた CustomEvent を dispatchEvent した。document.addEventListener で受け取れない原因は？", "choices": ["CustomEvent は Shadow DOM では使えない", "composed: true がないので、shadow root で止まっている", "イベント名にハイフンが必要"], "answer": 1, "explain": "Shadow DOM の中から出したイベントは composed: true でないと境界を越えない。ホスト要素自身（this）から出すなら bubbles: true だけで届く。", "ref": "#events"},
+  {"file": "web-components.html", "title": "Web Components", "q": "コピーボタン部品で、使う側が書いた子要素のテキスト（ボタンの文字用の slot=\"label\" は除く）だけを取りたい。適切な取り方は？", "choices": ["this.textContent を読む", "this.shadowRoot.textContent を読む", "名前なし slot の assignedNodes() から集める"], "answer": 2, "explain": "this.textContent には slot=\"label\" の子も混ざり、shadowRoot.textContent には slot に映った中身が入らない（スタイルなどの文字は入る）。名前なし slot に割り当てられたノードだけを集めるのが確実。", "ref": "#tree"},
   {"file": "vinext.html", "title": "vinext と Next.js の比較", "q": "既存の Next.js アプリに vinext を試すとき、ほかの作業より前にまず実行しておくべきコマンドは？", "choices": ["npx create-vinext-app で新規作成し直す", "npx vinext check で互換性の問題をスキャンする", "next.config を削除して vite.config.ts に書き直す"], "answer": 1, "explain": "vinext check で非対応 API を先に洗い出す。vinext init は非破壊で、next.config やソースは書き換えない。", "ref": "#migrate"},
   {"file": "vinext.html", "title": "vinext と Next.js の比較", "q": "vinext で Cloudflare Workers に載せたアプリから D1 や KV を使いたい。どう書くのが推奨？", "choices": ["import { env } from \"cloudflare:workers\" でバインディングを読む", "process.env.DB で接続文字列を読む", "getPlatformProxy() とカスタム worker エントリを用意する"], "answer": 0, "explain": "RSC 環境が workerd で動くため、cloudflare:workers の env からそのままバインディングを使える。", "ref": "#deploy"},
   {"file": "vinext.html", "title": "vinext と Next.js の比較", "q": "vinext で output: \"export\"（SSG）にしたサイトで、フォーム送信を Server Actions で処理しようとした。どうなる？", "choices": ["ビルド時に実行されて結果が HTML に固定される", "静的ホストの CDN が代わりに実行する", "実行時のサーバーが無いので使えない。外部 API などに送る必要がある"], "answer": 2, "explain": "Server Actions も middleware もリクエスト時に動くサーバーが必要。静的書き出しでは SSR・ISR とあわせて使えない。", "ref": "#deploy"},
@@ -669,11 +783,20 @@ const QUIZZES = [
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "let b = a; のあと、a が i32 なら両方使えるのに、String だと a が使えなくなる。違いは？", "choices": ["String は不変なので、別の変数に代入できないから", "i32 は Copy 型で複製され、String はムーブになるから", "i32 は参照で、String は値だから"], "answer": 1, "explain": "ヒープを持つ型までコピーすると二重解放の危険があるので、明示的な clone() を求める設計。", "ref": "#own-copy"},
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "設定ファイルの読み込みが失敗しうる関数で、失敗を呼び出し元に返したい。どう書く？", "choices": ["失敗したら panic! でメッセージを出して終了する", "戻り値を Result<T, E> にして、? でエラーを早期リターンする", "unwrap() で値を取り出し、失敗したらその場で止める"], "answer": 1, "explain": "回復できる失敗は Result、回復不能なバグは panic!。unwrap() は試作用。", "ref": "#err"},
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "コードを書きながら、型や借用のエラーだけを素早く確認したい。どのコマンドを使う？", "choices": ["cargo check", "cargo clippy", "cargo build --release"], "answer": 0, "explain": "cargo check は実行ファイルを作らずにチェックだけ行うので速い。clippy はより Rust らしい書き方の提案。", "ref": "#commands"},
+  {"file": "rendering-strategies.html", "title": "レンダリング戦略", "q": "社内向けの管理画面（ログイン必須、検索エンジンに載せない）を作る。サーバー運用をできるだけ減らしたい。合う方式は？", "choices": ["SSR", "CSR（SPA）を静的ホスティングで配る", "ISR"], "answer": 1, "explain": "SEO や初回表示の中身が不要なら、静的ファイルを配るだけの CSR が一番運用が軽い。", "ref": "#choose"},
+  {"file": "rendering-strategies.html", "title": "レンダリング戦略", "q": "SSR したページで、表示されたボタンを押しても 1〜2 秒反応しないことがある。主な原因は？", "choices": ["CDN のキャッシュが効いていない", "HTML は届いているが、JS の取得とハイドレーションが終わるまでイベントがつながっていない", "SSR では onClick が使えない"], "answer": 1, "explain": "SSR の HTML は見た目だけ。同じコンポーネントの JS を実行してイベントをつなぐまで操作できない。", "ref": "#hydration"},
+  {"file": "rendering-strategies.html", "title": "レンダリング戦略", "q": "コンポーネントで new Date().toLocaleTimeString() を描画したら、hydration mismatch の警告が出た。適切な直し方は？", "choices": ["時刻はマウント後（useEffect など）に入れる", "サーバー側のタイムゾーンを UTC に固定する", "警告を無効にする"], "answer": 0, "explain": "サーバーとブラウザで描画時刻もロケールも違うので一致しない。ブラウザでしか決まらない値はマウント後に入れる。", "ref": "#hydration"},
+  {"file": "rendering-strategies.html", "title": "レンダリング戦略", "q": "EC サイトの商品ページ（数万件）。価格は 1 日数回変わる程度で、ビルド時間とサーバー負荷の両方を抑えたい。合う方式は？", "choices": ["全ページを毎回 SSR", "全ページを SSG してデプロイのたびに再ビルド", "ISR で一定時間ごとに作り直す"], "answer": 2, "explain": "ISR はアクセスのあったページを期限ごとに裏で作り直す。全件ビルドも毎リクエストの処理も避けられる。", "ref": "#compare"},
+  {"file": "rendering-strategies.html", "title": "レンダリング戦略", "q": "ページの中で 1 つの API だけが 2 秒かかり、全体の表示が遅れている。ページ全体を待たせずに済む方法は？", "choices": ["その部分を Suspense などで区切り、ストリーミング SSR で枠を先に送る", "SSG に変えて API を呼ばないようにする", "JS を defer にする"], "answer": 0, "explain": "ストリーミングなら準備できた部分から送れる。遅い部分は読み込み中の表示を置いて、後から同じレスポンスで差し込む。", "ref": "#timeline"},
   {"file": "redis-valkey.html", "title": "Redis と Valkey の仕組み", "q": "Redis / Valkey で在庫数を INCR / DECR で増減している。複数のアプリから同時に DECR が来ても、在庫が二重に減ったりしないのはなぜ？", "choices": ["キーごとに行ロックを取ってから更新しているから", "コマンドはメインスレッドが 1 つずつ最後まで実行し、途中で割り込まれないから", "I/O スレッドがコマンドを並列に実行し、最後に結果を合算するから"], "answer": 1, "explain": "コマンドの実行は 1 本のメインスレッドで順番に行われるため、単一コマンドはロックなしで原子的になる。I/O スレッドが担うのは通信と解析だけ。", "ref": "#event-loop"},
   {"file": "redis-valkey.html", "title": "Redis と Valkey の仕組み", "q": "本番の Redis / Valkey で、あるプレフィックスのキーを調べたい。他のクライアントへの影響が少ないのはどれ？", "choices": ["KEYS prefix:* を 1 回実行する", "I/O スレッドを増やしてから KEYS prefix:* を実行する", "SCAN 0 MATCH prefix:* COUNT 100 を繰り返す"], "answer": 2, "explain": "KEYS は全キーを一度に走査してメインスレッドをふさぐ。SCAN なら少しずつ返すので、合間に他のコマンドが実行できる。I/O スレッドを増やしても実行は 1 本のまま。", "ref": "#myths"},
   {"file": "redis-valkey.html", "title": "Redis と Valkey の仕組み", "q": "DB の手前に置く純粋なキャッシュとして使う。メモリが満杯になっても書き込みを止めたくない。maxmemory-policy はどれが合う？", "choices": ["allkeys-lfu", "noeviction", "volatile-ttl（キーには TTL を付けない）"], "answer": 0, "explain": "allkeys-* は全キーから使われていないものを消して空きを作る。noeviction は満杯で書き込みエラーになり、volatile-* は期限付きキーがなければ何も消せない。", "ref": "#expire"},
   {"file": "redis-valkey.html", "title": "Redis と Valkey の仕組み", "q": "Redis Cluster / Valkey Cluster で、ユーザーのカートとプロフィールを MULTI / EXEC でまとめて更新したい。キー名をどう付ける？", "choices": ["cart:user:1000 と profile:user:1000 のように同じ ID を含める", "{user:1000}:cart と {user:1000}:profile のように {} で共通部分を囲む", "キー名は何でもよい。クラスターが自動で同じノードに集める"], "answer": 1, "explain": "スロットは CRC16(key) mod 16384 で決まり、{} があればその中だけがハッシュされる。複数キーのコマンドは同じスロットのキー同士でしか使えない。", "ref": "#cl-cluster"},
   {"file": "redis-valkey.html", "title": "Redis と Valkey の仕組み", "q": "社内ツールのキャッシュに Redis 互換のサーバーを採用したい。条件は「OSI 承認の、できるだけ制約の緩いライセンス」で、JSON や全文検索は使わない。合うのは？", "choices": ["Redis 8 を AGPLv3 で使う", "Redis 7.4 を使う", "Valkey を使う"], "answer": 2, "explain": "Valkey は BSD 3-Clause で、コアは素の KVS。Redis 8 の AGPLv3 も OSI 承認だが条件は強めで、7.4 は RSALv2 / SSPLv1 のみ（OSI 非承認）。", "ref": "#compare"},
+  {"file": "realtime-comm.html", "title": "リアルタイム通信", "q": "AI の回答を 1 文字ずつ画面に流したい。クライアントから送るのは最初の質問だけ。一番手軽な方式は？", "choices": ["WebSocket", "SSE（または fetch でストリームを読む）", "1 秒ごとのポーリング"], "answer": 1, "explain": "サーバー → クライアントの片方向で、普通の HTTP のまま流せる。WebSocket は双方向が必要なときに使う。", "ref": "#m-sse"},
+  {"file": "realtime-comm.html", "title": "リアルタイム通信", "q": "WebSocket のチャットで、回線が切れて戻ったあとに一部のメッセージが表示されていなかった。なぜ？", "choices": ["WebSocket は届かなかったメッセージを自動で再送しないから", "WebSocket は UDP なので順序が入れ替わるから", "ブラウザが古いメッセージをキャッシュから消したから"], "answer": 0, "explain": "WebSocket には再接続も取りこぼしの再送もない。最後に受け取った ID を覚えて、再接続時に差分を取る仕組みを自分で作る。", "ref": "#m-ws"},
+  {"file": "realtime-comm.html", "title": "リアルタイム通信", "q": "WebSocket サーバーを 2 台に増やしたら、同じチャットルームなのに一部の人にメッセージが届かなくなった。対策は？", "choices": ["クライアントの再接続間隔を短くする", "全サーバーで Pub/Sub を購読して中継するか、同じルームを同じサーバーに集める", "WebSocket を SSE に置き換える"], "answer": 1, "explain": "接続は各サーバーが持っているので、別サーバーの相手には直接送れない。共通のメッセージ基盤か、ルーム単位の振り分けが必要。", "ref": "#scale"},
+  {"file": "realtime-comm.html", "title": "リアルタイム通信", "q": "Cookie で認証している WebSocket エンドポイントで、ハンドシェイク時に必ず確認すべきヘッダーは？", "choices": ["Origin", "Accept-Language", "Cache-Control"], "answer": 0, "explain": "WebSocket には CORS がかからず Cookie も送られるので、Origin を見ないと他サイトのページから勝手につながれる。", "ref": "#m-ws"},
   {"file": "pwa.html", "title": "PWA の仕組みとチェックリスト", "q": "sw.js を修正してデプロイしたのに、ユーザーの画面では古い動作のまま。よくある原因と対処は？", "choices": ["manifest.webmanifest のバージョン番号を上げ忘れている", "本番が HTTPS でないので、SW の更新が無視されている", "新しい SW が waiting で止まっている。skipWaiting() で切り替える"], "answer": 2, "explain": "旧 SW が動いている間、新しい SW はタブをすべて閉じるか skipWaiting() を呼ぶまで有効にならない。 sw.js 自体を HTTP キャッシュさせないことも大事。", "ref": "#lifecycle"},
   {"file": "pwa.html", "title": "PWA の仕組みとチェックリスト", "q": "ファイル名にハッシュが付いた CSS・JS・フォントをキャッシュする。合う戦略は？", "choices": ["Cache First", "Network First", "毎回ネットワークのみ"], "answer": 0, "explain": "中身が変わらない静的ファイルはキャッシュを先に見ると速くオフラインにも強い。更新はファイル名が変わることで反映される。", "ref": "#s1"},
   {"file": "pwa.html", "title": "PWA の仕組みとチェックリスト", "q": "API のレスポンスは常に最新を見せたいが、オフラインのときは前回の結果を出したい。合う戦略は？", "choices": ["Cache First", "Network First", "Stale-While-Revalidate"], "answer": 1, "explain": "オンラインなら最新を取り、失敗したらキャッシュを返す。回線が遅いとタイムアウトまで待たされる点に注意。", "ref": "#s2"},
@@ -732,6 +855,10 @@ const QUIZZES = [
   {"file": "db-index-transaction.html", "title": "インデックスとトランザクション", "q": "既定の READ COMMITTED で「在庫を SELECT → アプリで -1 → UPDATE で書き戻す」処理を同時に 2 件実行したら、2 個売れたのに在庫が 1 しか減らなかった。一番シンプルな対策は？", "choices": ["分離レベルを READ UNCOMMITTED にする", "SELECT を 2 回実行して値を確認する", "UPDATE items SET stock = stock - 1 のように DB 側で計算する"], "answer": 2, "explain": "読んだ値を書き戻す方式は、READ COMMITTED では更新の取りこぼしが起きる。stock = stock - 1 なら UPDATE 時の最新値に対して計算されるので取りこぼさない。複雑な判定が必要なら SELECT ... FOR UPDATE。", "ref": "#lost-fix"},
   {"file": "db-index-transaction.html", "title": "インデックスとトランザクション", "q": "PostgreSQL で、夜間バッチが長時間トランザクションを開いたままにしていたら、更新の多いテーブルがどんどん膨らんだ。主な原因は？", "choices": ["WAL がデータファイルに反映されないから", "そのトランザクションから見える可能性のある古い行の版を、VACUUM が消せないから", "インデックスが自動で増えるから"], "answer": 1, "explain": "MVCC では更新のたびに新しい版ができる。まだ実行中の古いトランザクションが見る可能性のある版は片付けられないので、溜まり続ける。", "ref": "#mvcc"},
   {"file": "db-index-transaction.html", "title": "インデックスとトランザクション", "q": "SERIALIZABLE に上げたら、まれに「could not serialize access」エラーが出るようになった。どう扱う？", "choices": ["DB の不具合なので READ COMMITTED に戻す", "想定どおりの挙動なので、トランザクションを最初からリトライする", "エラーを無視して処理を続ける"], "answer": 1, "explain": "SERIALIZABLE は、直列に実行した場合と矛盾する組み合わせを検出すると片方をエラーにして守る。アプリ側でトランザクションごとやり直す前提で使う。", "ref": "#isolation"},
+  {"file": "css-layout.html", "title": "CSS レイアウト", "q": "ヘッダーにロゴとメニューとログインボタンを 1 行に並べ、ロゴは左、残りは右に寄せたい。素直な書き方は？", "choices": ["Grid で 3 列の固定幅を指定する", "Flex で並べ、メニューに margin-left: auto を付ける", "float: right を使う"], "answer": 1, "explain": "1 列に並べて余白を分ける場面は Flex。margin-left: auto はその要素の左に余りを全部入れて右に押し出す。", "ref": "#which"},
+  {"file": "css-layout.html", "title": "CSS レイアウト", "q": "記事カード部品を、メインカラムでは横並び、狭いサイドバーでは縦並びで表示したい。画面幅は同じ。使うべきものは？", "choices": ["メディアクエリ", "コンテナクエリ", "flex-wrap"], "answer": 1, "explain": "画面幅ではなく、カードが置かれた場所の幅で切り替えたいのでコンテナクエリ。", "ref": "#cq"},
+  {"file": "css-layout.html", "title": "CSS レイアウト", "q": "UI ライブラリの CSS（#app .btn のような詳細度の高いセレクタ）を、自分の .btn-primary で上書きしたい。!important を使わない方法は？", "choices": ["ライブラリを低いカスケードレイヤーに入れて読み込む", "自分のセレクタに ID を足して詳細度を上げる", "自分の CSS を先に読み込む"], "answer": 0, "explain": "レイヤーの順位は詳細度より先に比べられる。ライブラリを下の層に入れれば、詳細度に関係なく自分のスタイルが勝つ。", "ref": "#cascade"},
+  {"file": "css-layout.html", "title": "CSS レイアウト", "q": "モーダルに z-index: 9999 を付けたのに、別のヘッダーの下に隠れる。モーダルの親には transform が付いている。原因は？", "choices": ["z-index の上限が 999 だから", "親の transform が新しい重ね合わせコンテキストを作り、その中でしか比べられないから", "position: static のままだから z-index が効いていない"], "answer": 1, "explain": "transform などは重ね合わせコンテキストを作る。子の z-index はその中だけの順位になり、外のヘッダーとは親同士で比べられる。", "ref": "#myths"},
   {"file": "component-design.html", "title": "コンポーネント設計", "q": "atoms / molecules / organisms のフォルダ構成で、「カート」の仕様変更のたびに 3 つのフォルダを行き来している。根本的な改善は？", "choices": ["機能（features/cart）ごとにまとめ、業務を知らない共通部品だけを ui/ に置く", "templates/ フォルダを追加してまとめる", "カート関連の部品をすべて organisms に移す", "部品をさらに細かく atoms に分解する"], "answer": 0, "explain": "粒度での分類は変更の理由と無関係なので、1 機能の修正が散らばる。機能単位に置けば変更がフォルダ内で完結する。", "ref": "#folders"},
   {"file": "component-design.html", "title": "コンポーネント設計", "q": "自作のモーダルで、Esc で閉じない・Tab で背後の要素に移ってしまう、という指摘を受けた。見た目は今のまま変えたくない。どうする？", "choices": ["見た目ごと UI ライブラリの既製モーダルに置き換える", "Esc キーのイベントだけ追加して様子を見る", "Headless UI（または <dialog> 要素）に振る舞いを任せ、今のスタイルを当てる", "モーダルをやめて別ページに遷移させる"], "answer": 2, "explain": "Headless は振る舞い（キー操作・フォーカス管理・ARIA）だけを提供するので、見た目を保ったまま難しい部分を任せられる。", "ref": "#headless"},
   {"file": "component-design.html", "title": "コンポーネント設計", "q": "Button に primary・danger・outline などの真偽値 props が増え、同時に true にされると見た目が壊れる。設計の直し方は？", "choices": ["props の数を減らすため、className を直接渡させる", "同時に成り立たないものを variant: 'primary' | 'danger' … の 1 つの型にまとめる", "真偽値の組み合わせごとに別のコンポーネントを作る", "優先順位をコメントで書いておく"], "answer": 1, "explain": "排他的な選択肢を union 型にすれば、ありえない組み合わせを型で防げる。", "ref": "#c-variant"},
@@ -745,10 +872,19 @@ const QUIZZES = [
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "Hyperdrive 経由の PlanetScale を使っている。プロフィールを更新した直後の画面で、古い名前が表示されることがある。原因として考えられるのは？", "choices": ["PlanetScale の書き込みが失敗している", "Hyperdrive の読み取りクエリのキャッシュが古い結果を返している", "Placement の設定が間違っている"], "answer": 1, "explain": "Hyperdrive は読み取りクエリの結果を既定でキャッシュし、書き込みがあってもキャッシュを消さない。書いた直後に読む画面では、キャッシュを無効にした別の Hyperdrive 設定（バインディング）を経由して読む。", "ref": "#myths"},
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "PlanetScale の DB は us-east-1 にある。Worker が各国の最寄りで動くため、1リクエストで何本もクエリを投げる API が遅い。効く対策は？", "choices": ["D1 の読み取りレプリカを増やす", "クエリを並列にしてさらに本数を増やす", "Placement で Worker を DB の近く（aws:us-east-1）で動かす"], "answer": 2, "explain": "クエリのたびに Worker と DB の間を往復するので、距離 × 本数だけ遅くなる。Worker を DB の近くで動かせば、ユーザーとの往復は1回、DB との往復は短くなる。", "ref": "#arch"},
   {"file": "cloudflare-databases.html", "title": "D1 と Hyperdrive＋PlanetScale", "q": "D1 で1つの DB に全ユーザーの書き込みが集中し、遅くなってきた。読み取りレプリカを有効にすれば解決する？", "choices": ["解決する。レプリカが書き込みも分担するから", "解決しない。レプリカは読み取り専用なので、書き込みは DB を分けて散らす", "解決する。レプリカがあると書き込みがキャッシュされるから"], "answer": 1, "explain": "D1 の各 DB はシングルスレッドで、書き込みはプライマリに集まる。書き込みを増やしたいなら DB を分けるか、共有データが中心なら PlanetScale のようなサーバー型 DB を検討する。", "ref": "#myths"},
+  {"file": "browser-rendering.html", "title": "ブラウザのレンダリング", "q": "モーダルを右からスライドインさせたい。メインスレッドが重いときでもカクつきにくい書き方は？", "choices": ["left を -100% から 0 へアニメーションする", "transform: translateX(100%) から 0 へアニメーションする", "width を 0 から 400px へアニメーションする"], "answer": 1, "explain": "transform と opacity は合成だけで済み、コンポジタースレッドで動かせる。left や width は毎フレームレイアウトが走る。", "ref": "#cost"},
+  {"file": "browser-rendering.html", "title": "ブラウザのレンダリング", "q": "アプリ本体の JS（複数ファイル、実行順が大事）を head に置きたい。HTML の解析を止めず、順番も守るには？", "choices": ["async を付ける", "defer を付ける", "何も付けずに body の先頭に置く"], "answer": 1, "explain": "defer は取得を並行して進め、解析後に書いた順で実行する。async は取れた順に実行するので順番が崩れうる。", "ref": "#blocking"},
+  {"file": "browser-rendering.html", "title": "ブラウザのレンダリング", "q": "リストの各要素の幅を、ループ内で container.offsetWidth を読みながら設定したら極端に遅くなった。原因は？", "choices": ["offsetWidth の読み取りが、直前のスタイル変更を反映するためにその場でレイアウトを強制するから", "style.width への代入はペイントを毎回走らせるから", "ループの中で DOM を参照すること自体が遅いから"], "answer": 0, "explain": "書いた直後に読むと強制同期レイアウトが発生し、要素数だけレイアウトが走る。読みをループの外に出す。", "ref": "#thrash"},
+  {"file": "browser-rendering.html", "title": "ブラウザのレンダリング", "q": "クリックしても数百 ms 反応しない。Performance パネルでは 1 つのタスクが 400ms 走っていた。まず考える対策は？", "choices": ["処理を分割して合間にブラウザへ制御を返すか、Web Worker に移す", "will-change: transform を付ける", "CSS を小さくする"], "answer": 0, "explain": "メインスレッドのロングタスク中は入力処理も描画もできない。分割するか別スレッドに逃がす。", "ref": "#frame"},
   {"file": "architecture-compare.html", "title": "アーキテクチャ比較", "q": "レイヤードアーキテクチャと、オニオン・クリーン・ヘキサゴナルとの一番大きな違いは？", "choices": ["層の数", "依存の向き（DB に向かうか、ドメインに向かうか）", "使えるプログラミング言語", "フロントエンドを含むかどうか"], "answer": 1, "explain": "レイヤードは上位が下位（DB 側）に依存する。他の 3 つは依存性逆転で外側がドメインに依存する。", "ref": "#difference"},
   {"file": "architecture-compare.html", "title": "アーキテクチャ比較", "q": "ヘキサゴナルアーキテクチャで、Web API の Controller とテストコードはどちらも同じ側に描かれる。その理由は？", "choices": ["どちらも DB に接続するから", "どちらもアプリケーションを呼び出す側（Driving）のアダプターだから", "どちらも六角形の中にあるから", "どちらもポートを実装するから"], "answer": 1, "explain": "左側はアプリを駆動する側。テストも Web も同じポートからアプリを呼ぶので、同じ入口から検証できる。", "ref": "#hexagonal"},
   {"file": "architecture-compare.html", "title": "アーキテクチャ比較", "q": "業務ルールはほとんどなく、画面とテーブルが 1 対 1 に近い社内ツールを作る。まず選ぶ構成として妥当なのは？", "choices": ["クリーンアーキテクチャを Presenter まで完全に実装する", "オニオンでドメインを 4 層に分ける", "レイヤード（フレームワーク標準の構成）で始める", "マイクロサービスに分割する"], "answer": 2, "explain": "守るべき業務ルールが薄いなら、層を増やしてもコストに見合わない。必要になってから DIP を入れればよい。", "ref": "#choose"},
   {"file": "architecture-compare.html", "title": "アーキテクチャ比較", "q": "ヘキサゴナルの「ポート」は、オニオンアーキテクチャでは主に何に当たる？", "choices": ["ドメイン側に置くリポジトリなどの interface", "外周の UI 層", "データベースそのもの", "アプリケーションサービスの実装クラス"], "answer": 0, "explain": "どちらも「内側が定義し、外側が実装する約束」。名前が違うだけで役割は同じ。", "ref": "#mapping"},
+  {"file": "api-styles.html", "title": "REST・GraphQL・gRPC・tRPC", "q": "外部の開発者向けに公開する天気 API を作る。CDN でキャッシュして負荷を下げたい。合う方式は？", "choices": ["GraphQL", "gRPC", "REST + OpenAPI"], "answer": 2, "explain": "GET の URL ごとに HTTP キャッシュがそのまま効き、どの言語からも呼べる。OpenAPI でドキュメントとクライアント生成もできる。", "ref": "#choose"},
+  {"file": "api-styles.html", "title": "REST・GraphQL・gRPC・tRPC", "q": "GraphQL で記事一覧と各記事の著者を返したら、DB への問い合わせが記事数 + 1 回になった。定番の対策は？", "choices": ["DataLoader で同じリクエスト内の著者取得をまとめる", "クエリの深さ制限を設ける", "HTTP キャッシュを有効にする"], "answer": 0, "explain": "フィールドごとにリゾルバが呼ばれる N+1 問題。DataLoader が ID を集めて 1 回の問い合わせにまとめる。", "ref": "#a-gql"},
+  {"file": "api-styles.html", "title": "REST・GraphQL・gRPC・tRPC", "q": "支払い API の POST がタイムアウトした。クライアントが安全に再送できるようにするには？", "choices": ["POST を GET に変える", "Idempotency-Key を付け、サーバーは同じキーの 2 回目を処理せず前回の結果を返す", "タイムアウトを長くするだけでよい"], "answer": 1, "explain": "POST は冪等ではないので、そのまま再送すると二重決済になりうる。キーで重複を判定する。", "ref": "#rest-basics"},
+  {"file": "api-styles.html", "title": "REST・GraphQL・gRPC・tRPC", "q": "ログインはしているが、他人の注文を見ようとしたユーザーに返すステータスとして適切なのは？", "choices": ["401 Unauthorized", "403 Forbidden（存在を隠したいなら 404）", "400 Bad Request"], "answer": 1, "explain": "401 は認証されていないとき。認証済みで権限がないなら 403。注文の存在自体を知られたくなければ 404 を返す。", "ref": "#status"},
+  {"file": "api-styles.html", "title": "REST・GraphQL・gRPC・tRPC", "q": "新着順のタイムラインを無限スクロールで出す。読んでいる間に新しい投稿が増えても重複や抜けが出ないページングは？", "choices": ["?page=N のオフセット方式", "最後に見た位置を指すカーソル方式", "全件を一度に返す"], "answer": 1, "explain": "オフセットは先頭に追加があると位置がずれる。カーソルは「この投稿の続き」を指すのでずれない。", "ref": "#paging"},
   {"file": "a11y-checklist.html", "title": "アクセシビリティ チェックリスト", "q": "クリックで動く要素を <div onclick> で作っている。キーボード利用者のために最も手間が少なく確実な直し方は？", "choices": ["role=\"button\" を付ける", "tabindex=\"0\" を付ける", "<button> 要素に置き換える", "aria-label を付ける"], "answer": 2, "explain": "<button> にすれば Tab での到達、Enter / Space での実行、「ボタン」としての読み上げが最初から付く。div に role や tabindex を足してもキー操作は自前で実装が必要。", "ref": "#k-button"},
   {"file": "a11y-checklist.html", "title": "アクセシビリティ チェックリスト", "q": "デザイナーから「クリックしたときの青い枠が見た目に悪い」と言われた。キーボード利用者を困らせずに対応するには？", "choices": ["outline: none で全部消す", ":focus-visible で、主にキーボード操作時に枠を出す", "枠の色を背景と同じにする", "hover 時だけ枠を出す"], "answer": 1, "explain": ":focus-visible はブラウザがフォーカス表示を必要と判断したときに一致する。ボタンのマウスクリックでは通常一致しないので、キーボード利用者には枠を残しつつクリック時は出さずに済む。", "ref": "#k-focus"},
   {"file": "a11y-checklist.html", "title": "アクセシビリティ チェックリスト", "q": "入力欄にラベルを付けず、placeholder に「メールアドレス」と書いている。何が問題？", "choices": ["入力を始めると説明が消え、何の欄か確かめられなくなる", "placeholder は検索エンジンに読まれない", "placeholder はスマホで表示されない", "特に問題はない"], "answer": 0, "explain": "placeholder はラベルの代わりにならない。<label> を紐づけると、読み上げでも常に名前が伝わる。", "ref": "#c-form"},
