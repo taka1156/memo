@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM の仕組み</title>
+<meta name="description" content="トークン、次のトークンの予測と temperature、コンテキストウィンドウ、学習の段階、埋め込みと RAG、ツール呼び出しとエージェントのループまで、LLM を使う側が知っておきたい仕組みを図解。">
+<meta name="memo:tags" content="AI">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-a: #c2410c;
+  --c-b: #15803d;
+  --c-c: #7c3aed;
+  --c-d: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-a: #fb923c;
+    --c-b: #4ade80;
+    --c-c: #c4b5fd;
+    --c-d: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.dots { margin: 6px 0 6px 1.3em; }
+ul.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.grid2 > .card + .card, .grid3 > .card + .card { margin-top: 0; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.big { font-size: 1.05rem; font-weight: 700; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+input[type="text"], textarea, input[type="number"] {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: 500 0.85rem 'JetBrains Mono', monospace;
+  min-width: 0;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.myth { margin-bottom: 10px; }
+.myth p { margin: 4px 0; }
+
+svg.fig { width: 100%; height: auto; display: block; }
+svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); }
+svg.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+svg.fig .sub { fill: var(--fg-2); }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.tok { display: flex; flex-wrap: wrap; gap: 3px; margin: 8px 0; }
+.tok span { font: 500 0.85rem 'JetBrains Mono', monospace; padding: 2px 6px; border-radius: 5px; }
+.tok span:nth-child(4n+1) { background: color-mix(in srgb, var(--c-a) 20%, transparent); }
+.tok span:nth-child(4n+2) { background: color-mix(in srgb, var(--c-b) 20%, transparent); }
+.tok span:nth-child(4n+3) { background: color-mix(in srgb, var(--c-c) 20%, transparent); }
+.tok span:nth-child(4n+4) { background: color-mix(in srgb, var(--c-d) 22%, transparent); }
+.probs { display: grid; gap: 5px; margin: 10px 0; }
+.prow { display: grid; grid-template-columns: 5.8em 1fr 3.6em; align-items: center; gap: 8px; font-size: 0.85rem; }
+.prow .w { font-weight: 700; }
+.prow .bar { height: 14px; background: var(--chip); border-radius: 4px; overflow: hidden; }
+.prow .bar span { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.prow .bar span.cut { background: var(--line); }
+.prow .v { font: 600 0.75rem 'JetBrains Mono', monospace; text-align: right; color: var(--fg-2); }
+.sliders { display: grid; gap: 8px; }
+.sliders label { display: grid; grid-template-columns: 7.5em 1fr 3em; align-items: center; gap: 8px; font: 600 0.8rem 'JetBrains Mono', monospace; }
+.sliders input { width: 100%; accent-color: var(--accent); }
+.sample { font-size: 0.9rem; }
+.sample b { color: var(--accent); }
+.ctxbar { display: flex; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); margin: 10px 0 6px; }
+.ctxbar div { display: flex; align-items: center; justify-content: center; font: 600 0.68rem 'JetBrains Mono', monospace; color: #fff; white-space: nowrap; overflow: hidden; }
+.cx-sys { background: #5b6b84; width: 10%; }
+.cx-tool { background: #7c3aed; width: 12%; }
+.cx-hist { background: #0077b6; width: 38%; }
+.cx-res { background: #b45309; width: 22%; }
+.cx-out { background: #15803d; width: 10%; }
+.cx-free { background: var(--chip); color: var(--fg-2) !important; width: 8%; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.75rem; color: var(--fg-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.agent { display: grid; gap: 6px; max-width: 560px; }
+.agent .s { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: var(--surface); font-size: 0.85rem; }
+.agent .s b { font-family: 'JetBrains Mono', monospace; color: var(--accent); font-size: 0.78rem; display: block; }
+.agent .s.app b { color: var(--c-a); }
+.agent .a { color: var(--fg-2); font-size: 0.75rem; padding-left: 14px; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="LLM の仕組み">
+<meta property="og:description" content="トークン、次のトークンの予測と temperature、コンテキストウィンドウ、学習の段階、埋め込みと RAG、ツール呼び出しとエージェントのループまで、LLM を使う側が知っておきたい仕組みを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/llm-basics.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>LLM の仕組み</h1>
+  <p class="subtitle">トークン / 次トークン予測 / コンテキスト / 埋め込み・RAG / エージェント</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>LLM は「ここまでの<b>トークン</b>列の次に来るトークン」の確率を出し、1 つ選んで付け足す、を繰り返しているだけ。</li>
+      <li>モデルが会話中に参照できるのは<b>コンテキストウィンドウ</b>に入っている分だけ。会話の記憶も社内資料も、毎回そこへ入れ直している。</li>
+      <li>手元の知識を使わせるのが <b>RAG</b>（埋め込みで関連箇所を検索して入れる）、外の世界に作用させるのが<b>ツール呼び出し</b>。それをループにしたものが<b>エージェント</b>。</li>
+    </ul>
+  </div>
+
+  <h2 id="token">トークン — LLM が読み書きする単位</h2>
+  <p>文章は単語でも文字でもなく、よく出る文字列のかたまり（<b>トークン</b>）に分割され、それぞれが番号（ID）になる。料金・速度・上限はすべてトークン数で決まる。</p>
+  <div class="card">
+    <span class="label">例示（実際の分け方はモデルごとに違う）</span>
+    <div class="tok"><span>Token</span><span>ization</span><span> is</span><span> fun</span><span>!</span></div>
+    <div class="tok"><span>トー</span><span>クン</span><span>化</span><span>は</span><span>楽</span><span>しい</span><span>！</span></div>
+    <ul class="dots">
+      <li>英語はよく出る単語が 1 トークンになりやすい。日本語は文字あたりのトークン数が多めになりやすい。</li>
+      <li>「単語の文字数を数える」「文字列を逆順にする」が意外と苦手なのは、モデルが文字ではなくトークンを見ているから。</li>
+    </ul>
+  </div>
+
+  <h2 id="predict">次のトークンを選ぶ — temperature と top-p</h2>
+  <p>モデルの出力は「次に来るトークンの確率分布」。そこから 1 つ選ぶ方法を調整するのが <b>temperature</b>（分布を尖らせる／平らにする）と <b>top-p</b>（累積確率が p に達するまでの候補だけを残す）。</p>
+  <div class="card">
+    <p class="sample">今日はいい天気なので、公園へ <b id="pick">…</b></p>
+    <div class="probs" id="probs"></div>
+    <div class="sliders">
+      <label>temperature <input type="range" id="temp" min="0" max="2" step="0.05" value="1"><span id="tv">1.00</span></label>
+      <label>top-p <input type="range" id="topp" min="0.1" max="1" step="0.05" value="1"><span id="pv">1.00</span></label>
+    </div>
+    <div class="ctrl" style="display:flex;gap:6px;margin-top:10px"><button class="btn primary" id="draw">サンプリングする</button></div>
+    <p class="muted">数値は説明用の架空のもの。灰色は top-p で除外された候補。</p>
+  </div>
+  <ul class="dots">
+    <li><b>低い temperature</b>: 一番確からしいものばかり選ぶ。抽出・分類・コード向き。</li>
+    <li><b>高い temperature</b>: 意外な候補も選ぶ。アイデア出し向き。上げすぎると支離滅裂になる。</li>
+    <li>temperature 0 でも、計算の並び順などの影響で<b>完全に同じ出力になる保証はない</b>。</li>
+  </ul>
+
+  <h2 id="context">コンテキストウィンドウ — モデルが「見えている」すべて</h2>
+  <p>1 回の呼び出しでモデルに渡す入力と、生成される出力の合計の上限。モデル自体は前の呼び出しを覚えていないので、毎回、過去の会話を<b>まるごとコンテキストとして読み直している</b>。多くの API（Claude の Messages API など）ではアプリが毎ターン履歴を送り直す。会話をサーバー側に保存できる API（OpenAI の Responses API など）でも、過去の分は毎回入力トークンとして数えられる。</p>
+  <div class="ctxbar">
+    <div class="cx-sys">system</div><div class="cx-tool">tools</div><div class="cx-hist">会話履歴</div><div class="cx-res">ツール結果</div><div class="cx-out">出力</div><div class="cx-free">空き</div>
+  </div>
+  <div class="legend">
+    <span><i style="background:#5b6b84"></i>システムプロンプト（アプリが与える指示）</span>
+    <span><i style="background:#7c3aed"></i>ツールの定義（MCP など）</span>
+    <span><i style="background:#0077b6"></i>これまでのやり取り（CLAUDE.md などの差し込みも含む）</span>
+    <span><i style="background:#b45309"></i>検索結果・ファイル内容</span>
+    <span><i style="background:#15803d"></i>これから生成する分</span>
+  </div>
+  <ul class="dots">
+    <li>あふれた分は、アプリ側が古い履歴を<b>捨てるか要約</b>して収める。「さっき言ったことを忘れた」はこれ。</li>
+    <li>上限内でも、長くなるほど料金と待ち時間が増え、途中に埋もれた情報を見落としやすくなる。<b>必要なものだけを入れる</b>のが基本。</li>
+    <li><b>プロンプトキャッシュ</b>: 先頭から同じ部分は計算を再利用でき、安く速くなる。変わらない指示や資料を前に、毎回変わるものを後ろに置く。</li>
+    <li>推論（thinking）を行うモデルは、答えの前に考える過程のトークンも生成する。これも出力トークンとして数えられる。</li>
+  </ul>
+
+  <h2 id="training">どうやって作られるか</h2>
+  <div class="flow">
+    <span class="box">事前学習<small>大量の文章で次トークン予測を学ぶ</small></span><span class="arrow">→</span>
+    <span class="box">事後学習<small>指示に従う・役に立つ・安全に答えるよう調整（人のフィードバック・強化学習など）</small></span><span class="arrow">→</span>
+    <span class="box">推論（利用）<small>重みは固定。会話から学習はしない</small></span>
+  </div>
+  <ul class="dots">
+    <li>知識は学習データの時点まで（<b>知識のカットオフ</b>）。それ以降のことは、検索やツールで渡さないと知らない。</li>
+    <li>もっともらしい文章を作るのが本業なので、知らないことでも自然な文で答えてしまう（<b>ハルシネーション</b>）。根拠となる資料を渡し、出典を示させると減らせる。</li>
+  </ul>
+
+  <h2 id="rag">埋め込みと RAG — 手元の資料を使わせる</h2>
+  <p><b>埋め込み (embedding)</b> は文章を数百〜数千次元のベクトルに変換したもの。意味が近い文章ほどベクトルの向きが近くなる（コサイン類似度で比べる）。</p>
+  <div class="card">
+    <svg class="fig" viewBox="0 0 420 210" role="img" aria-label="意味の近い文章がベクトル空間で近くに集まる様子の例示">
+      <rect x="1" y="1" width="418" height="208" rx="8" fill="none" stroke="var(--line)"/>
+      <g font-size="12">
+        <circle cx="90" cy="60" r="6" fill="var(--c-a)"/><text x="102" y="64">返品の手順</text>
+        <circle cx="120" cy="95" r="6" fill="var(--c-a)"/><text x="132" y="99">返金ポリシー</text>
+        <circle cx="70" cy="120" r="6" fill="var(--c-a)"/><text x="82" y="124">交換の受付期間</text>
+        <circle cx="300" cy="55" r="6" fill="var(--c-b)"/><text x="250" y="40">パスワード再設定</text>
+        <circle cx="330" cy="95" r="6" fill="var(--c-b)"/><text x="285" y="118">2 段階認証</text>
+        <circle cx="260" cy="170" r="6" fill="var(--c-c)"/><text x="272" y="174">配送料金</text>
+        <circle cx="105" cy="85" r="8" fill="none" stroke="var(--accent)" stroke-width="3"/>
+        <text x="20" y="185" fill="var(--accent)" font-weight="700">質問「買った服を返したい」</text>
+        <line x1="90" y1="172" x2="102" y2="94" stroke="var(--accent)" stroke-dasharray="3 3"/>
+      </g>
+    </svg>
+    <p class="muted">2 次元に描いた例示。質問のベクトルに近い「返品の手順」「返金ポリシー」が検索で選ばれる。キーワードが一致しなくても意味で引ける。</p>
+  </div>
+  <h3>RAG (Retrieval-Augmented Generation) の流れ</h3>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="rg1">準備（事前に）</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="rg2">質問のたびに</button>
+  </div>
+  <div class="panel card" id="rg1">
+    <div class="flow"><span class="box">資料</span><span class="arrow">→</span><span class="box">チャンク分割<small>数百トークン単位</small></span><span class="arrow">→</span><span class="box">埋め込み</span><span class="arrow">→</span><span class="box">ベクトル DB<small>本文・出典と一緒に保存</small></span></div>
+  </div>
+  <div class="panel card" id="rg2" hidden>
+    <div class="flow"><span class="box">質問</span><span class="arrow">→</span><span class="box">埋め込み</span><span class="arrow">→</span><span class="box">近い上位 k 件を検索</span><span class="arrow">→</span><span class="box">プロンプトに挿入</span><span class="arrow">→</span><span class="box">LLM が回答<small>出典付き</small></span></div>
+  </div>
+  <ul class="dots">
+    <li>精度の大半は<b>検索の質</b>で決まる。チャンクの切り方、キーワード検索との併用（ハイブリッド検索）、再ランキングが効く。</li>
+    <li>型番やエラーコードのような<b>完全一致</b>が大事な語は、ベクトル検索だけだと外しやすい。</li>
+    <li>資料が少なくコンテキストに収まるなら、検索せずに全部入れる方が簡単で確実なこともある。</li>
+  </ul>
+
+  <h2 id="agent">ツール呼び出しとエージェントのループ</h2>
+  <p>モデル自身は文章を出すことしかできない。アプリが「使えるツール」の説明を渡し、モデルが<b>呼び出したいツールと引数</b>を構造化して出力し、<b>実際に実行するのはモデルの外側</b>（通常はアプリ。Web 検索などを API の提供側が実行する「サーバーツール」もある）。</p>
+  <div class="agent">
+    <div class="s"><b>① アプリ → モデル</b>質問＋ツール定義（名前・説明・引数の JSON Schema）</div>
+    <div class="a">↓</div>
+    <div class="s"><b>② モデル</b>「<code>search_orders({"user": 42})</code> を呼びたい」と出力して止まる</div>
+    <div class="a">↓</div>
+    <div class="s app"><b>③ アプリ</b>実際に関数・API を実行し、結果を会話に追加して再度モデルへ</div>
+    <div class="a">↓ ②〜③ を、モデルが「もうツールは不要」と判断するまで繰り返す</div>
+    <div class="s"><b>④ モデル</b>結果を踏まえた最終回答</div>
+  </div>
+  <ul class="dots">
+    <li>このループを自律的に回すのが<b>エージェント</b>。ツール結果がコンテキストにどんどん積まれるので、長い作業ほどコンテキスト管理が重要になる。</li>
+    <li>ツールの<b>説明文の書き方</b>で、モデルが正しく選べるかが大きく変わる。</li>
+    <li>ツール結果やWebページに書かれた指示にモデルが従ってしまう<b>プロンプトインジェクション</b>に注意。危険な操作は人の確認を挟む。</li>
+    <li>AI アプリと外部のツールやデータをつなぐ方法を標準化したのが MCP。</li>
+  </ul>
+  <p class="related"><a href="mcp.html">MCP の仕組み</a><a href="agent-instructions.html">CLAUDE.md / AGENTS.md / Skills</a><a href="spec-kit.html">Spec Kit</a></p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✗</span> 会話するたびにモデルが学習して賢くなっていく</p><p><span class="ok">✓</span> 利用中に重みは変わらない。「覚えている」ように見えるのは、アプリが履歴やメモリ機能の内容をコンテキストに入れているから。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> コンテキストウィンドウが大きいモデルなら、全部入れておけば全部正確に使ってくれる</p><p><span class="ok">✓</span> 入れるほど遅く高くなり、埋もれた情報は見落としやすい。関連部分に絞った方が精度も上がることが多い。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> LLM がツールを実行している</p><p><span class="ok">✓</span> モデルは「何を呼びたいか」を出力するだけ。実行するのはアプリや API の提供側で、自分で定義したツールの実行と権限管理はアプリ側の責任。</p></div>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+const CANDS = [['行こう', 3.2], ['散歩', 2.6], ['出かけ', 2.2], ['ピクニック', 1.6], ['向かう', 1.1], ['走る', 0.4], ['泳ぐ', -0.8], ['寝る', -1.5]];
+const temp = document.getElementById('temp'), topp = document.getElementById('topp');
+const probsEl = document.getElementById('probs'), pick = document.getElementById('pick');
+let current = [];
+function compute() {
+  const T = Math.max(parseFloat(temp.value), 0.01), P = parseFloat(topp.value);
+  document.getElementById('tv').textContent = parseFloat(temp.value).toFixed(2);
+  document.getElementById('pv').textContent = P.toFixed(2);
+  const ex = CANDS.map(([w, l]) => [w, Math.exp(l / T)]);
+  const sum = ex.reduce((a, [, v]) => a + v, 0);
+  let probs = ex.map(([w, v]) => ({ w, p: v / sum }));
+  const sorted = [...probs].sort((a, b) => b.p - a.p);
+  let cum = 0; const keep = new Set();
+  for (const c of sorted) { keep.add(c.w); cum += c.p; if (cum >= P) break; }
+  probs.forEach(c => c.keep = keep.has(c.w));
+  current = probs;
+  probsEl.innerHTML = probs.map(c =>
+    '<div class="prow"><span class="w">' + c.w + '</span><span class="bar"><span class="' + (c.keep ? '' : 'cut') + '" style="width:' + (c.p * 100).toFixed(1) + '%"></span></span><span class="v">' + (c.p * 100).toFixed(1) + '%</span></div>'
+  ).join('');
+}
+function draw() {
+  const kept = current.filter(c => c.keep);
+  const s = kept.reduce((a, c) => a + c.p, 0);
+  let r = Math.random() * s;
+  for (const c of kept) { r -= c.p; if (r <= 0) { pick.textContent = c.w + '…'; return; } }
+  pick.textContent = kept[kept.length - 1].w + '…';
+}
+temp.addEventListener('input', compute);
+topp.addEventListener('input', compute);
+document.getElementById('draw').onclick = draw;
+compute(); draw();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "社内規程について質問できるチャットを作りたい。規程は数千ページあり、毎月改定される。まず検討する構成は？",
+    "choices": ["規程を埋め込みでベクトル DB に入れ、質問ごとに関連箇所を検索してプロンプトに入れる（RAG）", "毎月、規程でモデルを追加学習し直す", "規程を全部システムプロンプトに入れておく"],
+    "answer": 0,
+    "explain": "量が多く頻繁に変わる知識は、検索して必要な部分だけ渡す RAG が向く。更新は DB を差し替えるだけで済み、出典も示せる。",
+    "ref": "#rag"
+  },
+  {
+    "q": "問い合わせメールから「注文番号・カテゴリ」を JSON で抜き出す処理。出力のばらつきを抑えたい。temperature はどうする？",
+    "choices": ["高めにして多様な候補から選ばせる", "低めにして確率の高いトークンを選ばせる", "temperature は出力形式に影響しないので気にしなくてよい"],
+    "answer": 1,
+    "explain": "低い temperature は分布を尖らせ、最も確からしい選択に寄せる。抽出や分類のように正解が決まっているタスク向き。",
+    "ref": "#predict"
+  },
+  {
+    "q": "長い会話の後半で、序盤に伝えた条件をモデルが守らなくなった。考えられる原因は？",
+    "choices": ["モデルが会話の途中で学習内容を上書きしたから", "temperature が自動的に上がったから", "履歴がコンテキストの上限に近づき、アプリが古い部分を削ったり要約したりしたか、長い入力の中で埋もれたから"],
+    "answer": 2,
+    "explain": "モデルが見えるのはコンテキストに入っている分だけ。重要な条件はシステムプロンプトに置くか、要所で再提示する。",
+    "ref": "#context"
+  },
+  {
+    "q": "同じ長いマニュアルを毎回参照させつつ、質問だけ変えて何度も呼び出す。プロンプトキャッシュを効かせるには？",
+    "choices": ["マニュアルを先頭に、毎回変わる質問を末尾に置く", "質問を先頭に、マニュアルを末尾に置く", "マニュアルを毎回少しずつ要約し直して短くする"],
+    "answer": 0,
+    "explain": "キャッシュは先頭から一致している部分に効く。変わらない部分を前に固定し、変わる部分を後ろに置く。",
+    "ref": "#context"
+  },
+  {
+    "q": "エージェントに「ファイル削除」ツールを渡す。ツール呼び出しの仕組みを踏まえて、安全策を入れるべき場所は？",
+    "choices": ["モデルのシステムプロンプトに「慎重に」と書けば十分", "ツールを実行するアプリ側で、対象の制限や人の確認を挟む", "temperature を 0 にすれば誤った削除は起きない"],
+    "answer": 1,
+    "explain": "モデルは呼び出したいツールを出力するだけで、実行はアプリが行う。権限の制限や確認はアプリ側で確実に行う。",
+    "ref": "#agent"
+  }
+]
+</script>
+</body>
+</html>

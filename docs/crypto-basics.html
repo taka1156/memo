@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>暗号の基礎</title>
+<meta name="description" content="ハッシュ・MAC・共通鍵・公開鍵（鍵交換と署名）・証明書チェーンを、何を守る道具なのかで整理し、TLS 1.3 でどう組み合わさるかまでを図解。">
+<meta name="memo:tags" content="セキュリティ">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-a: #c2410c;
+  --c-b: #15803d;
+  --c-c: #7c3aed;
+  --c-d: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-a: #fb923c;
+    --c-b: #4ade80;
+    --c-c: #c4b5fd;
+    --c-d: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.dots { margin: 6px 0 6px 1.3em; }
+ul.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.grid2 > .card + .card, .grid3 > .card + .card { margin-top: 0; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.big { font-size: 1.05rem; font-weight: 700; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+input[type="text"], textarea, input[type="number"] {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: 500 0.85rem 'JetBrains Mono', monospace;
+  min-width: 0;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.myth { margin-bottom: 10px; }
+.myth p { margin: 4px 0; }
+
+svg.fig { width: 100%; height: auto; display: block; }
+svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); }
+svg.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+svg.fig .sub { fill: var(--fg-2); }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.prop { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 10px 0; }
+.prop div { background: var(--chip); border-radius: 8px; padding: 8px 10px; font-size: 0.82rem; }
+.prop b { display: block; color: var(--accent); font-size: 0.85rem; }
+.hashdemo { display: grid; gap: 8px; }
+.hashdemo textarea { width: 100%; resize: vertical; min-height: 60px; }
+.digest { font: 500 0.78rem/1.6 'JetBrains Mono', monospace; word-break: break-all; background: var(--chip); border-radius: 8px; padding: 8px 10px; }
+.digest .diff { color: var(--c-ng); font-weight: 700; }
+.keyflow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.key { display: inline-block; font: 700 0.72rem 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 999px; }
+.k-pub { background: color-mix(in srgb, var(--c-b) 18%, transparent); color: var(--c-b); }
+.k-priv { background: color-mix(in srgb, var(--c-a) 18%, transparent); color: var(--c-a); }
+.k-sh { background: color-mix(in srgb, var(--c-c) 18%, transparent); color: var(--c-c); }
+.chain { display: grid; gap: 6px; max-width: 520px; }
+.chain .node { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: var(--surface); }
+.chain .node b { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
+.chain .node small { display: block; color: var(--fg-2); font-size: 0.75rem; }
+.chain .node.root { border-color: var(--c-b); }
+.chain .link { color: var(--fg-2); font-size: 0.75rem; padding-left: 14px; }
+.seq { display: grid; gap: 6px; }
+.seq .row { display: grid; grid-template-columns: 1fr; gap: 2px; border-left: 3px solid var(--line); padding: 4px 0 4px 10px; }
+.seq .row.c2s { border-color: var(--c-a); }
+.seq .row.s2c { border-color: var(--c-b); }
+.seq .row.both { border-color: var(--accent); }
+.seq .dir { font: 700 0.7rem 'JetBrains Mono', monospace; color: var(--fg-2); }
+.seq .msg { font: 700 0.85rem 'JetBrains Mono', monospace; }
+.seq .msg .enc { font-size: 0.68rem; color: var(--c-c); margin-left: 6px; }
+.seq .note { font-size: 0.8rem; color: var(--fg-2); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="暗号の基礎">
+<meta property="og:description" content="ハッシュ・MAC・共通鍵・公開鍵（鍵交換と署名）・証明書チェーンを、何を守る道具なのかで整理し、TLS 1.3 でどう組み合わさるかまでを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/crypto-basics.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>暗号の基礎</h1>
+  <p class="subtitle">ハッシュ / HMAC / AES / 鍵交換 / 署名 / 証明書 — 「何を守る道具か」で整理する</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>暗号の道具は <b>ハッシュ・MAC・共通鍵暗号・鍵交換・署名</b> の 5 つでほぼ足りる。それぞれ守るもの（改ざん検知・秘匿・本人確認）が違う。</li>
+      <li>大量データは速い<b>共通鍵</b>で暗号化し、その鍵を安全に共有するために<b>公開鍵の仕組み（鍵交換）</b>を使う。</li>
+      <li>「この公開鍵は本当にその相手のものか」は<b>証明書</b>が保証し、証明書は OS・ブラウザが信頼するルート CA までの<b>署名の連鎖</b>でたどれる。</li>
+    </ul>
+  </div>
+
+  <h2 id="toolbox">5 つの道具と、守るもの</h2>
+  <p>セキュリティで守りたいものは主に 3 つ。<b>秘匿性</b>（読まれない）、<b>完全性</b>（書き換えられていないとわかる）、<b>真正性</b>（確かにその相手が作ったとわかる）。道具ごとに守れるものが違う。</p>
+  <div class="table-wrap">
+  <table>
+    <tr><th>道具</th><th>守るもの</th><th>鍵</th><th>代表例</th><th>出てくる場所</th></tr>
+    <tr><td>ハッシュ</td><td>完全性（偶発的な変化・照合）</td><td>なし</td><td>SHA-256, SHA-3</td><td>Git のオブジェクト ID, ETag, PKCE</td></tr>
+    <tr><td>MAC</td><td>完全性＋真正性（鍵を持つ者同士）</td><td><span class="key k-sh">共通鍵</span></td><td>HMAC-SHA256</td><td>JWT の HS256, Webhook の署名検証</td></tr>
+    <tr><td>共通鍵暗号</td><td>秘匿性（AEAD なら完全性も）</td><td><span class="key k-sh">共通鍵</span></td><td>AES-GCM, ChaCha20-Poly1305</td><td>TLS の通信本体, ディスク暗号化</td></tr>
+    <tr><td>鍵交換</td><td>共通鍵を盗聴者に知られずに作る</td><td><span class="key k-pub">公開</span><span class="key k-priv">秘密</span></td><td>ECDHE (X25519)、耐量子ハイブリッドの X25519MLKEM768</td><td>TLS 1.3 のハンドシェイク</td></tr>
+    <tr><td>署名</td><td>完全性＋真正性（誰でも検証できる）</td><td><span class="key k-pub">公開</span><span class="key k-priv">秘密</span></td><td>Ed25519, ECDSA, RSA-PSS</td><td>証明書, JWT の RS256/ES256, パスキー</td></tr>
+  </table>
+  </div>
+  <p class="muted">Base64 や URL エンコードは<b>暗号ではない</b>。誰でも元に戻せる「表記の変換」にすぎない。</p>
+
+  <h2 id="hash">ハッシュ — 鍵のない「指紋」</h2>
+  <p>任意の長さのデータを、固定長の値（SHA-256 なら 256 bit）に変換する一方向の関数。</p>
+  <div class="prop">
+    <div><b>同じ入力 → 同じ出力</b>何度計算しても一致する</div>
+    <div><b>1 文字違えば別物</b>出力の約半分のビットが変わる（雪崩効果）</div>
+    <div><b>元に戻せない</b>出力から入力を求められない</div>
+    <div><b>衝突を作れない</b>同じ出力になる別の入力を見つけられない</div>
+  </div>
+  <div class="card hashdemo">
+    <span class="label">TRY · SHA-256</span>
+    <textarea id="h-in">hello</textarea>
+    <div class="muted">SHA-256（16 進）。直前の値から変わった文字を赤で表示</div>
+    <div class="digest" id="h-out">…</div>
+  </div>
+  <div class="card" id="password">
+    <span class="label">パスワードの保存</span>
+    <p>SHA-256 は<b>速すぎる</b>ので、パスワードの保存には向かない。漏えいしたハッシュに対して、GPU で毎秒数十億通りの総当たりができてしまう。</p>
+    <ul class="dots">
+      <li><b>わざと遅く・メモリを食う専用関数</b>を使う: Argon2id（第一候補）、scrypt、bcrypt</li>
+      <li>ユーザーごとにランダムな<b>ソルト</b>を混ぜる（同じパスワードでも別のハッシュになり、事前計算表が使えない）。bcrypt や多くの Argon2 ライブラリはソルトを自動で生成してハッシュ文字列に埋め込む。scrypt（Node.js の <code>crypto.scrypt</code> など）では、ランダムなソルト（16 バイト以上）を自分で用意して保存する</li>
+      <li>自前で「SHA-256 を 1000 回」などを組まず、ライブラリの関数をそのまま使う</li>
+    </ul>
+  </div>
+
+  <h2 id="mac">MAC — 鍵付きハッシュで「改ざんされていない」を確かめる</h2>
+  <p>ハッシュだけだと、改ざんした人がハッシュも計算し直せば気づけない。<b>共通鍵を混ぜたハッシュ（HMAC）</b>なら、鍵を知らない人は正しい値を作れない。</p>
+  <div class="keyflow">
+    <span class="box">メッセージ</span><span class="arrow">+</span><span class="key k-sh">共通鍵</span><span class="arrow">→</span><span class="box">HMAC<small>タグ</small></span><span class="arrow">→</span><span class="box">受信側も同じ鍵で計算して一致を確認</span>
+  </div>
+  <ul class="dots">
+    <li>Webhook（GitHub, Stripe など）の署名ヘッダーは HMAC。受信側は共有シークレットで再計算して比べる。</li>
+    <li>比較は<b>一定時間比較</b>（<code>crypto.timingSafeEqual</code> など）で行う。<code>===</code> だと一致した長さで処理時間が変わり、推測の手がかりになる。</li>
+    <li>弱点: 検証する側も同じ鍵を持つので「誰が作ったか」を第三者に証明できない。それが要るなら署名を使う。</li>
+  </ul>
+
+  <h2 id="symmetric">共通鍵暗号 — 速いが「鍵をどう渡すか」が問題</h2>
+  <p>暗号化と復号に<b>同じ鍵</b>を使う。CPU 命令でも支援されていて非常に速く、通信やファイルの本体はすべてこれで暗号化する。</p>
+  <div class="keyflow">
+    <span class="box">平文</span><span class="arrow">→</span><span class="key k-sh">鍵</span><span class="arrow">→</span><span class="box">暗号文＋認証タグ</span><span class="arrow">→</span><span class="key k-sh">同じ鍵</span><span class="arrow">→</span><span class="box">平文</span>
+  </div>
+  <ul class="dots">
+    <li>今使うのは <b>AEAD</b>（AES-GCM, ChaCha20-Poly1305）。暗号化と改ざん検知を同時に行い、書き換えられた暗号文は復号に失敗する。</li>
+    <li>AES-GCM では<b>同じ鍵でナンス（IV）を再利用してはいけない</b>。再利用すると平文の情報が漏れ、改ざんもできるようになる。</li>
+    <li>根本の問題: 会ったことのない相手と、盗聴されている回線で、どうやって同じ鍵を持つか → 次の公開鍵の仕組みで解く。</li>
+  </ul>
+
+  <h2 id="asymmetric">公開鍵の仕組み — 鍵交換と署名</h2>
+  <p><span class="key k-pub">公開鍵</span> は誰に見せてもよく、<span class="key k-priv">秘密鍵</span> は持ち主だけが持つ。ペアの片方からもう片方は計算できない。用途は大きく 2 つ。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="pk1">鍵交換</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="pk2">署名</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="pk3">公開鍵で暗号化</button>
+  </div>
+  <div class="panel card" id="pk1">
+    <p><b>ECDHE</b>（楕円曲線ディフィー・ヘルマン）: 双方がその場で鍵ペアを作り、公開鍵だけを送り合う。自分の秘密鍵と相手の公開鍵を組み合わせると、<b>両者で同じ値</b>が計算できる。盗聴者は公開鍵 2 つしか見ていないので計算できない。</p>
+    <div class="keyflow">
+      <span class="box">A の秘密 a<small>＋ B の公開</small></span><span class="arrow">=</span><span class="key k-sh">同じ共有鍵</span><span class="arrow">=</span><span class="box">B の秘密 b<small>＋ A の公開</small></span>
+    </div>
+    <p class="muted">末尾の E (Ephemeral) は「接続ごとに使い捨ての鍵ペア」の意味。後でサーバーの秘密鍵が漏れても、過去の通信は復号できない（前方秘匿性 / forward secrecy）。</p>
+  </div>
+  <div class="panel card" id="pk2" hidden>
+    <p><b>署名</b>: 秘密鍵でデータに署名し、誰でも公開鍵で「この秘密鍵の持ち主が、この内容に署名した」と検証できる。内容が 1 bit でも変われば検証に失敗する。</p>
+    <div class="keyflow">
+      <span class="box">データ</span><span class="arrow">→</span><span class="key k-priv">秘密鍵で署名</span><span class="arrow">→</span><span class="box">データ＋署名</span><span class="arrow">→</span><span class="key k-pub">公開鍵で検証</span><span class="arrow">→</span><span class="box"><span class="ok">OK</span> / <span class="ng">NG</span></span>
+    </div>
+    <p>MAC との違いは、<b>検証する側が署名を作れない</b>こと。JWT を RS256/ES256 で発行すれば、検証だけする API サーバーには公開鍵だけを配ればよい。パスキーは、サーバーが送ったランダムな値（チャレンジ）に端末の秘密鍵で署名して本人であることを示す。</p>
+    <p class="muted">署名は秘匿しない。署名付き JWT（JWS）の中身は Base64URL なので誰でも読める。</p>
+  </div>
+  <div class="panel card" id="pk3" hidden>
+    <p>公開鍵で暗号化し、秘密鍵の持ち主だけが復号する使い方（RSA-OAEP など）もある。ただし遅く、扱えるデータも小さいので、<b>実際にはランダムな共通鍵だけを公開鍵で包み、本体は共通鍵で暗号化する</b>（ハイブリッド暗号。HPKE や PGP、S/MIME など）。</p>
+    <p>TLS 1.3 では「RSA で鍵を暗号化して送る」方式は廃止され、公開鍵による鍵交換はすべて使い捨ての (EC)DHE になった（主流は X25519。最近は耐量子のハイブリッド方式も）。RSA 鍵の証明書でも、RSA は署名にだけ使われる。</p>
+  </div>
+
+  <h2 id="cert">証明書とチェーン — 「その公開鍵は本物か」</h2>
+  <p>鍵交換の相手が攻撃者だったら意味がない（中間者攻撃）。そこで<b>証明書</b>: 「<code>example.com</code> の公開鍵はこれ」という内容に、認証局 (CA) が署名したもの。</p>
+  <div class="chain">
+    <div class="node root"><b>ルート CA</b><small>OS・ブラウザの「信頼ストア」に最初から入っている。自分で自分に署名</small></div>
+    <div class="link">↓ ルートの秘密鍵で署名</div>
+    <div class="node"><b>中間 CA</b><small>ルートは普段オフラインで保管し、発行は中間 CA が行う</small></div>
+    <div class="link">↓ 中間 CA の秘密鍵で署名</div>
+    <div class="node"><b>サーバー証明書（リーフ）</b><small>ドメイン名・公開鍵・有効期限。サーバーは中間 CA の証明書と一緒に送る</small></div>
+  </div>
+  <p>ブラウザは、リーフ → 中間 → ルートと署名を順に検証し、ルートが信頼ストアにあれば OK とする。加えて<b>ドメイン名の一致</b>と<b>有効期限</b>を確認する。</p>
+  <ul class="dots">
+    <li>サーバーが中間証明書を送り忘れると、一部の環境（curl、古い Android など）でだけ失敗する。<code>fullchain.pem</code> を設定する。</li>
+    <li>自己署名証明書がブラウザで警告になるのは、チェーンが信頼ストアのルートにたどり着かないため。社内では社内 CA のルートを端末に入れて解決する。</li>
+    <li>証明書の有効期限は短縮が進んでいる。ACME（Let's Encrypt など）で<b>自動更新</b>する前提で運用する。</li>
+  </ul>
+
+  <h2 id="tls">TLS 1.3 で全部がつながる</h2>
+  <p>HTTPS の最初の 1 往復で、ここまでの道具がすべて使われる。<span class="muted">（🔒 は、ここから暗号化されていることを示す）</span></p>
+  <div class="card seq">
+    <div class="row c2s"><span class="dir">クライアント → サーバー</span><span class="msg">ClientHello</span><span class="note">対応する暗号の一覧と、使い捨ての <b>鍵交換用の公開鍵</b>（key_share）</span></div>
+    <div class="row s2c"><span class="dir">サーバー → クライアント</span><span class="msg">ServerHello</span><span class="note">サーバー側の鍵交換用公開鍵。ここで両者が <b>同じ共通鍵</b> を計算できる（ECDHE。主要ブラウザでは ML-KEM と組み合わせたハイブリッド方式が標準）</span></div>
+    <div class="row s2c"><span class="dir">サーバー → クライアント</span><span class="msg">Certificate<span class="enc">🔒</span></span><span class="note">証明書チェーン。クライアントはルート CA までの <b>署名</b> を検証する</span></div>
+    <div class="row s2c"><span class="dir">サーバー → クライアント</span><span class="msg">CertificateVerify<span class="enc">🔒</span></span><span class="note">証明書の秘密鍵で、ここまでのやり取りに <b>署名</b>。「証明書の持ち主本人と鍵交換した」ことの証明</span></div>
+    <div class="row s2c"><span class="dir">サーバー → クライアント</span><span class="msg">Finished<span class="enc">🔒</span></span><span class="note">ハンドシェイク全体の <b>MAC</b>。途中で書き換えがあれば一致しない</span></div>
+    <div class="row c2s"><span class="dir">クライアント → サーバー</span><span class="msg">Finished<span class="enc">🔒</span></span><span class="note">クライアント側の確認</span></div>
+    <div class="row both"><span class="dir">双方向</span><span class="msg">HTTP リクエスト / レスポンス<span class="enc">🔒</span></span><span class="note">共有した鍵で <b>AEAD（AES-GCM など）</b> により暗号化</span></div>
+  </div>
+  <p class="muted">鍵の導出にはハッシュベースの HKDF が使われる。つまり 5 つの道具すべてが登場する。</p>
+
+  <h2 id="where">他のメモで出てくる場所</h2>
+  <div class="table-wrap">
+  <table>
+    <tr><th>場面</th><th>使われている道具</th><th>ポイント</th></tr>
+    <tr><td>JWT（HS256）</td><td>HMAC</td><td>発行側と検証側が同じ鍵を持つ。検証できる＝発行もできる</td></tr>
+    <tr><td>JWT（RS256 / ES256）</td><td>署名</td><td>検証側には公開鍵だけ配る。JWKS で鍵を公開・ローテーション</td></tr>
+    <tr><td>パスキー</td><td>署名</td><td>秘密鍵はサーバーに渡らない（同期パスキーはエンドツーエンド暗号化で自分の端末間だけを移動する）。サーバーには公開鍵だけが残る</td></tr>
+    <tr><td>OAuth の PKCE</td><td>ハッシュ</td><td>最初に code_verifier の SHA-256 だけを送り、後で元の値を出して照合</td></tr>
+    <tr><td>Git</td><td>ハッシュ（＋署名）</td><td>オブジェクト ID は内容のハッシュ。コミット署名は GPG / SSH 鍵による署名</td></tr>
+    <tr><td>SSH</td><td>鍵交換＋署名</td><td>公開鍵認証は、ログイン時にクライアントの秘密鍵で署名して本人確認する</td></tr>
+  </table>
+  </div>
+  <p class="related"><a href="jwt-vs-session.html">JWT とセッション</a><a href="passkeys.html">パスキー</a><a href="oauth-oidc.html">OAuth / OIDC</a><a href="web-protocols.html">HTTP と TLS・DNS</a><a href="git-internals.html">Git の内部構造</a></p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✗</span> JWT は暗号化されているので、中に個人情報を入れても安全</p><p><span class="ok">✓</span> 通常の JWT は署名されているだけで、中身は誰でも読める。改ざんは検出できるが、隠せはしない。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> パスワードは SHA-256 でハッシュ化すれば安全</p><p><span class="ok">✓</span> 速いハッシュは総当たりに弱い。Argon2id / bcrypt / scrypt を使う。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> HTTPS（鍵マークなど）で接続できるサイトは安全なサイト</p><p><span class="ok">✓</span> 保証されるのは「そのドメインと暗号化された通信をしている」ことだけ。フィッシングサイトも普通に証明書を取れる。Chrome はこの誤解を避けるため、117 から鍵アイコンの表示をやめている。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> 公開鍵暗号でデータ本体を暗号化している</p><p><span class="ok">✓</span> 本体は共通鍵暗号。公開鍵の仕組みは、その鍵を共有する（鍵交換）・相手を確かめる（署名）ために使う。</p></div>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+const hin = document.getElementById('h-in');
+const hout = document.getElementById('h-out');
+let prev = '';
+async function sha256(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function renderHash() {
+  if (!window.crypto || !crypto.subtle) { hout.textContent = 'この環境では Web Crypto が使えません（HTTPS で開いてください）'; return; }
+  const h = await sha256(hin.value);
+  const esc = c => c;
+  hout.innerHTML = [...h].map((c, i) => prev && prev[i] !== c ? '<span class="diff">' + esc(c) + '</span>' : c).join('');
+  prev = h;
+}
+hin.addEventListener('input', renderHash);
+renderHash();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "ユーザーのパスワードを DB に保存する。どう保存する？",
+    "choices": ["SHA-256 でハッシュ化して保存する", "Argon2id などの専用関数で、ソルト付きでハッシュ化する", "AES で暗号化し、鍵はアプリの設定ファイルに置く", "Base64 でエンコードして保存する"],
+    "answer": 1,
+    "explain": "汎用ハッシュは速すぎて総当たりに弱い。暗号化は鍵が漏れれば全員分が戻せる。パスワード専用の遅いハッシュ関数を使う。",
+    "ref": "#password"
+  },
+  {
+    "q": "Webhook を受け取る API で「確かに送信元サービスから来た、書き換えられていない」と確かめたい。送信元とは共有シークレットを事前に交換してある。何を使う？",
+    "choices": ["本文の SHA-256 をヘッダーに付けてもらう", "本文を AES で暗号化してもらう", "共有シークレットで計算した HMAC を付けてもらい、受信側で再計算して比べる"],
+    "answer": 2,
+    "explain": "鍵のないハッシュは改ざん者も計算し直せる。共通鍵を混ぜた HMAC なら、鍵を知らない人は正しい値を作れない。",
+    "ref": "#mac"
+  },
+  {
+    "q": "複数の API サーバーで JWT を検証したいが、検証側からトークンを発行できるようにはしたくない。どの方式にする？",
+    "choices": ["RS256 や ES256 などの署名方式にし、検証側には公開鍵だけを配る", "HS256 にして、全サーバーに同じ秘密鍵を配る", "JWT を Base64 で二重にエンコードする"],
+    "answer": 0,
+    "explain": "HMAC (HS256) は検証できる鍵で発行もできてしまう。署名方式なら発行には秘密鍵が必要で、検証側は公開鍵だけで足りる。",
+    "ref": "#asymmetric"
+  },
+  {
+    "q": "自前の HTTPS サーバーが、ブラウザでは問題ないのに curl から「証明書を検証できない」と失敗する。よくある原因は？",
+    "choices": ["サーバー証明書の秘密鍵が短すぎる", "中間 CA の証明書を一緒に送っておらず、チェーンがつながらない", "curl は TLS 1.3 に対応していない"],
+    "answer": 1,
+    "explain": "ブラウザはキャッシュや自動取得で中間証明書を補えることがあるが、curl などは補えない。fullchain を設定する。",
+    "ref": "#cert"
+  },
+  {
+    "q": "TLS 1.3 で、サーバーの秘密鍵が将来漏えいしても、過去に録音された通信が復号されないのはなぜ？",
+    "choices": ["通信本体が公開鍵暗号で暗号化されているから", "証明書の有効期限が切れると過去の通信も無効になるから", "接続ごとに使い捨ての鍵ペアで鍵交換（ECDHE）しており、サーバーの秘密鍵は署名にしか使わないから"],
+    "answer": 2,
+    "explain": "共通鍵は使い捨ての鍵交換から作られ、終われば捨てられる。証明書の秘密鍵は本人確認の署名にだけ使うので、漏れても過去の鍵は計算できない（前方秘匿性）。",
+    "ref": "#tls"
+  }
+]
+</script>
+</body>
+</html>
