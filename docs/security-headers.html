@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>セキュリティヘッダー</title>
+<meta name="description" content="CSP・HSTS・nosniff・frame-ancestors・Referrer-Policy・Permissions-Policy から COOP/CORP、Cookie 属性、使わなくなったヘッダーまで、何を防ぐか・推奨値・導入時の落とし穴を図解。">
+<meta name="memo:tags" content="セキュリティ">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ng: #b91c1c;
+  --c-ok: #15803d;
+  --c-warn: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ng: #f87171;
+    --c-ok: #4ade80;
+    --c-warn: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+a { color: var(--accent); }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 40px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+.cm { color: var(--fg-2); }
+.hl { background: color-mix(in srgb, var(--accent) 18%, transparent); border-radius: 3px; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 12px 0;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li, ul.list li { margin-left: 1.2em; }
+ul.list { margin: 8px 0; }
+ul.list li { margin-bottom: 4px; }
+.note { font-size: 0.83rem; color: var(--fg-2); }
+.warn-box {
+  border-left: 3px solid var(--c-warn);
+  background: color-mix(in srgb, var(--c-warn) 8%, var(--surface));
+}
+.warn-box strong { color: var(--c-warn); }
+
+/* ラベル */
+.pill {
+  display: inline-block;
+  font: 700 0.68rem/1.6 'JetBrains Mono', ui-monospace, monospace;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.pill.must { color: var(--c-ng); }
+.pill.should { color: var(--c-warn); }
+.pill.opt { color: var(--fg-2); }
+.pill.ok { color: var(--c-ok); }
+
+/* 全体マップ */
+.hgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.hcard {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  transition: border-color .15s, transform .15s;
+}
+.hcard:hover { border-color: var(--accent); transform: translateY(-1px); }
+.hcard .name {
+  font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+.hcard .threat { font-size: 0.82rem; margin-top: 4px; }
+.hcard .threat b { color: var(--fg-2); font-weight: 500; font-size: 0.75rem; margin-right: 4px; }
+.hcard .top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+
+/* 表 */
+.tbl { overflow-x: auto; margin: 10px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.83rem; min-width: 480px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th {
+  font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--fg-2);
+  letter-spacing: .04em;
+}
+td code { white-space: nowrap; }
+
+/* ステップ */
+ol.flow {
+  list-style: none;
+  counter-reset: s;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+ol.flow li {
+  counter-increment: s;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.83rem;
+}
+ol.flow li::before {
+  content: counter(s);
+  display: inline-grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace;
+  margin-right: 6px;
+}
+ol.flow li.bad { border-color: var(--c-ng); }
+ol.flow li.bad::before { background: var(--c-ng); }
+ol.flow li.good { border-color: var(--c-ok); }
+ol.flow li.good::before { background: var(--c-ok); }
+
+/* 図 */
+figure.fig { margin: 12px 0; }
+figure.fig svg { width: 100%; height: auto; display: block; }
+figure.fig figcaption { font-size: 0.8rem; color: var(--fg-2); margin-top: 6px; text-align: center; }
+.s-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.s-chip { fill: var(--chip); }
+.s-ng { fill: none; stroke: var(--c-ng); stroke-width: 2; stroke-dasharray: 6 4; }
+.s-ngfill { fill: var(--c-ng); }
+.s-accent { fill: var(--accent); }
+.s-line { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.s-t { fill: var(--fg); font-family: 'Noto Sans JP', system-ui, sans-serif; font-size: 14px; }
+.s-t2 { fill: var(--fg-2); font-family: 'Noto Sans JP', system-ui, sans-serif; font-size: 12px; }
+.s-tng { fill: var(--c-ng); font-family: 'Noto Sans JP', system-ui, sans-serif; font-size: 13px; font-weight: 700; }
+.s-btn { fill: var(--accent); }
+.s-btntext { fill: var(--bg); font-family: 'Noto Sans JP', system-ui, sans-serif; font-size: 13px; font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 10px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* チェッカー */
+textarea {
+  width: 100%;
+  min-height: 170px;
+  font: 0.78rem/1.6 'JetBrains Mono', ui-monospace, monospace;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+.btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.btn {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.btn.sub { background: transparent; color: var(--accent); }
+#result td.st { white-space: nowrap; font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+#result td.st.ok { color: var(--c-ok); }
+#result td.st.warn { color: var(--c-warn); }
+#result td.st.ng { color: var(--c-ng); }
+#result td.st.info { color: var(--fg-2); }
+#result td.k { font: 600 0.75rem 'JetBrains Mono', ui-monospace, monospace; overflow-wrap: anywhere; }
+
+details { margin: 8px 0; }
+details summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
+details[open] summary { margin-bottom: 6px; }
+.myth { display: grid; gap: 10px; }
+.myth .card { margin: 0; }
+.myth .q { font-weight: 700; }
+.myth .q::before { content: '✗ '; color: var(--c-ng); }
+.myth .a::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="セキュリティヘッダー">
+<meta property="og:description" content="CSP・HSTS・nosniff・frame-ancestors・Referrer-Policy・Permissions-Policy から COOP/CORP、Cookie 属性、使わなくなったヘッダーまで、何を防ぐか・推奨値・導入時の落とし穴を図解。">
+<meta property="og:url" content="https://memo.taka1156.site/security-headers.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>セキュリティヘッダー</h1>
+  <p class="subtitle">レスポンスに数行足すだけで、ブラウザが攻撃の一部を代わりに止めてくれる</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>セキュリティヘッダーは<b>ブラウザへの指示</b>。アプリの脆弱性そのものは直さないが、悪用されたときの被害を小さくする「多層防御」の 1 枚</li>
+      <li>最優先は <b>CSP・HSTS・nosniff・frame-ancestors</b>。そこに Referrer-Policy と Permissions-Policy で情報漏れと権限を絞る</li>
+      <li>Cookie の属性（<code>HttpOnly</code> / <code>Secure</code> / <code>SameSite</code>）と COOP / CORP も同じ発想。<code>X-XSS-Protection</code> のような古いヘッダーは今は<b>使わない</b></li>
+    </ul>
+  </div>
+
+  <!-- ======================== 全体像 ======================== -->
+  <h2 id="overview">全体像: どのヘッダーが何を防ぐか</h2>
+  <p>カードを押すと各セクションへ飛びます。<span class="pill must">必須</span> はどのサイトでも入れる、<span class="pill should">推奨</span> は入れておきたい、<span class="pill opt">用途次第</span> は必要なときに入れる、の目安です。</p>
+
+  <div class="hgrid">
+    <a class="hcard" href="#csp">
+      <div class="top"><span class="name">Content-Security-Policy</span><span class="pill must">必須</span></div>
+      <div class="threat"><b>防ぐ</b>XSS で注入されたスクリプトの実行、データの外部送信</div>
+    </a>
+    <a class="hcard" href="#hsts">
+      <div class="top"><span class="name">Strict-Transport-Security</span><span class="pill must">必須</span></div>
+      <div class="threat"><b>防ぐ</b>HTTP への格下げ（SSL ストリップ）・盗聴</div>
+    </a>
+    <a class="hcard" href="#nosniff">
+      <div class="top"><span class="name">X-Content-Type-Options</span><span class="pill must">必須</span></div>
+      <div class="threat"><b>防ぐ</b>MIME スニッフィングで画像やテキストがスクリプト扱いされる</div>
+    </a>
+    <a class="hcard" href="#framing">
+      <div class="top"><span class="name">frame-ancestors / X-Frame-Options</span><span class="pill must">必須</span></div>
+      <div class="threat"><b>防ぐ</b>クリックジャッキング（透明 iframe で押させる）</div>
+    </a>
+    <a class="hcard" href="#referrer">
+      <div class="top"><span class="name">Referrer-Policy</span><span class="pill should">推奨</span></div>
+      <div class="threat"><b>防ぐ</b>URL に含まれるトークンや個人情報が外部サイトへ漏れる</div>
+    </a>
+    <a class="hcard" href="#permissions">
+      <div class="top"><span class="name">Permissions-Policy</span><span class="pill should">推奨</span></div>
+      <div class="threat"><b>防ぐ</b>カメラ・位置情報などを、注入されたコードや埋め込みに使われる</div>
+    </a>
+    <a class="hcard" href="#isolation">
+      <div class="top"><span class="name">COOP / CORP / COEP</span><span class="pill should">推奨</span></div>
+      <div class="threat"><b>防ぐ</b>別タブからの window 操作、XS-Leaks、Spectre 型の読み取り</div>
+    </a>
+    <a class="hcard" href="#cookie">
+      <div class="top"><span class="name">Set-Cookie の属性</span><span class="pill must">必須</span></div>
+      <div class="threat"><b>防ぐ</b>Cookie の盗聴・JS からの窃取・クロスサイト送信 (CSRF)</div>
+    </a>
+    <a class="hcard" href="#others">
+      <div class="top"><span class="name">Cache-Control / Clear-Site-Data など</span><span class="pill opt">用途次第</span></div>
+      <div class="threat"><b>防ぐ</b>個人情報のキャッシュ残り、ログアウト後のデータ残り</div>
+    </a>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">ヘッダーが効く場所</h3>
+    <p>どれも<b>ブラウザが守るルール</b>です。<code>curl</code> やサーバー間通信、攻撃者が自分で書いたスクリプトには関係ありません。「サーバーの入力チェック」の代わりにはならず、<b>アプリに穴があったときに、ブラウザ上での悪用を難しくする</b>ものだと考えます。実装側の対策は <a href="web-vulnerabilities.html">実装起因の脆弱性</a> のページへ。</p>
+  </div>
+
+  <!-- ======================== 推奨セット ======================== -->
+  <h2 id="recommended">まず入れるセット</h2>
+  <p>一般的な Web アプリ（自前のフロント＋API、外部に iframe で埋め込ませない）の出発点です。各値の意味は下のセクションで説明します。</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="rec-raw">生ヘッダー</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="rec-nginx">nginx</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="rec-express">Express (helmet)</button>
+  </div>
+  <div class="panel" id="rec-raw">
+<pre><code>Content-Security-Policy: default-src 'self'; script-src 'nonce-<span class="hl">{毎回ランダム}</span>' 'strict-dynamic';
+  object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-origin
+Set-Cookie: __Host-sid=…; Path=/; Secure; HttpOnly; SameSite=Lax</code></pre>
+    <p class="note">CSP は実際には 1 行で書きます（見やすさのため改行）。<code>default-src 'self'</code> のままだと外部フォントやインライン <code>style</code> も止まるので、使うものに合わせて <code>style-src</code> や <code>font-src</code> などを足します。</p>
+  </div>
+  <div class="panel" id="rec-nginx" hidden>
+<pre><code><span class="cm"># server ブロックに書く。always を付けないとエラー応答 (4xx/5xx) に付かない</span>
+add_header Content-Security-Policy "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'" always;
+add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "DENY" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
+add_header Cross-Origin-Opener-Policy "same-origin" always;
+add_header Cross-Origin-Resource-Policy "same-origin" always;
+server_tokens off;   <span class="cm"># Server ヘッダーからバージョンを消す</span></code></pre>
+    <div class="card warn-box">
+      <strong>nginx の落とし穴:</strong> <code>location</code> の中で 1 つでも <code>add_header</code> を書くと、既定では親（<code>server</code>）の <code>add_header</code> は<b>その location では全部消えます</b>（継承されない）。nginx 1.29.3 以降なら <code>add_header_inherit merge;</code> で親の値を引き継げます。それより古い版では、共通部分を include ファイルにまとめ、各 location で読み込むのが安全です。静的サイトでは毎回 nonce を作れないので、<code>script-src 'self'</code>（インライン script を書かない）か、ハッシュ <code>'sha256-…'</code> を使います。
+    </div>
+  </div>
+  <div class="panel" id="rec-express" hidden>
+<pre><code>import crypto from 'node:crypto';
+import helmet from 'helmet';
+
+<span class="cm">// リクエストごとに nonce を作り、テンプレートからも使えるようにする</span>
+app.use((req, res, next) =&gt; {
+  res.locals.nonce = crypto.randomBytes(16).toString('base64');
+  next();
+});
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      scriptSrc: [(req, res) =&gt; `'nonce-${res.locals.nonce}'`, "'strict-dynamic'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'none'"],
+      frameAncestors: ["'none'"],
+    },
+  },
+  strictTransportSecurity: { maxAge: 63072000, includeSubDomains: true, preload: true },
+}));
+
+<span class="cm">// テンプレート側: &lt;script nonce="&lt;%= nonce %&gt;"&gt;…&lt;/script&gt;</span></code></pre>
+    <p class="note">helmet は既定で nosniff・X-Frame-Options・Referrer-Policy・COOP/CORP などを付け、<code>X-Powered-By</code> を外し、<code>X-XSS-Protection: 0</code> を返します。Permissions-Policy は helmet に含まれないので、必要なら自分で <code>res.setHeader</code> します。</p>
+  </div>
+
+  <!-- ======================== CSP ======================== -->
+  <h2 id="csp">Content-Security-Policy (CSP)</h2>
+  <p>「このページで<b>どこから来たスクリプト・画像・通信先なら使ってよいか</b>」をブラウザに伝えるヘッダー。XSS でタグを差し込まれても、許可されていないスクリプトは実行されません。XSS 対策の<b>2 枚目の壁</b>です（1 枚目は出力時のエスケープ）。</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="csp-dir">主なディレクティブ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="csp-nonce">nonce 方式</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="csp-rollout">導入の手順</button>
+  </div>
+
+  <div class="panel card" id="csp-dir">
+    <div class="tbl"><table>
+      <thead><tr><th>ディレクティブ</th><th>決めること</th><th>よく使う値</th></tr></thead>
+      <tbody>
+        <tr><td><code>default-src</code></td><td>個別指定がない種類の既定値（フォールバック）</td><td><code>'self'</code></td></tr>
+        <tr><td><code>script-src</code></td><td>実行してよいスクリプト。<b>CSP の本体</b></td><td><code>'nonce-…' 'strict-dynamic'</code></td></tr>
+        <tr><td><code>style-src</code></td><td>CSS の読み込み元・インライン style</td><td><code>'self'</code>（必要なら <code>'unsafe-inline'</code>）</td></tr>
+        <tr><td><code>img-src</code> / <code>font-src</code> / <code>media-src</code></td><td>画像・フォント・音声動画の取得元</td><td><code>'self' data:</code> など</td></tr>
+        <tr><td><code>connect-src</code></td><td>fetch / XHR / WebSocket の接続先。<b>盗んだデータの送り先を絞る</b></td><td><code>'self' https://api.example.com</code></td></tr>
+        <tr><td><code>object-src</code></td><td>&lt;object&gt; / &lt;embed&gt;（古いプラグイン）</td><td><code>'none'</code></td></tr>
+        <tr><td><code>base-uri</code></td><td>&lt;base href&gt; の書き換え（相対 URL の乗っ取り）</td><td><code>'none'</code> か <code>'self'</code></td></tr>
+        <tr><td><code>form-action</code></td><td>フォームの送信先</td><td><code>'self'</code></td></tr>
+        <tr><td><code>frame-ancestors</code></td><td><b>自分を</b> iframe に埋め込めるサイト（<a href="#framing">クリックジャッキング</a>）</td><td><code>'none'</code></td></tr>
+        <tr><td><code>upgrade-insecure-requests</code></td><td>ページ内の http:// のサブリソースを https に読み替える</td><td>値なし</td></tr>
+        <tr><td><code>report-to</code></td><td>違反レポートの送り先（<code>Reporting-Endpoints</code> ヘッダーで名前を定義）</td><td><code>csp</code></td></tr>
+      </tbody>
+    </table></div>
+    <p class="note"><code>default-src</code> がフォールバックするのは「取得元」系のディレクティブだけです。<code>frame-ancestors</code>・<code>base-uri</code>・<code>form-action</code> は <code>default-src</code> では埋まらないので、個別に書きます。</p>
+  </div>
+
+  <div class="panel card" id="csp-nonce" hidden>
+    <p>ホスト名を並べる「許可リスト方式」（<code>script-src 'self' https://cdn.example.com</code>）は、その CDN に JSONP や古いライブラリがあると回避されやすく、実際によく破られてきました。今の推奨は<b>nonce（またはハッシュ）方式の strict CSP</b> です。</p>
+    <ol class="flow">
+      <li>サーバーが<b>レスポンスごとに</b>推測できない乱数（nonce）を作る</li>
+      <li>ヘッダーに <code>script-src 'nonce-R4nd0m'</code>、自分の <code>&lt;script nonce="R4nd0m"&gt;</code> にも同じ値を入れる</li>
+      <li class="bad">XSS で差し込まれた <code>&lt;script&gt;</code> や <code>onclick=</code> は nonce を知らない → <b>実行されない</b></li>
+      <li class="good"><code>'strict-dynamic'</code> があれば、nonce 付きスクリプトが動的に読み込んだスクリプトも許可（バンドラーやタグマネージャーが動く）</li>
+    </ol>
+<pre><code>Content-Security-Policy:
+  script-src 'nonce-R4nd0m' 'strict-dynamic' https: 'unsafe-inline';
+  object-src 'none'; base-uri 'none'</code></pre>
+    <p class="note">末尾の <code>https: 'unsafe-inline'</code> は<b>古いブラウザ向けのフォールバック</b>。nonce を理解するブラウザは <code>'unsafe-inline'</code> を、<code>'strict-dynamic'</code> を理解するブラウザはホスト指定（<code>https:</code>）を無視するので、新しいブラウザでは厳しいまま動きます。</p>
+    <ul class="list">
+      <li>nonce は<b>毎回変える</b>。固定値やキャッシュされた HTML に埋まった値は、攻撃者に読まれたら終わり</li>
+      <li>静的 HTML（CDN 配信の SPA など）で nonce が使えないなら、インラインスクリプトの<b>ハッシュ</b>（<code>'sha256-…'</code>）を使う</li>
+      <li><code>'unsafe-eval'</code> は <code>eval</code> / <code>new Function</code> を許すので、できるだけ外す</li>
+    </ul>
+  </div>
+
+  <div class="panel card" id="csp-rollout" hidden>
+    <p>いきなり本番で強制すると、見落としていたインラインスクリプトや外部タグが止まって画面が壊れます。<b>Report-Only で様子を見てから強制</b>が定石です。</p>
+    <ol class="flow">
+      <li><code>Content-Security-Policy-Report-Only</code> で配信（ブロックせず違反を報告するだけ）</li>
+      <li>レポートを集め、正当な違反（自前のインライン JS、計測タグなど）を潰す</li>
+      <li>違反が落ち着いたら <code>Content-Security-Policy</code> に切り替えて強制</li>
+      <li>強制後もレポートを残し、新機能で壊れていないか監視する</li>
+    </ol>
+<pre><code>Reporting-Endpoints: csp="https://example.com/csp-report"
+Content-Security-Policy-Report-Only: script-src 'nonce-R4nd0m' 'strict-dynamic'; object-src 'none'; base-uri 'none'; report-to csp</code></pre>
+    <p class="note">古い <code>report-uri</code> は非推奨ですが、まだ対応ブラウザが多いので <code>report-to</code> と併記されることもあります。</p>
+    <div class="card warn-box">
+      <strong>&lt;meta&gt; で書く CSP の制限:</strong> <code>&lt;meta http-equiv="Content-Security-Policy"&gt;</code> でも CSP は書けますが、<code>frame-ancestors</code>・<code>report-to</code> / <code>report-uri</code>・<code>sandbox</code> は<b>無視されます</b>。Report-Only も meta では使えません。可能な限りレスポンスヘッダーで送ります。
+    </div>
+  </div>
+
+  <details class="card">
+    <summary>もう一歩: Trusted Types</summary>
+    <p><code>require-trusted-types-for 'script'</code> を CSP に足すと、<code>innerHTML</code> や <code>eval</code> などの危険な API に<b>素の文字列を渡すとエラー</b>になり、DOM ベース XSS の入口を強制的に塞げます。サニタイザーを通した値（TrustedHTML）だけが通ります。Chromium 系が先行し、Safari 26・Firefox 148 も対応したので、2026 年 2 月から主要ブラウザすべてで使えます（Baseline 2026）。古いブラウザも対象なら、まず Report-Only で試すのがおすすめです。</p>
+  </details>
+
+  <!-- ======================== HSTS ======================== -->
+  <h2 id="hsts">Strict-Transport-Security (HSTS)</h2>
+  <p>「このサイトには<b>今後 https でしかつながない</b>で」とブラウザに覚えさせるヘッダー。http → https のリダイレクトだけだと、<b>最初の http リクエスト</b>が平文で飛ぶので、公衆 Wi-Fi などで書き換えられます（SSL ストリップ）。</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="hsts-no">リダイレクトだけ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="hsts-yes">HSTS あり</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="hsts-pre">preload</button>
+  </div>
+  <div class="panel" id="hsts-no">
+    <ol class="flow">
+      <li>ユーザーがアドレスバーに <code>example.com</code> と入力 → <code>http://</code> で送信</li>
+      <li class="bad">同じ Wi-Fi の攻撃者が通信を横取りし、https へのリダイレクトを握りつぶす</li>
+      <li class="bad">攻撃者がサーバーとは https、ユーザーとは http で中継 → ログイン情報や Cookie が丸見え</li>
+    </ol>
+  </div>
+  <div class="panel" id="hsts-yes" hidden>
+    <ol class="flow">
+      <li>一度 https でアクセスしたとき、<code>Strict-Transport-Security</code> を受け取る</li>
+      <li class="good">以降 <code>max-age</code> の間、ブラウザは http の URL を<b>送信前に内部で https に書き換える</b></li>
+      <li class="good">証明書エラーが出ても「無視して進む」を許さない</li>
+    </ol>
+    <p class="note">弱点: <b>初回アクセス</b>（またはキャッシュが切れた後の最初の 1 回）は守れない。</p>
+  </div>
+  <div class="panel" id="hsts-pre" hidden>
+    <ol class="flow">
+      <li><code>max-age</code> 1 年以上・<code>includeSubDomains</code>・<code>preload</code> を付けて配信</li>
+      <li>hstspreload.org から申請 → ブラウザに組み込まれるリストに載る</li>
+      <li class="good">ブラウザは<b>初回から</b> https でしかつながない</li>
+    </ol>
+    <p class="note">リストから外すのは時間がかかります（ブラウザの更新が行き渡るまで）。全サブドメインが https 化できているか確認してから申請します。</p>
+  </div>
+
+<pre><code>Strict-Transport-Security: max-age=63072000; includeSubDomains; preload</code></pre>
+  <div class="card warn-box">
+    <strong>導入時の注意:</strong> <code>includeSubDomains</code> を付けると、http でしか動かない社内サブドメイン（古い管理画面など）が<b>開けなくなります</b>。最初は <code>max-age=300</code> 程度の短い値で試し、問題がなければ伸ばします。HSTS は https のレスポンスに付けたものだけが有効です（http のレスポンスの HSTS は無視される）。
+  </div>
+
+  <!-- ======================== nosniff ======================== -->
+  <h2 id="nosniff">X-Content-Type-Options: nosniff</h2>
+  <p>ブラウザには、<code>Content-Type</code> が怪しいときに中身を見て種類を推測する<b>MIME スニッフィング</b>という機能があります。これを止めるヘッダーです。</p>
+  <ol class="flow">
+    <li>攻撃者が「プロフィール画像」や <code>.txt</code> として、中身が JavaScript のファイルをアップロード</li>
+    <li class="bad">別のページで <code>&lt;script src="/uploads/evil.txt"&gt;</code> と読み込ませる</li>
+    <li class="bad">nosniff なし: 推測でスクリプトとして実行されうる（自ドメインなので CSP の <code>'self'</code> も通る）</li>
+    <li class="good">nosniff あり: <code>script</code> / <code>style</code> は MIME タイプが合わなければブロック</li>
+  </ol>
+<pre><code>X-Content-Type-Options: nosniff</code></pre>
+  <p class="note">値は <code>nosniff</code> だけ。前提として、サーバーが正しい <code>Content-Type</code>（<code>; charset=utf-8</code> 込み）を返していることが大事です。ユーザーのアップロードファイルは、できれば<b>別ドメイン</b>から <code>Content-Disposition: attachment</code> で配ると、さらに安全です。</p>
+
+  <!-- ======================== Framing ======================== -->
+  <h2 id="framing">frame-ancestors / X-Frame-Options（クリックジャッキング）</h2>
+  <p>攻撃者のページが、あなたのサイトを<b>透明な iframe</b> で重ね、ユーザーに見えているボタン（罠）を押させて、実際には下に隠れたあなたのサイトのボタンを押させる攻撃です。</p>
+
+  <figure class="fig">
+    <svg viewBox="0 0 560 250" role="img" aria-label="罠サイトのボタンの上に、透明な iframe で本物のサイトの送金ボタンが重ねられている図">
+      <!-- 罠サイト -->
+      <rect class="s-box" x="20" y="40" width="300" height="190" rx="10"/>
+      <text class="s-t2" x="34" y="64">罠サイト（ユーザーに見えている）</text>
+      <text class="s-t" x="34" y="100">🎉 おめでとうございます！</text>
+      <rect class="s-btn" x="70" y="150" width="190" height="40" rx="8"/>
+      <text class="s-btntext" x="165" y="175" text-anchor="middle">賞品を受け取る</text>
+      <!-- 透明 iframe -->
+      <rect class="s-ng" x="60" y="20" width="300" height="190" rx="10"/>
+      <text class="s-tng" x="200" y="38" text-anchor="middle">透明な iframe（opacity: 0）</text>
+      <rect class="s-ng" x="100" y="130" width="190" height="40" rx="8"/>
+      <text class="s-tng" x="195" y="125" text-anchor="middle">本物の「送金を確定」</text>
+      <!-- カーソル -->
+      <path d="M180 168 l0 26 l7 -7 l6 13 l5 -2 l-6 -13 l10 0 z" style="fill:var(--fg);stroke:var(--surface);stroke-width:1.5"/>
+      <!-- 右側の説明 -->
+      <text class="s-t" x="380" y="80">クリックは</text>
+      <text class="s-t" x="380" y="102">いちばん上の</text>
+      <text class="s-t" x="380" y="124">iframe に届く</text>
+      <text class="s-t2" x="380" y="160">ログイン中なら</text>
+      <text class="s-t2" x="380" y="178">本当に送金される</text>
+    </svg>
+    <figcaption>見えている罠のボタンと、見えない本物のボタンの位置を合わせておく</figcaption>
+  </figure>
+
+  <div class="tbl"><table>
+    <thead><tr><th>書き方</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td><code>Content-Security-Policy: frame-ancestors 'none'</code></td><td>どこからも埋め込ませない（推奨）</td></tr>
+      <tr><td><code>frame-ancestors 'self'</code></td><td>同じオリジンからだけ許可</td></tr>
+      <tr><td><code>frame-ancestors https://partner.example</code></td><td>特定サイトだけ許可（複数書ける）</td></tr>
+      <tr><td><code>X-Frame-Options: DENY</code> / <code>SAMEORIGIN</code></td><td>旧方式。古いブラウザ向けに併記してよい</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">両方あるとき、対応ブラウザは <code>frame-ancestors</code> を優先します。<code>X-Frame-Options: ALLOW-FROM</code> は今のブラウザでは効かないので、特定サイトを許可したいときは <code>frame-ancestors</code> を使います。どちらも <b>&lt;meta&gt; では効きません</b>。</p>
+
+  <!-- ======================== Referrer ======================== -->
+  <h2 id="referrer">Referrer-Policy</h2>
+  <p>リンクや画像の読み込み時に、<b>直前のページの URL</b> を <code>Referer</code> ヘッダーで送るかどうかを決めます。パスワード再設定 URL（<code>/reset?token=…</code>）や検索語などが、外部の画像・広告・解析サービスに漏れるのを防ぎます。</p>
+  <div class="tbl"><table>
+    <thead><tr><th>値</th><th>同じオリジンへ</th><th>別オリジン (https→https)</th><th>https→http</th></tr></thead>
+    <tbody>
+      <tr><td><code>no-referrer</code></td><td>送らない</td><td>送らない</td><td>送らない</td></tr>
+      <tr><td><code>same-origin</code></td><td>完全な URL</td><td>送らない</td><td>送らない</td></tr>
+      <tr><td><code>strict-origin-when-cross-origin</code> <span class="pill ok">推奨</span></td><td>完全な URL</td><td>オリジンだけ</td><td>送らない</td></tr>
+      <tr><td><code>unsafe-url</code> <span class="pill must">避ける</span></td><td>完全な URL</td><td>完全な URL</td><td>完全な URL</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note"><code>strict-origin-when-cross-origin</code> は今のブラウザの既定値ですが、明示しておけば古い環境や設定の違いに左右されません。トークンを URL に載せる画面だけは <code>no-referrer</code> にすると安心です（そもそも秘密は URL に載せないのが原則）。</p>
+
+  <!-- ======================== Permissions ======================== -->
+  <h2 id="permissions">Permissions-Policy</h2>
+  <p>カメラ・マイク・位置情報・決済などの<b>強い機能を、このページ（と埋め込み先）が使えるかどうか</b>を決めます。使わない機能を切っておけば、XSS や埋め込んだ広告・ウィジェットに悪用されません。</p>
+<pre><code>Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+<span class="cm"># () = 誰にも許可しない / (self) = 自分だけ / (self "https://maps.example") = 自分と指定先</span></code></pre>
+  <p class="note">iframe 側でも <code>&lt;iframe allow="camera"&gt;</code> のように許可が必要で、ヘッダーで禁止した機能は iframe の <code>allow</code> でも有効になりません。旧名の <code>Feature-Policy</code> は書き方が違うので、今は Permissions-Policy で書きます。</p>
+
+  <!-- ======================== COOP/CORP/COEP ======================== -->
+  <h2 id="isolation">COOP / CORP / COEP（クロスオリジン分離）</h2>
+  <p>Spectre（CPU の投機実行を使ってメモリを読む攻撃）や XS-Leaks（別サイトの状態を間接的に盗み見る攻撃）への対策として加わった 3 つのヘッダーです。名前が似ているので、<b>誰との関係を切るのか</b>で覚えます。</p>
+  <div class="tbl"><table>
+    <thead><tr><th>ヘッダー</th><th>切る関係</th><th>推奨値</th><th>注意</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>Cross-Origin-Opener-Policy</code><br>(COOP)</td>
+        <td>自分を <code>window.open</code> した／された<b>別サイトのウィンドウ</b>との参照（<code>window.opener</code>）</td>
+        <td><code>same-origin</code></td>
+        <td>OAuth や決済のポップアップで opener を使うなら <code>same-origin-allow-popups</code></td>
+      </tr>
+      <tr>
+        <td><code>Cross-Origin-Resource-Policy</code><br>(CORP)</td>
+        <td><b>自分のリソース</b>（画像・JS・API レスポンス）を、別サイトが &lt;img&gt; や &lt;script&gt; で読み込むこと</td>
+        <td><code>same-origin</code> か <code>same-site</code></td>
+        <td>他サイトに配る画像・CDN の資産は <code>cross-origin</code></td>
+      </tr>
+      <tr>
+        <td><code>Cross-Origin-Embedder-Policy</code><br>(COEP)</td>
+        <td><b>自分のページ</b>が、許可のない別サイトのリソースを読み込むこと</td>
+        <td>必要なときだけ <code>require-corp</code> / <code>credentialless</code></td>
+        <td>COOP と合わせると <code>crossOriginIsolated</code> になり <code>SharedArrayBuffer</code> などが使える。外部リソースが壊れやすい</td>
+      </tr>
+    </tbody>
+  </table></div>
+  <p class="note">CORS（<code>Access-Control-Allow-Origin</code>）は逆に<b>制限を緩める</b>ヘッダーです。詳しくは <a href="cors-sop.html">CORS と同一オリジンポリシー</a> へ。</p>
+
+  <!-- ======================== Cookie ======================== -->
+  <h2 id="cookie">Set-Cookie の属性</h2>
+  <p>セッション ID を入れた Cookie は「盗まれたらそのままログインされる鍵」です。属性で、<b>どこへ・いつ・誰に</b>送られるかを絞ります。</p>
+<pre><code>Set-Cookie: <span class="hl">__Host-</span>sid=8f3a…; Path=/; <span class="hl">Secure</span>; <span class="hl">HttpOnly</span>; <span class="hl">SameSite=Lax</span>; Max-Age=3600</code></pre>
+  <div class="tbl"><table>
+    <thead><tr><th>属性</th><th>効果</th><th>防ぐもの</th></tr></thead>
+    <tbody>
+      <tr><td><code>Secure</code></td><td>https の通信でだけ送る</td><td>平文通信での盗聴</td></tr>
+      <tr><td><code>HttpOnly</code></td><td>JS（<code>document.cookie</code>）から読めない</td><td>XSS による Cookie の持ち出し</td></tr>
+      <tr><td><code>SameSite=Lax</code></td><td>別サイトからのリクエストには、トップレベルの GET 遷移（リンククリック）でだけ送る</td><td>CSRF の大半</td></tr>
+      <tr><td><code>SameSite=Strict</code></td><td>別サイト経由では一切送らない</td><td>CSRF。ただし外部リンクから来ると未ログイン表示になる</td></tr>
+      <tr><td><code>SameSite=None</code></td><td>常に送る（<code>Secure</code> 必須）</td><td>なし。埋め込みウィジェットなど本当に必要なときだけ</td></tr>
+      <tr><td><code>__Host-</code> 接頭辞</td><td><code>Secure</code>・<code>Path=/</code>・<code>Domain</code> なしでないと<b>ブラウザが受け付けない</b></td><td>サブドメインからの Cookie 上書き（セッション固定）</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Chrome 系は <code>SameSite</code> 未指定を <code>Lax</code> 扱いにしますが、ブラウザによって挙動が違うので<b>必ず明示</b>します。<code>Domain=example.com</code> を付けると全サブドメインに送られるので、付けない方が安全です。</p>
+
+  <!-- ======================== Others ======================== -->
+  <h2 id="others">その他、場面によって使うもの</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>ヘッダー</th><th>使う場面</th></tr></thead>
+    <tbody>
+      <tr><td><code>Cache-Control: no-store</code></td><td>マイページ・明細など個人情報を含むレスポンス。共有 PC のブラウザキャッシュや、設定ミスの CDN に残さない（<a href="http-cache.html">HTTP キャッシュ</a>）</td></tr>
+      <tr><td><code>Clear-Site-Data: "cache", "cookies", "storage"</code></td><td>ログアウト時に、そのサイトの Cookie・ストレージ・キャッシュをブラウザに消させる</td></tr>
+      <tr><td><code>Server</code> / <code>X-Powered-By</code> を消す</td><td>使っているソフトとバージョンの宣伝をやめる（効果は小さいが手間もない）</td></tr>
+      <tr><td><code>Access-Control-Allow-*</code></td><td>別オリジンの JS に API を読ませたいときだけ。<code>*</code> と Cookie 付きの組み合わせに注意（<a href="cors-sop.html">CORS</a>）</td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- ======================== Deprecated ======================== -->
+  <h2 id="deprecated">もう使わない・古いヘッダー</h2>
+  <p>古い記事やチェックツールに出てくるが、今は入れない（または無効化する）ものです。</p>
+  <div class="tbl"><table>
+    <thead><tr><th>ヘッダー</th><th>状況</th><th>どうする</th></tr></thead>
+    <tbody>
+      <tr><td><code>X-XSS-Protection</code></td><td>ブラウザ内蔵の XSS フィルタ用。主要ブラウザでフィルタは廃止され、フィルタ自体が情報漏れの原因にもなった</td><td><code>0</code> にするか、送らない。代わりに CSP</td></tr>
+      <tr><td><code>Public-Key-Pins</code> (HPKP)</td><td>証明書の固定。設定ミスでサイトを長期間開けなくする事故が多く、廃止</td><td>送らない</td></tr>
+      <tr><td><code>Expect-CT</code></td><td>Certificate Transparency の強制。CT が標準で必須になり不要に</td><td>送らない</td></tr>
+      <tr><td><code>Feature-Policy</code></td><td>Permissions-Policy の旧名</td><td>Permissions-Policy に置き換える</td></tr>
+      <tr><td><code>X-Frame-Options: ALLOW-FROM</code></td><td>今のブラウザは無視（＝保護なし）</td><td><code>frame-ancestors</code> を使う</td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- ======================== Checker ======================== -->
+  <h2 id="checker">ヘッダーをチェックしてみる</h2>
+  <p>ターミナルで <code>curl -sI https://自分のサイト</code> を実行し、出てきたレスポンスヘッダーを貼り付けてください。このページの中だけで判定し、どこにも送信しません。</p>
+  <div class="card">
+    <textarea id="hdr-input" spellcheck="false" aria-label="レスポンスヘッダー" placeholder="HTTP/2 200&#10;content-type: text/html; charset=utf-8&#10;strict-transport-security: max-age=63072000&#10;…"></textarea>
+    <div class="btns">
+      <button class="btn" id="hdr-check">チェックする</button>
+      <button class="btn sub" id="hdr-sample">よくある設定例を入れる</button>
+    </div>
+    <div class="tbl" id="result-wrap" hidden><table id="result">
+      <thead><tr><th>項目</th><th>判定</th><th>内容</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p class="note">簡易チェックです。CSP の中身が実際に安全かは、ページの作りによって変わります。</p>
+  </div>
+
+  <!-- ======================== Myths ======================== -->
+  <h2 id="myths">よくある誤解</h2>
+  <div class="myth">
+    <div class="card"><p class="q">CSP を入れたので、出力のエスケープは手を抜いていい</p><p class="a">CSP は 2 枚目の壁。<code>'unsafe-inline'</code> が残っていたり、許可したドメインに抜け道があったりすると素通りする。エスケープが 1 枚目。</p></div>
+    <div class="card"><p class="q">http → https のリダイレクトがあれば HSTS はいらない</p><p class="a">リダイレクト前の最初の http リクエストが書き換えられる。HSTS（できれば preload）で、ブラウザが最初から https を使うようにする。</p></div>
+    <div class="card"><p class="q">ヘッダーは HTML ページにだけ付ければいい</p><p class="a">API の JSON やアップロードファイルにも nosniff・CORP は必要。エラーページ（404 / 500）にも付くよう、サーバーやフレームワーク全体で設定する。</p></div>
+    <div class="card"><p class="q">HttpOnly にしたので XSS されても大丈夫</p><p class="a">Cookie は読まれないが、XSS したスクリプトはそのページ上で<b>ユーザーとしてリクエストを送れる</b>。被害が減るだけで、XSS 自体は防げない。</p></div>
+  </div>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+/* ---- ヘッダーチェッカー（結果は textContent で描画する） ---- */
+(() => {
+  const input = document.getElementById('hdr-input');
+  const tbody = document.querySelector('#result tbody');
+  const wrap = document.getElementById('result-wrap');
+  const SAMPLE = [
+    'HTTP/2 200',
+    'content-type: text/html; charset=utf-8',
+    "content-security-policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.example.com",
+    'x-frame-options: SAMEORIGIN',
+    'x-xss-protection: 1; mode=block',
+    'strict-transport-security: max-age=86400',
+    'set-cookie: sid=8f3a91c2; Path=/; HttpOnly',
+    'server: nginx/1.18.0',
+    'x-powered-by: Express'
+  ].join('\n');
+
+  function parse(text) {
+    const h = {}; const cookies = [];
+    text.split(/\r?\n/).forEach(line => {
+      const i = line.indexOf(':');
+      if (i <= 0) return;
+      const k = line.slice(0, i).trim().toLowerCase();
+      const v = line.slice(i + 1).trim();
+      if (!/^[a-z0-9-]+$/.test(k)) return;
+      if (k === 'set-cookie') cookies.push(v);
+      else h[k] = h[k] ? h[k] + ', ' + v : v;
+    });
+    return { h, cookies };
+  }
+
+  function cspDirectives(v) {
+    const d = {};
+    v.split(';').forEach(part => {
+      const t = part.trim().split(/\s+/);
+      if (t[0]) d[t[0].toLowerCase()] = t.slice(1);
+    });
+    return d;
+  }
+
+  function check(text) {
+    const { h, cookies } = parse(text);
+    const rows = [];
+    const add = (k, st, msg) => rows.push({ k, st, msg });
+
+    // CSP
+    const csp = h['content-security-policy'];
+    let d = {};
+    if (!csp) {
+      add('Content-Security-Policy', 'ng', h['content-security-policy-report-only']
+        ? 'Report-Only だけ。違反を報告するだけでブロックはしていない'
+        : 'なし。XSS で注入されたスクリプトを止める壁がない');
+    } else {
+      d = cspDirectives(csp);
+      const src = d['script-src'] || d['default-src'];
+      const issues = [];
+      if (!src) issues.push('script-src も default-src もないので、スクリプトは無制限');
+      else {
+        const hasNonce = src.some(s => /^'(nonce|sha(256|384|512))-/i.test(s));
+        if (src.includes("'unsafe-inline'") && !hasNonce) issues.push("'unsafe-inline' があり、注入されたインラインスクリプトが動く");
+        if (src.includes("'unsafe-eval'")) issues.push("'unsafe-eval' で eval が使える");
+        if (src.includes('*') || src.includes('https:') && !src.includes("'strict-dynamic'")) issues.push('ワイルドカード / https: でどこからでも読み込める');
+        if (!hasNonce && src.some(s => /^https?:\/\/|^[a-z0-9.-]+\.[a-z]+/i.test(s))) issues.push('ホストの許可リスト方式。許可先に抜け道があると回避される（nonce 方式が推奨）');
+      }
+      if (!d['object-src'] && !(d['default-src'] || []).includes("'none'")) issues.push("object-src 'none' がない");
+      if (!d['base-uri']) issues.push('base-uri がない');
+      add('Content-Security-Policy', issues.length ? 'warn' : 'ok', issues.length ? issues.join(' / ') : 'nonce/ハッシュ方式で主要な指定がある');
+    }
+
+    // HSTS
+    const hsts = h['strict-transport-security'];
+    if (!hsts) add('Strict-Transport-Security', 'ng', 'なし。初回以外も http へ格下げされうる');
+    else {
+      const m = /max-age\s*=\s*"?(\d+)/i.exec(hsts);
+      const age = m ? Number(m[1]) : 0;
+      if (age < 31536000) add('Strict-Transport-Security', 'warn', `max-age=${age}（約 ${Math.round(age / 86400)} 日）。本番は 1 年以上が目安`);
+      else add('Strict-Transport-Security', 'ok', /preload/i.test(hsts) ? '1 年以上 + preload 指定' : '1 年以上。初回アクセスも守るなら preload を検討');
+    }
+
+    // nosniff
+    const xcto = (h['x-content-type-options'] || '').toLowerCase();
+    add('X-Content-Type-Options', xcto === 'nosniff' ? 'ok' : 'ng', xcto === 'nosniff' ? 'nosniff' : 'なし（または値が nosniff 以外）');
+
+    // framing
+    const xfo = (h['x-frame-options'] || '').toUpperCase();
+    if (d['frame-ancestors']) add('埋め込み制限', 'ok', 'CSP frame-ancestors: ' + d['frame-ancestors'].join(' '));
+    else if (xfo === 'DENY' || xfo === 'SAMEORIGIN') add('埋め込み制限', 'ok', 'X-Frame-Options: ' + xfo + '（CSP frame-ancestors も併記するとよい）');
+    else if (xfo.startsWith('ALLOW-FROM')) add('埋め込み制限', 'ng', 'ALLOW-FROM は今のブラウザでは無視される。frame-ancestors を使う');
+    else add('埋め込み制限', 'ng', 'なし。クリックジャッキングに使われうる');
+
+    // Referrer-Policy
+    const rp = (h['referrer-policy'] || '').toLowerCase();
+    if (!rp) add('Referrer-Policy', 'warn', 'なし。ブラウザ既定に任される（明示を推奨）');
+    else if (/unsafe-url|no-referrer-when-downgrade/.test(rp)) add('Referrer-Policy', 'ng', rp + ' は別サイトに完全な URL を送る');
+    else add('Referrer-Policy', 'ok', rp);
+
+    // Permissions-Policy
+    if (h['permissions-policy']) add('Permissions-Policy', 'ok', '設定あり');
+    else add('Permissions-Policy', 'warn', h['feature-policy'] ? 'Feature-Policy（旧名）だけ。Permissions-Policy に書き直す' : 'なし。使わない機能（camera など）を切るとよい');
+
+    // COOP / CORP
+    add('Cross-Origin-Opener-Policy', h['cross-origin-opener-policy'] ? 'ok' : 'info', h['cross-origin-opener-policy'] || 'なし（same-origin を推奨）');
+    add('Cross-Origin-Resource-Policy', h['cross-origin-resource-policy'] ? 'ok' : 'info', h['cross-origin-resource-policy'] || 'なし（same-origin / same-site を推奨）');
+
+    // X-XSS-Protection
+    const xxp = h['x-xss-protection'];
+    if (xxp !== undefined) {
+      if (xxp.trim().startsWith('0')) add('X-XSS-Protection', 'ok', '0（無効化）。送らなくてもよい');
+      else add('X-XSS-Protection', 'warn', `"${xxp}"。廃止された機能。0 にするか削除し、CSP で対策する`);
+    }
+
+    // Server / X-Powered-By
+    const leak = [];
+    if (h['server'] && /\d/.test(h['server'])) leak.push('Server: ' + h['server']);
+    if (h['x-powered-by']) leak.push('X-Powered-By: ' + h['x-powered-by']);
+    if (leak.length) add('ソフトウェア情報', 'info', leak.join(' / ') + '。消しておくとよい');
+
+    // Cookies
+    cookies.forEach(c => {
+      const name = c.split('=')[0].trim();
+      const attrs = c.split(';').slice(1).map(s => s.trim().toLowerCase());
+      const has = a => attrs.some(x => x === a || x.startsWith(a + '='));
+      const miss = [];
+      let st = 'ok';
+      if (!has('secure')) { miss.push('Secure なし'); st = 'ng'; }
+      if (!has('httponly')) { miss.push('HttpOnly なし（JS から読める）'); if (st === 'ok') st = 'warn'; }
+      if (!has('samesite')) { miss.push('SameSite 未指定（明示する）'); if (st === 'ok') st = 'warn'; }
+      if (attrs.includes('samesite=none') && !has('secure')) miss.push('SameSite=None は Secure 必須');
+      if (has('domain')) miss.push('Domain 指定で全サブドメインに送られる');
+      add('Cookie: ' + name, st, miss.length ? miss.join(' / ') : 'Secure・HttpOnly・SameSite あり' + (name.startsWith('__Host-') ? '（__Host- 付き）' : ''));
+    });
+
+    return rows;
+  }
+
+  const LABEL = { ok: 'OK', warn: '要確認', ng: '不足', info: '参考' };
+  function render(rows) {
+    tbody.textContent = '';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      const k = document.createElement('td'); k.className = 'k'; k.textContent = r.k;
+      const s = document.createElement('td'); s.className = 'st ' + r.st; s.textContent = LABEL[r.st];
+      const m = document.createElement('td'); m.textContent = r.msg;
+      tr.append(k, s, m);
+      tbody.append(tr);
+    });
+    wrap.hidden = false;
+  }
+
+  document.getElementById('hdr-check').addEventListener('click', () => {
+    if (!input.value.trim()) input.value = SAMPLE;
+    render(check(input.value));
+  });
+  document.getElementById('hdr-sample').addEventListener('click', () => {
+    input.value = SAMPLE;
+    render(check(SAMPLE));
+  });
+})();
+</script>
+
+<!-- 確認クイズ（問題データだけ書く。表示は memo.py がページ末尾に自動で入れる） -->
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "自前のインライン script を残したまま、XSS で注入されたスクリプトは CSP で止めたい。どうする？",
+    "choices": ["script-src に 'unsafe-inline' を足す", "レスポンスごとにランダムな nonce を発行し、ヘッダーと自分の script タグの両方に入れる", "script-src に自ドメインと CDN のホスト名を列挙する", "<meta> で CSP を書けばインラインだけ許可される"],
+    "answer": 1,
+    "explain": "nonce は攻撃者が知らない値なので、注入されたタグには付けられない。'unsafe-inline' は注入スクリプトも許してしまい、ホストの列挙はインラインを区別できない。",
+    "ref": "#csp"
+  },
+  {
+    "q": "http→https のリダイレクトと HSTS を設定済み。それでも、公衆 Wi-Fi で初めてサイトを開くユーザーが SSL ストリップされうるのはなぜ？",
+    "choices": ["HSTS は https 化後のページにしか効かず、Cookie を守らないから", "max-age が 1 年未満だから", "HSTS はブラウザが一度受け取るまで効かず、初回の http リクエストは守れないから（preload で解消）", "includeSubDomains を付けていないから"],
+    "answer": 2,
+    "explain": "HSTS は受け取った後から効く。初回から https を強制するには、ブラウザに組み込まれる HSTS preload リストへの登録が必要。",
+    "ref": "#hsts"
+  },
+  {
+    "q": "ユーザーがアップロードしたファイルを自ドメインで配信している。中身が JS の .txt を <script src> で読み込ませる攻撃を、ヘッダーで止めるには？",
+    "choices": ["X-Content-Type-Options: nosniff を付け、正しい Content-Type で返す", "Referrer-Policy: no-referrer を付ける", "Cross-Origin-Opener-Policy: same-origin を付ける", "X-XSS-Protection: 1; mode=block を付ける"],
+    "answer": 0,
+    "explain": "nosniff があると、script として読み込まれたリソースの MIME タイプが JavaScript でなければブラウザはブロックする。自ドメインなので CSP の 'self' だけでは止まらない。",
+    "ref": "#nosniff"
+  },
+  {
+    "q": "<meta http-equiv=\"Content-Security-Policy\"> で frame-ancestors 'none' を書いたのに、他サイトの iframe に埋め込めてしまう。原因は？",
+    "choices": ["frame-ancestors は default-src で上書きされる", "X-Frame-Options のほうが優先されるから", "iframe 側の sandbox 属性で無効化されたから", "frame-ancestors は <meta> では無視され、レスポンスヘッダーでしか効かない"],
+    "answer": 3,
+    "explain": "frame-ancestors・report-to・sandbox は meta の CSP では使えない。埋め込み制限はレスポンスヘッダーの CSP（か X-Frame-Options）で送る。",
+    "ref": "#framing"
+  },
+  {
+    "q": "セッション Cookie を XSS で持ち出されないようにしたい。どの属性？",
+    "choices": ["Secure", "HttpOnly", "SameSite=Strict", "Domain=example.com"],
+    "answer": 1,
+    "explain": "HttpOnly の Cookie は document.cookie から読めない。Secure は盗聴、SameSite はクロスサイト送信（CSRF）向けで、Domain 指定はむしろ送信範囲を広げる。",
+    "ref": "#cookie"
+  }
+]
+</script>
+</body>
+</html>

@@ -218,6 +218,15 @@ footer a { color: var(--accent); }
 // MEMOS:BEGIN（scripts/memo.py build が自動生成。手で編集しない）
 const MEMOS = [
   {
+    "file": "web-vulnerabilities.html",
+    "title": "実装起因の脆弱性",
+    "desc": "XSS・CSRF・SQL インジェクション・OS コマンドインジェクション・セッションハイジャック・ReDoS に、パストラバーサル・SSRF・オープンリダイレクト・認可不備を加えて、攻撃の流れと NG/OK コードで図解。",
+    "tags": [
+      "セキュリティ"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "vinext.html",
     "title": "vinext と Next.js の比較",
     "desc": "Cloudflare の vinext と本家 Next.js の違いと、Workers・Node.js・SSG の 3 つのデプロイパターンを図解。",
@@ -243,6 +252,15 @@ const MEMOS = [
     "desc": "SOLID の 5 原則を「どんな症状を防ぐか」で整理し、オニオン／クリーンで内側に依存させる理由＝依存性逆転 (DIP) を図で説明する",
     "tags": [
       "設計"
+    ],
+    "date": "2026-11-03"
+  },
+  {
+    "file": "security-headers.html",
+    "title": "セキュリティヘッダー",
+    "desc": "CSP・HSTS・nosniff・frame-ancestors・Referrer-Policy・Permissions-Policy から COOP/CORP、Cookie 属性、使わなくなったヘッダーまで、何を防ぐか・推奨値・導入時の落とし穴を図解。",
+    "tags": [
+      "セキュリティ"
     ],
     "date": "2026-11-03"
   },
@@ -595,6 +613,11 @@ const MEMOS = [
   }
 ];
 const QUIZZES = [
+  {"file": "web-vulnerabilities.html", "title": "実装起因の脆弱性", "q": "一覧 API で ?sort=price のように並び替え列を受け取り、SQL の ORDER BY に入れたい。安全なのは？", "choices": ["ORDER BY $1 としてプレースホルダで渡す", "受け取った値から ' と ; を取り除いてから埋め込む", "受け取った値をキーに、許可した列名と並び順の対応表から選んで埋め込む", "ORM を使っているので、そのまま渡してよい"], "answer": 2, "explain": "列名や ASC/DESC はプレースホルダにできない（値として扱われる）。拒否リストでの除去は回避されうるので、許可リストから選ぶ。", "ref": "#sqli"},
+  {"file": "web-vulnerabilities.html", "title": "実装起因の脆弱性", "q": "攻撃者が用意したセッション ID のまま被害者にログインさせ、乗っ取る攻撃を防ぐには？", "choices": ["ログイン成功時にセッション ID を新しく作り直す", "セッション Cookie に HttpOnly を付ける", "セッション ID を URL にも載せて照合する", "ログイン画面だけ https にする"], "answer": 0, "explain": "セッション固定攻撃は、ログイン前後で ID が変わらないことを利用する。再生成すれば攻撃者の持つ ID は無効になる。", "ref": "#session"},
+  {"file": "web-vulnerabilities.html", "title": "実装起因の脆弱性", "q": "Node.js で exec(`ping -c 1 ${host}`) を execFile('ping', ['-c', '1', host]) に変えると安全になる主な理由は？", "choices": ["execFile は非同期なので攻撃の影響が小さい", "execFile は自動で入力をエスケープしてくれる", "execFile は実行時間に上限がある", "シェルを起動しないので、; や | や $() がコマンドの区切りとして解釈されない"], "answer": 3, "explain": "exec は sh -c で文字列を解釈する。execFile は引数を配列のまま渡すので、シェルの記号はただの文字になる。ただし - で始まる値のオプション解釈は別途検証が必要。", "ref": "#oscmd"},
+  {"file": "web-vulnerabilities.html", "title": "実装起因の脆弱性", "q": "Node.js の API でユーザー入力を /^(\\w+\\s?)*$/ で検証していて、短い入力でサーバー全体が固まった。有効な対策は？", "choices": ["正規表現の呼び出しを try/catch で囲む", "量指定子の入れ子をなくすよう書き換え、入力長に上限を設ける（必要なら線形時間のエンジンを使う）", "検証処理を async 関数にする", "g フラグを付けて最初の一致で止める"], "answer": 1, "explain": "ReDoS は例外ではなく、バックトラックで CPU を使い続けるのが原因。JS の正規表現は同期実行なので async でも止まる。パターンの修正・長さ制限・線形エンジンで防ぐ。", "ref": "#redos"},
+  {"file": "web-vulnerabilities.html", "title": "実装起因の脆弱性", "q": "セッション Cookie を SameSite=Lax にした。それでも CSRF の被害が残るのはどんな実装？", "choices": ["状態を変える操作（削除など）を GET リクエストで受け付けている", "POST のフォームで CSRF トークンを使っている", "Cookie に HttpOnly を付けている", "API が Authorization ヘッダーのトークンで認証している"], "answer": 0, "explain": "Lax の Cookie は、別サイトからのトップレベルの GET 遷移（リンククリック）では送られる。GET で状態を変えるとリンク 1 つで操作させられる。", "ref": "#csrf"},
   {"file": "vinext.html", "title": "vinext と Next.js の比較", "q": "既存の Next.js アプリに vinext を試すとき、ほかの作業より前にまず実行しておくべきコマンドは？", "choices": ["npx create-vinext-app で新規作成し直す", "npx vinext check で互換性の問題をスキャンする", "next.config を削除して vite.config.ts に書き直す"], "answer": 1, "explain": "vinext check で非対応 API を先に洗い出す。vinext init は非破壊で、next.config やソースは書き換えない。", "ref": "#migrate"},
   {"file": "vinext.html", "title": "vinext と Next.js の比較", "q": "vinext で Cloudflare Workers に載せたアプリから D1 や KV を使いたい。どう書くのが推奨？", "choices": ["import { env } from \"cloudflare:workers\" でバインディングを読む", "process.env.DB で接続文字列を読む", "getPlatformProxy() とカスタム worker エントリを用意する"], "answer": 0, "explain": "RSC 環境が workerd で動くため、cloudflare:workers の env からそのままバインディングを使える。", "ref": "#deploy"},
   {"file": "vinext.html", "title": "vinext と Next.js の比較", "q": "vinext で output: \"export\"（SSG）にしたサイトで、フォーム送信を Server Actions で処理しようとした。どうなる？", "choices": ["ビルド時に実行されて結果が HTML に固定される", "静的ホストの CDN が代わりに実行する", "実行時のサーバーが無いので使えない。外部 API などに送る必要がある"], "answer": 2, "explain": "Server Actions も middleware もリクエスト時に動くサーバーが必要。静的書き出しでは SSR・ISR とあわせて使えない。", "ref": "#deploy"},
@@ -610,6 +633,11 @@ const QUIZZES = [
   {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "経理の依頼で給与計算を直したら、人事向けの勤怠レポートの出力が変わってしまった。どの原則に違反している可能性が高い？", "choices": ["リスコフの置換原則", "インターフェース分離の原則", "単一責任の原則", "開放閉鎖の原則"], "answer": 2, "explain": "変更の理由（依頼元）が異なる処理が 1 つのクラスに同居していると、片方の修正がもう片方を壊す。", "ref": "#principles"},
   {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "Storage インターフェースを実装した ReadOnlyStorage の save() が例外を投げる。呼び出し側に instanceof の分岐が増えてきた。どう直すのが筋がいい？", "choices": ["save() の中で何もしないようにして例外を消す", "呼び出し側の instanceof チェックを共通関数にまとめる", "Storage を継承した別クラスで save() をオーバーライドし直す", "読み取りと書き込みのインターフェースを分け、ReadOnlyStorage は読み取りだけを実装する"], "answer": 3, "explain": "できないことを型で表すのがリスコフ置換の守り方。黙って何もしないのは約束違反を隠すだけ。", "ref": "#principles"},
   {"file": "solid.html", "title": "SOLID と依存性逆転", "q": "オニオンアーキテクチャで、依存の矢印がすべてドメインに向かうように作る一番の理由は？", "choices": ["変わりにくい業務ルールを、変わりやすい DB やフレームワークの変更から守るため", "処理速度を上げるため", "フォルダ数を減らして見通しをよくするため", "ドメイン層から DB に直接アクセスできるようにするため"], "answer": 0, "explain": "変わりやすい側が変わりにくい側に合わせる構造にすると、変更の波及が外側で止まり、中心のテストも容易になる。", "ref": "#onion-link"},
+  {"file": "security-headers.html", "title": "セキュリティヘッダー", "q": "自前のインライン script を残したまま、XSS で注入されたスクリプトは CSP で止めたい。どうする？", "choices": ["script-src に 'unsafe-inline' を足す", "レスポンスごとにランダムな nonce を発行し、ヘッダーと自分の script タグの両方に入れる", "script-src に自ドメインと CDN のホスト名を列挙する", "<meta> で CSP を書けばインラインだけ許可される"], "answer": 1, "explain": "nonce は攻撃者が知らない値なので、注入されたタグには付けられない。'unsafe-inline' は注入スクリプトも許してしまい、ホストの列挙はインラインを区別できない。", "ref": "#csp"},
+  {"file": "security-headers.html", "title": "セキュリティヘッダー", "q": "http→https のリダイレクトと HSTS を設定済み。それでも、公衆 Wi-Fi で初めてサイトを開くユーザーが SSL ストリップされうるのはなぜ？", "choices": ["HSTS は https 化後のページにしか効かず、Cookie を守らないから", "max-age が 1 年未満だから", "HSTS はブラウザが一度受け取るまで効かず、初回の http リクエストは守れないから（preload で解消）", "includeSubDomains を付けていないから"], "answer": 2, "explain": "HSTS は受け取った後から効く。初回から https を強制するには、ブラウザに組み込まれる HSTS preload リストへの登録が必要。", "ref": "#hsts"},
+  {"file": "security-headers.html", "title": "セキュリティヘッダー", "q": "ユーザーがアップロードしたファイルを自ドメインで配信している。中身が JS の .txt を <script src> で読み込ませる攻撃を、ヘッダーで止めるには？", "choices": ["X-Content-Type-Options: nosniff を付け、正しい Content-Type で返す", "Referrer-Policy: no-referrer を付ける", "Cross-Origin-Opener-Policy: same-origin を付ける", "X-XSS-Protection: 1; mode=block を付ける"], "answer": 0, "explain": "nosniff があると、script として読み込まれたリソースの MIME タイプが JavaScript でなければブラウザはブロックする。自ドメインなので CSP の 'self' だけでは止まらない。", "ref": "#nosniff"},
+  {"file": "security-headers.html", "title": "セキュリティヘッダー", "q": "<meta http-equiv=\"Content-Security-Policy\"> で frame-ancestors 'none' を書いたのに、他サイトの iframe に埋め込めてしまう。原因は？", "choices": ["frame-ancestors は default-src で上書きされる", "X-Frame-Options のほうが優先されるから", "iframe 側の sandbox 属性で無効化されたから", "frame-ancestors は <meta> では無視され、レスポンスヘッダーでしか効かない"], "answer": 3, "explain": "frame-ancestors・report-to・sandbox は meta の CSP では使えない。埋め込み制限はレスポンスヘッダーの CSP（か X-Frame-Options）で送る。", "ref": "#framing"},
+  {"file": "security-headers.html", "title": "セキュリティヘッダー", "q": "セッション Cookie を XSS で持ち出されないようにしたい。どの属性？", "choices": ["Secure", "HttpOnly", "SameSite=Strict", "Domain=example.com"], "answer": 1, "explain": "HttpOnly の Cookie は document.cookie から読めない。Secure は盗聴、SameSite はクロスサイト送信（CSRF）向けで、Domain 指定はむしろ送信範囲を広げる。", "ref": "#cookie"},
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "String を関数に渡したあと、元の変数をもう一度使ったら borrow of moved value になった。所有権を手放さずに関数に使わせるには？", "choices": ["関数の中で drop を呼ばないようにする", "変数を let mut にする", "&s のように参照（借用）で渡す"], "answer": 2, "explain": "値を渡すと所有権がムーブする。借用なら所有権は元の変数に残る。とりあえず動かすなら clone() でもよい。", "ref": "#ownership"},
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "let first = &v[0]; のあとに v.push(4); を書き、その後で first を使うとコンパイルエラーになる。なぜ禁止されている？", "choices": ["push で再確保されると、first が解放済みのメモリを指すから", "first を let mut で宣言していないから", "let で作った Vec には、後から要素を追加できないから"], "answer": 0, "explain": "共有参照がある間は可変借用できない。first を最後に使った後なら push できる（NLL）。", "ref": "#borrow"},
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "let b = a; のあと、a が i32 なら両方使えるのに、String だと a が使えなくなる。違いは？", "choices": ["String は不変なので、別の変数に代入できないから", "i32 は Copy 型で複製され、String はムーブになるから", "i32 は参照で、String は値だから"], "answer": 1, "explain": "ヒープを持つ型までコピーすると二重解放の危険があるので、明示的な clone() を求める設計。", "ref": "#own-copy"},

