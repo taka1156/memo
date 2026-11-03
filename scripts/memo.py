@@ -4,7 +4,7 @@
 使い方（どのディレクトリから実行してもよい）:
   python3 scripts/memo.py new   NAME                  テンプレートから docs/NAME.html を作る
   python3 scripts/memo.py add   SRC NAME [--force]    外部の HTML を docs/NAME.html として取り込む
-  python3 scripts/memo.py path  NAME                  docs/NAME.html の絶対パスを表示
+  python3 scripts/memo.py path  NAME [--md]           docs/NAME.html（--md なら Markdown 版）の絶対パスを表示
   python3 scripts/memo.py url   [NAME]                公開 URL を表示（docs/CNAME の独自ドメイン）
   python3 scripts/memo.py lint  MEMO... [--fix] [--backlink]
   python3 scripts/memo.py meta  MEMO [--title T] [--desc D] [--tags a,b] [--date YYYY-MM-DD]
@@ -1126,7 +1126,8 @@ def cmd_add(args) -> int:
 
 
 def cmd_path(args) -> int:
-    print(memo_path(args.name, must_exist=False))
+    path = memo_path(args.name, must_exist=False)
+    print(MD_DIR / f"{path.stem}.md" if args.md else path)
     return 0
 
 
@@ -1161,6 +1162,7 @@ def main() -> int:
 
     p = sub.add_parser("path", help="メモの絶対パスを表示")
     p.add_argument("name")
+    p.add_argument("--md", action="store_true", help="Markdown 版（docs/md/NAME.md）のパス")
     p.set_defaults(func=cmd_path)
 
     p = sub.add_parser("url", help="公開 URL を表示（docs/CNAME から決まる）")
