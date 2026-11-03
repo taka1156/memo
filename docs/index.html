@@ -279,6 +279,16 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
+    "file": "redis-valkey.html",
+    "title": "Redis と Valkey の仕組み",
+    "desc": "Redis と Valkey の速さの理由、永続化・複製・クラスター、両者の違いを図解。",
+    "tags": [
+      "データベース",
+      "インフラ"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "pwa.html",
     "title": "PWA の仕組みとチェックリスト",
     "desc": "HTTPS・Manifest・Service Worker の役割、キャッシュ戦略、インストール条件と実装項目を図解。",
@@ -648,6 +658,11 @@ const QUIZZES = [
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "let b = a; のあと、a が i32 なら両方使えるのに、String だと a が使えなくなる。違いは？", "choices": ["String は不変なので、別の変数に代入できないから", "i32 は Copy 型で複製され、String はムーブになるから", "i32 は参照で、String は値だから"], "answer": 1, "explain": "ヒープを持つ型までコピーすると二重解放の危険があるので、明示的な clone() を求める設計。", "ref": "#own-copy"},
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "設定ファイルの読み込みが失敗しうる関数で、失敗を呼び出し元に返したい。どう書く？", "choices": ["失敗したら panic! でメッセージを出して終了する", "戻り値を Result<T, E> にして、? でエラーを早期リターンする", "unwrap() で値を取り出し、失敗したらその場で止める"], "answer": 1, "explain": "回復できる失敗は Result、回復不能なバグは panic!。unwrap() は試作用。", "ref": "#err"},
   {"file": "rust.html", "title": "Rust 学習フローと仕組み", "q": "コードを書きながら、型や借用のエラーだけを素早く確認したい。どのコマンドを使う？", "choices": ["cargo check", "cargo clippy", "cargo build --release"], "answer": 0, "explain": "cargo check は実行ファイルを作らずにチェックだけ行うので速い。clippy はより Rust らしい書き方の提案。", "ref": "#commands"},
+  {"file": "redis-valkey.html", "title": "Redis と Valkey の仕組み", "q": "Redis / Valkey で在庫数を INCR / DECR で増減している。複数のアプリから同時に DECR が来ても、在庫が二重に減ったりしないのはなぜ？", "choices": ["キーごとに行ロックを取ってから更新しているから", "コマンドはメインスレッドが 1 つずつ最後まで実行し、途中で割り込まれないから", "I/O スレッドがコマンドを並列に実行し、最後に結果を合算するから"], "answer": 1, "explain": "コマンドの実行は 1 本のメインスレッドで順番に行われるため、単一コマンドはロックなしで原子的になる。I/O スレッドが担うのは通信と解析だけ。", "ref": "#event-loop"},
+  {"file": "redis-valkey.html", "title": "Redis と Valkey の仕組み", "q": "本番の Redis / Valkey で、あるプレフィックスのキーを調べたい。他のクライアントへの影響が少ないのはどれ？", "choices": ["KEYS prefix:* を 1 回実行する", "I/O スレッドを増やしてから KEYS prefix:* を実行する", "SCAN 0 MATCH prefix:* COUNT 100 を繰り返す"], "answer": 2, "explain": "KEYS は全キーを一度に走査してメインスレッドをふさぐ。SCAN なら少しずつ返すので、合間に他のコマンドが実行できる。I/O スレッドを増やしても実行は 1 本のまま。", "ref": "#myths"},
+  {"file": "redis-valkey.html", "title": "Redis と Valkey の仕組み", "q": "DB の手前に置く純粋なキャッシュとして使う。メモリが満杯になっても書き込みを止めたくない。maxmemory-policy はどれが合う？", "choices": ["allkeys-lfu", "noeviction", "volatile-ttl（キーには TTL を付けない）"], "answer": 0, "explain": "allkeys-* は全キーから使われていないものを消して空きを作る。noeviction は満杯で書き込みエラーになり、volatile-* は期限付きキーがなければ何も消せない。", "ref": "#expire"},
+  {"file": "redis-valkey.html", "title": "Redis と Valkey の仕組み", "q": "Redis Cluster / Valkey Cluster で、ユーザーのカートとプロフィールを MULTI / EXEC でまとめて更新したい。キー名をどう付ける？", "choices": ["cart:user:1000 と profile:user:1000 のように同じ ID を含める", "{user:1000}:cart と {user:1000}:profile のように {} で共通部分を囲む", "キー名は何でもよい。クラスターが自動で同じノードに集める"], "answer": 1, "explain": "スロットは CRC16(key) mod 16384 で決まり、{} があればその中だけがハッシュされる。複数キーのコマンドは同じスロットのキー同士でしか使えない。", "ref": "#cl-cluster"},
+  {"file": "redis-valkey.html", "title": "Redis と Valkey の仕組み", "q": "社内ツールのキャッシュに Redis 互換のサーバーを採用したい。条件は「OSI 承認の、できるだけ制約の緩いライセンス」で、JSON や全文検索は使わない。合うのは？", "choices": ["Redis 8 を AGPLv3 で使う", "Redis 7.4 を使う", "Valkey を使う"], "answer": 2, "explain": "Valkey は BSD 3-Clause で、コアは素の KVS。Redis 8 の AGPLv3 も OSI 承認だが条件は強めで、7.4 は RSALv2 / SSPLv1 のみ（OSI 非承認）。", "ref": "#compare"},
   {"file": "pwa.html", "title": "PWA の仕組みとチェックリスト", "q": "sw.js を修正してデプロイしたのに、ユーザーの画面では古い動作のまま。よくある原因と対処は？", "choices": ["manifest.webmanifest のバージョン番号を上げ忘れている", "本番が HTTPS でないので、SW の更新が無視されている", "新しい SW が waiting で止まっている。skipWaiting() で切り替える"], "answer": 2, "explain": "旧 SW が動いている間、新しい SW はタブをすべて閉じるか skipWaiting() を呼ぶまで有効にならない。 sw.js 自体を HTTP キャッシュさせないことも大事。", "ref": "#lifecycle"},
   {"file": "pwa.html", "title": "PWA の仕組みとチェックリスト", "q": "ファイル名にハッシュが付いた CSS・JS・フォントをキャッシュする。合う戦略は？", "choices": ["Cache First", "Network First", "毎回ネットワークのみ"], "answer": 0, "explain": "中身が変わらない静的ファイルはキャッシュを先に見ると速くオフラインにも強い。更新はファイル名が変わることで反映される。", "ref": "#s1"},
   {"file": "pwa.html", "title": "PWA の仕組みとチェックリスト", "q": "API のレスポンスは常に最新を見せたいが、オフラインのときは前回の結果を出したい。合う戦略は？", "choices": ["Cache First", "Network First", "Stale-While-Revalidate"], "answer": 1, "explain": "オンラインなら最新を取り、失敗したらキャッシュを返す。回線が遅いとタイムアウトまで待たされる点に注意。", "ref": "#s2"},

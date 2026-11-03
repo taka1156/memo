@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redis と Valkey の仕組み</title>
+<meta name="description" content="Redis と Valkey の速さの理由、永続化・複製・クラスター、両者の違いを図解。">
+<meta name="memo:tags" content="データベース, インフラ">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-redis: #c8372d;
+  --c-valkey: #2f6fdb;
+  --c-ok: #2e8b57;
+  --c-warn: #c27c0e;
+  --c-redis-bg: #fbecea;
+  --c-valkey-bg: #e9f0fc;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-redis: #ff7b6e;
+    --c-valkey: #7aa7ff;
+    --c-ok: #5fd39a;
+    --c-warn: #f2b24c;
+    --c-redis-bg: #2a1614;
+    --c-valkey-bg: #141f33;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 40px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 16px 0 6px; }
+p { margin: 8px 0; }
+ul.plain { margin: 6px 0 6px 1.2em; }
+.note { color: var(--fg-2); font-size: 0.82rem; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.r { color: var(--c-redis); font-weight: 700; }
+.v { color: var(--c-valkey); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); }
+.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.fig .sub { fill: var(--fg-2); font-size: 11px; }
+.fig .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.fig .box-acc { fill: var(--chip); stroke: var(--accent); stroke-width: 1.5; }
+.fig .box-ok { fill: var(--surface); stroke: var(--c-ok); stroke-width: 1.5; }
+.fig .box-warn { fill: var(--surface); stroke: var(--c-warn); stroke-width: 1.5; }
+.fig .arrow { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .arrow-acc { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig .dash { stroke-dasharray: 4 4; }
+.fig .ah { fill: var(--fg-2); }
+.fig .ah-acc { fill: var(--accent); }
+.scroll-x { overflow-x: auto; }
+
+/* イベントループ */
+.loop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .loop-grid { grid-template-columns: 1fr; } }
+.queue { display: flex; flex-direction: column; gap: 6px; min-height: 180px; }
+.cmd {
+  font: 500 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--chip);
+  display: flex; justify-content: space-between; gap: 8px;
+  transition: opacity .3s, transform .3s;
+}
+.cmd .who { color: var(--fg-2); }
+.cmd.running { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 2px var(--accent) inset; }
+.cmd.done { opacity: .45; }
+.store { font: 500 0.78rem 'JetBrains Mono', ui-monospace, monospace; }
+.store div { padding: 4px 8px; border-bottom: 1px dashed var(--line); }
+.btn {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.btn.ghost { background: transparent; color: var(--accent); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+.label-s { font-size: 0.75rem; color: var(--fg-2); font-weight: 700; letter-spacing: .05em; margin-bottom: 6px; }
+
+/* データ型グリッド */
+.types { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.type {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+}
+.type h3 { margin: 0 0 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.9rem; }
+.type .shape { font: 500 0.75rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); border-radius: 6px; padding: 6px 8px; margin: 6px 0; white-space: pre; overflow-x: auto; }
+.type .use { font-size: 0.82rem; color: var(--fg-2); }
+
+/* スロット計算 */
+.slot-in {
+  font: 500 0.9rem 'JetBrains Mono', ui-monospace, monospace;
+  padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--fg); width: 100%; max-width: 320px;
+}
+.slotbar { display: flex; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); position: relative; margin: 12px 0 4px; }
+.slotbar div { flex: 1; display: flex; align-items: center; justify-content: center; font: 600 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); background: var(--chip); border-right: 1px solid var(--line); transition: background .2s, color .2s; }
+.slotbar div:last-child { border-right: none; }
+.slotbar div.hit { background: var(--accent); color: var(--bg); }
+.slotscale { display: flex; justify-content: space-between; font: 500 0.68rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.result { font: 500 0.85rem 'JetBrains Mono', ui-monospace, monospace; margin-top: 8px; }
+
+/* タイムライン */
+.timeline { position: relative; margin: 8px 0 0 8px; padding-left: 22px; border-left: 2px solid var(--line); }
+.tl { position: relative; padding: 0 0 16px; }
+.tl::before { content: ''; position: absolute; left: -29px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--fg-2); }
+.tl.redis::before { border-color: var(--c-redis); }
+.tl.valkey::before { border-color: var(--c-valkey); }
+.tl .when { font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.tl .what { font-size: 0.9rem; }
+
+/* 比較表 */
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 8px 8px; text-align: left; vertical-align: top; }
+.tbl thead th { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.8rem; }
+.tbl tbody th { color: var(--fg-2); font-weight: 500; white-space: nowrap; }
+.tbl th.r, .tbl td.r { background: var(--c-redis-bg); }
+.tbl th.v, .tbl td.v { background: var(--c-valkey-bg); }
+.tbl td.r, .tbl td.v { color: var(--fg); font-weight: 400; }
+
+/* 誤解 */
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
+summary { cursor: pointer; font-weight: 700; }
+details[open] summary { margin-bottom: 6px; }
+
+/* ホバー補足 */
+.tip { border-bottom: 1px dotted var(--fg-2); cursor: help; position: relative; }
+.tip:hover::after, .tip:focus::after {
+  content: attr(data-tip); position: absolute; left: 0; top: 1.8em; z-index: 5;
+  width: max-content; max-width: 260px; background: var(--fg); color: var(--bg);
+  font-size: 0.75rem; line-height: 1.5; padding: 6px 9px; border-radius: 6px; font-weight: 400;
+}
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="Redis と Valkey の仕組み">
+<meta property="og:description" content="Redis と Valkey の速さの理由、永続化・複製・クラスター、両者の違いを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/redis-valkey.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=3758f4c4">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>Redis と Valkey の仕組み</h1>
+  <p class="subtitle">メモリに置いたデータ構造を、1 本のスレッドで順番にさばく ─ その上に永続化・複製・分散が乗っている</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>データは全部<strong>メモリ上</strong>。コマンドの実行は<strong>1 本のメインスレッドが順番に</strong>行うので、ロック不要で 1 コマンドは常に原子的 (atomic)。</li>
+      <li>ディスクは「落ちたとき用」。スナップショット (<code>RDB</code>) と追記ログ (<code>AOF</code>) で残し、レプリカやクラスター (16384 スロット) で冗長化・分散する。</li>
+      <li><span class="v">Valkey</span> は 2024 年の <span class="r">Redis</span> ライセンス変更をきっかけに Redis 7.2.4 から分かれた BSD ライセンスのフォーク。<strong>仕組みもプロトコルもほぼ同じ</strong>で、違いは「ライセンス」「同梱機能」「その後の性能改善の方向」。</li>
+    </ul>
+  </div>
+
+  <!-- ================= 全体像 ================= -->
+  <h2 id="overview">全体像</h2>
+  <p>Redis / Valkey のサーバー 1 台（1 プロセス）の中はこうなっています。クライアントは <span class="tip" tabindex="0" data-tip="REdis Serialization Protocol。TCP 上のシンプルなテキスト＋長さ付きバイナリのプロトコル。Valkey も同じ RESP2 / RESP3 を話す。">RESP</span> というプロトコルで話しかけ、Redis 用のクライアントライブラリや <code>redis-cli</code> はそのまま Valkey にも繋がります。</p>
+  <div class="card scroll-x">
+    <svg class="fig" viewBox="0 0 760 360" role="img" aria-label="クライアントから I/O スレッド、メインスレッド、メモリ、永続化とレプリカへの流れ" style="min-width:560px">
+      <defs>
+        <marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="m2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-acc" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+      <!-- clients -->
+      <rect class="box" x="10" y="40" width="110" height="40" rx="8"/><text x="65" y="65" text-anchor="middle" font-size="13">App A</text>
+      <rect class="box" x="10" y="100" width="110" height="40" rx="8"/><text x="65" y="125" text-anchor="middle" font-size="13">App B</text>
+      <rect class="box" x="10" y="160" width="110" height="40" rx="8"/><text x="65" y="185" text-anchor="middle" font-size="13">redis-cli</text>
+      <text x="65" y="222" text-anchor="middle" class="sub">クライアント（多数）</text>
+
+      <!-- server frame -->
+      <rect x="150" y="14" width="600" height="250" rx="12" fill="none" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="6 5"/>
+      <text x="162" y="34" class="sub mono">redis-server / valkey-server（1 プロセス）</text>
+
+      <!-- io threads -->
+      <rect class="box" x="170" y="50" width="130" height="150" rx="10"/>
+      <text x="235" y="74" text-anchor="middle" font-size="13" font-weight="700">I/O スレッド</text>
+      <text x="235" y="96" text-anchor="middle" class="sub">ソケット読み書き</text>
+      <text x="235" y="112" text-anchor="middle" class="sub">RESP の解析</text>
+      <text x="235" y="128" text-anchor="middle" class="sub">応答の送信</text>
+      <text x="235" y="160" text-anchor="middle" class="sub">（任意・複数本）</text>
+      <text x="235" y="176" text-anchor="middle" class="sub mono">io-threads N</text>
+
+      <line class="arrow" x1="120" y1="60" x2="168" y2="90" marker-end="url(#m1)"/>
+      <line class="arrow" x1="120" y1="120" x2="168" y2="120" marker-end="url(#m1)"/>
+      <line class="arrow" x1="120" y1="180" x2="168" y2="150" marker-end="url(#m1)"/>
+
+      <!-- main thread -->
+      <rect class="box-acc" x="330" y="50" width="160" height="150" rx="10"/>
+      <text x="410" y="74" text-anchor="middle" font-size="13" font-weight="700">メインスレッド</text>
+      <text x="410" y="94" text-anchor="middle" class="sub">イベントループ</text>
+      <text x="410" y="122" text-anchor="middle" font-size="12">コマンドを</text>
+      <text x="410" y="140" text-anchor="middle" font-size="12">1 つずつ実行</text>
+      <text x="410" y="176" text-anchor="middle" class="sub">期限切れ掃除・退避も</text>
+      <line class="arrow-acc" x1="300" y1="125" x2="328" y2="125" marker-end="url(#m2)"/>
+
+      <!-- memory -->
+      <rect class="box" x="520" y="50" width="210" height="150" rx="10"/>
+      <text x="625" y="74" text-anchor="middle" font-size="13" font-weight="700">メモリ（データセット）</text>
+      <text x="625" y="98" text-anchor="middle" class="sub mono">巨大なハッシュテーブル</text>
+      <text x="625" y="118" text-anchor="middle" class="sub mono">key → 値（String / Hash /</text>
+      <text x="625" y="134" text-anchor="middle" class="sub mono">List / Set / ZSet / Stream…）</text>
+      <text x="625" y="160" text-anchor="middle" class="sub">＋ 期限 (TTL) の表</text>
+      <line class="arrow-acc" x1="490" y1="125" x2="518" y2="125" marker-end="url(#m2)"/>
+
+      <!-- persistence -->
+      <rect class="box-warn" x="330" y="290" width="180" height="56" rx="10"/>
+      <text x="420" y="314" text-anchor="middle" font-size="13" font-weight="700">ディスク</text>
+      <text x="420" y="334" text-anchor="middle" class="sub mono">RDB（スナップ）/ AOF（ログ）</text>
+      <path class="arrow dash" d="M600,200 L600,250 L460,288" marker-end="url(#m1)"/>
+      <text x="530" y="246" class="sub">fork した子 / 追記</text>
+
+      <!-- replica -->
+      <rect class="box-ok" x="560" y="290" width="180" height="56" rx="10"/>
+      <text x="650" y="314" text-anchor="middle" font-size="13" font-weight="700">レプリカ</text>
+      <text x="650" y="334" text-anchor="middle" class="sub">書き込みを非同期で複製</text>
+      <path class="arrow dash" d="M680,200 L680,288" marker-end="url(#m1)"/>
+    </svg>
+  </div>
+
+  <!-- ================= イベントループ ================= -->
+  <h2 id="event-loop">なぜ速い？ ─ シングルスレッドのイベントループ</h2>
+  <p>速さの理由は「スレッドが多いから」ではなく、<strong>メモリ上で完結する短い処理を、待ちなしで順番に回している</strong>からです。メインスレッドは <code>epoll</code> / <code>kqueue</code> で「データが届いたソケット」だけを拾い、コマンドを 1 つずつ最後まで実行します。</p>
+  <ul class="plain">
+    <li>ロック・コンテキストスイッチが不要 → 1 コマンドあたりマイクロ秒単位</li>
+    <li>実行中に他のコマンドが割り込まない → <code>INCR</code> などは何もしなくても原子的</li>
+    <li>裏返すと、<strong>重いコマンド 1 つ（<code>KEYS *</code>、巨大な集合の <code>SMEMBERS</code> など）で全員が待たされる</strong></li>
+  </ul>
+
+  <div class="card">
+    <div class="label-s">体験：3 つのクライアントが同時に送ったコマンド</div>
+    <div class="loop-grid">
+      <div>
+        <div class="label-s">待ち行列 → メインスレッド</div>
+        <div class="queue" id="q"></div>
+      </div>
+      <div>
+        <div class="label-s">メモリの中身</div>
+        <div class="store card" id="store" style="padding:6px 8px;min-height:180px"></div>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn" id="step">▶ 1 つ実行</button>
+      <button class="btn ghost" id="reset">↺ 最初から</button>
+      <span class="note" id="msg">同時に届いても、実行は必ず 1 つずつ。</span>
+    </div>
+  </div>
+
+  <h3 id="threads">I/O スレッド：重いのは「実行」より「通信」</h3>
+  <p>ネットワークの読み書きと解析は CPU を食うので、そこだけ別スレッドに逃がす仕組みがあります。<strong>コマンドの実行自体はどちらもメインスレッドのまま</strong>です。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="th-redis">Redis 6 → 8</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="th-valkey">Valkey 8 →</button>
+  </div>
+  <div class="panel card" id="th-redis">
+    <p><span class="r">Redis</span> は 6.0 で I/O スレッドを導入。メインスレッドが I/O スレッドに読み書きを配り、<strong>全員が終わるのを待ってから</strong>まとめてコマンドを実行する「同期的な分担」でした。Redis 8 で I/O スレッドの実装を作り直し、<code>io-threads</code> を増やしたときのスループットを引き上げています（既定値は 1 = 無効）。</p>
+  </div>
+  <div class="panel card" id="th-valkey" hidden>
+    <p><span class="v">Valkey</span> 8.0 は I/O スレッドを<strong>非同期化</strong>。メインスレッドと I/O スレッドが待ち合わせずに並行して動き、読み書き・解析に加えてメモリ解放などの雑務も I/O スレッド側へ逃がします。9.0 ではパイプライン実行時のメモリプリフェッチ、9.1 ではスレッドモデルのさらなる改良が入り、「1 プロセスあたりのスループット」を伸ばす方向に進んでいます。</p>
+  </div>
+
+  <!-- ================= データ構造 ================= -->
+  <h2 id="data-types">ただの KVS ではない ─ 値が「データ構造」</h2>
+  <p>値は文字列だけでなく、サーバー側で操作できるデータ構造です。「取ってきて、アプリで加工して、書き戻す」をせず<strong>サーバー内で 1 コマンドで</strong>済ませられるのが Redis 系の真価です。</p>
+  <div class="types">
+    <div class="type"><h3>String</h3><div class="shape">page:views → "1042"</div><div class="use">キャッシュ、カウンタ（<code>INCR</code>）、分散ロック（<code>SET k v NX PX 3000</code>）</div></div>
+    <div class="type"><h3>Hash</h3><div class="shape">user:1 → {name, plan, pts}</div><div class="use">オブジェクト・セッション。フィールド単位で読み書き。フィールドごとの TTL も可（Redis 7.4 以降 / Valkey 9.0 以降）</div></div>
+    <div class="type"><h3>List</h3><div class="shape">jobs → [j3, j2, j1]</div><div class="use">簡易キュー（<code>LPUSH</code> / <code>BRPOP</code>）、最新 N 件</div></div>
+    <div class="type"><h3>Set</h3><div class="shape">tags:42 → {go, db, web}</div><div class="use">重複なし集合。共通部分（<code>SINTER</code>）で「共通の友達」など</div></div>
+    <div class="type"><h3>Sorted Set</h3><div class="shape">rank → {bob:90, ann:75}</div><div class="use">スコア順。ランキング、時刻をスコアにした予約キュー、レートリミット</div></div>
+    <div class="type"><h3>Stream</h3><div class="shape">events → 1700…-0 {…}</div><div class="use">追記ログ＋コンシューマーグループ。既読管理つきのイベント配信</div></div>
+    <div class="type"><h3>Pub/Sub</h3><div class="shape">PUBLISH ch msg</div><div class="use">その瞬間の購読者に配るだけ（保存しない）。通知・チャット</div></div>
+    <div class="type"><h3>HyperLogLog ほか</h3><div class="shape">uv:today ≈ 12,034</div><div class="use">約 12KB で数億件のユニーク数を概算。Bitmap、Geo も標準</div></div>
+  </div>
+  <p class="note">内部では件数が少ないうちは詰め込み形式（listpack など）でメモリを節約し、増えたら本格的な構造（ハッシュテーブル、スキップリストなど）に自動で切り替わります。</p>
+
+  <!-- ================= 期限と退避 ================= -->
+  <h2 id="expire">メモリが有限 ─ 期限切れ (TTL) と退避 (eviction)</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="ex-ttl">期限切れの消し方</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="ex-evict">満杯になったら</button>
+  </div>
+  <div class="panel card" id="ex-ttl">
+    <p><code>EXPIRE key 60</code> を付けたキーは、2 つのルートで消えます。</p>
+    <svg class="fig" viewBox="0 0 640 150" role="img" aria-label="遅延削除と能動削除">
+      <rect class="box-acc" x="10" y="20" width="290" height="110" rx="10"/>
+      <text x="155" y="46" text-anchor="middle" font-size="13" font-weight="700">遅延削除 (lazy)</text>
+      <text x="155" y="72" text-anchor="middle" font-size="12">アクセスされた瞬間に期限を確認</text>
+      <text x="155" y="92" text-anchor="middle" font-size="12">切れていたら消して「無い」と返す</text>
+      <text x="155" y="116" text-anchor="middle" class="sub">→ 読まれたキーは必ず正しい</text>
+      <rect class="box-acc" x="340" y="20" width="290" height="110" rx="10"/>
+      <text x="485" y="46" text-anchor="middle" font-size="13" font-weight="700">能動削除 (active)</text>
+      <text x="485" y="72" text-anchor="middle" font-size="12">定期的に期限付きキーを少しずつ走査</text>
+      <text x="485" y="92" text-anchor="middle" font-size="12">切れているものを掃除</text>
+      <text x="485" y="116" text-anchor="middle" class="sub">→ 読まれないゴミもいずれ消える</text>
+    </svg>
+    <p class="note">「期限ちょうどにメモリが空く」わけではありません。一時的に期限切れキーがメモリに残ることがあります。</p>
+  </div>
+  <div class="panel card" id="ex-evict" hidden>
+    <p><code>maxmemory</code> に達したときの動きは <code>maxmemory-policy</code> で決まります。</p>
+    <table class="tbl">
+      <thead><tr><th>ポリシー</th><th>動き</th><th>向いている用途</th></tr></thead>
+      <tbody>
+        <tr><th><code>noeviction</code></th><td>何も消さず、書き込みをエラーにする（既定）</td><td>消えては困るデータ（キュー・セッションの主保存先）</td></tr>
+        <tr><th><code>allkeys-lru</code> / <code>-lfu</code></th><td>全キーから「最近使われていない」/「使用頻度が低い」ものを消す</td><td>純粋なキャッシュ</td></tr>
+        <tr><th><code>volatile-lru</code> / <code>-lfu</code> / <code>-ttl</code></th><td>期限付きのキーだけを対象に消す</td><td>キャッシュと永続データを同居させるとき</td></tr>
+        <tr><th><code>*-random</code></th><td>ランダムに消す</td><td>アクセスが均等なとき</td></tr>
+      </tbody>
+    </table>
+    <p class="note">LRU / LFU は厳密ではなく、数個をサンプリングして一番古いものを選ぶ近似です（メモリと速度のため）。</p>
+  </div>
+
+  <!-- ================= 永続化 ================= -->
+  <h2 id="persistence">永続化 ─ RDB と AOF</h2>
+  <p>メモリのデータは再起動で消えるので、ディスクに残す方法が 2 つあります。どちらもメインスレッドを止めないよう工夫されています。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="ps-rdb">RDB（スナップショット）</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="ps-aof">AOF（追記ログ）</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="ps-which">どう選ぶ</button>
+  </div>
+  <div class="panel card" id="ps-rdb">
+    <svg class="fig" viewBox="0 0 640 170" role="img" aria-label="fork とコピーオンライトによるスナップショット">
+      <defs><marker id="m3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+      <rect class="box-acc" x="10" y="20" width="180" height="130" rx="10"/>
+      <text x="100" y="44" text-anchor="middle" font-size="13" font-weight="700">親プロセス</text>
+      <text x="100" y="68" text-anchor="middle" font-size="12">普通にコマンドを処理</text>
+      <text x="100" y="88" text-anchor="middle" font-size="12">書き換えたページだけ</text>
+      <text x="100" y="106" text-anchor="middle" font-size="12">コピーされる (CoW)</text>
+      <text x="100" y="134" text-anchor="middle" class="sub mono">BGSAVE / save 設定</text>
+      <line class="arrow" x1="190" y1="85" x2="238" y2="85" marker-end="url(#m3)"/>
+      <text x="214" y="76" text-anchor="middle" class="sub mono">fork()</text>
+      <rect class="box" x="240" y="20" width="180" height="130" rx="10"/>
+      <text x="330" y="44" text-anchor="middle" font-size="13" font-weight="700">子プロセス</text>
+      <text x="330" y="68" text-anchor="middle" font-size="12">fork した瞬間の</text>
+      <text x="330" y="88" text-anchor="middle" font-size="12">メモリをそのまま見て</text>
+      <text x="330" y="108" text-anchor="middle" font-size="12">ファイルに書き出す</text>
+      <line class="arrow" x1="420" y1="85" x2="468" y2="85" marker-end="url(#m3)"/>
+      <rect class="box-warn" x="470" y="45" width="160" height="80" rx="10"/>
+      <text x="550" y="78" text-anchor="middle" font-size="13" font-weight="700" class="mono">dump.rdb</text>
+      <text x="550" y="100" text-anchor="middle" class="sub">圧縮バイナリ 1 ファイル</text>
+    </svg>
+    <ul class="plain">
+      <li>◎ ファイルが小さく、起動時の読み込みが速い。バックアップに向く</li>
+      <li>△ 最後のスナップショット以降の書き込みは、落ちたら失われる</li>
+      <li>△ 書き込みが多いと CoW でメモリ使用量が一時的に増える（最大で約 2 倍）</li>
+    </ul>
+  </div>
+  <div class="panel card" id="ps-aof" hidden>
+    <p>書き込みコマンドを実行するたびにログへ追記し、起動時に頭から再生して復元します。</p>
+    <pre><code>SET user:1 ann
+INCR page:views
+HSET user:1 plan pro     ← 書き込みのたびに追記</code></pre>
+    <table class="tbl">
+      <thead><tr><th><code>appendfsync</code></th><td>ディスクへの確定 (fsync)</td><td>最悪失うデータ</td></tr></thead>
+      <tbody>
+        <tr><th><code>always</code></th><td>毎コマンド</td><td>ほぼなし（その分遅い）</td></tr>
+        <tr><th><code>everysec</code></th><td>1 秒ごと（既定）</td><td>約 1 秒分</td></tr>
+        <tr><th><code>no</code></th><td>OS 任せ</td><td>数十秒分のこともある</td></tr>
+      </tbody>
+    </table>
+    <p>ログは膨らみ続けるので、裏で「今の状態を作る最短のログ」に<strong>書き直し (rewrite)</strong> ます。現在の版では、書き直しの土台を RDB 形式にして後ろに増分ログを足す形が既定です（RDB と AOF のいいとこ取り）。</p>
+  </div>
+  <div class="panel card" id="ps-which" hidden>
+    <ul class="plain">
+      <li><strong>純粋なキャッシュ</strong>（消えても元 DB から作り直せる）→ 永続化なし、または RDB のみ</li>
+      <li><strong>セッション・キューなど失いたくない</strong> → AOF（<code>everysec</code>）＋ RDB でバックアップ</li>
+      <li>どちらにしても<strong>レプリカは「バックアップ」ではない</strong>。<code>FLUSHALL</code> も即座に複製される</li>
+    </ul>
+  </div>
+
+  <!-- ================= 複製とクラスター ================= -->
+  <h2 id="cluster">複製と分散 ─ レプリカ・Sentinel・Cluster</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="cl-repl">レプリケーション</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="cl-sentinel">Sentinel</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="cl-cluster">Cluster</button>
+  </div>
+  <div class="panel card" id="cl-repl">
+    <svg class="fig" viewBox="0 0 640 150" role="img" aria-label="プライマリからレプリカへの複製">
+      <defs><marker id="m4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-acc" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+      <rect class="box-acc" x="20" y="45" width="170" height="60" rx="10"/>
+      <text x="105" y="72" text-anchor="middle" font-size="13" font-weight="700">プライマリ</text>
+      <text x="105" y="92" text-anchor="middle" class="sub">読み書き</text>
+      <rect class="box-ok" x="440" y="10" width="180" height="56" rx="10"/>
+      <text x="530" y="35" text-anchor="middle" font-size="13" font-weight="700">レプリカ 1</text>
+      <text x="530" y="54" text-anchor="middle" class="sub">読み取り専用</text>
+      <rect class="box-ok" x="440" y="84" width="180" height="56" rx="10"/>
+      <text x="530" y="109" text-anchor="middle" font-size="13" font-weight="700">レプリカ 2</text>
+      <text x="530" y="128" text-anchor="middle" class="sub">読み取り専用</text>
+      <path class="arrow-acc" d="M190,68 C300,40 330,38 438,38" marker-end="url(#m4)"/>
+      <path class="arrow-acc" d="M190,82 C300,110 330,112 438,112" marker-end="url(#m4)"/>
+      <text x="315" y="70" text-anchor="middle" class="sub">① 初回：RDB を丸ごと送る</text>
+      <text x="315" y="88" text-anchor="middle" class="sub">② 以降：書き込みを非同期で流す</text>
+    </svg>
+    <p>複製は<strong>非同期</strong>。プライマリはレプリカの受信を待たずにクライアントへ OK を返すため、直後にプライマリが落ちると直近の書き込みが失われることがあります（<code>WAIT</code> で待つことはできるが、強い一貫性の保証ではない）。切断後の再接続では、手元のバッファ（backlog）に残っている差分だけを送り直します。</p>
+  </div>
+  <div class="panel card" id="cl-sentinel" hidden>
+    <p>Sentinel はプライマリを監視する別プロセス群（通常 3 台以上）。過半数が「プライマリが落ちた」と合意すると、レプリカの 1 台をプライマリに昇格させ、クライアントには新しいプライマリの場所を教えます。<strong>データは分割しない</strong>ので、全データが 1 台のメモリに収まる場合の高可用化 (HA) 手段です。</p>
+  </div>
+  <div class="panel card" id="cl-cluster" hidden>
+    <p>Cluster はデータを複数のプライマリに<strong>分割 (sharding)</strong> します。キー空間は <strong>16384 個のハッシュスロット</strong>に分かれていて、各プライマリがスロットの範囲を受け持ちます。</p>
+    <pre><code>slot = CRC16(key) mod 16384</code></pre>
+    <p>キーを入れると、どのスロット・どのノードに行くか計算します（3 ノードで均等に分けた例）。</p>
+    <input class="slot-in" id="slotKey" value="user:1000" aria-label="キー名" autocomplete="off" spellcheck="false">
+    <div class="slotbar" id="slotbar"><div>Node A</div><div>Node B</div><div>Node C</div></div>
+    <div class="slotscale"><span>0</span><span>5461</span><span>10923</span><span>16383</span></div>
+    <div class="result" id="slotOut"></div>
+    <p style="margin-top:12px">試しに <code>{user:1000}:cart</code> と <code>{user:1000}:profile</code> を入れてみてください。<code>{}</code> で囲んだ部分（<strong>ハッシュタグ</strong>）だけがハッシュされるので、同じスロットに集まります。複数キーをまたぐコマンド（<code>MGET</code>、トランザクション、Lua）は<strong>同じスロットのキー同士でしか</strong>使えないため、これで揃えます。</p>
+    <p>違うノードに送ってしまうと <code>MOVED 3999 10.0.0.2:6379</code> のように正しい場所が返ってきます。クライアントライブラリはこれを覚えて、次から直接正しいノードに送ります。</p>
+  </div>
+
+  <!-- ================= 関係 ================= -->
+  <h2 id="fork">Redis と Valkey の関係</h2>
+  <div class="card">
+    <div class="timeline">
+      <div class="tl redis"><div class="when">2009</div><div class="what"><span class="r">Redis</span> 誕生。BSD ライセンスのオープンソースとして広く普及</div></div>
+      <div class="tl redis"><div class="when">2024-03</div><div class="what"><span class="r">Redis</span> が次版（7.4）以降を RSALv2 / SSPLv1 のデュアルライセンスに変更。クラウド事業者が無断でマネージドサービスにすることを制限する、OSI 非承認の「ソースアバイラブル」ライセンス</div></div>
+      <div class="tl valkey"><div class="when">2024-03</div><div class="what">ライセンス変更直前の BSD 版 Redis 7.2.4 から <span class="v">Valkey</span> がフォーク（7.2 系のパッチ版はその後も BSD で提供）。Linux Foundation の下、AWS・Google Cloud・Oracle などのメンテナーが参加。ライセンスは BSD 3-Clause のまま</div></div>
+      <div class="tl valkey"><div class="when">2024-09</div><div class="what"><span class="v">Valkey 8.0</span>：非同期 I/O スレッド、デュアルチャネルレプリケーションなど独自の改善が始まる</div></div>
+      <div class="tl redis"><div class="when">2025-05</div><div class="what"><span class="r">Redis 8</span>：AGPLv3 を選択肢に追加し OSI 承認のオープンソースに復帰。JSON・検索 (Query Engine)・時系列・確率的データ構造・Vector Set を本体ディストリビューションに同梱</div></div>
+      <div class="tl valkey"><div class="when">2025-10</div><div class="what"><span class="v">Valkey 9.0</span>：アトミックなスロット移行、ハッシュフィールドの期限、クラスターモードでの複数 DB（番号付き DB）</div></div>
+      <div class="tl valkey"><div class="when">2026-05</div><div class="what"><span class="v">Valkey 9.1</span>：DB 単位の ACL、Lua を切り離せるモジュール化、I/O スレッドとメモリ効率の改善</div></div>
+    </div>
+    <p class="note">つまり「Redis 7.2 までの仕組み」は両者共通の土台で、上で説明したイベントループ・データ構造・RDB/AOF・Cluster はどちらにもそのまま当てはまります。</p>
+  </div>
+
+  <h2 id="compare">いま何が違うか</h2>
+  <div class="card scroll-x">
+    <table class="tbl" style="min-width:560px">
+      <thead><tr><th></th><th class="r">Redis（Open Source 8.x）</th><th class="v">Valkey（9.x）</th></tr></thead>
+      <tbody>
+        <tr><th>ライセンス</th><td class="r">RSALv2 / SSPLv1 / AGPLv3 から選択</td><td class="v">BSD 3-Clause（制約が最も緩い）</td></tr>
+        <tr><th>運営</th><td class="r">Redis 社</td><td class="v">Linux Foundation（複数企業の共同開発）</td></tr>
+        <tr><th>互換性</th><td class="r" colspan="2" style="background:none;text-align:center">Redis 7.2 までのコマンド・RESP・RDB 形式は共通。クライアントライブラリも基本そのまま使える</td></tr>
+        <tr><th>同梱機能</th><td class="r">JSON・Query Engine（全文/ベクトル検索）・時系列・Bloom など・Vector Set が本体に入っている</td><td class="v">コアは素の KVS。JSON・Bloom・検索は別モジュール（valkey-json / valkey-bloom / valkey-search）で追加</td></tr>
+        <tr><th>独自の強み</th><td class="r">AI / 検索系の機能群、Redis Cloud・Redis Software との一体性</td><td class="v">マルチスレッド I/O による 1 ノード性能、クラスターでの複数 DB（アトミックなスロット移行は Valkey 9.0 が先行し、Redis も 8.4 で追随）</td></tr>
+        <tr><th>マネージド</th><td class="r">Redis Cloud など</td><td class="v">AWS ElastiCache / MemoryDB、Google Memorystore などが提供</td></tr>
+      </tbody>
+    </table>
+    <p class="note">7.4 / 8.x の Redis 独自コマンドや、Valkey 8 以降の独自機能を使い始めると、相互の乗り換えは「完全互換」ではなくなります。RDB ファイルも新しい版のものは相手側で読めないことがあります。</p>
+  </div>
+
+  <!-- ================= 誤解 ================= -->
+  <h2 id="myths">よくある誤解</h2>
+  <details>
+    <summary>「シングルスレッドだから CPU を 1 コアしか使えない」</summary>
+    <p>コマンドの<strong>実行</strong>は 1 スレッドですが、I/O スレッド・永続化の子プロセス・裏での解放処理などで他のコアも使います。それでも 1 プロセスの実行は 1 本なので、さらに伸ばすなら Cluster で複数プロセスに分けます。</p>
+  </details>
+  <details>
+    <summary>「MULTI / EXEC はロールバックできるトランザクション」</summary>
+    <p>まとめて順番に実行され、間に他のコマンドが割り込まないことは保証されますが、途中のコマンドが失敗しても<strong>前のコマンドは取り消されません</strong>。条件付き更新には <code>WATCH</code>（楽観ロック）か Lua スクリプト / Function を使います。</p>
+  </details>
+  <details>
+    <summary>「Valkey は Redis の互換品だから中身は別物」</summary>
+    <p>逆で、Valkey は Redis 7.2.4 のソースコードそのものから始まっています。違いが出てくるのはフォーク後に各自が加えた部分だけです。</p>
+  </details>
+  <details>
+    <summary>「本番で KEYS * を使って調べればいい」</summary>
+    <p>全キーを一度に走査するのでメインスレッドが長時間ふさがり、その間ほかのクライアントは全員待たされます。少しずつ返す <code>SCAN</code> を使います。</p>
+  </details>
+
+  <h2 id="commands">コマンド例</h2>
+  <pre><code># 動かしてみる（どちらも 6379 番で起動し、同じ CLI 操作ができる）
+docker run -d -p 6379:6379 valkey/valkey      # または redis
+valkey-cli                                     # redis-cli でも繋がる
+
+SET session:abc '{"uid":1}' EX 1800            # 30 分で消えるキャッシュ
+SET lock:order:9 me NX PX 5000                 # 無ければ作る＝簡易ロック
+INCR rate:ip:1.2.3.4                           # 原子的なカウンタ
+ZADD rank 90 bob 75 ann                        # ランキング
+ZREVRANGE rank 0 9 WITHSCORES                  # 上位 10 件
+CLUSTER KEYSLOT user:1000                      # どのスロットか
+INFO memory                                    # メモリ使用量
+CONFIG SET maxmemory-policy allkeys-lfu        # キャッシュ用の退避方針</code></pre>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<style>
+#memo-quiz-ui{--mq-ok:#1a7f37;--mq-ng:#cf222e;max-width:880px;margin:48px auto 0;padding:0 0 8px;color:var(--fg,inherit);font-size:15px;line-height:1.7}
+@media (prefers-color-scheme:dark){#memo-quiz-ui{--mq-ok:#3fb950;--mq-ng:#f85149}}
+#memo-quiz-ui *{box-sizing:border-box}
+#memo-quiz-ui h2{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding:0 0 0 10px;border:0;border-left:3px solid var(--accent,currentColor);font-size:1.1rem;font-weight:700;color:inherit;background:none}
+#memo-quiz-ui h2 small{font-size:.75rem;font-weight:400;color:var(--fg-2,inherit);opacity:.9}
+#memo-quiz-ui .mq-q{margin:0 0 12px;padding:14px 16px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-prompt{margin:0 0 10px;font-weight:700}
+#memo-quiz-ui .mq-choices{display:flex;flex-direction:column;gap:6px}
+#memo-quiz-ui .mq-c{display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:8px;background:var(--chip,rgba(127,127,127,.1));color:inherit;font:inherit;font-size:.9rem;line-height:1.5;cursor:pointer}
+#memo-quiz-ui .mq-c:hover:not(:disabled){border-color:var(--accent,currentColor)}
+#memo-quiz-ui .mq-c:disabled{cursor:default;opacity:.6}
+#memo-quiz-ui .mq-c.mq-ok{opacity:1;border-color:var(--mq-ok);box-shadow:inset 3px 0 0 var(--mq-ok)}
+#memo-quiz-ui .mq-c.mq-ng{opacity:1;border-color:var(--mq-ng);box-shadow:inset 3px 0 0 var(--mq-ng)}
+#memo-quiz-ui .mq-fb{margin:10px 0 0;font-size:.85rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-ref{color:var(--accent,inherit);font-weight:700;text-decoration:none;white-space:nowrap}
+#memo-quiz-ui .mq-ref:hover{text-decoration:underline}
+#memo-quiz-ui .mq-result{margin:4px 0 12px;padding:16px 18px;background:var(--surface,rgba(127,127,127,.06));border:1px solid var(--accent,rgba(127,127,127,.3));border-radius:10px}
+#memo-quiz-ui .mq-score{margin:0 0 10px;font-size:.9rem;color:var(--fg-2,inherit)}
+#memo-quiz-ui .mq-score b{font:700 1.4rem/1.2 ui-monospace,Menlo,monospace;color:var(--accent,inherit)}
+#memo-quiz-ui .mq-review{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+#memo-quiz-ui .mq-review li{padding:8px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.3));font-size:.85rem}
+#memo-quiz-ui .mq-rv-q{font-weight:700}
+#memo-quiz-ui .mq-rv-a{color:var(--fg-2,inherit)}
+#memo-quiz-ui b.ok{color:var(--mq-ok)}
+#memo-quiz-ui b.ng{color:var(--mq-ng)}
+.mq-flash{outline:3px solid var(--accent,#0077b6)!important;outline-offset:4px;border-radius:4px}
+#memo-quiz-ui .mq-reset{margin-top:4px;padding:4px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:999px;background:none;color:var(--fg-2,inherit);font:600 12px/1.4 ui-monospace,Menlo,monospace;cursor:pointer}
+#memo-quiz-ui .mq-reset:hover{color:var(--accent,inherit);border-color:var(--accent,currentColor)}
+</style>
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script>
+// 問題データ（#memo-quiz）がこのブロックより後ろにあってもよいよう、読み込み後に実行する
+(function (run) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})(function () {
+  var data = document.getElementById('memo-quiz');
+  var ui = document.getElementById('memo-quiz-ui');
+  if (!data || !ui) return;
+  var qs;
+  try { qs = JSON.parse(data.textContent); } catch (e) { return; }
+  if (!Array.isArray(qs)) return;
+  qs = qs.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.choices) &&
+      typeof q.answer === 'number' && q.choices[q.answer] !== undefined;
+  });
+  if (!qs.length) return;
+  var list = ui.querySelector('.mq-list');
+  var score = ui.querySelector('h2 small');
+  var result = ui.querySelector('.mq-result');
+  var picks = [];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  // ---- 本文の該当箇所へ移動する。飛び先が閉じたタブや <details> の中なら先に開く
+  function isShown(e) { return !!(e.offsetParent || e.getClientRects().length); }
+  function controlFor(id) {
+    var esc = window.CSS && CSS.escape ? CSS.escape(id) : id;
+    var c = document.querySelector('[data-panel="' + esc + '"],[aria-controls="' + esc + '"],[data-target="#' + esc + '"],[href="#' + esc + '"]:not(.mq-ref)');
+    if (c) return c;
+    // onclick="switchTab('layers')" のように id の一部を渡すタブにも対応
+    var keys = [id, id.replace(/^(panel|tab)[-_]/, '')];
+    var all = document.querySelectorAll('[onclick]');
+    for (var i = 0; i < all.length; i++) {
+      var code = all[i].getAttribute('onclick');
+      for (var k = 0; k < keys.length; k++) {
+        if (code.indexOf("'" + keys[k] + "'") >= 0 || code.indexOf('"' + keys[k] + '"') >= 0) return all[i];
+      }
+    }
+    return null;
+  }
+  function reveal(target) {
+    var chain = [];
+    for (var e = target; e && e !== document.body; e = e.parentElement) chain.unshift(e);
+    chain.forEach(function (e) {
+      if (e.tagName === 'DETAILS' && !e.open && e !== target) e.open = true;
+      if (isShown(e)) return;
+      var c = e.id && controlFor(e.id);
+      if (c) c.click();
+      if (!isShown(e) && e.hidden) e.hidden = false;
+    });
+  }
+  function jump(id, smooth) {
+    var target = document.getElementById(id);
+    if (!target) return false;
+    reveal(target);
+    // 遠い飛び先までゆっくりスクロールすると待たされるので、画面 2 枚分より遠ければ一気に移動する
+    var far = Math.abs(target.getBoundingClientRect().top) > innerHeight * 2;
+    target.scrollIntoView({ behavior: smooth && !far ? 'smooth' : 'auto', block: 'start' });
+    target.classList.add('mq-flash');
+    setTimeout(function () { target.classList.remove('mq-flash'); }, 1800);
+    return true;
+  }
+  // 本文の該当箇所（ref = "#id"）へのリンク
+  function refLink(q, label) {
+    if (typeof q.ref !== 'string' || !/^#[\w-]+$/.test(q.ref)) return null;
+    var id = q.ref.slice(1);
+    if (!document.getElementById(id)) return null;
+    var a = el('a', 'mq-ref', label);
+    a.href = q.ref;
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (history.replaceState) history.replaceState(null, '', q.ref);
+      jump(id, true);
+    });
+    return a;
+  }
+  // クイズページなど他のページから page.html#id で来たとき
+  if (/^#[\w-]+$/.test(location.hash) && location.hash !== '#memo-quiz-ui') {
+    var initial = location.hash.slice(1);
+    setTimeout(function () { jump(initial, false); }, 0);
+  }
+  function count() {
+    var done = 0, ok = 0;
+    picks.forEach(function (p, i) { if (p != null) { done++; if (p === qs[i].answer) ok++; } });
+    return { done: done, ok: ok };
+  }
+  function showResult() {
+    var c = count();
+    result.textContent = '';
+    var head = el('p', 'mq-score');
+    head.appendChild(el('b', null, c.ok + ' / ' + qs.length));
+    head.appendChild(document.createTextNode(' 問正解' +
+      (c.ok === qs.length ? ' 🎉 全問正解！' : '（間違えた問題は本文で確認できます）')));
+    result.appendChild(head);
+    var ol = el('ol', 'mq-review');
+    qs.forEach(function (q, i) {
+      var ok = picks[i] === q.answer;
+      var li = el('li', ok ? 'ok' : 'ng');
+      var top = el('div', 'mq-rv-q');
+      top.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕' : '❌'));
+      top.appendChild(document.createTextNode(' Q' + (i + 1) + '. ' + q.q));
+      li.appendChild(top);
+      var ans = el('div', 'mq-rv-a');
+      ans.appendChild(document.createTextNode('正解: ' + q.choices[q.answer]));
+      if (!ok) ans.appendChild(document.createTextNode(' ／ あなたの答え: ' + q.choices[picks[i]]));
+      li.appendChild(ans);
+      if (!ok) {
+        var link = refLink(q, '本文で確認する →');
+        if (link) li.appendChild(link);
+      }
+      ol.appendChild(li);
+    });
+    result.appendChild(ol);
+    result.hidden = false;
+  }
+  function update() {
+    var c = count();
+    score.textContent = c.done ? c.ok + ' / ' + c.done + ' 問正解' + (c.done < qs.length ? '（残り ' + (qs.length - c.done) + ' 問）' : '') : '全 ' + qs.length + ' 問';
+    if (c.done === qs.length) showResult();
+  }
+  function render() {
+    list.textContent = '';
+    result.hidden = true;
+    picks = qs.map(function () { return null; });
+    qs.forEach(function (q, i) {
+      var box = el('div', 'mq-q');
+      box.appendChild(el('p', 'mq-prompt', 'Q' + (i + 1) + '. ' + q.q));
+      var ch = el('div', 'mq-choices');
+      var fb = el('p', 'mq-fb');
+      fb.hidden = true;
+      q.choices.forEach(function (c, j) {
+        var b = el('button', 'mq-c', c);
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          var ok = j === q.answer;
+          Array.prototype.forEach.call(ch.children, function (x, k) {
+            x.disabled = true;
+            if (k === q.answer) x.classList.add('mq-ok');
+          });
+          if (!ok) b.classList.add('mq-ng');
+          fb.textContent = '';
+          fb.appendChild(el('b', ok ? 'ok' : 'ng', ok ? '⭕ 正解' : '❌ 不正解'));
+          fb.appendChild(document.createTextNode(
+            (ok ? '' : '（正解: ' + q.choices[q.answer] + '）') + (q.explain ? ' ' + q.explain : '')));
+          if (!ok) {
+            var link = refLink(q, '本文で確認する →');
+            if (link) { fb.appendChild(document.createTextNode(' ')); fb.appendChild(link); }
+          }
+          fb.hidden = false;
+          picks[i] = j;
+          update();
+        });
+        ch.appendChild(b);
+      });
+      box.appendChild(ch);
+      box.appendChild(fb);
+      list.appendChild(box);
+    });
+    update();
+  }
+  ui.querySelector('.mq-reset').addEventListener('click', function () {
+    render();
+    ui.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  render();
+  ui.hidden = false;
+});
+</script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+// タブ
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+// イベントループ体験
+(() => {
+  const cmds = [
+    { who: 'A', c: 'SET stock 3', run: s => { s.stock = 3; return 'OK'; } },
+    { who: 'B', c: 'DECR stock', run: s => { s.stock = (s.stock || 0) - 1; return String(s.stock); } },
+    { who: 'C', c: 'DECR stock', run: s => { s.stock = (s.stock || 0) - 1; return String(s.stock); } },
+    { who: 'A', c: 'HSET user:1 name ann', run: s => { s['user:1'] = '{name: ann}'; return '1'; } },
+    { who: 'B', c: 'DECR stock', run: s => { s.stock = (s.stock || 0) - 1; return String(s.stock); } },
+    { who: 'C', c: 'GET stock', run: s => String(s.stock) }
+  ];
+  const q = document.getElementById('q');
+  const store = document.getElementById('store');
+  const msg = document.getElementById('msg');
+  let i, state;
+  function render() {
+    q.innerHTML = '';
+    cmds.forEach((c, k) => {
+      const d = document.createElement('div');
+      d.className = 'cmd' + (k < i ? ' done' : k === i ? ' running' : '');
+      d.innerHTML = '<span>' + c.c + '</span><span class="who">client ' + c.who + (c.out !== undefined && k < i ? ' → ' + c.out : '') + '</span>';
+      q.appendChild(d);
+    });
+    const keys = Object.keys(state);
+    store.innerHTML = keys.length ? keys.map(k => '<div>' + k + ' = ' + state[k] + '</div>').join('') : '<div class="note">（空）</div>';
+  }
+  function reset() { i = 0; state = {}; cmds.forEach(c => delete c.out); msg.textContent = '同時に届いても、実行は必ず 1 つずつ。'; render(); }
+  document.getElementById('step').addEventListener('click', () => {
+    if (i >= cmds.length) { msg.textContent = '全部実行済み。DECR は割り込まれないので在庫が二重に減ることはない。'; return; }
+    const c = cmds[i];
+    c.out = c.run(state);
+    msg.textContent = 'client ' + c.who + ' の ' + c.c.split(' ')[0] + ' を実行 → ' + c.out + '（その間ほかは待機）';
+    i++;
+    render();
+  });
+  document.getElementById('reset').addEventListener('click', reset);
+  reset();
+})();
+
+// ハッシュスロット計算
+(() => {
+  function crc16(str) {
+    const bytes = new TextEncoder().encode(str);
+    let crc = 0;
+    for (const b of bytes) {
+      crc ^= b << 8;
+      for (let k = 0; k < 8; k++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xffff : (crc << 1) & 0xffff;
+    }
+    return crc;
+  }
+  function hashPart(key) {
+    const s = key.indexOf('{');
+    if (s === -1) return key;
+    const e = key.indexOf('}', s + 1);
+    if (e === -1 || e === s + 1) return key;
+    return key.slice(s + 1, e);
+  }
+  const input = document.getElementById('slotKey');
+  const out = document.getElementById('slotOut');
+  const cells = document.querySelectorAll('#slotbar div');
+  function update() {
+    const key = input.value;
+    const part = hashPart(key);
+    const slot = crc16(part) % 16384;
+    const node = slot <= 5460 ? 0 : slot <= 10922 ? 1 : 2;
+    cells.forEach((c, k) => c.classList.toggle('hit', k === node));
+    out.innerHTML = 'ハッシュ対象: <code>' + part.replace(/</g, '&lt;') + '</code> → slot <strong>' + slot + '</strong> → Node ' + 'ABC'[node];
+  }
+  input.addEventListener('input', update);
+  update();
+})();
+</script>
+
+<!-- 確認クイズ -->
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Redis / Valkey で在庫数を INCR / DECR で増減している。複数のアプリから同時に DECR が来ても、在庫が二重に減ったりしないのはなぜ？",
+    "choices": ["キーごとに行ロックを取ってから更新しているから", "コマンドはメインスレッドが 1 つずつ最後まで実行し、途中で割り込まれないから", "I/O スレッドがコマンドを並列に実行し、最後に結果を合算するから"],
+    "answer": 1,
+    "explain": "コマンドの実行は 1 本のメインスレッドで順番に行われるため、単一コマンドはロックなしで原子的になる。I/O スレッドが担うのは通信と解析だけ。",
+    "ref": "#event-loop"
+  },
+  {
+    "q": "本番の Redis / Valkey で、あるプレフィックスのキーを調べたい。他のクライアントへの影響が少ないのはどれ？",
+    "choices": ["KEYS prefix:* を 1 回実行する", "I/O スレッドを増やしてから KEYS prefix:* を実行する", "SCAN 0 MATCH prefix:* COUNT 100 を繰り返す"],
+    "answer": 2,
+    "explain": "KEYS は全キーを一度に走査してメインスレッドをふさぐ。SCAN なら少しずつ返すので、合間に他のコマンドが実行できる。I/O スレッドを増やしても実行は 1 本のまま。",
+    "ref": "#myths"
+  },
+  {
+    "q": "DB の手前に置く純粋なキャッシュとして使う。メモリが満杯になっても書き込みを止めたくない。maxmemory-policy はどれが合う？",
+    "choices": ["allkeys-lfu", "noeviction", "volatile-ttl（キーには TTL を付けない）"],
+    "answer": 0,
+    "explain": "allkeys-* は全キーから使われていないものを消して空きを作る。noeviction は満杯で書き込みエラーになり、volatile-* は期限付きキーがなければ何も消せない。",
+    "ref": "#expire"
+  },
+  {
+    "q": "Redis Cluster / Valkey Cluster で、ユーザーのカートとプロフィールを MULTI / EXEC でまとめて更新したい。キー名をどう付ける？",
+    "choices": ["cart:user:1000 と profile:user:1000 のように同じ ID を含める", "{user:1000}:cart と {user:1000}:profile のように {} で共通部分を囲む", "キー名は何でもよい。クラスターが自動で同じノードに集める"],
+    "answer": 1,
+    "explain": "スロットは CRC16(key) mod 16384 で決まり、{} があればその中だけがハッシュされる。複数キーのコマンドは同じスロットのキー同士でしか使えない。",
+    "ref": "#cl-cluster"
+  },
+  {
+    "q": "社内ツールのキャッシュに Redis 互換のサーバーを採用したい。条件は「OSI 承認の、できるだけ制約の緩いライセンス」で、JSON や全文検索は使わない。合うのは？",
+    "choices": ["Redis 8 を AGPLv3 で使う", "Redis 7.4 を使う", "Valkey を使う"],
+    "answer": 2,
+    "explain": "Valkey は BSD 3-Clause で、コアは素の KVS。Redis 8 の AGPLv3 も OSI 承認だが条件は強めで、7.4 は RSALv2 / SSPLv1 のみ（OSI 非承認）。",
+    "ref": "#compare"
+  }
+]
+</script>
+</body>
+</html>
