@@ -14,6 +14,7 @@
 - [Redis と Valkey の仕組み](https://memo.taka1156.site/md/redis-valkey.md): Redis と Valkey の速さの理由、永続化・複製・クラスター、両者の違いを図解。（データベース, インフラ / 2026-11-03）
 - [PWA の仕組みとチェックリスト](https://memo.taka1156.site/md/pwa.md): HTTPS・Manifest・Service Worker の役割、キャッシュ戦略、インストール条件と実装項目を図解。（フロントエンド / 2026-11-03）
 - [パスキー（WebAuthn）](https://memo.taka1156.site/md/passkeys.md): 公開鍵で署名するパスキーの登録・ログインの流れ、フィッシングに強い理由、同期型と端末固定型の違い、実装時のチェックリストまでを図解。（セキュリティ / 2026-11-03）
+- [JS と Web 標準の決まり方](https://memo.taka1156.site/md/js-web-standards.md): JavaScript の言語は TC39、ブラウザ API は WHATWG と W3C、サーバー側ランタイムの共通 API は TC55（WinterTC）。4 つの団体の分担と、仕様が決まるまでの流れを図解。（JavaScript, フロントエンド / 2026-11-03）
 - [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md): Cache-Control の読み方、鮮度と再検証（ETag・304）、ブラウザと CDN の二段構え、用途別のおすすめ設定までを図解。（インフラ, フロントエンド / 2026-11-03）
 - [Git の内部構造](https://memo.taka1156.site/md/git-internals.md): blob・tree・commit・ref の4つで Git を理解し、merge と rebase の違い、reset の3種類、reflog での復旧までを図解。（開発ツール / 2026-11-03）
 - [Docker 動作原理](https://memo.taka1156.site/md/docker.md): イメージのレイヤー構造、名前空間、cgroups などコンテナが動く仕組みを図解。（インフラ / 2026-11-03）
@@ -47,4 +48,3 @@
 - [GitHub サービス](https://memo.taka1156.site/md/github-services.md): Actions・Pages・Codespaces など GitHub の 9 サービスを、開発の流れに沿った図と使い分けで整理。（開発ツール / 2026-11-01）
 - [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md): Workers・Pages・R2・D1 など Cloudflare の 9 サービスを、リクエストの流れに沿った図と使い分けで整理。（インフラ / 2026-11-01）
 - [Ansible 概念図](https://memo.taka1156.site/md/ansible.md): Control NodeからManaged Nodesまでの流れと、役割ごとのファイル名の対応を図解。（インフラ / 2026-11-01）
-- [Ecma TC 一覧](https://memo.taka1156.site/md/ecma.md): Ecma International の技術委員会 (TC39 など) をカードで一覧表示。（JavaScript / 2026-10-31）

@@ -317,6 +317,16 @@ const MEMOS = [
     "date": "2026-11-03"
   },
   {
+    "file": "js-web-standards.html",
+    "title": "JS と Web 標準の決まり方",
+    "desc": "JavaScript の言語は TC39、ブラウザ API は WHATWG と W3C、サーバー側ランタイムの共通 API は TC55（WinterTC）。4 つの団体の分担と、仕様が決まるまでの流れを図解。",
+    "tags": [
+      "JavaScript",
+      "フロントエンド"
+    ],
+    "date": "2026-11-03"
+  },
+  {
     "file": "http-cache.html",
     "title": "HTTP キャッシュ",
     "desc": "Cache-Control の読み方、鮮度と再検証（ETag・304）、ブラウザと CDN の二段構え、用途別のおすすめ設定までを図解。",
@@ -626,15 +636,6 @@ const MEMOS = [
       "インフラ"
     ],
     "date": "2026-11-01"
-  },
-  {
-    "file": "ecma.html",
-    "title": "Ecma TC 一覧",
-    "desc": "Ecma International の技術委員会 (TC39 など) をカードで一覧表示。",
-    "tags": [
-      "JavaScript"
-    ],
-    "date": "2026-10-31"
   }
 ];
 const QUIZZES = [
@@ -687,6 +688,11 @@ const QUIZZES = [
   {"file": "passkeys.html", "title": "パスキー（WebAuthn）", "q": "本物そっくりの偽サイトが、入力内容をリアルタイムで本物に中継する攻撃。SMS コードの二段階認証では防げないのに、パスキーでは防げるのはなぜ？", "choices": ["パスキーは署名がドメイン（RP ID・オリジン）に紐づき、ブラウザが偽ドメインでは使わせないから", "パスキーの方がコードの桁数が多いから", "パスキーは通信を暗号化するから"], "answer": 0, "explain": "SMS コードはただの文字列なので中継できる。パスキーはブラウザが今のオリジンを確認し、署名にもオリジンが含まれるので、偽ドメインからは本物で通る署名を得られない。", "ref": "#phishing"},
   {"file": "passkeys.html", "title": "パスキー（WebAuthn）", "q": "社内の管理者アカウントで、鍵がクラウドに同期されることを避けたい。合う構成は？", "choices": ["同期パスキーだけを許可する", "パスワード＋TOTP に戻す", "YubiKey などの端末固定パスキーを使い、予備のキーも登録する"], "answer": 2, "explain": "端末固定パスキーは鍵をコピーできず、そのハードウェアの中にしか存在しない。失くすと使えないので予備の登録が前提。", "ref": "#types"},
   {"file": "passkeys.html", "title": "パスキー（WebAuthn）", "q": "パスキーを導入したが「ボタンを探さないと使えない」と利用率が低い。ユーザー名欄の入力候補にパスキーを出すには？", "choices": ["パスワード欄を削除する", "ユーザー名欄に autocomplete=\"username webauthn\" を付け、mediation: 'conditional' で get() を呼ぶ", "ページを開いたら自動で create() を呼ぶ"], "answer": 1, "explain": "conditional mediation を使うと、パスワードの自動入力と同じ場所にパスキーが候補として並ぶ。勝手に create() を呼ぶと毎回登録ダイアログが出てしまう。", "ref": "#implement"},
+  {"file": "js-web-standards.html", "title": "JS と Web 標準の決まり方", "q": "ブラウザでも Node.js・Cloudflare Workers でも動くライブラリを作りたい。依存してよい API の目安は？", "choices": ["TC55 の Minimum Common API（ECMA-429）に入っている API", "ブラウザで動く API なら何でもよい（document や localStorage も含む）", "Node.js の node: モジュールなら、他のランタイムでも必ず動く"], "answer": 0, "explain": "Minimum Common API は、サーバー側ランタイムが共通で実装する Web API の範囲。document や localStorage は入っておらず、node: モジュールは標準の外。", "ref": "#mca"},
+  {"file": "js-web-standards.html", "title": "JS と Web 標準の決まり方", "q": "ブラウザでの setTimeout の正確な挙動（遅延の扱いなど）を仕様で確かめたい。どこを見る？", "choices": ["ECMAScript の仕様（ECMA-262）", "WHATWG の HTML Standard", "W3C の CSS の仕様"], "answer": 1, "explain": "タイマーとイベントループは言語ではなく HTML Standard で決まっている。Node.js は自前で実装しているので、挙動が違うことがある。", "ref": "#layers"},
+  {"file": "js-web-standards.html", "title": "JS と Web 標準の決まり方", "q": "気になっていた JavaScript の提案が Stage 2.7 になった。本番のコードで使い始めてよい？", "choices": ["使ってよい。設計が完成したので全ブラウザに入っている", "使ってよい。Stage 2.7 からは名前や構文が変わらないことが保証されている", "まだ待つ。テストと試作で検証中で、ブラウザの実装が本格化するのは Stage 3 から"], "answer": 2, "explain": "Stage 2.7 は検証の段階で、テストや試作の結果によっては変わりうる。Stage 3 以降で、実装状況を確かめてから使う。", "ref": "#tc39"},
+  {"file": "js-web-standards.html", "title": "JS と Web 標準の決まり方", "q": "HTML の仕様の最新の内容を確認したい。どれを見るのがよい？", "choices": ["WHATWG の HTML Living Standard", "W3C の HTML の勧告。WHATWG 版とは内容が別物", "W3C の勧告と WHATWG 版の両方を読み比べて、新しい方を採用する"], "answer": 0, "explain": "HTML と DOM の本体は WHATWG の Living Standard。W3C の勧告はそのスナップショットに承認を付けたもので、内容は同じ。", "ref": "#whatwg-w3c"},
+  {"file": "js-web-standards.html", "title": "JS と Web 標準の決まり方", "q": "Workers から外部 API に fetch したら、ブラウザでは付いていた Origin ヘッダーや Cookie が送られていなかった。どう考える？", "choices": ["ランタイムのバグなので、修正を待つ", "サーバーにはページのオリジンや Cookie の保存場所がないので、付かないのが前提。必要なら自分でヘッダーを付ける", "CORS の設定を有効にすれば自動で付くようになる"], "answer": 1, "explain": "サーバー側の fetch には「今開いているページ」がない。Origin や Cookie が必要な API には、自分でヘッダーを組み立てて送る。", "ref": "#tc55"},
   {"file": "http-cache.html", "title": "HTTP キャッシュ", "q": "デプロイしても一部のユーザーに古い画面が出続ける。HTML に Cache-Control: max-age=86400 が付いていた。根本的な対策は？", "choices": ["CDN をパージする", "HTML は no-cache（毎回再検証）にし、JS/CSS はファイル名ハッシュで長期キャッシュする", "HTML も JS も no-store にする"], "answer": 1, "explain": "URL が固定の HTML を長くキャッシュすると、ブラウザに残った分はパージでも消せない。HTML は毎回再検証、中身が変わると URL も変わるアセットは長期キャッシュ、が定番。no-store はキャッシュの利点を全部捨ててしまう。", "ref": "#recipes"},
   {"file": "http-cache.html", "title": "HTTP キャッシュ", "q": "ブラウザにキャッシュされた ETag 付きレスポンスが古くなった。次のアクセスでサーバーの内容が変わっていなければ何が返る？", "choices": ["本文なしの 304 Not Modified", "同じ本文の 200 OK", "キャッシュが古いので 410 Gone"], "answer": 0, "explain": "ブラウザは If-None-Match で手元の ETag を送り、一致すればサーバーは本文なしの 304 を返す。ブラウザは手元のコピーを使い、鮮度もリセットされる。", "ref": "#flow"},
   {"file": "http-cache.html", "title": "HTTP キャッシュ", "q": "マイページの API 応答が CDN にキャッシュされ、別のユーザーに他人の情報が表示された。最低限付けるべき指定は？", "choices": ["Cache-Control: no-cache", "Cache-Control: public, max-age=0", "Cache-Control: private（機微な情報なら no-store）"], "answer": 2, "explain": "private は共有キャッシュ（CDN）への保存を禁止する。no-cache は保存自体は許すので、CDN に残り得る。", "ref": "#layers"},
