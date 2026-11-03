@@ -58,6 +58,10 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 - 全ページの `<!-- memo:head -->` ブロック（ファビコン・iOS アイコン・OGP）も自動生成です。og:title / og:description は各ページの title / description から作られます
 - 画像は `docs/assets/`（`favicon.ico`, `icon-32.png`, `icon-192.png`, `apple-touch-icon.png`, `og.png`）。生成元は `branding/`（`og.html`・`icon.html` を `python3 branding/render.py` で書き出し。非公開）
 - master に `docs/*.html` が push されると、GitHub Actions が一覧を再生成します（GitHub の画面から HTML を直接アップロードしても載ります）
+- `build` は AI 向けの Markdown 版も自動生成します（手で編集しません）
+  - `docs/llms.txt`: 全メモの目次（タイトル・説明・タグ・日付と各 Markdown 版へのリンク）
+  - `docs/md/NAME.md`: 各メモの本文。SVG の図はラベルだけ「（図: …）」として残し、本文を JavaScript で描画するページはそのデータ部分を載せます
+  - 公開 URL は `https://memo.taka1156.site/llms.txt`。リポジトリを繋いでいない会話でも、この URL を渡せば Claude が過去のメモを参照できます
 
 ## 手でやる場合
 
