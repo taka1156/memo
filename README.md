@@ -6,7 +6,7 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 - トップページ: `docs/index.html`（メモ一覧・検索・タグ絞り込み・ランダムクイズ）
 - クイズページ: `docs/quiz.html`（ランダム 10 問・カテゴリ別 10 問。最後にスコアと正答一覧、本文へのリンク）
 - 設定ページ: https://memo.taka1156.site/settings.html（トップページのいちばん下の「設定」から開ける。アクセント色を試して、Actions の `Set accent color` で全ページに固定する。手順は memo-kit の README の「アクセント色を変える」）
-- 公開 URL: https://memo.taka1156.site/
+- 公開 URL: https://memo.taka1156.site/  
   （`docs/CNAME` の独自ドメイン。OGP の URL もここから自動で決まります）
 - 設定: `memo.config.json`（サイト名・説明・リポジトリ・ブランチ・タイムゾーン・アクセント色とアイコン/OGP 画像の文字。コードやスキルには直接書かない）
 - アイコン・OGP 画像: `memo.config.json` の `branding`（`icon: "lines"` で今の横線のアイコン）から `branding/render.py` で作る。設定ページから色を固定すると、Actions が画像も同じ色で作り直す
