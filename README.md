@@ -9,7 +9,7 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 - 公開 URL: https://memo.taka1156.site/
   （`docs/CNAME` の独自ドメイン。OGP の URL もここから自動で決まります）
 - 設定: `memo.config.json`（サイト名・説明・リポジトリ・ブランチ・タイムゾーン・アクセント色とアイコン/OGP 画像の文字。コードやスキルには直接書かない）
-- アイコン・OGP 画像: `docs/assets/` の今の画像をそのまま使う（`branding/render.py` を実行すると memo-kit のデザインで作り直されるので、変えたいときだけ実行する）
+- アイコン・OGP 画像: `memo.config.json` の `branding`（`icon: "lines"` で今の横線のアイコン）から `branding/render.py` で作る。設定ページから色を固定すると、Actions が画像も同じ色で作り直す
 
 ## Claude に頼むとき
 
