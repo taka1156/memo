@@ -7,7 +7,7 @@ import json
 import re
 
 from .config import (ASSETS, CONFIG, HEAD_BEGIN, HEAD_END, HEAD_RE, OG_VERSION, SITE_NAME, SITE_URL,
-                     SPECIAL_NAMES)
+                     SPECIAL_NAMES, accents)
 from .meta import parse_meta
 
 BACKLINK_ID = "memo-backlink"
@@ -50,9 +50,19 @@ def head_block(text: str, filename: str) -> str:
         '<meta property="og:image:width" content="1200">',
         '<meta property="og:image:height" content="630">',
         '<meta name="twitter:card" content="summary_large_image">',
+        accent_style(),
         HEAD_END,
     ]
     return "\n".join(lines) + "\n"
+
+
+def accent_style() -> str:
+    """memo.config.json の branding のアクセント色で、ページの --accent を上書きする。
+    各ページは :root と @media (prefers-color-scheme: dark) の :root で --accent を決めているので、
+    それより強い html:root で書く（ブロックの位置がページの <style> の前でも後でも効く）。"""
+    light, dark = accents()
+    return (f'<style id="memo-accent">html:root{{--accent:{light}}}'
+            f'@media (prefers-color-scheme: dark){{html:root{{--accent:{dark}}}}}</style>')
 
 
 def apply_head(text: str, filename: str) -> str:

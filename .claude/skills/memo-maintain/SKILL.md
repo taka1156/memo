@@ -17,7 +17,7 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 - **テストは本物のメモに頼らない。** 新しいテストは `tests/fixtures/` のサンプル（`Workspace()`）で書く。本物のメモを確かめるものだけ `RepositoryTest` に置く（メモがないと飛ばされる）。
 - **原本は 1 か所、それ以外は生成する。** 生成物（`docs/memos.json`・`quizzes.json`・`md/`・`llms.txt`・自動生成ブロック）を手で直さず、生成する側を直して `build` する。
 - **何度実行しても同じ結果になる。** lint・build・meta を 2 回続けて実行しても 2 回目は何も変わらないこと（テストで確かめている）。
-- **自動生成ブロックの目印（`<!-- memo:head` など）と `data-memo-site` の書き方は変えない。** 既存の 62 本以上のページがその目印で見つけられている。
+- **自動生成ブロックの目印（`<!-- memo:head` など）と `data-memo-site` の書き方は変えない。** 既存のページがその目印で見つけられている。
 
 ## モジュールの役割
 
@@ -25,7 +25,7 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 | --- | --- |
 | `scripts/memo.py` | コマンドの受け付け（`cmd_*` と `main`）だけ |
 | `memo.config.json` | サイトごとの値（サイト名・説明・リポジトリ・ブランチ・タイムゾーン） |
-| `memolib/config.py` | 置き場所・`memo.config.json` の読み込み・公開 URL・日付・自動生成ブロックの目印 |
+| `memolib/config.py` | 置き場所・`memo.config.json` の読み込み・公開 URL・日付・アクセント色の計算・自動生成ブロックの目印 |
 | `memolib/meta.py` | `<head>` のメタ情報の読み書き、名前からパスへの解決 |
 | `memolib/blocks.py` | 自動生成ブロック（memo:head・memo:quiz）、サイト設定の差し込み（`apply_site`）、フッター、クイズの問題データの検証 |
 | `memolib/entry.py` | アプリ側の入口スキル（`entry-skill/SKILL.md`）の中身 |
@@ -94,7 +94,7 @@ GitHub Actions は Python 3.12 で動く。手元に `python3.12` があれば�
 | モジュールの分け方 | `memo-detail.md`、このスキルの「モジュールの役割」 |
 | ワークフロー | `memo-detail.md` の「GitHub Actions」 |
 | 設定の項目 | `memolib/config.py` の `DEFAULTS`、`memo-detail.md` の「サイトごとの設定」、テストの `tests/fixtures/memo.config.json` |
-| 仕組みとして持っていくファイル | `memo-detail.md` の「仕組みだけを取り出す」、`tests/helpers.py` の `MECHANISM_DOCS` |
+| 仕組みとして残すファイル | `memo-detail.md` の「このキットから始める」、`tests/helpers.py` の `MECHANISM_DOCS` |
 | スキルの追加 | README の 2 つの表に 1 行ずつ |
 
 `memo-detail.md` の Mermaid の図を変えたら、描画できることを確かめる（構文エラーだと GitHub で図が出ない）。

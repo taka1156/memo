@@ -8,7 +8,7 @@ import sys
 from html.parser import HTMLParser
 from pathlib import Path
 
-from .config import DOCS, HEAD_RE, NAME_RE, ROOT, SPECIAL_NAMES
+from .config import DOCS, HEAD_RE, NAME_RE, ROOT, SPECIAL_NAMES, read_text
 
 class _Meta(HTMLParser):
     def __init__(self) -> None:
@@ -41,7 +41,7 @@ def parse_meta(text: str) -> tuple[dict, str]:
 
 def read_meta(path: Path) -> dict:
     p = _Meta()
-    p.feed(HEAD_RE.sub("", path.read_text(encoding="utf-8")))
+    p.feed(HEAD_RE.sub("", read_text(path)))
     m = p.meta
     tags = [t.strip() for t in m.get("memo:tags", "").split(",") if t.strip()]
     return {

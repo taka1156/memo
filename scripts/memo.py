@@ -46,7 +46,7 @@ from pathlib import Path
 
 from memolib.blocks import apply_generated
 from memolib.config import (CONFIG, CONFIG_FILE, DOCS, ENTRY_SKILL, ROOT, SITE_URL, SPECIAL_NAMES, SPECIAL_PAGES,
-                            TEMPLATE, today)
+                            TEMPLATE, read_text, repository_warning, today)
 from memolib.entry import entry_skill
 from memolib.lint import lint_text
 from memolib.markdown import MD_DIR, build_markdown
@@ -58,7 +58,7 @@ def cmd_lint(args) -> int:
     bad = 0
     for f in args.files:
         path = memo_path(f)
-        text = path.read_text(encoding="utf-8")
+        text = read_text(path)
         new, fixed, problems = lint_text(text, args.backlink, path.name)
         print(f"== {path.name}")
         if fixed:
@@ -78,7 +78,7 @@ def cmd_lint(args) -> int:
 
 def cmd_meta(args) -> int:
     path = memo_path(args.file)
-    text = path.read_text(encoding="utf-8")
+    text = read_text(path)
     if args.title is not None:
         t = html.escape(args.title, quote=False)
         if re.search(r"<title>.*?</title>", text, re.I | re.S):
@@ -95,7 +95,12 @@ def cmd_meta(args) -> int:
         text = set_meta(text, "memo:tags", tags)
     if args.date is not None:
         date = args.date or today()
-        dt.date.fromisoformat(date)  # 形式チェック
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+            sys.exit(f"--date は YYYY-MM-DD で書いてください（例: 2026-01-05）: {date}")
+        try:
+            dt.date.fromisoformat(date)
+        except ValueError:
+            sys.exit(f"--date の日付がありえない値です: {date}")
         text = set_meta(text, "memo:date", date)
     path.write_text(apply_generated(text, path.name), encoding="utf-8")
     print(json.dumps(read_meta(path), ensure_ascii=False, indent=2))
@@ -103,9 +108,12 @@ def cmd_meta(args) -> int:
 
 
 def cmd_build(args) -> int:
+    warning = repository_warning()
+    if warning:
+        print(warning, file=sys.stderr)
     stale = []
     for p in memo_files():
-        text = p.read_text(encoding="utf-8")
+        text = read_text(p)
         new = apply_generated(text, p.name)
         if new != text:
             stale.append(p.name)
@@ -116,14 +124,14 @@ def cmd_build(args) -> int:
     memos, quizzes = site_data()
     outdated = []
     for path, body in ((MEMOS_JSON, memos_json(memos, quizzes)), (QUIZZES_JSON, quizzes_json(quizzes))):
-        if not path.is_file() or path.read_text(encoding="utf-8") != body:
+        if not path.is_file() or read_text(path) != body:
             outdated.append(path.name)
             if not args.check:
                 path.write_text(body, encoding="utf-8")
     for page in SPECIAL_PAGES:  # トップ・クイズページは head（アイコン・OGP）とサイト設定だけ更新する
         if not page.is_file():
             continue
-        src = page.read_text(encoding="utf-8")
+        src = read_text(page)
         new = apply_generated(src, page.name)
         if new != src:
             outdated.append(page.name)
@@ -171,7 +179,7 @@ def cmd_add(args) -> int:
     if target.exists() and not args.force:
         sys.exit(f"すでにあります: {target.relative_to(ROOT)}（上書きは --force）")
     if src.resolve() != target.resolve():
-        target.write_text(strip_fence(src.read_text(encoding="utf-8")), encoding="utf-8")
+        target.write_text(strip_fence(read_text(src)), encoding="utf-8")
     print(target)
     return 0
 
@@ -221,7 +229,7 @@ def cmd_preview(args) -> int:
     if out.resolve() == src:
         sys.exit("出力先が元のファイルと同じです（-o で別の場所を指定）")
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(preview_text(strip_fence(src.read_text(encoding="utf-8")), src.name), encoding="utf-8")
+    out.write_text(preview_text(strip_fence(read_text(src)), src.name), encoding="utf-8")
     print(out)
     return 0
 

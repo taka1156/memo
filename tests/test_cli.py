@@ -162,7 +162,24 @@ class NewAddMetaTest(unittest.TestCase):
 
     def test_meta_rejects_bad_date(self):
         with Workspace() as ws:
-            self.assertNotEqual(ws.run("meta", "sample", "--date", "2026-13-40", check=False).returncode, 0)
+            for bad, msg in (("2026-13-40", "ありえない"), ("tomorrow", "YYYY-MM-DD"), ("2026/01/05", "YYYY-MM-DD"),
+                             ("2026-1-5", "YYYY-MM-DD")):
+                p = ws.run("meta", "sample", "--date", bad, check=False)
+                self.assertNotEqual(p.returncode, 0, bad)
+                self.assertIn(msg, p.stderr, bad)
+                self.assertNotIn("Traceback", p.stderr, bad)
+
+    def test_non_utf8_html_is_reported_by_name(self):
+        with Workspace() as ws:
+            src = ws.root / "sjis.html"
+            src.write_bytes("<html><head><title>テスト</title></head></html>".encode("shift_jis"))
+            p = ws.run("add", str(src), "sj", check=False)
+            self.assertNotEqual(p.returncode, 0)
+            self.assertIn("sjis.html: UTF-8 で読めません", p.stderr)
+            (ws.docs / "broken.html").write_bytes(b"\xff\xfe<html>")
+            p = ws.run("build", check=False)
+            self.assertIn("docs/broken.html: UTF-8 で読めません", p.stderr)
+            self.assertNotIn("Traceback", p.stderr)
 
 
 class LintTest(unittest.TestCase):
@@ -284,7 +301,8 @@ class SiteConfigTest(unittest.TestCase):
 
     def test_changing_config_updates_everything_on_build(self):
         with Workspace() as ws:
-            cfg = {**self.config(ws), "site_name": "NOTES", "repository": "alice/notes", "branch": "trunk"}
+            cfg = {**self.config(ws), "site_name": "NOTES", "repository": "alice/notes", "branch": "trunk",
+                   "branding": {"accent": "#ff5500", "accent_light": "#aa3300"}}
             (ws.root / "memo.config.json").write_text(json.dumps(cfg), encoding="utf-8")
             (ws.docs / "CNAME").unlink()
             p = ws.run("build", "--check", check=False)
@@ -296,11 +314,41 @@ class SiteConfigTest(unittest.TestCase):
             self.assertIn('content="https://alice.github.io/notes/"', index)
             sample = (ws.docs / "sample.html").read_text(encoding="utf-8")
             self.assertIn('<meta property="og:site_name" content="NOTES">', sample)
+            for page_text in (index, sample, (ws.docs / "quiz.html").read_text(encoding="utf-8")):
+                self.assertIn("html:root{--accent:#aa3300}", page_text)
+                self.assertIn("html:root{--accent:#ff5500}}", page_text)
             entry = (ws.root / ENTRY_REL).read_text(encoding="utf-8")
             self.assertIn("https://github.com/alice/notes.git notes", entry)
             self.assertIn("raw.githubusercontent.com/alice/notes/trunk/README.md", entry)
             self.assertEqual(ws.run("url").stdout.strip(), "https://alice.github.io/notes/")
             self.assertEqual(ws.run("build", "--check", check=False).returncode, 0)
+
+    def test_broken_config_stops_with_message_not_traceback(self):
+        with Workspace() as ws:
+            (ws.root / "memo.config.json").write_text('{"utc_offset_hours": "9"}', encoding="utf-8")
+            p = ws.run("build", check=False)
+            self.assertNotEqual(p.returncode, 0)
+            self.assertIn("utc_offset_hours は数値", p.stderr)
+            self.assertNotIn("Traceback", p.stderr)
+
+    def test_entry_skill_name_is_a_valid_skill_name(self):
+        with Workspace() as ws:
+            cfg = {**self.config(ws), "repository": "Alice/My.Notes"}
+            (ws.root / "memo.config.json").write_text(json.dumps(cfg), encoding="utf-8")
+            ws.run("build")
+            entry = (ws.root / ENTRY_REL).read_text(encoding="utf-8")
+            self.assertIn('name: "my-notes"', entry)
+            self.assertIn("https://github.com/Alice/My.Notes.git My.Notes", entry)  # clone 先はリポジトリ名のまま
+
+    def test_build_warns_when_repository_is_placeholder(self):
+        with Workspace() as ws:
+            self.assertNotIn("警告", ws.run("build").stderr)
+            for repo in ("repo/sample", ""):
+                cfg = {**self.config(ws), "repository": repo}
+                (ws.root / "memo.config.json").write_text(json.dumps(cfg), encoding="utf-8")
+                p = ws.run("build")  # 警告だけで止めない
+                self.assertIn("警告", p.stderr)
+                self.assertIn("repository", p.stderr)
 
     def test_unknown_config_key_is_an_error(self):
         with Workspace() as ws:

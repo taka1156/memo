@@ -6,7 +6,7 @@ import re
 import sys
 
 from .blocks import QUIZ_CSS, QUIZ_CSS_TAG, QUIZ_JS, QUIZ_JS_TAG, apply_generated, read_quiz, validate_quiz
-from .config import DOCS, SPECIAL_NAMES
+from .config import DOCS, SPECIAL_NAMES, read_text
 from .meta import memo_files, read_meta
 
 MEMOS_JSON = DOCS / "memos.json"      # 一覧（トップページと quiz.html が読む）
@@ -38,7 +38,7 @@ def collect_quizzes(memos: list[dict]) -> list[dict]:
     """全メモの問題を集める（形の崩れた問題は飛ばして警告）。"""
     out = []
     for m in memos:
-        qs, probs = read_quiz((DOCS / m["file"]).read_text(encoding="utf-8"))
+        qs, probs = read_quiz(read_text(DOCS / m["file"]))
         if probs:
             print(f"{m['file']}: クイズに問題あり（lint で確認）: " + " / ".join(probs), file=sys.stderr)
         if not isinstance(qs, list):

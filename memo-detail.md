@@ -23,7 +23,7 @@
 - [GitHub Actions](#github-actions)
 - [コードの構成とテスト](#コードの構成とテスト)
 - [変更したいときはどこを触るか](#変更したいときはどこを触るか)
-- [仕組みだけを取り出す](#仕組みだけを取り出す)
+- [このキットから始める](#このキットから始める)
 
 ## 基本の考え方
 
@@ -109,7 +109,7 @@ flowchart LR
     direction TB
     h1["charset / viewport<br/>（無ければ lint が追加）"]
     h2["title・description・memo:tags・memo:date<br/>（手で書く or meta コマンド）"]
-    h3["&lt;!-- memo:head --&gt; ブロック<br/>アイコン・OGP（自動生成）"]
+    h3["&lt;!-- memo:head --&gt; ブロック<br/>アイコン・OGP・アクセント色（自動生成）"]
     h4["&lt;style&gt; ページ固有の CSS"]
     h1 ~~~ h2 ~~~ h3 ~~~ h4
   end
@@ -204,6 +204,7 @@ GitHub の画面から HTML を直接アップロードした場合も、Actions
 
 - `new` は `.claude/skills/memo-style/template.html` をコピーするだけです。同名のファイルがあれば止まります。
 - `add` は外部の HTML を取り込みます。Markdown のコードブロック（```` ```html ... ``` ````）に包まれていれば中身だけを取り出します。同名のファイルがあれば止まり、`--force` で上書きします。
+- メモと取り込む HTML は UTF-8 で読みます。UTF-8 で読めないファイル（Shift_JIS など）があると、どのコマンドでもそのファイル名を示して止まります。
 
 ### lint
 
@@ -229,7 +230,7 @@ GitHub の画面から HTML を直接アップロードした場合も、Actions
 指定した項目だけを書き換え、最後に自動生成ブロックを作り直します（OGP のタイトル・説明が新しいメタ情報に追従します）。
 
 - `--tags` はカンマ区切りで渡し、前後の空白を整えて保存します。
-- `--date` は値を付ければその日付、値なしなら**設定のタイムゾーン（このリポジトリは日本時間）の今日**です（[日付と URL の決まり方](#日付と-url-の決まり方)）。
+- `--date` は値を付ければその日付（`YYYY-MM-DD`。形式やありえない日付はエラー）、値なしなら**設定のタイムゾーン（`utc_offset_hours`）の今日**です（[日付と URL の決まり方](#日付と-url-の決まり方)）。
 
 ### build
 
@@ -237,7 +238,7 @@ GitHub の画面から HTML を直接アップロードした場合も、Actions
 
 ```mermaid
 flowchart TB
-  s1["① 各メモの自動生成ブロックを最新にする<br/>memo:head（アイコン・OGP）/ memo:quiz（クイズ表示）"]
+  s1["① 各メモの自動生成ブロックを最新にする<br/>memo:head（アイコン・OGP・アクセント色）/ memo:quiz（クイズ表示）"]
   s2["② 全メモの &lt;head&gt; を読んで一覧を作る<br/>日付の新しい順"]
   s3["③ 全メモの問題データを集める<br/>形の崩れた問題は飛ばして警告"]
   s4["④ docs/memos.json と docs/quizzes.json を書く"]
@@ -247,6 +248,7 @@ flowchart TB
   s1 --> s2 --> s3 --> s4 --> s5 --> s6 --> s7
 ```
 
+- `memo.config.json` の `repository` が空・`owner/name` の形でない・テンプレートの値（`repo/sample`）のままのときは、最初に警告を出します（止めずに続けます）。入口スキルの clone 先や公開 URL がおかしくなるのを防ぐためです。
 - `--check` は何も書き込まず、古いファイルがあれば名前を表示して終了コード 1 を返します。
 - `memos.json` の各メモには、そのメモの問題数（`quizzes`）も入ります。トップページはこれを足してランダムクイズの問題数を表示し、問題本体（`quizzes.json`）はランダムクイズを開いたときに初めて読み込みます。
 
@@ -279,7 +281,7 @@ flowchart LR
 
 | ブロック | 入る場所 | 中身 | 作るもの |
 | --- | --- | --- | --- |
-| `<!-- memo:head -->` 〜 `<!-- /memo:head -->` | `</head>` の直前 | ファビコン・iOS アイコン・OGP（`og:title` / `og:description` は title / description から） | `lint`・`meta`・`build`・`preview` |
+| `<!-- memo:head -->` 〜 `<!-- /memo:head -->` | `</head>` の直前 | ファビコン・iOS アイコン・OGP（`og:title` / `og:description` は title / description から）、アクセント色（`branding.accent`・`accent_light`） | `lint`・`meta`・`build`・`preview` |
 | `<!-- memo:quiz -->` 〜 `<!-- /memo:quiz -->` | フッターの直前（無ければ `</body>` の直前） | クイズ表示の枠と、`assets/memo-quiz.css`・`.js` への参照。問題データが無いメモには入らない | `lint`・`meta`・`build`・`preview` |
 | `data-memo-site` の付いた要素・属性 | `index.html`・`quiz.html` の書いた場所 | `memo.config.json` の値（[サイトごとの設定](#サイトごとの設定memoconfigjson)）。目印の属性は残る | `build`・`preview` |
 | `<footer id="memo-backlink">` | `</body>` の直前 | 「← 一覧に戻る」リンク。スタイルはインラインで完結 | `lint --backlink`（無いときだけ追加） |
@@ -325,22 +327,38 @@ flowchart LR
 - 本文の大半を JavaScript のデータから描画するページは、HTML からは中身が取れないので、そのスクリプトをコードブロックとして末尾に付けます。
 - 別のメモへのリンクは、そのメモの Markdown 版へのリンクに置き換えます。
 
-公開 URL は `python3 scripts/memo.py url` の後ろに `llms.txt` を付けたもの（このリポジトリは `https://memo.taka1156.site/llms.txt`）です。リポジトリを繋いでいない会話でも、この URL を渡せば Claude が過去のメモを参照できます。
+公開 URL は `python3 scripts/memo.py url` の後ろに `llms.txt` を付けたもの（例: `https://alice.github.io/notes/llms.txt`）です。リポジトリを繋いでいない会話でも、この URL を渡せば Claude が過去のメモを参照できます。
 
 ## サイトごとの設定（memo.config.json）
 
 サイトごとに変わる値は、リポジトリ直下の `memo.config.json` に 1 か所だけ書きます。コード・スキル・ページはここから読むので、別のリポジトリで使うときもこのファイルと `docs/CNAME` を変えれば済みます。
 
-| 項目 | 使われる場所 | このリポジトリの値 |
+| 項目 | 使われる場所 | 既定値 |
 | --- | --- | --- |
-| `site_name` | 各ページの OGP・iOS アイコン名、トップとクイズのページの `<title>`・見出し、`llms.txt` の見出し | `MEMO` |
-| `description` | トップページの説明（本文と `<meta name="description">`、OGP） | Claude に作ってもらった解説ページの置き場 |
-| `llms_description` | `llms.txt` の冒頭の説明（空なら書かない） | Claude に作ってもらった技術解説ページ… |
-| `repository` | トップページのリンク、`docs/CNAME` が無いときの公開 URL、入口スキル | `taka1156/memo` |
-| `branch` | スキルの push 先（`python3 scripts/memo.py config branch` で読む）、入口スキルの raw URL | `master` |
-| `utc_offset_hours` | `meta --date` の「今日」 | `9`（日本時間） |
+| `site_name` | 各ページの OGP・iOS アイコン名、トップとクイズのページの `<title>`・見出し、`llms.txt` の見出し、入口スキルの説明、アイコン・OGP 画像の文字 | `MEMO` |
+| `description` | トップページの説明（本文と `<meta name="description">`、OGP）、OGP 画像の説明文 | 空 |
+| `llms_description` | `llms.txt` の冒頭の説明（空なら書かない） | 空 |
+| `repository` | トップページのリンク、`docs/CNAME` が無いときの公開 URL、入口スキル（clone 先・スキル名） | 空（`build` が警告） |
+| `branch` | スキルの push 先（`python3 scripts/memo.py config branch` で読む）、入口スキルの raw URL | `main` |
+| `utc_offset_hours` | `meta --date` の「今日」 | `0`（日本なら `9`） |
+| `branding` | 全ページのアクセント色（`memo:head` に入る）と、アイコン・OGP 画像（`branding/render.py`）。下の表 | `{}` |
 
-- 書かなかった項目は既定値（`scripts/memolib/config.py` の `DEFAULTS`）になります。知らない項目があるとエラーで止まります（綴りの間違いに気づけるように）。
+`branding` の中の項目（空欄はほかの設定から埋まります）:
+
+| 項目 | 使われる場所 | 空のとき |
+| --- | --- | --- |
+| `title` | OGP 画像の大きな文字（長ければ縮めて、それでも入らなければ … で切る） | `site_name` |
+| `tagline` | OGP 画像の説明文（2 行まで） | `description` |
+| `url` | OGP 画像に小さく出す URL | 公開 URL のホスト名とパス |
+| `mark` | アイコンの文字（1〜2 文字がおすすめ） | `title` の先頭 1 文字 |
+| `accent` | ダークモードのページの `--accent`（見出し・強調・リンク）と、`theme: dark` の画像の色（題字・余白線・ペン）。`#rgb` か `#rrggbb` | 空にはできない（既定 `#00d4ff`） |
+| `accent_light` | ライトモードのページの `--accent` と、`theme: light` の画像の色 | `accent` を白地とのコントラスト比 4.5 以上になるまで暗くした色 |
+| `theme` | 画像のテーマ。`dark` か `light`（ページはライト・ダークの両方に自動で対応） | `dark` |
+
+- 書き間違い（JSON の書式、文字列であるべき項目に数値、`site_name`・`branch` が空、`utc_offset_hours` が -24〜24 の外など）は、項目名と直し方を示して止まります（traceback は出しません）。
+- 書かなかった項目は既定値（`scripts/memolib/config.py` の `DEFAULTS`・`BRANDING_DEFAULTS`）になります。知らない項目や、`accent`・`accent_light`・`theme` のおかしな値があるとエラーで止まります（綴りの間違いに気づけるように）。
+- アクセント色は `build` が全ページの `memo:head` に `<style id="memo-accent">` として入れます。各ページの `:root` の `--accent` より強い `html:root` で書くので、ページ側の値（テンプレートの既定値）は上書きされます。
+- `branding` を変えても `build` だけでは画像は変わりません。`python3 branding/render.py` で作り直します（[日付と URL の決まり方](#日付と-url-の決まり方) の「URL」）。
 - `python3 scripts/memo.py config` で今の設定（と公開 URL）を表示できます。
 
 **トップとクイズのページへの差し込み**
@@ -359,6 +377,8 @@ flowchart LR
 
 claude.ai のアプリに置く入口スキルは「このリポジトリを取ってきて、ここのスキルに従う」だけのものです。リポジトリ名とブランチだけはアプリ側で知っている必要があるので、`build` が設定から `entry-skill/SKILL.md` を作ります。設定を変えたら、これをアプリ側のスキルに貼り直します。
 
+スキル名はリポジトリ名から作ります。スキル名に使えるのは小文字・数字・ハイフンだけなので、大文字は小文字に、それ以外の文字（`.` `_` など）はハイフンにします（`Alice/My.Notes` → `my-notes`、`alice/alice.github.io` → `alice-github-io`。64 文字まで）。clone 先のフォルダ名はリポジトリ名のままです。
+
 ## 日付と URL の決まり方
 
 **日付（`memo:date`）**
@@ -369,7 +389,7 @@ flowchart LR
   a -- ない --> c["git でそのファイルが<br/>最初に追加された日"]
 ```
 
-- `meta --date` を値なしで実行すると、**`memo.config.json` の `utc_offset_hours` のタイムゾーンでの今日**が入ります（このリポジトリは 9 = 日本時間）。実行環境の時計が UTC でも、日本時間の朝 9 時前に前日の日付になることはありません。
+- `meta --date` を値なしで実行すると、**`memo.config.json` の `utc_offset_hours` のタイムゾーンでの今日**が入ります（日本なら 9）。実行環境の時計が UTC でも、たとえば日本時間の朝 9 時前に前日の日付になることはありません。
 - `meta --date 2026-11-04` のように値を付ければその日付になります。
 - 登録後は `memo.py list` で日付を確認します。
 
@@ -377,7 +397,8 @@ flowchart LR
 
 - 公開 URL は `docs/CNAME` の独自ドメインから決まります（無ければ `memo.config.json` の `repository` から GitHub Pages の URL `https://OWNER.github.io/REPO/` を作ります）。`og:url`・`og:image` の絶対 URL にも使います。
 - `og:image` には `og.png` の中身から作った短いハッシュ（`?v=…`）を付けます。画像を差し替えると URL が変わり、SNS 側の画像キャッシュが古いまま残るのを防げます。
-- アイコンと OGP 画像の生成元は `branding/`（`og.html`・`icon.html`）で、`python3 branding/render.py` で `docs/assets/` に書き出します（`branding/` は公開されません）。
+- アイコンと OGP 画像の生成元は `branding/`（`og.html`・`icon.html`・`leaf.css`）で、`python3 branding/render.py` で `docs/assets/` に書き出します（`branding/` は公開されません）。文字と色は `memo.config.json`（`site_name`・`description`・公開 URL と `branding`）から差し込むので、HTML を直接書き換える必要はありません。
+- `render.py` だけは標準ライブラリでは動きません（playwright と chromium、Pillow、フォント Noto Sans CJK JP / DejaVu Sans Mono が必要。README の「必要なもの」）。Actions では動かさないので、設定を変えたら手元で実行し、できた画像をコミットします。`og.png` が変わると、次の `build` で `og:image` の `?v=` が更新されます。
 
 ## 表示の確認とプレビュー
 
@@ -404,8 +425,10 @@ python3 scripts/memo.py preview 下書き.html -o /tmp/NAME.html
 | 項目 | 内容 |
 | --- | --- |
 | 起動する変更 | `docs/*.html`・`docs/CNAME`・`scripts/` 以下・`docs/assets/og.png`・`memo.config.json`（手動実行も可） |
-| 手順 | 履歴ごと checkout（日付の推定に使う）→ 全メモを `lint`（報告のみ）→ `build` |
+| 手順 | 履歴ごと checkout（日付の推定に使う）→ 全メモを `lint`（報告のみ。メモが 0 本なら省略）→ `build` |
 | コミット | `docs/`・`entry-skill/` に変更（新しく生成されたファイルを含む）があれば `Rebuild MEMO index` としてコミット・push |
+| 同時実行 | 同じブランチの実行は 1 本ずつ順番に動く（`concurrency`。途中で止めない） |
+| push の競合 | build 中に別の push が来てこちらの push が拒否されたら、最新を取り込んで `build` し直し、もう一度 push する（最大 3 回。それでもだめなら失敗にする） |
 
 ローカルで `build` してから push していれば、Actions 側では差分が出ません。
 
@@ -484,7 +507,9 @@ python3 -B tests/snapshot.py OUTDIR            # 全コマンドの出力を保�
 | 確認クイズの見た目・動き | `docs/assets/memo-quiz.css`・`.js` | 何もしなくてよい（全メモに反映） |
 | クイズ表示の枠（HTML）・入る場所 | `memolib/blocks.py` の `QUIZ_BLOCK`・`apply_quiz` | `build`（全メモが書き換わる） |
 | アイコン・OGP のタグ | `memolib/blocks.py` の `head_block` | `build`（全ページが書き換わる） |
-| アイコン・OGP 画像 | `branding/` | `python3 branding/render.py` → `build` |
+| サイトのアクセント色 | `memo.config.json` の `branding.accent`・`accent_light` | `python3 branding/render.py` → `build`（全ページが書き換わる） |
+| アイコン・OGP 画像の文字・色 | `memo.config.json`（`site_name`・`description`・`branding`） | `python3 branding/render.py` → `build` |
+| アイコン・OGP 画像のデザイン | `branding/`（`og.html`・`icon.html`・`leaf.css`、テーマの色は `render.py` の `THEMES`） | `python3 branding/render.py` → `build` |
 | トップページ・クイズページの見た目 | `docs/index.html`・`docs/quiz.html` | 何もしなくてよい（サイト名などを入れる場所を増やしたら `build`） |
 | サイト名・説明・リポジトリ・ブランチ・タイムゾーン | `memo.config.json` | `build`（全ページ・入口スキルが書き換わる。入口スキルはアプリ側にも貼り直す） |
 | 一覧に載せる項目 | `memolib/meta.py` の `read_meta`、`memolib/site.py` の `memos_json` | `build` |
@@ -494,11 +519,11 @@ python3 -B tests/snapshot.py OUTDIR            # 全コマンドの出力を保�
 | 上の表にないスクリプトの処理 | `scripts/memolib/` の該当モジュール（[コードの構成とテスト](#コードの構成とテスト)） | [memo-maintain](.claude/skills/memo-maintain/SKILL.md) の手順でテストと前後比較 |
 
 
-## 仕組みだけを取り出す
+## このキットから始める
 
-このリポジトリはメモ（中身）と仕組みが同じ場所にありますが、仕組みだけを別のリポジトリにして使えるように分けてあります。
+メモ（中身）と仕組みは分けてあり、仕組みは本物のメモがなくても動きます。テンプレートから作ったリポジトリでは、サンプルのメモと生成物を消して設定を書き換えれば自分のサイトになります（README の「はじめかた」と同じ手順の詳細です）。
 
-**仕組み（持っていくもの）**
+**仕組み（残すもの）**
 
 | 場所 | 中身 |
 | --- | --- |
@@ -507,26 +532,26 @@ python3 -B tests/snapshot.py OUTDIR            # 全コマンドの出力を保�
 | `.github/workflows/` | 生成とテストのワークフロー |
 | `docs/index.html`・`docs/quiz.html`・`docs/assets/` | トップ・クイズのページ、クイズの共通ファイル、アイコン |
 | `branding/` | アイコンと OGP 画像の生成元 |
-| `memo.config.json`・`README.md`・`memo-detail.md`・`.gitignore` | 設定と説明 |
+| `memo.config.json`・`README.md`・`memo-detail.md`・`LICENSE`・`.gitignore` | 設定・説明・ライセンス |
 
-**中身（持っていかないもの）**
+**サンプルの中身（消すもの）**
 
 | 場所 | 中身 |
 | --- | --- |
-| `docs/` 直下の上記以外の `*.html` | メモ本体 |
+| `docs/` 直下の上記以外の `*.html` | サンプルのメモ（`sample.html`・`sample-plain.html`） |
 | `docs/md/`・`docs/memos.json`・`docs/quizzes.json`・`docs/llms.txt`・`entry-skill/` | 生成物（`build` で作り直す） |
-| `docs/CNAME` | このサイトの独自ドメイン |
 
 **手順**
 
 ```bash
-# 1. メモと生成物、独自ドメインを消す
+# 1. サンプルのメモと生成物を消す
 find docs -maxdepth 1 -name '*.html' ! -name index.html ! -name quiz.html -delete
-rm -rf docs/md docs/memos.json docs/quizzes.json docs/llms.txt docs/CNAME entry-skill
-# 2. memo.config.json の site_name・description・repository・branch・utc_offset_hours を新しいリポジトリに合わせる
+rm -rf docs/md docs/memos.json docs/quizzes.json docs/llms.txt entry-skill
+# 2. memo.config.json の site_name・description・llms_description・repository・branch・utc_offset_hours・branding を自分のリポジトリに合わせる
 # 3. 作り直して確かめる
-python3 scripts/memo.py build
+python3 branding/render.py                 # アイコン・OGP 画像を設定から作り直す（要: playwright など）
+python3 scripts/memo.py build              # repository を書き換え忘れていると警告が出る
 python3 -B -m unittest discover -s tests   # 本物のメモを見るテストは飛ばされる
 ```
 
-あとは必要に応じて `branding/` から自分のアイコン・OGP 画像を作り直し（`python3 branding/render.py`）、README の公開 URL や説明を書き換え、GitHub Pages の公開元を `docs/` にします。`entry-skill/SKILL.md` をアプリ側のスキルとして登録すれば、アプリからも使えます。
+あとは GitHub の設定（Pages の公開元・Actions の書き込み権限）を README の「はじめかた」のとおりにし、`entry-skill/SKILL.md` をアプリ側のスキルとして登録すれば、アプリからも使えます。

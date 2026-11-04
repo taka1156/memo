@@ -6,22 +6,34 @@ build が生成するので手で編集しない（変えたいときはここ�
 """
 from __future__ import annotations
 
+import re
+
 from .config import BRANCH, REPOSITORY, SITE_NAME
+
+SKILL_NAME_MAX = 64  # スキル名の長さの上限
 
 ENTRY_NOTE = "<!-- scripts/memo.py build が memo.config.json から自動生成。手で編集しない -->"
 
 
+def skill_name(repository: str) -> str:
+    """リポジトリ名からスキル名を作る。スキル名に使えるのは小文字・数字・ハイフンだけなので、
+    大文字は小文字にし、それ以外の文字（. _ など）はハイフンにまとめる（例: Alice/My.Notes → my-notes）。"""
+    name = re.sub(r"[^a-z0-9]+", "-", repository.split("/")[-1].lower()).strip("-")
+    return name[:SKILL_NAME_MAX].rstrip("-") or "memo"
+
+
 def entry_skill() -> str:
     repo = REPOSITORY or "OWNER/REPO"
-    folder = repo.split("/")[-1]
+    folder = repo.split("/")[-1]  # clone 先のフォルダ名（git clone の既定と同じ）
+    name = skill_name(repo)
     raw = f"https://raw.githubusercontent.com/{repo}/{BRANCH}"
     return f"""---
-name: "{folder}"
+name: "{name}"
 description: "{repo}（{SITE_NAME}）に関する依頼の入口。HTMLで図解してまとめる、{SITE_NAME}に保存、ファクトチェックなど。手順はGitHubのリポジトリから取得して従う。"
 ---
 {ENTRY_NOTE}
 
-# {folder}（入口スキル）
+# {name}（入口スキル）
 
 このスキルには手順もデザイン規約も書かない。**信頼できる唯一の情報源は GitHub の `{repo}` リポジトリ**。毎回そこから最新版を取得し、そこに書かれたスキルに従う。
 

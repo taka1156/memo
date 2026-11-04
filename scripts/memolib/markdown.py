@@ -5,7 +5,7 @@ import re
 from html.parser import HTMLParser
 
 from .blocks import BACKLINK_ID, QUIZ_RE
-from .config import CONFIG, DOCS, HEAD_RE, SITE_NAME, SITE_URL, SPECIAL_NAMES
+from .config import CONFIG, DOCS, HEAD_RE, SITE_NAME, SITE_URL, SPECIAL_NAMES, read_text
 
 #
 # build は各メモの本文を Markdown にして docs/md/NAME.md に、全メモの目次を docs/llms.txt に書き出す。
@@ -326,11 +326,11 @@ def llms_txt(memos: list[dict]) -> str:
 def build_markdown(memos: list[dict], check: bool) -> list[str]:
     """docs/md/*.md と docs/llms.txt を書き出し、変わった（check なら古い）ファイル名を返す。"""
     want = {MD_DIR / f"{m['file'][:-5]}.md": memo_markdown(
-        (DOCS / m["file"]).read_text(encoding="utf-8"), m) for m in memos}
+        read_text(DOCS / m["file"]), m) for m in memos}
     want[LLMS_TXT] = llms_txt(memos)
     changed = []
     for path, content in want.items():
-        if not path.is_file() or path.read_text(encoding="utf-8") != content:
+        if not path.is_file() or read_text(path) != content:
             changed.append(str(path.relative_to(DOCS)))
             if not check:
                 path.parent.mkdir(exist_ok=True)
