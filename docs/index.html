@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MEMO</title>
-<meta name="description" content="Claude に作ってもらった解説ページの置き場">
+<title data-memo-site="{site_name}">MEMO</title>
+<meta name="description" content="Claude に作ってもらった解説ページの置き場" data-memo-site-content="{description}">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
 <style>
 :root {
@@ -177,13 +177,14 @@ footer a { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#0077b6}@media (prefers-color-scheme: dark){html:root{--accent:#00d4ff}}</style>
 <!-- /memo:head -->
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>MEMO</h1>
-    <p class="lead">Claude に作ってもらった解説ページの置き場</p>
+    <h1 data-memo-site="{site_name}">MEMO</h1>
+    <p class="lead" data-memo-site="{description}">Claude に作ってもらった解説ページの置き場</p>
   </header>
 
   <div class="controls">
@@ -214,7 +215,7 @@ footer a { color: var(--accent); }
   <p class="empty" id="empty" hidden>該当するメモがありません</p>
 
   <footer>
-    <a href="https://github.com/taka1156/memo">github.com/taka1156/memo</a>
+    <a href="https://github.com/taka1156/memo" data-memo-site="github.com/{repository}" data-memo-site-href="https://github.com/{repository}">github.com/taka1156/memo</a>
   </footer>
 </div>
 

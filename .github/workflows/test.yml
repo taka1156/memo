@@ -2,13 +2,16 @@ name: Test memo.py
 
 # scripts/（memo.py・memolib）やテストを変えたら、テストを流す。
 # テストはリポジトリを一時フォルダにコピーして動かすので、リポジトリ自体は書き換えない。
+# ブランチ名は書かない（どのブランチへの push でも流す）。
 on:
   push:
-    branches: [master]
     paths:
       - "scripts/**"
       - "tests/**"
       - "docs/assets/memo-quiz.*"
+      - "docs/index.html"
+      - "docs/quiz.html"
+      - "memo.config.json"
       - ".claude/skills/memo-style/template.html"
       - ".github/workflows/test.yml"
   pull_request:
@@ -16,6 +19,9 @@ on:
       - "scripts/**"
       - "tests/**"
       - "docs/assets/memo-quiz.*"
+      - "docs/index.html"
+      - "docs/quiz.html"
+      - "memo.config.json"
       - ".claude/skills/memo-style/template.html"
       - ".github/workflows/test.yml"
   workflow_dispatch:

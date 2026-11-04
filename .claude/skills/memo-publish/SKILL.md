@@ -76,7 +76,7 @@ python3 scripts/memo.py meta NAME \
 - **title**: 日本語で短く（〜20 字）。既存の `<title>` が適切ならそのまま（`--title` を省略）。
 - **desc**: 何がわかるページかを 1 文（40〜60 字）。
 - **tags**: 1〜3 個。表記ゆれを防ぐため、`memo.py list` に出ている既存タグに合うものがあれば再利用する（例: `Docker` と `docker` を混在させない）。
-- **date**: `--date` を値なしで渡すと今日（日本時間。実行環境の時計が UTC でもずれない）。登録後は `memo.py list` で日付を確認する。
+- **date**: `--date` を値なしで渡すと今日（`memo.config.json` のタイムゾーン。実行環境の時計が UTC でもずれない）。登録後は `memo.py list` で日付を確認する。
 - `meta` を実行すると OGP タグも自動で更新される。`<!-- memo:head -->` 〜 `<!-- /memo:head -->` は手で編集しない。
 
 ## 5.5 確認クイズを付ける
@@ -98,10 +98,11 @@ python3 scripts/memo.py list
 ## 7. commit / push
 
 ```bash
-git fetch origin master            # 遅れていれば rebase
+BRANCH="$(python3 scripts/memo.py config branch)"   # push 先（memo.config.json）
+git fetch origin "$BRANCH"          # 遅れていれば rebase
 git add -A "$(dirname "$(python3 scripts/memo.py path NAME)")"   # build が他ページの head を更新した場合もまとめて入る
 git commit -m "Add memo: <タイトル>"
-git push origin HEAD:master
+git push origin HEAD:"$BRANCH"
 ```
 
 push 後に GitHub Actions も一覧を再生成するが、ローカルで build 済みなら差分は出ない。

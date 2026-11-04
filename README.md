@@ -1,11 +1,14 @@
 # MEMO
 
 Claude に作ってもらった解説ページ (HTML) を貯めておくリポジトリ。
+仕組み（`scripts/`・スキル・ワークフロー・テスト・`branding/` など）は [memo-kit](https://github.com/taka1156/memo-kit) と同じ構成で、このリポジトリはその実運用（ドッグフーディング）を兼ねています。
 
 - トップページ: `docs/index.html`（メモ一覧・検索・タグ絞り込み・ランダムクイズ）
 - クイズページ: `docs/quiz.html`（ランダム 10 問・カテゴリ別 10 問。最後にスコアと正答一覧、本文へのリンク）
 - 公開 URL: https://memo.taka1156.site/
   （`docs/CNAME` の独自ドメイン。OGP の URL もここから自動で決まります）
+- 設定: `memo.config.json`（サイト名・説明・リポジトリ・ブランチ・タイムゾーン・アクセント色とアイコン/OGP 画像の文字。コードやスキルには直接書かない）
+- アイコン・OGP 画像: `docs/assets/` の今の画像をそのまま使う（`branding/render.py` を実行すると memo-kit のデザインで作り直されるので、変えたいときだけ実行する）
 
 ## Claude に頼むとき
 
@@ -25,6 +28,7 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 ## アプリ（claude.ai）から使うとき
 
 アプリ側に置くのは「このリポジトリを取ってきて、ここのスキルに従う」だけの入口スキルです。手順やデザイン規約はすべてこのリポジトリが唯一の情報源で、アプリ側には書きません。
+入口スキルの中身は `entry-skill/SKILL.md` にあり、`memo.py build` が `memo.config.json` のリポジトリ名とブランチから作ります。設定を変えたらアプリ側に貼り直してください。
 
 入口スキルは依頼に応じて次のように振り分けます（上の表と同じ対応で、違いは保存のタイミングだけ）。
 
@@ -42,4 +46,21 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 
 ## 仕組みと memo.py
 
-ファイルの構成（原本と生成物）、`scripts/memo.py` の各コマンド、自動生成ブロック、確認クイズのデータの流れ、AI 向けの Markdown 版（`llms.txt`）、表示の確認とプレビュー、GitHub Actions は、図つきで [memo-detail.md](memo-detail.md) にまとめています。
+ファイルの構成（原本と生成物）、`scripts/memo.py` の各コマンド、自動生成ブロック、確認クイズのデータの流れ、AI 向けの Markdown 版（`llms.txt`）、サイトごとの設定（`memo.config.json`）、表示の確認とプレビュー、GitHub Actions は、図つきで [memo-detail.md](memo-detail.md) にまとめています。
+
+## memo-kit との関係
+
+仕組みのファイルは memo-kit と同じ内容に揃えています。仕組みを直すときは memo-kit 側を直してこちらに持ってくる（またはこちらで試してから memo-kit に戻す）ことで、両方を同じに保ちます。
+
+このリポジトリにだけあるもの（memo-kit に持っていかないもの）:
+
+| ファイル | 内容 |
+| --- | --- |
+| `docs/` 直下のメモ・`docs/md/`・`memos.json`・`quizzes.json`・`llms.txt` | メモ本体と生成物 |
+| `docs/CNAME` | 独自ドメイン（memo.taka1156.site） |
+| `docs/assets/` の画像 | このサイトのアイコン・OGP 画像 |
+| `branding/source.png` | アイコンの元画像 |
+| `memo.config.json` の値 | このサイトの設定 |
+| `README.md` | この説明 |
+
+仕組みの詳細は [memo-detail.md](memo-detail.md)、新しく始める手順は memo-kit の README にあります。
