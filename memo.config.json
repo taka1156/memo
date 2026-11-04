@@ -8,8 +8,8 @@
   "branding": {
     "tagline": "見てわかる、技術の解説ノート",
     "icon": "lines",
-    "accent": "#00d4ff",
-    "accent_light": "#0077b6",
+    "accent": "#ffb454",
+    "accent_light": "#a15c00",
     "theme": "dark"
   }
 }
