@@ -64,6 +64,18 @@
   "quizzes": 5
  },
  {
+  "file": "bigquery-bi.html",
+  "title": "BigQuery と BI の SQL",
+  "desc": "BigQuery を BI でどう使うか、データの流れ・コスト・SQL・GA4 エクスポート・Looker を図解。",
+  "tags": [
+   "データベース",
+   "BI",
+   "SQL"
+  ],
+  "date": "2026-11-04",
+  "quizzes": 5
+ },
+ {
   "file": "webassembly.html",
   "title": "WebAssembly",
   "desc": "Wasm が何で、どうやって JS から呼ばれ、なぜ速い場面と速くない場面があるのかを、線形メモリ・サンドボックス・境界のコストで図解。WasmGC、WASI とコンポーネントモデルによるブラウザ外での利用まで。",

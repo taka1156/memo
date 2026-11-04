@@ -10,6 +10,7 @@
 - [JS のイベントループと非同期](https://memo.taka1156.site/md/event-loop.md): コールスタック・タスクキュー・マイクロタスクキューの関係を、実行順をステップ実行で追いながら図解。await の正体、描画との関係、長いタスクの分け方、Node.js との違いまで。（JavaScript, フロントエンド / 2026-11-04）
 - [暗号の基礎](https://memo.taka1156.site/md/crypto-basics.md): ハッシュ・MAC・共通鍵・公開鍵（鍵交換と署名）・証明書チェーンを、何を守る道具なのかで整理し、TLS 1.3 でどう組み合わさるかまでを図解。（セキュリティ / 2026-11-04）
 - [CI/CD と GitHub Actions](https://memo.taka1156.site/md/ci-cd.md): CI と CD の役割、パイプラインの組み方、GitHub Actions のワークフロー・ジョブ・ステップの構造、速くする工夫、シークレットと権限の安全な扱い、デプロイ戦略までを図解。（開発ツール, インフラ / 2026-11-04）
+- [BigQuery と BI の SQL](https://memo.taka1156.site/md/bigquery-bi.md): BigQuery を BI でどう使うか、データの流れ・コスト・SQL・GA4 エクスポート・Looker を図解。（データベース, BI, SQL / 2026-11-04）
 - [WebAssembly](https://memo.taka1156.site/md/webassembly.md): Wasm が何で、どうやって JS から呼ばれ、なぜ速い場面と速くない場面があるのかを、線形メモリ・サンドボックス・境界のコストで図解。WasmGC、WASI とコンポーネントモデルによるブラウザ外での利用まで。（フロントエンド, 言語, JavaScript / 2026-11-03）
 - [実装起因の脆弱性](https://memo.taka1156.site/md/web-vulnerabilities.md): XSS・CSRF・SQL インジェクション・OS コマンドインジェクション・セッションハイジャック・ReDoS に、パストラバーサル・SSRF・オープンリダイレクト・認可不備を加えて、攻撃の流れと NG/OK コードで図解。（セキュリティ / 2026-11-03）
 - [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md): URL を入れてから最初のバイトが届くまでの DNS・TCP・TLS・HTTP の流れと、HTTP/1.1→2→3 で何が解決されたか（多重化・ヘッドオブライン・QUIC）を図解。（ネットワーク, インフラ, フロントエンド / 2026-11-03）
