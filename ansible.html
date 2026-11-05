@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ansible 概念図</title>
+<meta name="description" content="Control NodeからManaged Nodesまでの流れと、役割ごとのファイル名の対応を図解。">
+<meta name="memo:tags" content="インフラ">
+<meta name="memo:date" content="2026-11-01">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  /* 図の意味づけ用トークン */
+  --c-def: #0077b6;   --c-def-bg: #e5f1f8;
+  --c-run: #1f8a5f;   --c-run-bg: #e5f5ec;
+  --c-con: #b4690e;   --c-con-bg: #faf0e2;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-def: #4db8e8;  --c-def-bg: #10222d;
+    --c-run: #56c98c;  --c-run-bg: #10241a;
+    --c-con: #e3a455;  --c-con-bg: #261c0f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px max(16px, env(safe-area-inset-right, 0px)) 72px max(16px, env(safe-area-inset-left, 0px));
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.92rem;
+  margin: 0 0 4px;
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+}
+h3 .tag { font-family: 'Noto Sans JP', sans-serif; font-weight: 400; color: var(--fg-2); font-size: 0.78rem; }
+p { margin: 8px 0; }
+.lead { color: var(--fg-2); font-size: 0.92rem; margin: 0 0 16px; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.c { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); margin-bottom: 8px; }
+.summary li { margin-left: 1.2em; }
+.summary li + li { margin-top: 4px; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 図 */
+.diagram { overflow-x: auto; }
+.diagram svg { display: block; min-width: 680px; width: 100%; height: auto; }
+.diagram text { font-family: 'Noto Sans JP', sans-serif; }
+.t1 { font-size: 14px; font-weight: 700; text-anchor: middle; fill: var(--fg); }
+.t2 { font-size: 11px; text-anchor: middle; fill: var(--fg-2); }
+.el { font-size: 10.5px; fill: var(--fg-2); }
+.gl { font-size: 11.5px; fill: var(--fg-2); letter-spacing: .04em; }
+.grp { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 6 5; }
+.edge { stroke: var(--fg-2); stroke-width: 1.3; fill: none; }
+.edge.dash { stroke-dasharray: 5 4; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; font-size: 0.78rem; color: var(--fg-2); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.sw { width: 13px; height: 13px; border-radius: 3px; border: 1.5px solid; flex: none; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 0.86rem; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+thead th { font-size: 0.72rem; letter-spacing: .05em; color: var(--fg-2); font-weight: 600; background: var(--chip); }
+tbody tr:last-child td { border-bottom: 0; }
+td.concept { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+td.concept small { display: block; font-family: 'Noto Sans JP', sans-serif; font-weight: 400; color: var(--fg-2); font-size: 0.74rem; margin-top: 2px; }
+td.files code { display: inline-block; margin: 0 4px 4px 0; }
+.chip-tag { display: inline-block; font-size: 0.68rem; padding: 2px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+.chip-tag.def { color: var(--c-def); background: var(--c-def-bg); }
+.chip-tag.run { color: var(--c-run); background: var(--c-run-bg); }
+.chip-tag.con { color: var(--c-con); background: var(--c-con-bg); }
+
+/* 流れ */
+.flow { display: flex; flex-direction: column; gap: 10px; counter-reset: s; }
+.flow div { counter-increment: s; display: grid; grid-template-columns: 26px minmax(0,1fr); gap: 2px 10px; align-items: start; padding: 2px 0; }
+.flow div::before {
+  content: counter(s);
+  grid-column: 1; grid-row: 1 / -1;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 700; font-size: 0.75rem;
+  color: var(--accent); background: var(--chip);
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+}
+.flow b { grid-column: 2; display: block; font-size: 0.92rem; }
+.flow span.d { grid-column: 2; color: var(--fg-2); font-size: 0.86rem; }
+
+.prec { display: flex; flex-direction: column; gap: 5px; }
+.prec div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 12px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); font-size: 0.84rem; }
+.prec div:first-child { border-color: var(--accent); }
+.prec span.n { color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.7rem; white-space: nowrap; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="Ansible 概念図">
+<meta property="og:description" content="Control NodeからManaged Nodesまでの流れと、役割ごとのファイル名の対応を図解。">
+<meta property="og:url" content="https://memo.taka1156.site/ansible.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>Ansible 概念図</h1>
+  <p class="subtitle">Control Node から Managed Nodes までの流れと、役割ごとのファイル名の対応</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>Inventory（対象ホスト）と Playbook（手順）はどちらも自分で書く定義ファイル</li>
+      <li>Playbook は実行時に Play → Tasks → Modules へと分解される</li>
+      <li>Connection Plugin（SSH / WinRM）が Control Node と各サーバーをつなぐ</li>
+    </ul>
+  </div>
+
+  <h2 id="overview">概念図</h2>
+  <p class="lead">青＝自分で書く定義ファイル、緑＝実行時に組み立てられる処理、黄＝接続方式。破線は参照・取り込みを表す。</p>
+  <div class="card diagram">
+  <svg viewBox="0 0 900 640" role="img" aria-label="Ansible 概念図">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="var(--fg-2)"/>
+      </marker>
+    </defs>
+
+    <rect class="grp" x="20" y="120" width="560" height="230" rx="12"/>
+    <text class="gl" x="36" y="142">設定・定義ファイル（YAML / INI）</text>
+    <rect class="grp" x="20" y="520" width="860" height="105" rx="12"/>
+    <text class="gl" x="36" y="542">Managed Nodes（管理対象）</text>
+
+    <rect x="300" y="20" width="300" height="62" rx="10" fill="var(--chip)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text class="t1" x="450" y="47">Control Node</text>
+    <text class="t2" x="450" y="67">ansible / ansible-playbook を実行</text>
+
+    <rect x="40" y="160" width="230" height="64" rx="9" fill="var(--c-def-bg)" stroke="var(--c-def)" stroke-width="1.4"/>
+    <text class="t1" x="155" y="187">Inventory</text>
+    <text class="t2" x="155" y="207">管理対象ホストの定義</text>
+
+    <rect x="330" y="160" width="230" height="64" rx="9" fill="var(--c-def-bg)" stroke="var(--c-def)" stroke-width="1.4"/>
+    <text class="t1" x="445" y="187">Playbook</text>
+    <text class="t2" x="445" y="207">実行手順の定義</text>
+
+    <rect x="40" y="266" width="230" height="64" rx="9" fill="var(--c-def-bg)" stroke="var(--c-def)" stroke-width="1.4"/>
+    <text class="t1" x="155" y="293">Variables</text>
+    <text class="t2" x="155" y="313">設定値</text>
+
+    <rect x="330" y="266" width="230" height="64" rx="9" fill="var(--c-def-bg)" stroke="var(--c-def)" stroke-width="1.4"/>
+    <text class="t1" x="445" y="293">Roles</text>
+    <text class="t2" x="445" y="313">処理の再利用・分割</text>
+
+    <rect x="640" y="160" width="220" height="56" rx="9" fill="var(--c-run-bg)" stroke="var(--c-run)" stroke-width="1.4"/>
+    <text class="t1" x="750" y="184">Play</text>
+    <text class="t2" x="750" y="203">対象ホスト × 実行内容</text>
+
+    <rect x="640" y="250" width="220" height="56" rx="9" fill="var(--c-run-bg)" stroke="var(--c-run)" stroke-width="1.4"/>
+    <text class="t1" x="750" y="274">Tasks</text>
+    <text class="t2" x="750" y="293">1 つ 1 つの操作</text>
+
+    <rect x="640" y="340" width="220" height="56" rx="9" fill="var(--c-run-bg)" stroke="var(--c-run)" stroke-width="1.4"/>
+    <text class="t1" x="750" y="364">Modules</text>
+    <text class="t2" x="750" y="383">apt / copy / service など</text>
+
+    <rect x="330" y="410" width="250" height="60" rx="9" fill="var(--c-con-bg)" stroke="var(--c-con)" stroke-width="1.4"/>
+    <text class="t1" x="455" y="435">Connection Plugin</text>
+    <text class="t2" x="455" y="455">SSH（Linux）/ WinRM（Windows）</text>
+
+    <rect x="160" y="555" width="180" height="50" rx="9" fill="var(--chip)" stroke="var(--line)" stroke-width="1.4"/>
+    <text class="t1" x="250" y="585">Server A</text>
+    <rect x="560" y="555" width="180" height="50" rx="9" fill="var(--chip)" stroke="var(--line)" stroke-width="1.4"/>
+    <text class="t1" x="650" y="585">Server B</text>
+
+    <path class="edge" d="M380,82 V110 H155 V158" marker-end="url(#ar)"/>
+    <text class="el" x="200" y="104">読み込む</text>
+    <path class="edge" d="M445,82 V158" marker-end="url(#ar)"/>
+    <path class="edge" d="M560,82 V100 H750 V158" marker-end="url(#ar)"/>
+    <text class="el" x="610" y="94">実行</text>
+
+    <path class="edge dash" d="M445,224 V264" marker-end="url(#ar)"/>
+    <text class="el" x="452" y="250">roles: で呼ぶ</text>
+    <path class="edge dash" d="M330,195 H300 V298 H272" marker-end="url(#ar)"/>
+    <text class="el" x="276" y="250">vars:</text>
+    <path class="edge dash" d="M155,224 V264" marker-end="url(#ar)"/>
+    <text class="el" x="162" y="250">ホストに紐付く</text>
+
+    <path class="edge" d="M560,192 H638" marker-end="url(#ar)"/>
+    <text class="el" x="572" y="184">分解</text>
+    <path class="edge" d="M560,310 H600 V278 H638" marker-end="url(#ar)"/>
+    <text class="el" x="572" y="328">Role の tasks</text>
+    <path class="edge" d="M750,216 V248" marker-end="url(#ar)"/>
+    <path class="edge" d="M750,306 V338" marker-end="url(#ar)"/>
+
+    <path class="edge" d="M750,396 V440 H582" marker-end="url(#ar)"/>
+    <text class="el" x="600" y="432">モジュールを転送</text>
+    <path class="edge" d="M410,470 V510 H250 V553" marker-end="url(#ar)"/>
+    <path class="edge" d="M500,470 V510 H650 V553" marker-end="url(#ar)"/>
+  </svg>
+  </div>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--c-def-bg);border-color:var(--c-def)"></i>定義ファイル</span>
+    <span><i class="sw" style="background:var(--c-run-bg);border-color:var(--c-run)"></i>実行時の処理単位</span>
+    <span><i class="sw" style="background:var(--c-con-bg);border-color:var(--c-con)"></i>接続方式</span>
+    <span>破線＝参照・取り込み</span>
+  </div>
+
+  <h2 id="files">役割ごとのファイル名</h2>
+  <p class="lead">ファイル名はベストプラクティスとして広く使われる慣例。Play・Tasks・Modules のように独立ファイルを持たず、他ファイルの中に書くものもある。</p>
+  <div class="card table-wrap">
+  <table>
+    <thead><tr><th>概念</th><th>種別</th><th>ファイル / 場所</th><th>役割</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="concept">Control Node<small>実行環境</small></td>
+        <td><span class="chip-tag con">設定</span></td>
+        <td class="files"><code>ansible.cfg</code><code>requirements.yml</code></td>
+        <td>Ansible 自体の動作設定。<code>requirements.yml</code> は使う Collection / Role の一覧。</td>
+      </tr>
+      <tr>
+        <td class="concept">Inventory<small>管理対象ホスト</small></td>
+        <td><span class="chip-tag def">定義</span></td>
+        <td class="files"><code>inventory/hosts.yml</code></td>
+        <td>どのサーバーを管理するか、どのグループに属するか。</td>
+      </tr>
+      <tr>
+        <td class="concept">Playbook<small>実行手順</small></td>
+        <td><span class="chip-tag def">定義</span></td>
+        <td class="files"><code>site.yml</code><code>playbooks/web.yml</code></td>
+        <td>1 つ以上の Play を並べたファイル。用途別に分けるのが定番。</td>
+      </tr>
+      <tr>
+        <td class="concept">Play</td>
+        <td><span class="chip-tag run">処理</span></td>
+        <td class="files">Playbook 内の <code>- hosts:</code> 単位</td>
+        <td>「どのホストに」「何を」するかの組。独立ファイルはない。</td>
+      </tr>
+      <tr>
+        <td class="concept">Tasks</td>
+        <td><span class="chip-tag run">処理</span></td>
+        <td class="files"><code>roles/&lt;名前&gt;/tasks/main.yml</code></td>
+        <td>モジュールを 1 回呼ぶ操作の単位。上から順に実行。</td>
+      </tr>
+      <tr>
+        <td class="concept">Handlers<small>Task の一種</small></td>
+        <td><span class="chip-tag run">処理</span></td>
+        <td class="files"><code>roles/&lt;名前&gt;/handlers/main.yml</code></td>
+        <td>変更があったときだけ動く Task（再起動など）。<code>notify:</code> から呼ぶ。</td>
+      </tr>
+      <tr>
+        <td class="concept">Modules</td>
+        <td><span class="chip-tag run">処理</span></td>
+        <td class="files"><code>ansible.builtin.*</code><code>library/</code>（自作）</td>
+        <td>実際に作業をするプログラム。通常は書かずに使うだけ。</td>
+      </tr>
+      <tr>
+        <td class="concept">Roles<small>再利用単位</small></td>
+        <td><span class="chip-tag def">定義</span></td>
+        <td class="files"><code>roles/&lt;名前&gt;/</code></td>
+        <td>tasks・handlers・templates・変数をひとまとめにしたもの。</td>
+      </tr>
+      <tr>
+        <td class="concept">Variables<small>グループ/ホスト</small></td>
+        <td><span class="chip-tag def">定義</span></td>
+        <td class="files"><code>group_vars/all.yml</code><code>host_vars/server-a.yml</code></td>
+        <td>Inventory のグループ名・ホスト名と同名にすると自動で読み込まれる。</td>
+      </tr>
+      <tr>
+        <td class="concept">Variables<small>Role 単位</small></td>
+        <td><span class="chip-tag def">定義</span></td>
+        <td class="files"><code>roles/&lt;名前&gt;/defaults/main.yml</code><code>roles/&lt;名前&gt;/vars/main.yml</code></td>
+        <td><code>defaults</code> は上書き前提の初期値（優先度最低）。<code>vars</code> は固定値。</td>
+      </tr>
+      <tr>
+        <td class="concept">Templates / Files</td>
+        <td><span class="chip-tag def">定義</span></td>
+        <td class="files"><code>roles/&lt;名前&gt;/templates/*.j2</code><code>roles/&lt;名前&gt;/files/</code></td>
+        <td><code>.j2</code> は Jinja2 テンプレート。<code>files/</code> はそのまま配る静的ファイル。</td>
+      </tr>
+      <tr>
+        <td class="concept">Secrets</td>
+        <td><span class="chip-tag def">定義</span></td>
+        <td class="files"><code>group_vars/all/vault.yml</code></td>
+        <td><code>ansible-vault</code> で暗号化して保存する。</td>
+      </tr>
+      <tr>
+        <td class="concept">Connection Plugin</td>
+        <td><span class="chip-tag con">接続</span></td>
+        <td class="files"><code>ansible.cfg</code> / <code>ansible_connection</code></td>
+        <td>既定は <code>ssh</code>。Windows は <code>winrm</code>、コンテナは <code>docker</code>。</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>ディレクトリ構成例</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="p-tree">構成</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-inv">inventory</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-site">site.yml</button>
+  </div>
+  <div class="panel card" id="p-tree">
+<pre>project/
+├── ansible.cfg           <span class="c"># 動作設定</span>
+├── inventory/
+│   └── hosts.yml         <span class="c"># Inventory</span>
+├── group_vars/
+│   ├── all.yml
+│   └── web.yml
+├── host_vars/
+│   └── server-a.yml
+├── site.yml              <span class="c"># Playbook（入口）</span>
+└── roles/
+    └── nginx/
+        ├── tasks/main.yml
+        ├── handlers/main.yml
+        ├── templates/nginx.conf.j2
+        ├── files/
+        ├── defaults/main.yml
+        ├── vars/main.yml
+        └── meta/main.yml</pre>
+  </div>
+  <div class="panel card" id="p-inv" hidden>
+<pre>all:
+  children:
+    web:
+      hosts:
+        server-a:
+          ansible_host: 192.168.10.11
+        server-b:
+          ansible_host: 192.168.10.12</pre>
+  </div>
+  <div class="panel card" id="p-site" hidden>
+<pre><span class="c"># ↓ ここから 1 つの Play</span>
+- name: Web サーバー構築
+  hosts: web          <span class="c"># Inventory のグループ</span>
+  become: true
+  roles:
+    - nginx            <span class="c"># roles/nginx を実行</span>
+  tasks:
+    - name: パッケージ更新   <span class="c"># Task</span>
+      ansible.builtin.apt:  <span class="c"># Module</span>
+        update_cache: true</pre>
+  </div>
+
+  <h2 id="concepts">各要素の考え方</h2>
+  <div class="card">
+    <h3>Control Node <span class="tag">実行する側</span></h3>
+    <p>Ansible をインストールしてコマンドを打つマシン。管理対象側には Ansible 不要で、SSH と Python があれば動く（エージェントレス）。</p>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>Inventory <span class="tag">誰に</span></h3>
+    <p>管理するサーバーの一覧とグループ分け。Playbook 側は IP ではなくグループ名（<code>web</code> など）で対象を指すので、サーバーが増えても Inventory を直すだけで済む。</p>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>Playbook と Play <span class="tag">何を</span></h3>
+    <p>Playbook はファイル、Play はその中の 1 ブロック。対象ごとに Play を分けて 1 つの Playbook に並べる。</p>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>Tasks と Modules <span class="tag">どうやって</span></h3>
+    <p>Task は「nginx をインストールする」という 1 つの操作、Module はそれを実行する部品。モジュールは「あるべき状態」を宣言する作りなので、何度実行しても結果が同じになる（冪等性）。</p>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>Roles <span class="tag">まとめて使い回す</span></h3>
+    <p>Playbook が長くなったら機能単位で Role に切り出す。決まったディレクトリに置くだけで tasks や templates が自動で読み込まれる。</p>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>Connection Plugin <span class="tag">どう繋ぐか</span></h3>
+    <p>Control Node と管理対象の間の通信方法。Ansible はモジュールを一時ファイルとして相手に送り込み、実行して結果を回収し、後片付けする。</p>
+  </div>
+
+  <h2 id="flow">実行の流れ</h2>
+  <p class="lead"><code>ansible-playbook -i inventory/hosts.yml site.yml</code> を実行したときの順序。</p>
+  <div class="flow">
+    <div><b>設定を読む</b><span class="d"><code>ansible.cfg</code> を探して読み込む。</span></div>
+    <div><b>Inventory と変数を読む</b><span class="d">ホスト一覧を作り、group_vars / host_vars を紐付ける。</span></div>
+    <div><b>Playbook を解析する</b><span class="d">Play ごとに対象ホストを決め、Roles を展開して Task 一覧を作る。</span></div>
+    <div><b>事実情報を集める</b><span class="d">gather_facts で OS や IP などを取得する。</span></div>
+    <div><b>Task を順に実行する</b><span class="d">Connection Plugin で接続し、モジュールを送って実行する。</span></div>
+    <div><b>Handler を実行する</b><span class="d">changed になった Task から notify された Handler を最後にまとめて実行。</span></div>
+    <div><b>結果を表示する</b><span class="d">PLAY RECAP でホストごとの集計が出る。</span></div>
+  </div>
+
+  <h2 id="var-priority">変数の優先順位（抜粋）</h2>
+  <p class="lead">同じ名前の変数が複数箇所にあるときは、上にあるものが勝つ。</p>
+  <div class="prec">
+    <div><span>コマンドラインの <code>-e</code></span><span class="n">最優先</span></div>
+    <div><span>Task / Block の <code>vars:</code></span><span class="n"></span></div>
+    <div><span>Role の <code>vars/main.yml</code></span><span class="n"></span></div>
+    <div><span>Play の <code>vars:</code></span><span class="n"></span></div>
+    <div><span><code>host_vars/</code></span><span class="n"></span></div>
+    <div><span><code>group_vars/&lt;グループ&gt;</code></span><span class="n"></span></div>
+    <div><span>Role の <code>defaults/main.yml</code></span><span class="n">最も弱い</span></div>
+  </div>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Web サーバーを 3 台増やすことになった。Playbook がグループ名（web）で対象を指している場合、何を直せばよい？",
+    "choices": [
+      "Inventory の web グループにホストを追加するだけ",
+      "Playbook に新しいサーバーの IP を書き足す",
+      "サーバーごとに Playbook を複製する"
+    ],
+    "answer": 0,
+    "explain": "Playbook は IP ではなくグループ名で対象を指すので、増減は Inventory だけで吸収できる。",
+    "ref": "#concepts"
+  },
+  {
+    "q": "nginx の設定ファイルが変わったときだけ nginx を再起動したい。どう書く？",
+    "choices": [
+      "再起動のコマンドを Role の defaults/main.yml に変数として書いておく",
+      "再起動を Handler にして、設定ファイルを配る Task から notify で呼ぶ",
+      "再起動の Task を Playbook の最後に置き、毎回必ず実行されるようにする"
+    ],
+    "answer": 1,
+    "explain": "Handler は notify した Task が changed になったときだけ、最後にまとめて実行される。",
+    "ref": "#files"
+  },
+  {
+    "q": "同じ Playbook を、すでに設定済みのサーバーにもう一度実行した。何が起きる？",
+    "choices": [
+      "すべての Task がもう一度やり直され、設定が二重になる",
+      "一度実行済みの Playbook は、二回目以降はエラーで止まる",
+      "すでにあるべき状態なら、何も変更されない"
+    ],
+    "answer": 2,
+    "explain": "モジュールは状態を宣言する作りなので、何度実行しても結果が同じになる（冪等性）。",
+    "ref": "#concepts"
+  },
+  {
+    "q": "自作 Role の初期値を、グループやホストごとに上書きできるようにしたい。初期値はどこに書く？",
+    "choices": [
+      "コマンドラインの -e",
+      "roles/<名前>/defaults/main.yml",
+      "roles/<名前>/vars/main.yml"
+    ],
+    "answer": 1,
+    "explain": "defaults は優先度が最も低く、group_vars や host_vars で上書きされる前提の場所。vars/main.yml は優先度が高く、上書きされにくい固定値向け。",
+    "ref": "#var-priority"
+  },
+  {
+    "q": "Ansible で管理するサーバー側に、最低限必要なものは？",
+    "choices": [
+      "SSH で接続できることと Python",
+      "Ansible 本体と常駐エージェント",
+      "Control Node と同じ Playbook のコピー"
+    ],
+    "answer": 0,
+    "explain": "Ansible はエージェントレス。Control Node がモジュールを送り込んで実行し、後片付けまで行う。",
+    "ref": "#concepts"
+  }
+]
+</script>
+</body>
+</html>

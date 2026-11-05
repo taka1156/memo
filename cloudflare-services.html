@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloudflare サービス</title>
+<meta name="description" content="Workers・Pages・R2・D1 など Cloudflare の 9 サービスを、リクエストの流れに沿った図と使い分けで整理。">
+<meta name="memo:tags" content="インフラ">
+<meta name="memo:date" content="2026-11-01">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --brand: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --brand: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+p { margin: 8px 0; }
+a { color: var(--accent); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.caption { color: var(--fg-2); font-size: 0.8rem; margin: 0 0 12px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+/* 流れ図 */
+.flow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+  align-items: stretch;
+  gap: 6px;
+}
+.stage {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--brand);
+  border-radius: 10px;
+  padding: 10px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.stage-name { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; color: var(--brand); }
+.stage-role { font-size: 0.72rem; color: var(--fg-2); margin-bottom: 2px; }
+.arrow {
+  align-self: center;
+  color: var(--fg-2);
+  font: 700 1rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.svc {
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: 500 0.78rem/1.35 'Noto Sans JP', system-ui, sans-serif;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.svc small { display: block; color: var(--fg-2); font-size: 0.68rem; }
+.svc:hover { border-color: var(--brand); }
+.svc[aria-pressed="true"] { border-color: var(--brand); box-shadow: inset 3px 0 0 var(--brand); background: var(--surface); }
+@media (max-width: 640px) {
+  .flow { grid-template-columns: 1fr; }
+  .arrow { transform: rotate(90deg); justify-self: center; line-height: 1; }
+  .stage { display: grid; grid-template-columns: 1fr 1fr; }
+  .stage-name, .stage-role { grid-column: 1 / -1; }
+}
+
+/* 詳細 */
+.detail { border-left: 4px solid var(--svc, var(--brand)); scroll-margin-top: 16px; }
+.detail-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.chip {
+  display: inline-block;
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font: 600 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: 0.04em;
+}
+.detail h3 { font-size: 1.25rem; margin: 6px 0 0; }
+.tagline { color: var(--fg-2); margin: 2px 0 12px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+@media (max-width: 640px) { .cols { grid-template-columns: 1fr; } }
+.box { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.box h4 { font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace; color: var(--brand); margin-bottom: 4px; }
+.box ul { list-style: none; }
+.box li { padding-left: 1.1em; position: relative; font-size: 0.88rem; }
+.box li::before { content: "▸"; position: absolute; left: 0; color: var(--fg-2); }
+.detail-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-top: 14px; }
+.docs-link { font-size: 0.85rem; font-weight: 700; text-decoration: none; }
+.docs-link:hover { text-decoration: underline; }
+.pager { display: flex; gap: 6px; }
+.pager button {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font: 600 0.74rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.pager button:hover { color: var(--accent); }
+
+/* 使い分け */
+.compare { display: grid; gap: 8px; }
+.compare-row {
+  display: grid;
+  grid-template-columns: 9rem 1fr 1.4fr;
+  gap: 4px 14px;
+  align-items: baseline;
+  padding: 10px 14px;
+}
+.compare-row.head { padding-top: 0; padding-bottom: 0; color: var(--fg-2); font-size: 0.72rem; font-weight: 700; }
+.compare-row .name { font-weight: 700; }
+.compare-row .what { font-size: 0.88rem; }
+.compare-row .use { font-size: 0.85rem; color: var(--fg-2); }
+@media (max-width: 640px) {
+  .compare-row { grid-template-columns: 1fr; }
+  .compare-row.head { display: none; }
+}
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="Cloudflare サービス">
+<meta property="og:description" content="Workers・Pages・R2・D1 など Cloudflare の 9 サービスを、リクエストの流れに沿った図と使い分けで整理。">
+<meta property="og:url" content="https://memo.taka1156.site/cloudflare-services.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>Cloudflare サービス</h1>
+  <p class="subtitle">個人開発で使っている Cloudflare の 9 サービスを、リクエストが通る順に整理したリファレンス</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>DNS → 防御 → 実行・配信 → データ の 4 層で考えると、9 サービスの役割が整理しやすい</li>
+      <li>実行の中心は <strong>Workers</strong>。API も静的サイトも動かせ、KV・R2・D1 と直接つながる（<strong>Pages</strong> の機能は Workers 側に寄ってきている）</li>
+      <li>データの置き場は中身で選ぶ: 読み中心の小さな値は KV、ファイルは R2、表形式のデータは D1</li>
+    </ul>
+  </div>
+
+  <h2>リクエストの流れで見る</h2>
+  <p class="caption">ユーザーのリクエストは左から右（スマホでは上から下）へ通る。サービスを押すと下に詳細が開く。</p>
+  <div class="flow" id="flow"></div>
+
+  <h2>サービス詳細</h2>
+  <article class="card detail" id="detail" aria-live="polite"></article>
+
+  <h2>使い分け：データをどこに置くか</h2>
+  <div class="compare" id="compare"></div>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+// ── データ ──────────────────────────────────────────
+// サービスを追加するときは SERVICES に 1 件足し、STAGES のどこかに id を入れる。
+const SERVICES = [
+  {
+    "id": "workers",
+    "name": "Cloudflare Workers",
+    "category": "Compute",
+    "tagline": "サーバーレスコードをエッジで実行",
+    "description": "Cloudflareのネットワーク（世界300都市以上）でJavaScript/TypeScript/WASMのコードを実行できるサーバーレスプラットフォーム。V8 isolateで動くためコールドスタートがほぼなく、負荷に応じて自動でスケールします。静的アセットの配信にも対応し、フロントエンドからAPIまで1つのWorkerで動かせます。",
+    "features": [
+      "V8 isolateで軽量に実行",
+      "コールドスタートがほぼない",
+      "静的アセット配信（Pagesの機能を統合）",
+      "KV・R2・D1・Durable Objectsとのバインディング",
+      "Cron Triggersによるスケジュール実行"
+    ],
+    "useCases": [
+      "フルスタックWebアプリ",
+      "API・プロキシ",
+      "認証ミドルウェア",
+      "エッジレンダリング",
+      "定期バッチ処理"
+    ],
+    "docsUrl": "https://developers.cloudflare.com/workers/",
+    "color": "#F6821F"
+  },
+  {
+    "id": "pages",
+    "name": "Cloudflare Pages",
+    "category": "Hosting",
+    "tagline": "Git連携でサイトを手軽にデプロイ",
+    "description": "GitリポジトリからWebサイトを自動ビルド・デプロイ。静的サイトに加え、Pages Functionsでサーバー側の処理も書けます。現在はWorkers（静的アセット対応）のほうが使える機能が広く、Cloudflareは既存のPagesプロジェクト向けにWorkersへの移行ガイドを用意しています。",
+    "features": [
+      "Git連携で自動デプロイ",
+      "プレビューデプロイ",
+      "カスタムドメイン・SSL",
+      "Pages Functions（Workersベース）",
+      "静的アセットの帯域無制限"
+    ],
+    "useCases": [
+      "静的サイト",
+      "Next.js/Nuxt/Astroサイト",
+      "ランディングページ",
+      "ドキュメントサイト",
+      "ポートフォリオ"
+    ],
+    "docsUrl": "https://developers.cloudflare.com/pages/",
+    "color": "#FBAD41"
+  },
+  {
+    "id": "r2",
+    "name": "Cloudflare R2",
+    "category": "Storage",
+    "tagline": "エグレス無料のオブジェクトストレージ",
+    "description": "S3互換のオブジェクトストレージ。Amazon S3と違ってエグレス（外への転送）料金が無料なので、画像や動画など配信量の多いファイルを置いてもコストが膨らみにくいのが特徴です。",
+    "features": [
+      "S3互換API",
+      "エグレス料金ゼロ",
+      "Workersからバインディングで直接アクセス",
+      "公開バケット・カスタムドメイン",
+      "ロケーションヒント・管轄区域の指定"
+    ],
+    "useCases": [
+      "メディアファイル保存",
+      "バックアップ",
+      "静的アセット配信",
+      "データレイク",
+      "ログアーカイブ"
+    ],
+    "docsUrl": "https://developers.cloudflare.com/r2/",
+    "color": "#F6821F"
+  },
+  {
+    "id": "d1",
+    "name": "Cloudflare D1",
+    "category": "Database",
+    "tagline": "エッジで動くサーバーレスSQLite",
+    "description": "SQLiteベースのサーバーレスデータベース。Workersからバインディング経由でクエリを実行できます。読み取りレプリカ（ベータ）を有効にすると、Sessions APIを通じて世界各地のレプリカから読み取れます。",
+    "features": [
+      "SQLite互換",
+      "Time Travel（過去の時点に復元）",
+      "読み取りレプリカ（ベータ・Sessions API）",
+      "Workersバインディング",
+      "マイグレーション対応"
+    ],
+    "useCases": [
+      "ユーザーデータ管理",
+      "コンテンツDB",
+      "セッションストア",
+      "設定データ",
+      "カタログデータ"
+    ],
+    "docsUrl": "https://developers.cloudflare.com/d1/",
+    "color": "#FBAD41"
+  },
+  {
+    "id": "kv",
+    "name": "Workers KV",
+    "category": "Storage",
+    "tagline": "グローバル低レイテンシKVストア",
+    "description": "世界中のエッジにレプリケートされるキー・バリューストア。読み取りが多いワークロードに向いています。書き込みが各地に反映されるまで最大60秒ほどかかる最終的一貫性なので、カウンターのように頻繁に書き換える値はDurable Objectsのほうが適しています。",
+    "features": [
+      "最終的一貫性",
+      "グローバルレプリケーション",
+      "TTL（有効期限）サポート",
+      "大きな値も保存可能（最大25MiB）",
+      "高速な読み取り"
+    ],
+    "useCases": [
+      "設定値キャッシュ",
+      "フィーチャーフラグ",
+      "セッションデータ",
+      "A/Bテスト設定",
+      "リダイレクト・ルーティング表"
+    ],
+    "docsUrl": "https://developers.cloudflare.com/kv/",
+    "color": "#F6821F"
+  },
+  {
+    "id": "zero-trust",
+    "name": "Cloudflare Zero Trust",
+    "category": "Security",
+    "tagline": "VPNなしの安全なアクセス制御",
+    "description": "従来のVPNを置き換えるゼロトラストのアクセス制御。Cloudflare One（SASEプラットフォーム）の中核で、社内アプリや自宅サーバーへのアクセスをIDベースで管理します。50ユーザーまでは無料プランで使えます。",
+    "features": [
+      "Access（ZTNA）によるアプリ単位の認証",
+      "Tunnel（cloudflared）で公開ポートなしに接続",
+      "Gateway（SWG）によるWebフィルタリング",
+      "SSO/IdP統合",
+      "デバイス状態のチェック"
+    ],
+    "useCases": [
+      "自宅サーバーの安全な公開",
+      "社内ツールへのアクセス",
+      "管理画面の保護",
+      "SaaSアクセス制御",
+      "リモートワーク環境"
+    ],
+    "docsUrl": "https://developers.cloudflare.com/cloudflare-one/",
+    "color": "#FBAD41"
+  },
+  {
+    "id": "waf",
+    "name": "WAF / DDoS Protection",
+    "category": "Security",
+    "tagline": "L3〜L7の包括的攻撃防御",
+    "description": "Webアプリケーションファイアウォールと自動DDoS緩和。OWASPルールセット、カスタムルール、ボット管理で多層防御を実現します。",
+    "features": [
+      "マネージドルール（OWASP含む）",
+      "カスタムWAFルール",
+      "L3/L4/L7 DDoS緩和（常時・無料）",
+      "ボット対策（Bot Fight Mode／Bot Management）",
+      "レート制限"
+    ],
+    "useCases": [
+      "Webアプリ保護",
+      "API保護",
+      "大規模攻撃対策",
+      "スクレイピング防止",
+      "不正ログイン対策"
+    ],
+    "docsUrl": "https://developers.cloudflare.com/waf/",
+    "color": "#F6821F"
+  },
+  {
+    "id": "dns",
+    "name": "Cloudflare DNS",
+    "category": "Networking",
+    "tagline": "Anycastで高速・高可用な権威DNS",
+    "description": "Anycastネットワークを活用した権威DNSサービス。無料プランで使え、プロキシ（オレンジの雲）を有効にしたレコードはCloudflareのCDN・WAFを経由するようになります。DNSSECやAPIによる自動化にも対応します。",
+    "features": [
+      "Anycastによる高速応答",
+      "DNSSEC対応",
+      "ワイルドカードレコード",
+      "ゾーンファイルの一括インポート",
+      "API・Terraformで管理"
+    ],
+    "useCases": [
+      "ドメイン管理",
+      "プロキシ経由でCDN・WAFを有効化",
+      "DNSSECによる改ざん対策",
+      "IaCでのレコード管理",
+      "負荷分散・フェイルオーバー（Load Balancing・有料）"
+    ],
+    "docsUrl": "https://developers.cloudflare.com/dns/",
+    "color": "#FBAD41"
+  },
+  {
+    "id": "stream",
+    "name": "Cloudflare Stream",
+    "category": "Media",
+    "tagline": "動画配信インフラを丸ごと委託",
+    "description": "動画のアップロード・エンコード・ストレージ・配信をワンストップで提供。HLSストリーミングとABRを自動で処理します。",
+    "features": [
+      "自動エンコード",
+      "アダプティブビットレート",
+      "HLS/MPEG-DASH配信",
+      "サムネイル生成",
+      "分析ダッシュボード"
+    ],
+    "useCases": [
+      "教育プラットフォーム",
+      "OTT/VODサービス",
+      "企業内動画",
+      "UGCプラットフォーム",
+      "ライブ配信"
+    ],
+    "docsUrl": "https://developers.cloudflare.com/stream/",
+    "color": "#F6821F"
+  }
+];
+
+// 流れ図の段（左から順）。services は SERVICES の id。
+const STAGES = [
+  {
+    "name": "名前解決",
+    "role": "どこへ行くか決める",
+    "services": [
+      "dns"
+    ]
+  },
+  {
+    "name": "防御",
+    "role": "通してよいか判断する",
+    "services": [
+      "waf",
+      "zero-trust"
+    ]
+  },
+  {
+    "name": "実行・配信",
+    "role": "処理して返す",
+    "services": [
+      "workers",
+      "pages",
+      "stream"
+    ]
+  },
+  {
+    "name": "データ",
+    "role": "保存して読み出す",
+    "services": [
+      "kv",
+      "r2",
+      "d1"
+    ]
+  }
+];
+
+// 使い分けの比較（id, 置くもの/届けるもの, 向いている用途）
+const COMPARE_HEAD = ["", "置くもの", "向いている用途"];
+const COMPARE = [
+  [
+    "kv",
+    "キーと値（設定・小さなデータ）",
+    "読み込みが多く、更新が少ないもの。世界中で低レイテンシに読める"
+  ],
+  [
+    "r2",
+    "ファイル（画像・動画・バックアップ）",
+    "大きなファイルの配信や保管。外への転送料（エグレス）が無料"
+  ],
+  [
+    "d1",
+    "表形式のデータ（SQLite）",
+    "SQL で検索・結合したいアプリのデータ"
+  ]
+];
+
+// ── 描画 ──────────────────────────────────────────
+const byId = Object.fromEntries(SERVICES.map(s => [s.id, s]));
+const order = STAGES.flatMap(st => st.services);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const shortName = s => s.name.replace(/^(Cloudflare|GitHub)\s+/, '');
+
+function renderFlow() {
+  document.getElementById('flow').innerHTML = STAGES.map((st, i) => `
+    ${i ? '<div class="arrow" aria-hidden="true">→</div>' : ''}
+    <div class="stage">
+      <div class="stage-name">${esc(st.name)}</div>
+      <div class="stage-role">${esc(st.role)}</div>
+      ${st.services.map(id => `
+        <button class="svc" type="button" data-id="${id}" aria-pressed="false">
+          ${esc(shortName(byId[id]))}<small>${esc(byId[id].category)}</small>
+        </button>`).join('')}
+    </div>`).join('');
+}
+
+function renderDetail(id, scroll) {
+  const s = byId[id];
+  const i = order.indexOf(id);
+  const prev = byId[order[(i - 1 + order.length) % order.length]];
+  const next = byId[order[(i + 1) % order.length]];
+  const el = document.getElementById('detail');
+  el.style.setProperty('--svc', s.color);
+  el.innerHTML = `
+    <div class="detail-top"><span class="chip">${esc(s.category)}</span></div>
+    <h3>${esc(s.name)}</h3>
+    <p class="tagline">${esc(s.tagline)}</p>
+    <p>${esc(s.description)}</p>
+    <div class="cols">
+      <div class="box"><h4>主な機能</h4><ul>${s.features.map(f => `<li>${esc(f)}</li>`).join('')}</ul></div>
+      <div class="box"><h4>ユースケース</h4><ul>${s.useCases.map(u => `<li>${esc(u)}</li>`).join('')}</ul></div>
+    </div>
+    <div class="detail-foot">
+      <a class="docs-link" href="${esc(s.docsUrl)}" target="_blank" rel="noopener noreferrer">公式ドキュメント →</a>
+      <div class="pager">
+        <button type="button" data-id="${prev.id}">← ${esc(shortName(prev))}</button>
+        <button type="button" data-id="${next.id}">${esc(shortName(next))} →</button>
+      </div>
+    </div>`;
+  document.querySelectorAll('.svc').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
+  try { history.replaceState(null, '', '#' + id); } catch (e) {}
+  if (scroll) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderCompare() {
+  const head = `<div class="compare-row head">${COMPARE_HEAD.map(h => `<span>${esc(h)}</span>`).join('')}</div>`;
+  document.getElementById('compare').innerHTML = head + COMPARE.map(([id, what, use]) => `
+    <div class="card compare-row">
+      <span class="name">${esc(shortName(byId[id]))}</span>
+      <span class="what">${esc(what)}</span>
+      <span class="use">${esc(use)}</span>
+    </div>`).join('');
+}
+
+renderFlow();
+renderCompare();
+const initial = byId[location.hash.slice(1)] ? location.hash.slice(1) : order[0];
+renderDetail(initial, false);
+
+document.getElementById('flow').addEventListener('click', e => {
+  const b = e.target.closest('.svc');
+  if (b) renderDetail(b.dataset.id, true);
+});
+document.getElementById('detail').addEventListener('click', e => {
+  const b = e.target.closest('.pager button');
+  if (b) renderDetail(b.dataset.id, false);
+});
+</script>
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "ユーザーがアップロードした画像や動画を大量に配信する。転送料を抑えたい。置き場所は？",
+    "choices": [
+      "KV",
+      "R2",
+      "D1"
+    ],
+    "answer": 1,
+    "explain": "R2 は S3 互換のオブジェクトストレージで、外への転送料がかからない。",
+    "ref": "#compare"
+  },
+  {
+    "q": "フィーチャーフラグや設定値など、読み込みが多く更新が少ない小さな値を世界中から速く読みたい。置き場所は？",
+    "choices": [
+      "KV",
+      "R2",
+      "D1"
+    ],
+    "answer": 0,
+    "explain": "KV は世界中のエッジに複製されるキー・バリューストアで、読み取りが多い用途向き。",
+    "ref": "#compare"
+  },
+  {
+    "q": "ページビューのカウンターを KV に入れて毎回書き換えたら、値がずれたり反映が遅れたりする。どうする？",
+    "choices": [
+      "頻繁に書き換える値は Durable Objects に置く",
+      "カウンターの値を R2 にテキストファイルとして保存する",
+      "KV への書き込みを毎回 2 回ずつ行い、取りこぼしを防ぐ"
+    ],
+    "answer": 0,
+    "explain": "KV は最終的一貫性。カウンターのように頻繁に書き換える値には向かない。 書き込みが各地に反映されるまで最大 60 秒ほどかかる。",
+    "ref": "#flow"
+  },
+  {
+    "q": "静的なフロントエンドと API を、これから新しく Cloudflare で動かす。中心にするのは？",
+    "choices": [
+      "Pages",
+      "Workers",
+      "Stream"
+    ],
+    "answer": 1,
+    "explain": "Pages の機能は Workers 側に寄ってきており、既存の Pages 向けには Workers への移行ガイドもある。",
+    "ref": "#flow"
+  },
+  {
+    "q": "Cloudflare の DNS にレコードを登録したが、そのサイトに WAF や CDN が効いていない。何を確認する？",
+    "choices": [
+      "DNSSEC を有効にしているか",
+      "Zero Trust のユーザー数が 50 人以下か",
+      "そのレコードのプロキシ（オレンジの雲）が有効になっているか"
+    ],
+    "answer": 2,
+    "explain": "プロキシを有効にしたレコードだけが Cloudflare の CDN・WAF を経由する。",
+    "ref": "#flow"
+  }
+]
+</script>
+</body>
+</html>

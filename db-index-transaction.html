@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>インデックスとトランザクション</title>
+<meta name="description" content="B木インデックスが効く条件・効かない条件（複合インデックスの順序、関数、LIKE）と、分離レベルで防げる異常、MVCC、更新の取りこぼし対策までを図解。">
+<meta name="memo:tags" content="データベース">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-warn: #b45309;
+  --c-a: #7c3aed;
+  --c-b: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-warn: #fbbf24;
+    --c-a: #c4b5fd;
+    --c-b: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.list, ol.list { margin: 6px 0 6px 1.3em; }
+ul.list li, ol.list li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* ステップ */
+ol.steps { list-style: none; counter-reset: st; }
+ol.steps > li {
+  counter-increment: st;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 12px; top: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps b { display: block; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.fig .sub { fill: var(--fg-2); font-family: 'Noto Sans JP', sans-serif; }
+.fig .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+details.card summary { cursor: pointer; font-weight: 700; }
+details.card[open] summary { margin-bottom: 8px; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.fig .k { fill: var(--chip); stroke: var(--line); stroke-width: 1.5; }
+.fig .k.hit { stroke: var(--accent); stroke-width: 3; }
+.fig .path { stroke: var(--accent); stroke-width: 3; fill: none; }
+.fig .leafln { stroke: var(--fg-2); stroke-width: 1.2; stroke-dasharray: 3 3; fill: none; }
+.fig .ah { fill: var(--fg-2); }
+.fig .aha { fill: var(--accent); }
+.checker .qs { display: grid; gap: 6px; }
+.checker label { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; background: var(--surface); }
+.checker label:has(input:checked) { border-color: var(--accent); outline: 1px solid var(--accent); }
+.checker input { margin-top: 5px; accent-color: var(--accent); }
+.checker code { font-size: 0.8rem; }
+.checker .res { margin-top: 10px; padding: 10px 12px; border-radius: 8px; border: 2px solid var(--line); }
+.idx { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); padding: 8px 12px; border-radius: 8px; margin: 6px 0 10px; word-break: break-all; }
+.tl { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; font-size: 0.82rem; }
+.tl .hd { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.tl .c { padding: 5px 8px; border-radius: 6px; background: var(--chip); min-height: 1.6em; }
+.tl .c:empty { background: none; }
+.tl .c.bad { outline: 2px solid var(--c-ng); }
+.tl code { font-size: 0.75rem; }
+.iso td, .iso th { text-align: center; }
+.iso td:first-child, .iso th:first-child { text-align: left; }
+.y { color: var(--c-ng); font-weight: 700; }
+.n { color: var(--c-ok); font-weight: 700; }
+.mvcc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+@media (max-width: 560px) { .mvcc { grid-template-columns: 1fr; } }
+.ver { border: 2px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 0.82rem; }
+.ver .label { margin: 0; }
+.ver.dead { border-style: dashed; opacity: .7; }
+.ver.live { border-color: var(--c-ok); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="インデックスとトランザクション">
+<meta property="og:description" content="B木インデックスが効く条件・効かない条件（複合インデックスの順序、関数、LIKE）と、分離レベルで防げる異常、MVCC、更新の取りこぼし対策までを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/db-index-transaction.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+<h1>インデックスとトランザクション</h1>
+  <p class="subtitle">「速く探す」と「同時に動いても壊れない」の2本柱</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>インデックスは<b>値の順に並べた索引（B木）</b>。並び順を使える条件（等号・範囲・前方一致・その順での並べ替え）でだけ効く。</li>
+      <li>複合インデックスは<b>左の列から順に</b>使える。列に関数をかけたり、先頭列を飛ばしたりすると使えない。</li>
+      <li>分離レベルは「同時実行でどの異常まで許すか」の設定。<b>READ COMMITTED でも更新の取りこぼしは起きる</b>ので、原子的な UPDATE や行ロックで防ぐ。</li>
+    </ul>
+  </div>
+
+  <p class="note">前提として、ページ・バッファプール・WAL の話は <a href="db-internals.html">DB のしくみ</a> にある。</p>
+
+  <h2 id="btree">B木インデックス</h2>
+  <div class="card">
+    <svg class="fig" viewBox="0 0 520 230" role="img" aria-label="ルート 30 と 60、中間ノード、葉が横につながったB木。42 を探すと、ルートで30以上60未満の枝へ進み、中間で42のある葉に着く">
+      <defs>
+        <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="ah" d="M0,0L10,5L0,10z"/></marker>
+        <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="aha" d="M0,0L10,5L0,10z"/></marker>
+      </defs>
+      <rect class="k hit" x="200" y="10" width="120" height="34" rx="6"/><text x="260" y="32" text-anchor="middle" font-size="13">30 | 60</text>
+      <text class="sub" x="335" y="32" font-size="11">ルート</text>
+      <rect class="k" x="20" y="90" width="110" height="34" rx="6"/><text x="75" y="112" text-anchor="middle" font-size="13">10 | 20</text>
+      <rect class="k hit" x="205" y="90" width="110" height="34" rx="6"/><text x="260" y="112" text-anchor="middle" font-size="13">40 | 50</text>
+      <rect class="k" x="390" y="90" width="110" height="34" rx="6"/><text x="445" y="112" text-anchor="middle" font-size="13">70 | 80</text>
+      <path class="edge" d="M215,44L90,88" marker-end="url(#a1)"/>
+      <path class="path" d="M260,44V88" marker-end="url(#a2)"/>
+      <path class="edge" d="M305,44L430,88" marker-end="url(#a1)"/>
+      <!-- leaves -->
+      <rect class="k" x="10" y="170" width="70" height="34" rx="6"/><text x="45" y="192" text-anchor="middle" font-size="12">3 7</text>
+      <rect class="k" x="95" y="170" width="70" height="34" rx="6"/><text x="130" y="192" text-anchor="middle" font-size="12">22 28</text>
+      <rect class="k" x="180" y="170" width="70" height="34" rx="6"/><text x="215" y="192" text-anchor="middle" font-size="12">33 38</text>
+      <rect class="k hit" x="265" y="170" width="70" height="34" rx="6"/><text x="300" y="192" text-anchor="middle" font-size="12">42 47</text>
+      <rect class="k" x="350" y="170" width="70" height="34" rx="6"/><text x="385" y="192" text-anchor="middle" font-size="12">55 58</text>
+      <rect class="k" x="435" y="170" width="75" height="34" rx="6"/><text x="472" y="192" text-anchor="middle" font-size="12">71 75</text>
+      <path class="edge" d="M60,124L45,168" marker-end="url(#a1)"/>
+      <path class="edge" d="M90,124L130,168" marker-end="url(#a1)"/>
+      <path class="edge" d="M230,124L215,168" marker-end="url(#a1)"/>
+      <path class="path" d="M275,124L300,168" marker-end="url(#a2)"/>
+      <path class="edge" d="M300,124L385,168" marker-end="url(#a1)"/>
+      <path class="edge" d="M445,124L472,168" marker-end="url(#a1)"/>
+      <path class="leafln" d="M80,215H95M165,215H180M250,215H265M335,215H350M420,215H435"/>
+      <text class="sub" x="260" y="228" text-anchor="middle" font-size="10">葉は値の順に横につながっている → 範囲検索や ORDER BY はたどるだけ</text>
+    </svg>
+    <p>42 を探すとき、ルートで「30 以上 60 未満」の枝、次に「40 以上 50 未満」の枝…と<b>数回ページを読むだけ</b>で葉に着く。100 万行でも 3〜4 段程度。葉には「値 → 行の場所」が入っている。</p>
+  </div>
+
+  <h2 id="checker">そのインデックス、使える？</h2>
+  <div class="card checker">
+    <p>次の複合インデックスがあるとき、各クエリで使えるかを選んでみる。</p>
+    <div class="idx">CREATE INDEX ON orders (user_id, created_at);</div>
+    <div class="qs" id="qs"></div>
+    <div class="res" id="res"></div>
+  </div>
+
+  <h3 id="like">ほかの「効かない」パターン</h3>
+  <div class="card table-wrap">
+    <table>
+      <tr><th>条件</th><th>使える？</th><th>理由・対策</th></tr>
+      <tr><td><code>name LIKE 'yam%'</code></td><td class="n">○</td><td>前方一致は「yam 以上 yan 未満」の範囲検索になる（PostgreSQL では照合順序によって <code>text_pattern_ops</code> が必要）</td></tr>
+      <tr><td><code>name LIKE '%da'</code></td><td class="y">✕</td><td>先頭が決まらないので並び順を使えない。全文検索やトライグラム索引を検討</td></tr>
+      <tr><td><code>lower(email) = …</code></td><td class="y">✕</td><td>列に関数をかけると元の並び順と別物。<code>lower(email)</code> の式インデックスを作る</td></tr>
+      <tr><td><code>status = 'active'</code>（9割が active）</td><td class="y">△</td><td>ほとんどの行が当たるなら全件読む方が安い。プランナはインデックスを使わないことを選ぶ</td></tr>
+      <tr><td><code>code = 5</code>（列は文字列）</td><td class="y">△</td><td>文字列の列を数値と比べると、列側が数値に変換されてインデックスを使えない（MySQL など）。<code>code = '5'</code> のように型を合わせる</td></tr>
+    </table>
+  </div>
+
+  <h3 id="cost">インデックスのコスト</h3>
+  <div class="grid2">
+    <div class="card"><span class="label">書き込みが遅くなる</span><p>INSERT・UPDATE・DELETE のたびに全インデックスを更新する。10 本あれば 10 か所書く。使っていないインデックスは消す。</p></div>
+    <div class="card"><span class="label">カバリングインデックス</span><p>SELECT する列が全部インデックスに入っていれば、テーブル本体を読まずに済む（Index Only Scan）。<code>INCLUDE (列)</code> で葉に列を足せる DB もある。</p></div>
+  </div>
+<pre><code>EXPLAIN ANALYZE SELECT * FROM orders WHERE user_id = 5 ORDER BY created_at DESC LIMIT 20;
+<span class="cm">-- Limit
+--   -> Index Scan Backward using orders_user_id_created_at_idx on orders
+--        Index Cond: (user_id = 5)        ← Sort が出ていない＝並べ替え不要</span></code></pre>
+
+  <h2 id="anomalies">同時に動くと何が起きる？</h2>
+  <p>2つのトランザクション T1・T2 が同時に動いたときの代表的な異常。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="an-dirty">ダーティリード</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="an-nonrep">反復不能読み取り</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="an-phantom">ファントム</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="an-lost">更新の取りこぼし</button>
+  </div>
+  <div class="panel card" id="an-dirty">
+    <div class="tl">
+      <div class="hd">T1</div><div class="hd">T2</div>
+      <div class="c"><code>UPDATE 残高 = 0</code></div><div class="c"></div>
+      <div class="c"></div><div class="c bad"><code>SELECT 残高</code> → 0</div>
+      <div class="c"><code>ROLLBACK</code></div><div class="c"></div>
+    </div>
+    <p>T2 は<b>結局取り消された値</b>を読んでしまった。READ COMMITTED 以上なら起きない（PostgreSQL ではどのレベルでも起きない）。</p>
+  </div>
+  <div class="panel card" id="an-nonrep" hidden>
+    <div class="tl">
+      <div class="hd">T1</div><div class="hd">T2</div>
+      <div class="c"><code>SELECT 価格</code> → 100</div><div class="c"></div>
+      <div class="c"></div><div class="c"><code>UPDATE 価格 = 120; COMMIT</code></div>
+      <div class="c bad"><code>SELECT 価格</code> → 120</div><div class="c"></div>
+    </div>
+    <p>同じトランザクション内で<b>同じ行を2回読んだら値が違う</b>。REPEATABLE READ 以上で防げる。</p>
+  </div>
+  <div class="panel card" id="an-phantom" hidden>
+    <div class="tl">
+      <div class="hd">T1</div><div class="hd">T2</div>
+      <div class="c"><code>SELECT count(*) WHERE 部署=営業</code> → 5</div><div class="c"></div>
+      <div class="c"></div><div class="c"><code>INSERT 営業の新人; COMMIT</code></div>
+      <div class="c bad"><code>SELECT count(*) WHERE 部署=営業</code> → 6</div><div class="c"></div>
+    </div>
+    <p>同じ条件で検索したら<b>行が増えた（減った）</b>。標準 SQL では SERIALIZABLE で防ぐが、PostgreSQL の REPEATABLE READ はスナップショットなのでここでも起きない。</p>
+  </div>
+  <div class="panel card" id="an-lost" hidden>
+    <div class="tl">
+      <div class="hd">T1</div><div class="hd">T2</div>
+      <div class="c"><code>SELECT 在庫</code> → 10</div><div class="c"><code>SELECT 在庫</code> → 10</div>
+      <div class="c"><code>UPDATE 在庫 = 9; COMMIT</code></div><div class="c"></div>
+      <div class="c"></div><div class="c bad"><code>UPDATE 在庫 = 9; COMMIT</code></div>
+    </div>
+    <p>2個売れたのに在庫は 9。<b>読んだ値をアプリで計算して書き戻す</b>と、READ COMMITTED では普通に起きる。対策は<a href="#lost-fix">下</a>。</p>
+  </div>
+
+  <h2 id="isolation">分離レベルと防げる異常</h2>
+  <div class="card table-wrap">
+    <table class="iso">
+      <tr><th>分離レベル</th><th>ダーティリード</th><th>反復不能読み取り</th><th>ファントム</th></tr>
+      <tr><td>READ UNCOMMITTED</td><td class="y">起きる</td><td class="y">起きる</td><td class="y">起きる</td></tr>
+      <tr><td>READ COMMITTED</td><td class="n">防ぐ</td><td class="y">起きる</td><td class="y">起きる</td></tr>
+      <tr><td>REPEATABLE READ</td><td class="n">防ぐ</td><td class="n">防ぐ</td><td class="y">起きる※</td></tr>
+      <tr><td>SERIALIZABLE</td><td class="n">防ぐ</td><td class="n">防ぐ</td><td class="n">防ぐ</td></tr>
+    </table>
+  </div>
+  <p class="note">これは SQL 標準の最低ラインで、実際の挙動は DB ごとに違う。※PostgreSQL と MySQL InnoDB の REPEATABLE READ は、通常の SELECT ではファントムも起きない。<b>既定</b>は PostgreSQL・Oracle・SQL Server が READ COMMITTED、MySQL InnoDB が REPEATABLE READ。PostgreSQL の SERIALIZABLE は直列化できない組み合わせを<b>エラーにし</b>、MySQL InnoDB の SERIALIZABLE は読み取りにも共有ロックをかけるのでロック待ちやデッドロックが増える。どちらもアプリ側でトランザクションのリトライが必要。</p>
+
+  <h2 id="mvcc">MVCC：読む人と書く人がぶつからない仕組み</h2>
+  <div class="card">
+    <p>多くの DB は、更新しても<b>古い版を残しておく</b>（PostgreSQL は新しい行の版を追加し、InnoDB は行を上書きして古い版を undo ログに残す）。各トランザクションは開始時点（または文の開始時点）のスナップショットに見える版だけを読む。</p>
+    <div class="mvcc">
+      <div class="ver dead"><span class="label">版1</span><br>在庫 = 10<br><span class="muted">T100 が作成、T105 が更新して終了</span></div>
+      <div class="ver live"><span class="label">版2（最新）</span><br>在庫 = 9<br><span class="muted">T105 が作成</span></div>
+      <div class="ver"><span class="label">誰に何が見える？</span><br>T105 より前に始まった T103 → <b>版1</b><br>後から始まった T110 → <b>版2</b></div>
+    </div>
+    <p class="note">おかげで SELECT は UPDATE の完了を待たない。代わりに古い版が溜まるので、PostgreSQL は VACUUM、InnoDB は undo ログの purge で片付ける。長時間開いたままのトランザクションがあると古い版を消せず、テーブルが膨らむ。</p>
+  </div>
+
+  <h2 id="lost-fix">更新の取りこぼしを防ぐ3つの方法</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="fx-atomic">原子的な UPDATE</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="fx-lock">行ロック</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="fx-opt">楽観ロック</button>
+  </div>
+  <div class="panel card" id="fx-atomic">
+<pre><code>UPDATE items SET stock = stock - 1 WHERE id = 7 AND stock > 0;
+<span class="cm">-- 更新件数が 0 なら在庫切れ</span></code></pre>
+    <p>計算を DB に任せる。<b>一番シンプルで速い</b>。単純な増減ならまずこれ。</p>
+  </div>
+  <div class="panel card" id="fx-lock" hidden>
+<pre><code>BEGIN;
+SELECT stock FROM items WHERE id = 7 FOR UPDATE;   <span class="cm">-- 他の人はここで待つ</span>
+<span class="cm">-- アプリで複雑な判定</span>
+UPDATE items SET stock = 9 WHERE id = 7;
+COMMIT;</code></pre>
+    <p>読んだ時点で行をロックする（悲観ロック）。判定が複雑なとき向け。ロックの順番がトランザクションごとに違うとデッドロックになるので、<b>常に同じ順で取る</b>。</p>
+  </div>
+  <div class="panel card" id="fx-opt" hidden>
+<pre><code>UPDATE items SET stock = 9, version = version + 1
+ WHERE id = 7 AND version = 3;
+<span class="cm">-- 0 件なら誰かが先に更新した → 読み直してやり直す</span></code></pre>
+    <p>ロックせず、書くときに「読んだときから変わっていないか」を確かめる。競合が少なく、画面を開いてから保存するまでが長い編集フォームなどに向く。</p>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✕</span> WHERE に出てくる列全部にインデックスを張れば速くなる</p><p><span class="ok">○</span> 書き込みが遅くなり、プランナが使うのは通常1クエリにつき一部だけ。よく使う検索条件の組み合わせに合わせた複合インデックスを少数作る方が効く。</p></div>
+  <div class="card myth"><p><span class="ng">✕</span> トランザクションで囲めば同時実行の問題は全部防げる</p><p><span class="ok">○</span> 防げる範囲は分離レベル次第。既定の READ COMMITTED では、読んでから書き戻す処理の取りこぼしは防げない。</p></div>
+
+  <h2>関連</h2>
+  <p class="related"><a href="db-internals.html">DB のしくみ</a><a href="jwt-vs-session.html">JWT とセッション</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://www.postgresql.org/docs/current/transaction-iso.html">PostgreSQL: Transaction Isolation</a></li>
+    <li><a href="https://www.postgresql.org/docs/current/indexes-multicolumn.html">PostgreSQL: Multicolumn Indexes</a></li>
+    <li><a href="https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-isolation-levels.html">MySQL: Transaction Isolation Levels</a></li>
+    <li><a href="https://use-the-index-luke.com/ja">Use The Index, Luke!（日本語版）</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+(() => {
+  const Q = [
+    ['WHERE user_id = 5', 'ok', '使える', '先頭列の等号。B木で user_id = 5 の範囲に一気に飛べる。'],
+    ['WHERE user_id = 5 AND created_at >= \'2026-10-01\'', 'ok', '使える', '先頭列が等号で決まれば、その中は created_at 順に並んでいるので範囲もそのまま使える。'],
+    ['WHERE created_at >= \'2026-10-01\'', 'ng', 'ほぼ使えない', '先頭の user_id を飛ばしている。電話帳を「名」だけで引くようなもの。created_at だけの検索が多いなら、別に created_at のインデックスを作る（一部の DB はスキップスキャンで部分的に使える）。'],
+    ['WHERE user_id = 5 ORDER BY created_at DESC LIMIT 20', 'ok', '使える（並べ替えも不要）', 'user_id = 5 の中は created_at 順に並んでいるので、後ろから 20 件たどるだけ。Sort が発生しない。'],
+    ['WHERE user_id = 5 AND date(created_at) = \'2026-10-01\'', 'warn', '一部だけ', 'user_id までは使えるが、created_at に関数をかけた部分は範囲検索にできない。created_at >= \'2026-10-01\' AND created_at < \'2026-10-02\' と書き直す。'],
+    ['WHERE created_at >= \'2026-10-01\' AND user_id = 5', 'ok', '使える', 'WHERE に書く順番は関係ない。プランナが並べ替えて考える。大事なのはインデックス側の列の順番。']
+  ];
+  const qs = document.getElementById('qs');
+  const res = document.getElementById('res');
+  const col = { ok: 'var(--c-ok)', ng: 'var(--c-ng)', warn: 'var(--c-warn)' };
+  const cls = { ok: 'ok', ng: 'ng', warn: 'warn' };
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  qs.innerHTML = Q.map((q, i) => `<label><input type="radio" name="q" value="${i}"${i === 0 ? ' checked' : ''}><code>${esc(q[0])}</code></label>`).join('');
+  const show = i => {
+    const q = Q[i];
+    res.style.borderColor = col[q[1]];
+    res.innerHTML = `<b class="${cls[q[1]]}">${q[2]}</b><p>${esc(q[3])}</p>`;
+  };
+  qs.addEventListener('change', e => show(+e.target.value));
+  show(0);
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "orders (user_id, created_at) の複合インデックスがある。「先週の全ユーザーの注文」を created_at だけで検索したら遅い。なぜ？",
+    "choices": ["先頭列の user_id を指定していないので、並び順をそのまま使えないから", "created_at が日付型だから", "複合インデックスは等号でしか使えないから"],
+    "answer": 0,
+    "explain": "複合インデックスは user_id 順、その中で created_at 順に並んでいる。user_id を飛ばすと created_at はばらばらに散っているので、基本的には効率よく使えない（PostgreSQL 18 や MySQL 8.0.13 以降はスキップスキャンで使える場合もあるが、user_id の種類が多いと効果は薄い）。必要なら created_at 単独のインデックスを作る。",
+    "ref": "#checker"
+  },
+  {
+    "q": "email にインデックスがあるのに WHERE lower(email) = 'a@example.com' が全件スキャンになる。対策は？",
+    "choices": ["email のインデックスを作り直す", "lower(email) の式インデックスを作る", "LIKE に書き換える"],
+    "answer": 1,
+    "explain": "インデックスは email の値の順に並んでいて、lower(email) の順ではない。関数をかけた結果で探すなら、その式自体にインデックスを作る。",
+    "ref": "#like"
+  },
+  {
+    "q": "既定の READ COMMITTED で「在庫を SELECT → アプリで -1 → UPDATE で書き戻す」処理を同時に 2 件実行したら、2 個売れたのに在庫が 1 しか減らなかった。一番シンプルな対策は？",
+    "choices": ["分離レベルを READ UNCOMMITTED にする", "SELECT を 2 回実行して値を確認する", "UPDATE items SET stock = stock - 1 のように DB 側で計算する"],
+    "answer": 2,
+    "explain": "読んだ値を書き戻す方式は、READ COMMITTED では更新の取りこぼしが起きる。stock = stock - 1 なら UPDATE 時の最新値に対して計算されるので取りこぼさない。複雑な判定が必要なら SELECT ... FOR UPDATE。",
+    "ref": "#lost-fix"
+  },
+  {
+    "q": "PostgreSQL で、夜間バッチが長時間トランザクションを開いたままにしていたら、更新の多いテーブルがどんどん膨らんだ。主な原因は？",
+    "choices": ["WAL がデータファイルに反映されないから", "そのトランザクションから見える可能性のある古い行の版を、VACUUM が消せないから", "インデックスが自動で増えるから"],
+    "answer": 1,
+    "explain": "MVCC では更新のたびに新しい版ができる。まだ実行中の古いトランザクションが見る可能性のある版は片付けられないので、溜まり続ける。",
+    "ref": "#mvcc"
+  },
+  {
+    "q": "SERIALIZABLE に上げたら、まれに「could not serialize access」エラーが出るようになった。どう扱う？",
+    "choices": ["DB の不具合なので READ COMMITTED に戻す", "想定どおりの挙動なので、トランザクションを最初からリトライする", "エラーを無視して処理を続ける"],
+    "answer": 1,
+    "explain": "SERIALIZABLE は、直列に実行した場合と矛盾する組み合わせを検出すると片方をエラーにして守る。アプリ側でトランザクションごとやり直す前提で使う。",
+    "ref": "#isolation"
+  }
+]
+</script>
+</body>
+</html>

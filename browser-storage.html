@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ブラウザのストレージ</title>
+<meta name="description" content="Cookie・localStorage・sessionStorage・IndexedDB・Cache API・OPFS を、容量・同期か非同期か・サーバーに送られるか・いつ消えるかで比べ、用途別の選び方と、実際に書き込んで確かめられるデモで図解。">
+<meta name="memo:tags" content="フロントエンド, セキュリティ, JavaScript">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-warn: #b45309;
+  --c-a: #7c3aed;
+  --c-b: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-warn: #fbbf24;
+    --c-a: #c4b5fd;
+    --c-b: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.list, ol.list { margin: 6px 0 6px 1.3em; }
+ul.list li, ol.list li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* ステップ */
+ol.steps { list-style: none; counter-reset: st; }
+ol.steps > li {
+  counter-increment: st;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 12px; top: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps b { display: block; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.fig .sub { fill: var(--fg-2); font-family: 'Noto Sans JP', sans-serif; }
+.fig .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+details.card summary { cursor: pointer; font-weight: 700; }
+details.card[open] summary { margin-bottom: 8px; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.hdr { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); padding: 8px 12px; border-radius: 8px; word-break: break-all; margin: 6px 0; }
+.lane { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .lane { grid-template-columns: 1fr; } }
+.lane .flow { flex-direction: column; align-items: stretch; }
+.lane .arrow { text-align: center; font-size: 0.75rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; }
+.svgwrap { overflow-x: auto; }
+.lane > *, .grid2 > *, .grid3 > * { min-width: 0; }
+.svgwrap > svg { min-width: 560px; }
+@media (max-width: 560px) {
+  .flow { flex-direction: column; align-items: stretch; }
+  .flow .arrow { align-self: center; transform: rotate(90deg); line-height: 1; }
+}
+:is(.grid2, .grid3, .lane, .life, .vit, .who, .cmp, .shape) > .card + .card { margin-top: 0; }
+
+/* ---- このページ専用 ---- */
+.lab { display: grid; gap: 10px; }
+.lab .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.lab button { border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 999px; padding: 4px 12px; font: 600 0.75rem 'JetBrains Mono', ui-monospace, monospace; cursor: pointer; }
+.lab button:hover { border-color: var(--accent); }
+.lab .out { font: 0.75rem/1.6 'JetBrains Mono', ui-monospace, monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; word-break: break-all; min-height: 4em; }
+.meter { height: 12px; background: var(--chip); border-radius: 6px; overflow: hidden; margin: 6px 0; }
+.meter i { display: block; height: 100%; background: var(--accent); width: 0; }
+.life { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.life .card { padding: 10px 12px; font-size: 0.82rem; }
+.life .card b { display: block; font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); margin-bottom: 2px; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="ブラウザのストレージ">
+<meta property="og:description" content="Cookie・localStorage・sessionStorage・IndexedDB・Cache API・OPFS を、容量・同期か非同期か・サーバーに送られるか・いつ消えるかで比べ、用途別の選び方と、実際に書き込んで確かめられるデモで図解。">
+<meta property="og:url" content="https://memo.taka1156.site/browser-storage.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>ブラウザのストレージ</h1>
+  <p class="subtitle">「どこに置くか」は、量・形・誰が読むか・どれだけ残したいかで決まる</p>
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>Cookie はサーバーに毎回送られる</b>小さなデータ（ログイン状態など）。ブラウザの中だけで使うデータを Cookie に入れると、全リクエストが重くなる。</li>
+      <li>小さな設定は <b>localStorage</b>（同期・文字列のみ）、大きなデータやオブジェクトは <b>IndexedDB</b>（非同期）、オフライン用のレスポンスは <b>Cache API</b>、大きなファイルは <b>OPFS</b>。</li>
+      <li>どれも<b>オリジンごと</b>に分かれていて、<b>ブラウザの判断で消されうる</b>。消えて困るものはサーバーにも持つか、<code>navigator.storage.persist()</code> で保護を頼む。</li>
+    </ul>
+  </div>
+
+  <h2 id="compare">一覧で比べる</h2>
+  <div class="card table-wrap">
+    <table>
+      <tr><th></th><th>容量の目安</th><th>API</th><th>形</th><th>サーバーに送る</th><th>Worker から</th></tr>
+      <tr><td>Cookie</td><td>1 個 約 4KB</td><td>同期（<code>document.cookie</code>）</td><td>文字列</td><td><b>毎リクエスト自動</b></td><td>×（Service Worker からは Cookie Store API で可）</td></tr>
+      <tr><td>localStorage</td><td>オリジンごとに約 5MB</td><td><b>同期</b></td><td>文字列</td><td>×</td><td>×</td></tr>
+      <tr><td>sessionStorage</td><td>約 5MB</td><td>同期</td><td>文字列</td><td>×</td><td>×</td></tr>
+      <tr><td>IndexedDB</td><td>ディスクの空きに応じて大きい</td><td><b>非同期</b></td><td>オブジェクト・Blob（構造化複製）</td><td>×</td><td>○</td></tr>
+      <tr><td>Cache API</td><td>同上（共有の枠）</td><td>非同期</td><td>Request → Response</td><td>×</td><td>○（Service Worker の主役）</td></tr>
+      <tr><td>OPFS</td><td>同上（共有の枠）</td><td>非同期（Worker 内は同期ハンドルも）</td><td>ファイル</td><td>×</td><td>○</td></tr>
+    </table>
+  </div>
+  <p class="note">IndexedDB・Cache API・OPFS は同じ「オリジンの枠」を分け合う。上限はブラウザとディスクの空きで変わるので、数字を決め打ちせず <code>navigator.storage.estimate()</code> で確かめる（下のデモ参照）。localStorage の値は UTF-16 で数えられるので、日本語は 1 文字 2 バイト程度になる。</p>
+
+  <h2 id="lab">実際に書いて確かめる</h2>
+  <div class="card lab">
+    <div class="row">
+      <button id="b-ls">localStorage に書く</button>
+      <button id="b-ss">sessionStorage に書く</button>
+      <button id="b-idb">IndexedDB にオブジェクトを書く</button>
+      <button id="b-read">全部読む</button>
+      <button id="b-clear">消す</button>
+    </div>
+    <div class="out" id="out" aria-live="polite">ボタンを押すと、ここに結果が出る。</div>
+    <div>
+      <span class="label">このオリジンの使用量（navigator.storage.estimate）</span>
+      <div class="meter"><i id="meter"></i></div>
+      <div class="muted" id="quota">—</div>
+    </div>
+    <p class="note">書いたあとにページを再読み込みすると、localStorage と IndexedDB は残り、sessionStorage は同じタブなら残る（タブを閉じると消える）。プレビュー環境やプライベートウィンドウでは、保存が拒否されたり閉じると消えたりする。</p>
+  </div>
+
+  <h2 id="cookie">Cookie：サーバーと共有する小さな札</h2>
+  <div class="card">
+<pre>Set-Cookie: session=abc123; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=604800</pre>
+    <div class="table-wrap">
+      <table>
+        <tr><th>属性</th><th>意味</th></tr>
+        <tr><td><code>HttpOnly</code></td><td>JS（<code>document.cookie</code>）から読めない。XSS でセッションを盗まれにくくする。ログイン用は必ず付ける</td></tr>
+        <tr><td><code>Secure</code></td><td>HTTPS のときだけ送る</td></tr>
+        <tr><td><code>SameSite=Lax</code></td><td>他サイトから来たリクエストでは、トップレベルの遷移（リンクで来た GET）以外は送らない。CSRF 対策の土台</td></tr>
+        <tr><td><code>Max-Age</code> / <code>Expires</code></td><td>付けないと<b>セッション Cookie</b>（ブラウザを閉じると消える、はずだが「前回のタブを復元」で残ることがある）</td></tr>
+        <tr><td><code>Partitioned</code></td><td>埋め込み先のサイトごとに別の Cookie にする（CHIPS）。サードパーティとして埋め込まれるチャットや地図向け</td></tr>
+      </table>
+    </div>
+    <p class="note">サードパーティ Cookie（埋め込み先から見た別サイトの Cookie）は、Safari が既定でブロックしている。Firefox は既定で埋め込み先のサイトごとに Cookie を分ける（Total Cookie Protection）ので、サイトをまたいだ共有はできない。Chrome は既定では許可したままにする方針に変わったが、ユーザーが制限できる。どのブラウザでも動かしたいなら、サードパーティ Cookie に頼らない設計にする。</p>
+  </div>
+
+  <h2 id="web-storage">localStorage と sessionStorage</h2>
+  <div class="grid2">
+    <div class="card"><span class="label">向いている</span><p>テーマ（ライト／ダーク）、閉じたパネル、未送信の下書きなど、<b>小さくて、消えても困らない</b>設定。読み書きが簡単で、別タブの変更は <code>storage</code> イベントで受け取れる。</p></div>
+    <div class="card"><span class="label">向いていない</span><p><b>同期 API</b>なのでメインスレッドを止める（大きな JSON の読み書きは INP を悪化させる）。<b>XSS があれば全部読まれる</b>ので、トークンなど秘密の置き場には向かない。数値やオブジェクトは文字列化が必要。</p></div>
+  </div>
+<pre><span class="cm">// 失敗する前提で書く（容量超過・プライベートモード・保存禁止の設定）</span>
+function save(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+  catch { return false; }   <span class="cm">// QuotaExceededError や SecurityError</span>
+}</pre>
+  <p class="note"><b>sessionStorage はタブごと</b>。同じサイトを 2 つのタブで開くと別々の中身になる。タブを複製すると中身もコピーされる。</p>
+
+  <h2 id="idb">IndexedDB：ブラウザの中のデータベース</h2>
+  <div class="card">
+    <p>キーと値（オブジェクト・配列・Date・Blob・ArrayBuffer など、構造化複製できるもの）を保存し、<b>インデックスで検索</b>でき、<b>トランザクション</b>がある。オフラインで動くアプリのデータ、大きな一覧のキャッシュ、メール本文や画像の保存に使う。</p>
+<pre><span class="cm">// 素の API はイベント方式で冗長なので、薄いラッパー（idb など）を使うことが多い</span>
+import { openDB } from 'idb';
+const db = await openDB('notes', 1, {
+  upgrade(db) {                                  <span class="cm">// 版を上げたときだけ呼ばれる（スキーマ変更）</span>
+    const s = db.createObjectStore('notes', { keyPath: 'id' });
+    s.createIndex('byUpdated', 'updatedAt');
+  },
+});
+await db.put('notes', { id: 'n1', body: 'メモ', updatedAt: Date.now() });
+const recent = await db.getAllFromIndex('notes', 'byUpdated');</pre>
+    <p class="note">スキーマを変えるときは版番号を上げ、<code>upgrade</code> で移行する。古い版を開いたままの別タブがあると <code>blocked</code> になるので、<code>versionchange</code> で古い接続を閉じる処理も書く。</p>
+  </div>
+
+  <h2 id="cache-opfs">Cache API と OPFS</h2>
+  <div class="grid2">
+    <div class="card"><span class="label">Cache API</span><p><code>Request</code> をキーに <code>Response</code> を丸ごと保存する。Service Worker でオフライン時に返すのが主な用途。HTTP キャッシュとは別物で、<b>自分で入れて自分で消す</b>（期限は自動で切れない）。</p></div>
+    <div class="card"><span class="label">OPFS（Origin Private File System）</span><p>オリジン専用のファイルシステム。ユーザーには見えない。Worker 内の同期アクセスハンドルで高速に読み書きでき、<b>ブラウザで SQLite を動かすときの保存先</b>などに使われる。</p></div>
+  </div>
+
+  <h2 id="evict">いつ消えるか</h2>
+  <div class="life">
+    <div class="card"><b>容量が足りない</b>ディスクが逼迫すると、ブラウザが「しばらく使っていないオリジン」から丸ごと消す（best-effort）。</div>
+    <div class="card"><b>ユーザーが消す</b>「サイトデータを削除」「閲覧履歴を消去」。プライベートウィンドウは閉じると全部消える。</div>
+    <div class="card"><b>Safari の 7 日ルール</b>Safari（トラッキング防止が有効なとき）は、Safari を使った日で数えて 7 日間そのサイトをクリックやタップで操作しないと、JS で書いたストレージを消す。サーバーが送った Cookie は対象外。ホーム画面に追加した Web アプリは使用日数を別に数えるので、使っていれば消されない。</div>
+    <div class="card"><b>サーバーから消す</b>ログアウト時などに <code>Clear-Site-Data: "cache", "cookies", "storage"</code> ヘッダーで一括削除できる。</div>
+  </div>
+<pre><span class="cm">// 消されにくくしてほしいと頼む（認められるかはブラウザが決める）</span>
+if (navigator.storage?.persist) {
+  const granted = await navigator.storage.persist();
+  console.log(granted ? '永続化された' : 'best-effort のまま');
+}</pre>
+
+  <h2 id="choose">用途別の置き場所</h2>
+  <div class="card table-wrap">
+    <table>
+      <tr><th>置きたいもの</th><th>置き場所</th><th>理由</th></tr>
+      <tr><td>ログインセッション</td><td>Cookie（HttpOnly・Secure・SameSite）</td><td>JS から読めない場所に置き、サーバーが自動で受け取れる</td></tr>
+      <tr><td>テーマ・表示設定</td><td>localStorage</td><td>小さく、消えても困らない。サーバー描画にも反映したいなら Cookie</td></tr>
+      <tr><td>フォームの下書き（このタブだけ）</td><td>sessionStorage</td><td>タブを閉じたら要らない</td></tr>
+      <tr><td>オフラインで見るデータ・大きな一覧</td><td>IndexedDB</td><td>非同期で大容量、検索できる</td></tr>
+      <tr><td>オフライン用の HTML・JS・画像</td><td>Cache API（Service Worker）</td><td>レスポンスをそのまま返せる</td></tr>
+      <tr><td>ブラウザ内 DB の実体・大きなファイル</td><td>OPFS</td><td>ファイルとして高速に読み書き</td></tr>
+      <tr><td>アクセストークン（SPA）</td><td>メモリ（変数）が基本</td><td>永続化するなら XSS で読まれる前提で、寿命を短くする</td></tr>
+    </table>
+  </div>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="jwt-vs-session.html">JWT とセッション</a><a href="pwa.html">PWA</a><a href="security-headers.html">セキュリティヘッダー</a><a href="web-vulnerabilities.html">実装起因の脆弱性</a><a href="http-cache.html">HTTP キャッシュ</a><a href="web-performance.html">Core Web Vitals</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://developer.mozilla.org/ja/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria">MDN: ストレージの割り当てと削除基準</a></li>
+    <li><a href="https://web.dev/articles/storage-for-the-web">web.dev: Storage for the web</a></li>
+    <li><a href="https://developer.mozilla.org/ja/docs/Web/HTTP/Cookies">MDN: HTTP Cookie</a></li>
+    <li><a href="https://developer.mozilla.org/ja/docs/Web/API/IndexedDB_API">MDN: IndexedDB API</a></li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system">MDN: Origin private file system</a></li>
+    <li><a href="https://webkit.org/tracking-prevention/">WebKit: Tracking Prevention</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+<script>
+(() => {
+  const out = document.getElementById('out');
+  const log = (s) => { out.textContent = s; };
+  const fmt = (n) => n >= 1e9 ? (n / 1e9).toFixed(1) + ' GB' : n >= 1e6 ? (n / 1e6).toFixed(1) + ' MB' : n >= 1e3 ? (n / 1e3).toFixed(1) + ' KB' : n + ' B';
+  async function quota() {
+    try {
+      const e = await navigator.storage.estimate();
+      document.getElementById('meter').style.width = Math.max(0.5, (e.usage / e.quota) * 100) + '%';
+      document.getElementById('quota').textContent = '使用 ' + fmt(e.usage) + ' / 上限 ' + fmt(e.quota) + '（ブラウザとディスクの空きで変わる）';
+    } catch { document.getElementById('quota').textContent = 'この環境では取得できません'; }
+  }
+  function openDb() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('memo-storage-demo', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('items', { keyPath: 'id' });
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  }
+  async function idbPut(obj) {
+    const db = await openDb();
+    await new Promise((res, rej) => { const t = db.transaction('items', 'readwrite'); t.objectStore('items').put(obj); t.oncomplete = res; t.onerror = () => rej(t.error); });
+    db.close();
+  }
+  async function idbGet() {
+    const db = await openDb();
+    const v = await new Promise((res, rej) => { const r = db.transaction('items').objectStore('items').get('demo'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+    db.close(); return v;
+  }
+  document.getElementById('b-ls').onclick = () => {
+    try { localStorage.setItem('memo-demo', JSON.stringify({ n: 42, at: new Date().toISOString() })); log('localStorage に書いた：文字列に変換して保存\n' + localStorage.getItem('memo-demo')); }
+    catch (e) { log('localStorage が使えない：' + e.name); }
+    quota();
+  };
+  document.getElementById('b-ss').onclick = () => {
+    try { sessionStorage.setItem('memo-demo', 'このタブだけ ' + new Date().toLocaleTimeString()); log('sessionStorage に書いた：' + sessionStorage.getItem('memo-demo')); }
+    catch (e) { log('sessionStorage が使えない：' + e.name); }
+  };
+  document.getElementById('b-idb').onclick = async () => {
+    try {
+      await idbPut({ id: 'demo', at: new Date(), tags: ['a', 'b'], blob: new Blob(['x'.repeat(200000)]) });
+      log('IndexedDB に書いた：Date・配列・200KB の Blob を、文字列化せずにそのまま保存');
+    } catch (e) { log('IndexedDB が使えない：' + (e && e.name)); }
+    quota();
+  };
+  document.getElementById('b-read').onclick = async () => {
+    const lines = [];
+    try { lines.push('localStorage   : ' + localStorage.getItem('memo-demo')); } catch (e) { lines.push('localStorage   : ' + e.name); }
+    try { lines.push('sessionStorage : ' + sessionStorage.getItem('memo-demo')); } catch (e) { lines.push('sessionStorage : ' + e.name); }
+    try {
+      const v = await idbGet();
+      lines.push('IndexedDB      : ' + (v ? 'at は ' + (v.at instanceof Date ? 'Date 型のまま' : typeof v.at) + '、Blob は ' + (v.blob ? fmt(v.blob.size) : 'なし') : 'null'));
+    } catch (e) { lines.push('IndexedDB      : ' + (e && e.name)); }
+    log(lines.join('\n'));
+  };
+  document.getElementById('b-clear').onclick = async () => {
+    try { localStorage.removeItem('memo-demo'); sessionStorage.removeItem('memo-demo'); } catch {}
+    try { await new Promise(r => { const q = indexedDB.deleteDatabase('memo-storage-demo'); q.onsuccess = q.onerror = q.onblocked = r; }); } catch {}
+    log('デモで書いたデータを消した');
+    quota();
+  };
+  quota();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {"q": "SPA でユーザーのテーマ設定（ライト／ダーク）を保存したい。サーバー側の描画には使わない。合う置き場所は？", "choices": ["localStorage", "Cookie", "IndexedDB"], "answer": 0, "explain": "小さくて消えても困らない設定は localStorage で十分。Cookie に入れると全リクエストに乗って無駄に送られる。", "ref": "#choose"},
+  {"q": "数 MB の JSON を localStorage に保存・読み込みするたびに画面が固まる。改善策は？", "choices": ["JSON を圧縮して文字数を減らす", "IndexedDB に移して、オブジェクトのまま非同期で読み書きする", "sessionStorage に移す"], "answer": 1, "explain": "localStorage は同期 API でメインスレッドを止める。sessionStorage も同じ。IndexedDB は非同期で、文字列化も要らない。", "ref": "#web-storage"},
+  {"q": "ログインセッションの ID を保存する場所として最も安全なのは？", "choices": ["localStorage", "HttpOnly・Secure・SameSite を付けた Cookie", "sessionStorage"], "answer": 1, "explain": "HttpOnly なら JS から読めないので XSS で盗まれにくい。Web Storage は JS から全部読める。", "ref": "#cookie"},
+  {"q": "オフライン対応のメモアプリで、iPhone の Safari で使っていたら 1 週間ぶりに開いたときデータが消えていた。考えられる理由と対策は？", "choices": ["IndexedDB の容量上限に達した。データを圧縮する", "Cookie の有効期限が切れた。Max-Age を延ばす", "Safari がしばらく操作のないサイトのストレージを消した。ホーム画面に追加してもらうか、サーバーにも同期する"], "answer": 2, "explain": "Safari は、Safari を使った日で数えて 7 日間操作のないサイトの、JS で書いたストレージを消すことがある。ホーム画面に追加した Web アプリは使用日数を別に数えるので、使っていれば消えにくい。消えて困るデータはサーバーにも持つ。", "ref": "#evict"}
+]
+</script>
+</body>
+</html>

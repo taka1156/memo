@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コンポーネント設計</title>
+<meta name="description" content="Atomic Design がなぜ下火になったかを踏まえ、デザイントークン・Headless UI・機能単位の配置で組む今どきの UI コンポーネント設計を図とコードで整理する">
+<meta name="memo:tags" content="設計, デザイン, フロントエンド">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #cf222e;
+  --c-warn: #9a6700;
+  --c-a: #0077b6;
+  --c-b: #8250df;
+  --c-c: #1a7f37;
+  --c-d: #bc4c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-a: #00d4ff;
+    --c-b: #bc8cff;
+    --c-c: #3fb950;
+    --c-d: #f0883e;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.2em; }
+ul.plain li { margin: 2px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+  margin: 10px 0;
+}
+.en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* 図 */
+.diagram { margin: 8px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
+.d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
+.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--accent); }
+.d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
+.d-ng-head { fill: var(--c-ng); }
+
+/* ステップ・フロー */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.flow span {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+.tbl td:first-child { font-weight: 700; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+
+/* チェックリスト */
+.progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
+.bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
+.checklist { list-style: none; }
+.checklist li { border-bottom: 1px solid var(--line); }
+.checklist li:last-child { border-bottom: none; }
+.checklist label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 2px; cursor: pointer; }
+.checklist input { margin-top: 5px; accent-color: var(--accent); flex: none; width: 16px; height: 16px; }
+.checklist .txt { flex: 1; }
+.checklist .txt small { display: block; color: var(--fg-2); font-size: 0.8rem; }
+.checklist input:checked + .txt { color: var(--fg-2); text-decoration: line-through; }
+.badge {
+  display: inline-block;
+  font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  color: var(--fg-2);
+}
+.badge.a { color: var(--c-a); }
+.badge.b { color: var(--c-b); }
+.badge.c { color: var(--c-c); }
+.badge.d { color: var(--c-d); }
+
+/* よくある誤解 */
+.myth { margin-bottom: 10px; }
+.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
+.myth summary::-webkit-details-marker { display: none; }
+.myth summary::before { content: '✕ '; color: var(--c-ng); }
+.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
+.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+/* OK / NG コード比較 */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.vs > div { min-width: 0; }
+.vs .lbl { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.stack { display: grid; gap: 6px; }
+.layer { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.layer .ln { font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.layer .ln small { display: block; color: var(--fg-2); font-weight: 500; font-size: 0.7rem; }
+.layer p { margin: 0; font-size: 0.84rem; }
+.layer p span { color: var(--fg-2); }
+.layer.you { border-left: 3px solid var(--c-d); }
+.layer.lib { border-left: 3px solid var(--c-b); }
+.layer.tok { border-left: 3px solid var(--c-c); }
+@media (max-width: 520px) { .layer { grid-template-columns: 1fr; gap: 2px; } }
+.split { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.split .card ul { margin-top: 6px; }
+.tree { font: 500 0.78rem/1.7 'JetBrains Mono', ui-monospace, monospace; white-space: pre; overflow-x: auto; }
+.tree .hl { color: var(--accent); font-weight: 700; }
+.tree .dim { color: var(--fg-2); }
+.atom-q { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.atom-q span { background: var(--chip); border-radius: 6px; padding: 2px 10px; font-size: 0.8rem; }
+.atom-q b { color: var(--c-warn); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="コンポーネント設計">
+<meta property="og:description" content="Atomic Design がなぜ下火になったかを踏まえ、デザイントークン・Headless UI・機能単位の配置で組む今どきの UI コンポーネント設計を図とコードで整理する">
+<meta property="og:url" content="https://memo.taka1156.site/component-design.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>コンポーネント設計</h1>
+  <p class="subtitle">Atomic Design のあと —— トークン × Headless UI × 機能単位で組む</p>
+<div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>Atomic Design</b>（原子・分子・有機体…）は「部品を組み合わせて画面を作る」発想を広めたが、<b>粒度の分類で揉める</b>・<b>機能のコードが散らばる</b>ことから、そのままの形では使われなくなった。</li>
+      <li>今の主流は<b>「見た目（トークン）」「振る舞い（Headless UI）」「機能（feature）」を分ける</b>こと。キーボード操作や ARIA などの難しい部分はライブラリに任せ、見た目は自分で持つ。</li>
+      <li>フォルダは粒度ではなく<b>機能ごと</b>に分け、本当に共通の部品だけを薄い <code>ui/</code> に置く。</li>
+    </ul>
+  </div>
+
+  <h2 id="atomic">Atomic Design はなぜ下火になったか</h2>
+  <p>部品を Atoms → Molecules → Organisms → Templates → Pages の 5 段階に分類する方法論。考え方自体は正しかったものの、実務では次の問題が目立ちました。</p>
+  <div class="grid">
+    <div class="card"><b>分類で揉める</b>
+      <div class="atom-q"><span>検索ボックスは？</span><span>Molecule <b>?</b></span><span>Organism <b>?</b></span></div>
+      <p class="note" style="border:0;padding:0">境界に正解がなく、レビューのたびに議論になる。部品が育つと別の階層へ引っ越しが必要になる。</p></div>
+    <div class="card"><b>機能が散らばる</b>
+      <p class="note" style="border:0;padding:0">「カート」の部品が atoms/ molecules/ organisms/ に分かれて置かれ、1 つの機能を直すのに 3 つのフォルダを行き来する。</p></div>
+    <div class="card"><b>変更の理由と合わない</b>
+      <p class="note" style="border:0;padding:0">分け方は「大きさ」で、変更の理由（どの機能の都合か）とは無関係。<a href="solid.html#principles">単一責任</a>の観点でも筋が悪い。</p></div>
+  </div>
+  <p class="note">残った功績：「画面をページ単位でなく部品の組み合わせとして設計する」考え方と、Storybook で部品単体を開発・確認する文化。</p>
+
+  <h2 id="layers">今どきの層の分け方</h2>
+  <p>粒度ではなく<b>「何を担当するか」</b>で分けます。下の 2 層は外部の仕組みに任せ、上の層ほど自分のアプリ固有になります。</p>
+  <div class="stack">
+    <div class="layer you"><div class="ln">ページ<small>routes / app</small></div><p>データを取ってきて、機能の部品を並べる。<span>レイアウトとデータの受け渡しだけ。</span></p></div>
+    <div class="layer you"><div class="ln">機能の部品<small>features/*</small></div><p><code>CartSummary</code> <code>LoginForm</code> など、業務の言葉を持つ部品。<span>そのアプリにしかない。</span></p></div>
+    <div class="layer you"><div class="ln">UI 部品<small>ui/</small></div><p><code>Button</code> <code>Dialog</code> <code>Tabs</code> など、業務を知らない見た目つきの部品。<span>Headless にスタイルを当てたもの。</span></p></div>
+    <div class="layer lib"><div class="ln">振る舞い<small>Headless UI</small></div><p>開閉状態・キーボード操作・フォーカス管理・ARIA 属性。<span>見た目は持たない。ライブラリに任せる。</span></p></div>
+    <div class="layer tok"><div class="ln">見た目の値<small>デザイントークン</small></div><p>色・余白・角丸・文字サイズ。<span>→ <a href="design-tokens.html">デザイントークン</a></span></p></div>
+  </div>
+
+  <h2 id="headless">Headless UI とは</h2>
+  <p>「見た目なしの部品」。ダイアログやタブ、メニューなどの<b>作るのが難しい部分（振る舞いとアクセシビリティ）だけ</b>を提供し、HTML 構造とスタイルは使う側が決めます。</p>
+  <div class="split">
+    <div class="card"><b>ライブラリが持つもの</b>
+      <ul class="plain">
+        <li>開いている／選ばれているなどの状態</li>
+        <li>矢印キー・Esc・Tab の操作</li>
+        <li>フォーカスの閉じ込めと復帰（モーダル）</li>
+        <li><code>role</code> / <code>aria-*</code> 属性の付与</li>
+        <li>画面端での位置調整（ポップオーバー）</li>
+      </ul></div>
+    <div class="card"><b>自分が持つもの</b>
+      <ul class="plain">
+        <li>HTML の構造（どこに何を置くか）</li>
+        <li>スタイル（Tailwind・CSS Modules など何でも）</li>
+        <li>アニメーション</li>
+        <li>業務のロジック</li>
+      </ul></div>
+  </div>
+
+  <h3 id="libs">主なライブラリ</h3>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>ライブラリ</th><th>対応</th><th>特徴</th></tr>
+    <tr><td>Radix Primitives</td><td>React</td><td>部品の種類が多く、shadcn/ui の土台として広く使われている</td></tr>
+    <tr><td>React Aria</td><td>React</td><td>Adobe 製。アクセシビリティと国際化（日付・数値など）の作り込みが特に厚い。フック単位でも使える</td></tr>
+    <tr><td>Base UI</td><td>React</td><td>Radix・Floating UI・MUI の開発者による。2025 年 12 月に v1.0。shadcn/ui でも Radix の代わりに選べる</td></tr>
+    <tr><td>Ark UI</td><td>React / Solid / Vue / Svelte</td><td>状態機械（Zag.js）で振る舞いを実装し、複数のフレームワークに同じ部品を提供</td></tr>
+    <tr><td>Kobalte / Bits UI / Reka UI</td><td>Solid / Svelte / Vue</td><td>各フレームワーク向けの代表的な選択肢</td></tr>
+  </table></div>
+  <p class="note">ネイティブ要素で足りる場面も増えている。モーダルは <code>&lt;dialog&gt;</code>、ポップオーバーは <code>popover</code> 属性、開閉は <code>&lt;details&gt;</code>。まずこれで足りるか考え、足りない部分だけライブラリを使う。</p>
+
+  <h2 id="code">コード例：Headless にスタイルを当てる</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="c-ui">ui/Dialog</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="c-feature">機能から使う</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="c-variant">バリエーション</button>
+  </div>
+  <div class="panel card" id="c-ui">
+<pre><code><span class="cm">// ui/dialog.tsx — Radix の振る舞いに、トークンを使った見た目を当てる</span>
+import * as D from '@radix-ui/react-dialog';
+
+export const Dialog = D.Root;
+export const DialogTrigger = D.Trigger;
+
+export function DialogContent({ title, children }: Props) {
+  return (
+    &lt;D.Portal&gt;
+      &lt;D.Overlay className="fixed inset-0 bg-black/50" /&gt;
+      &lt;D.Content className="fixed left-1/2 top-1/2 -translate-1/2
+                            rounded-(--radius-lg) bg-(--color-surface) p-6"&gt;
+        &lt;D.Title className="text-lg font-bold"&gt;{title}&lt;/D.Title&gt;
+        {children}
+        &lt;D.Close aria-label="閉じる"&gt;×&lt;/D.Close&gt;
+      &lt;/D.Content&gt;
+    &lt;/D.Portal&gt;
+  );
+}
+<span class="cm">// Esc で閉じる・フォーカスの閉じ込め・背景のスクロール止め・
+// role="dialog" などは Radix が面倒を見る</span></code></pre>
+  </div>
+  <div class="panel card" id="c-feature" hidden>
+<pre><code><span class="cm">// features/cart/components/clear-cart-button.tsx</span>
+import { Dialog, DialogTrigger, DialogContent } from '@/ui/dialog';
+import { Button } from '@/ui/button';
+import { useClearCart } from '../hooks/use-clear-cart';
+
+export function ClearCartButton() {
+  const clear = useClearCart();           <span class="cm">// 業務ロジックは機能側</span>
+  return (
+    &lt;Dialog&gt;
+      &lt;DialogTrigger asChild&gt;
+        &lt;Button variant="danger"&gt;カートを空にする&lt;/Button&gt;
+      &lt;/DialogTrigger&gt;
+      &lt;DialogContent title="本当に空にしますか？"&gt;
+        &lt;Button variant="danger" onClick={clear}&gt;空にする&lt;/Button&gt;
+      &lt;/DialogContent&gt;
+    &lt;/Dialog&gt;
+  );
+}</code></pre>
+    <p class="note"><code>ui/</code> の部品は「カート」を知らない。業務の言葉が出てくるのは <code>features/</code> から。</p>
+  </div>
+  <div class="panel card" id="c-variant" hidden>
+    <div class="vs">
+      <div><div class="lbl ng">NG：真偽値 props が増殖</div>
+<pre><code>&lt;Button
+  primary
+  small
+  outline
+  danger      <span class="cm">// primary と同時に true だと？</span>
+  fullWidth
+  iconLeft={…}
+/&gt;</code></pre></div>
+      <div><div class="lbl ok">OK：排他的な variant と合成</div>
+<pre><code>&lt;Button variant="danger" size="sm"&gt;
+  &lt;TrashIcon aria-hidden /&gt;
+  削除
+&lt;/Button&gt;
+
+<span class="cm">// variant: 'primary' | 'secondary' | 'danger'
+// size:    'sm' | 'md' | 'lg'
+// アイコンは props でなく子要素で渡す</span></code></pre></div>
+    </div>
+    <p class="note">同時に成り立たない選択肢は 1 つの union 型にまとめる。中身の差し込みは props より children（合成）のほうが拡張に強い。</p>
+  </div>
+
+  <h2 id="composition">合成で作る（コンパウンドコンポーネント）</h2>
+  <p>1 つの部品に設定用 props を詰め込む代わりに、<b>小さな部品を組み合わせて使う</b>形。Headless ライブラリの多くがこの形です。</p>
+  <div class="vs">
+    <div><div class="lbl ng">設定オブジェクト型</div>
+<pre><code>&lt;Tabs
+  items={[
+    { label: '概要', content: &lt;A /&gt; },
+    { label: '詳細', content: &lt;B /&gt;,
+      badge: 3, disabled: false },
+  ]}
+  tabListClassName="…"
+/&gt;
+<span class="cm">// 要望が来るたびに props が増える</span></code></pre></div>
+    <div><div class="lbl ok">コンパウンド型</div>
+<pre><code>&lt;Tabs.Root defaultValue="a"&gt;
+  &lt;Tabs.List&gt;
+    &lt;Tabs.Trigger value="a"&gt;概要&lt;/Tabs.Trigger&gt;
+    &lt;Tabs.Trigger value="b"&gt;
+      詳細 &lt;Badge&gt;3&lt;/Badge&gt;
+    &lt;/Tabs.Trigger&gt;
+  &lt;/Tabs.List&gt;
+  &lt;Tabs.Content value="a"&gt;&lt;A /&gt;&lt;/Tabs.Content&gt;
+  &lt;Tabs.Content value="b"&gt;&lt;B /&gt;&lt;/Tabs.Content&gt;
+&lt;/Tabs.Root&gt;</code></pre></div>
+  </div>
+
+  <h2 id="folders">フォルダ構成：機能ごとに置く</h2>
+  <div class="split">
+    <div class="card"><b class="warn">粒度で分ける（Atomic 型）</b>
+<div class="tree"><span class="dim">components/</span>
+  atoms/      <span class="dim">Button, PriceText …</span>
+  molecules/  <span class="dim">CartItemRow, SearchBox …</span>
+  organisms/  <span class="dim">CartSummary, Header …</span>
+  templates/
+<span class="dim">→ カートの修正が 3 フォルダにまたがる</span></div></div>
+    <div class="card"><b class="ok">機能で分ける（feature 型）</b>
+<div class="tree"><span class="hl">ui/</span>         <span class="dim">Button, Dialog, Tabs（業務を知らない）</span>
+<span class="hl">features/</span>
+  cart/
+    components/ <span class="dim">CartSummary, CartItemRow</span>
+    hooks/      <span class="dim">useCart</span>
+    api.ts
+  search/
+    components/ <span class="dim">SearchBox</span>
+<span class="dim">→ カートの修正は cart/ の中で完結</span></div></div>
+  </div>
+  <div class="steps" style="margin-top:10px">
+    <div class="step"><b>まず機能の中に</b><p>新しい部品は、使う機能のフォルダに置く。</p></div>
+    <div class="step"><b>2 か所目で様子見</b><p>別の機能でも欲しくなったら、まずはコピーか import でしのぐ。</p></div>
+    <div class="step"><b>3 か所目で昇格</b><p>形が安定したら、業務の言葉を抜いて <code>ui/</code> に移す。</p></div>
+  </div>
+
+  <h2 id="ownership">部品を「持つ」か「借りる」か</h2>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>方式</th><th>例</th><th>良いところ</th><th>気をつけること</th></tr>
+    <tr><td>パッケージを入れる</td><td>MUI、Chakra UI など</td><td>すぐ揃う。更新は npm update で入る</td><td>見た目を大きく変えるのが大変。ライブラリの上書きと戦いがち</td></tr>
+    <tr><td>コードをコピーして持つ</td><td>shadcn/ui 方式</td><td>自分のリポジトリのコードなので自由に変えられる</td><td>上流の修正は自分で取り込む。持ったコードの保守責任は自分</td></tr>
+    <tr><td>Headless を直接使う</td><td>Radix / Ark UI ＋自前スタイル</td><td>振る舞いは借りて、見た目は完全に自分のもの</td><td>最初に <code>ui/</code> を作る手間がかかる</td></tr>
+  </table></div>
+  <p class="note">shadcn/ui は「Headless（Radix など）＋ Tailwind のスタイル」を雛形としてコピーする仕組み。つまり上の 3 つ目を楽に始める方法とも言える。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth card"><summary>Headless UI を使えばアクセシビリティは完璧</summary><p>振る舞いと ARIA は面倒を見てくれるが、コントラスト・ラベルの文言・見出し構造・フォーカスの見た目は使う側の責任（<a href="a11y-checklist.html">チェックリスト</a>）。</p></details>
+  <details class="myth card"><summary>共通化は早いほど良い</summary><p>1 か所でしか使っていない段階で汎用化すると、想像上の要件で props が膨らむ。3 か所目で形が見えてから <code>ui/</code> に上げるほうが結局速い。</p></details>
+  <details class="myth card"><summary>Atomic Design の考え方は全部間違いだった</summary><p>「部品の組み合わせで画面を作る」「部品単体で開発・確認する」は今も主流。廃れたのは 5 段階の分類とそれに沿ったフォルダ構成。</p></details>
+  <details class="myth card"><summary>shadcn/ui はコンポーネントライブラリ</summary><p>npm から部品を import して使うのではなく、コードを自分のリポジトリに書き出して所有する方式。更新も自分の判断で取り込む。</p></details>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      const p = t.dataset.panel && document.getElementById(t.dataset.panel);
+      if (p) p.hidden = !on;
+    });
+  });
+});
+document.querySelectorAll('[data-checklist]').forEach(box => {
+  const key = 'memo-check:' + location.pathname + ':' + box.dataset.checklist;
+  const inputs = [...box.querySelectorAll('input[type=checkbox]')];
+  const bar = box.querySelector('.bar div');
+  const count = box.querySelector('.count');
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {}
+  inputs.forEach((el, i) => { el.checked = !!saved[i]; });
+  const update = () => {
+    const n = inputs.filter(el => el.checked).length;
+    if (bar) bar.style.width = (n / inputs.length * 100) + '%';
+    if (count) count.textContent = n + ' / ' + inputs.length;
+    try { localStorage.setItem(key, JSON.stringify(inputs.map(el => el.checked))); } catch (e) {}
+  };
+  inputs.forEach(el => el.addEventListener('change', update));
+  update();
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "atoms / molecules / organisms のフォルダ構成で、「カート」の仕様変更のたびに 3 つのフォルダを行き来している。根本的な改善は？",
+    "choices": ["機能（features/cart）ごとにまとめ、業務を知らない共通部品だけを ui/ に置く", "templates/ フォルダを追加してまとめる", "カート関連の部品をすべて organisms に移す", "部品をさらに細かく atoms に分解する"],
+    "answer": 0,
+    "explain": "粒度での分類は変更の理由と無関係なので、1 機能の修正が散らばる。機能単位に置けば変更がフォルダ内で完結する。",
+    "ref": "#folders"
+  },
+  {
+    "q": "自作のモーダルで、Esc で閉じない・Tab で背後の要素に移ってしまう、という指摘を受けた。見た目は今のまま変えたくない。どうする？",
+    "choices": ["見た目ごと UI ライブラリの既製モーダルに置き換える", "Esc キーのイベントだけ追加して様子を見る", "Headless UI（または <dialog> 要素）に振る舞いを任せ、今のスタイルを当てる", "モーダルをやめて別ページに遷移させる"],
+    "answer": 2,
+    "explain": "Headless は振る舞い（キー操作・フォーカス管理・ARIA）だけを提供するので、見た目を保ったまま難しい部分を任せられる。",
+    "ref": "#headless"
+  },
+  {
+    "q": "Button に primary・danger・outline などの真偽値 props が増え、同時に true にされると見た目が壊れる。設計の直し方は？",
+    "choices": ["props の数を減らすため、className を直接渡させる", "同時に成り立たないものを variant: 'primary' | 'danger' … の 1 つの型にまとめる", "真偽値の組み合わせごとに別のコンポーネントを作る", "優先順位をコメントで書いておく"],
+    "answer": 1,
+    "explain": "排他的な選択肢を union 型にすれば、ありえない組み合わせを型で防げる。",
+    "ref": "#c-variant"
+  },
+  {
+    "q": "ある機能のために作った日付ピッカーを、別の機能でも使いたくなった（まだ 2 か所目）。進め方として無難なのは？",
+    "choices": ["すぐに汎用化し、想定される全オプションを props に用意して ui/ に置く", "既存のものを import して使い、3 か所目で形が見えたら業務の言葉を抜いて ui/ に移す", "npm パッケージとして切り出して公開する", "2 か所目の機能用にゼロから作り直す"],
+    "answer": 1,
+    "explain": "早すぎる共通化は想像上の要件で props を膨らませる。実際の使われ方が 3 つ揃ってから共通化するほうが筋がよい。",
+    "ref": "#folders"
+  }
+]
+</script>
+</body>
+</html>

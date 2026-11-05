@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTTP/1.1・2・3 と TLS・DNS</title>
+<meta name="description" content="URL を入れてから最初のバイトが届くまでの DNS・TCP・TLS・HTTP の流れと、HTTP/1.1→2→3 で何が解決されたか（多重化・ヘッドオブライン・QUIC）を図解。">
+<meta name="memo:tags" content="ネットワーク, インフラ, フロントエンド">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-warn: #b45309;
+  --c-a: #7c3aed;
+  --c-b: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-warn: #fbbf24;
+    --c-a: #c4b5fd;
+    --c-b: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.list, ol.list { margin: 6px 0 6px 1.3em; }
+ul.list li, ol.list li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* ステップ */
+ol.steps { list-style: none; counter-reset: st; }
+ol.steps > li {
+  counter-increment: st;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 12px; top: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps b { display: block; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.fig .sub { fill: var(--fg-2); font-family: 'Noto Sans JP', sans-serif; }
+.fig .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+details.card summary { cursor: pointer; font-weight: 700; }
+details.card[open] summary { margin-bottom: 8px; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.hdr { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); padding: 8px 12px; border-radius: 8px; word-break: break-all; margin: 6px 0; }
+.lane { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .lane { grid-template-columns: 1fr; } }
+.lane .flow { flex-direction: column; align-items: stretch; }
+.lane .arrow { text-align: center; font-size: 0.75rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; }
+.svgwrap { overflow-x: auto; }
+.lane > *, .grid2 > *, .grid3 > * { min-width: 0; }
+.svgwrap > svg { min-width: 560px; }
+@media (max-width: 560px) {
+  .flow { flex-direction: column; align-items: stretch; }
+  .flow .arrow { align-self: center; transform: rotate(90deg); line-height: 1; }
+}
+:is(.grid2, .grid3, .lane, .life, .vit, .who, .cmp, .shape) > .card + .card { margin-top: 0; }
+
+/* ---- このページ専用 ---- */
+.rtt { display: grid; grid-template-columns: 88px 1fr; gap: 6px 10px; align-items: center; font-size: 0.8rem; }
+.rtt .nm { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.rtt .row { display: flex; gap: 3px; flex-wrap: wrap; }
+.rtt .seg { padding: 3px 8px; border-radius: 6px; font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--bg); white-space: nowrap; }
+.s-dns { background: var(--c-a); }
+.s-tcp { background: var(--c-b); }
+.s-tls { background: var(--c-warn); }
+.s-quic { background: var(--c-ok); }
+.s-req { background: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.75rem; color: var(--fg-2); margin-top: 10px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="HTTP/1.1・2・3 と TLS・DNS">
+<meta property="og:description" content="URL を入れてから最初のバイトが届くまでの DNS・TCP・TLS・HTTP の流れと、HTTP/1.1→2→3 で何が解決されたか（多重化・ヘッドオブライン・QUIC）を図解。">
+<meta property="og:url" content="https://memo.taka1156.site/web-protocols.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>HTTP/1.1・2・3 と TLS・DNS</h1>
+  <p class="subtitle">「名前を引く → つなぐ → 暗号化 → 頼む」の 4 段と、その往復回数を減らしてきた歴史</p>
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>ページを開くには <b>DNS で IP を引く → TCP でつなぐ → TLS で暗号化 → HTTP で頼む</b>。遅さの多くは「データ量」ではなく<b>往復（RTT）の回数</b>で決まる。</li>
+      <li>HTTP/2 は 1 本の接続に複数のリクエストを<b>多重化</b>した。ただし TCP の上なので、パケットが 1 つ落ちると全部が待たされる（ヘッドオブライン・ブロッキング）。</li>
+      <li>HTTP/3 は UDP 上の <b>QUIC</b> に乗り換え、接続と暗号化を 1 往復にまとめ、落ちたパケットの影響をそのストリームだけに閉じ込めた。</li>
+    </ul>
+  </div>
+
+  <h2 id="journey">最初のバイトが届くまで</h2>
+  <div class="card">
+    <p>サーバーまでの往復を 1 RTT とすると、初回アクセスでリクエストを送れるまでにかかる往復はこうなる（DNS はキャッシュがない場合）。</p>
+    <div class="rtt" style="margin-top:12px">
+      <span class="nm">HTTP/1.1, 2<br>+ TLS 1.2</span>
+      <div class="row"><span class="seg s-dns">DNS</span><span class="seg s-tcp">TCP 1RTT</span><span class="seg s-tls">TLS 2RTT</span><span class="seg s-req">リクエスト</span></div>
+      <span class="nm">HTTP/1.1, 2<br>+ TLS 1.3</span>
+      <div class="row"><span class="seg s-dns">DNS</span><span class="seg s-tcp">TCP 1RTT</span><span class="seg s-tls">TLS 1RTT</span><span class="seg s-req">リクエスト</span></div>
+      <span class="nm">HTTP/3</span>
+      <div class="row"><span class="seg s-dns">DNS</span><span class="seg s-quic">QUIC+TLS 1RTT</span><span class="seg s-req">リクエスト</span></div>
+      <span class="nm">HTTP/3<br>再接続 0-RTT</span>
+      <div class="row"><span class="seg s-dns">DNS</span><span class="seg s-req">最初のパケットでリクエスト</span></div>
+    </div>
+    <div class="legend"><span><i class="s-dns"></i>名前解決</span><span><i class="s-tcp"></i>TCP ハンドシェイク</span><span><i class="s-tls"></i>TLS ハンドシェイク</span><span><i class="s-quic"></i>QUIC（接続と暗号化を同時に）</span><span><i class="s-req"></i>HTTP</span></div>
+    <p class="note">東京↔米国西海岸なら 1 RTT は 100ms 前後。往復が 1 回減るだけで、画像を数百 KB 削るより効くことがある。CDN でサーバーを近くに置くのも「RTT を短くする」対策。</p>
+  </div>
+
+  <h2 id="dns">DNS：名前から IP を引く</h2>
+  <div class="card">
+    <div class="svgwrap"><svg class="fig" viewBox="0 0 720 210" role="img" aria-label="DNS の名前解決の流れ">
+      <defs><marker id="ar1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:var(--fg-2)"/></marker></defs>
+      <rect class="nd" x="10" y="80" width="130" height="50" rx="8"/>
+      <text x="75" y="102" text-anchor="middle" font-size="13">ブラウザ / OS</text>
+      <text class="sub" x="75" y="120" text-anchor="middle" font-size="10">キャッシュを先に見る</text>
+      <rect class="nd" x="200" y="80" width="150" height="50" rx="8"/>
+      <text x="275" y="102" text-anchor="middle" font-size="13">フルリゾルバ</text>
+      <text class="sub" x="275" y="120" text-anchor="middle" font-size="10">ISP・1.1.1.1・8.8.8.8 など</text>
+      <rect class="nd" x="430" y="10" width="140" height="44" rx="8"/>
+      <text x="500" y="30" text-anchor="middle" font-size="12">ルート (.)</text>
+      <text class="sub" x="500" y="46" text-anchor="middle" font-size="10">「.com は あっち」</text>
+      <rect class="nd" x="430" y="83" width="140" height="44" rx="8"/>
+      <text x="500" y="103" text-anchor="middle" font-size="12">TLD (.com)</text>
+      <text class="sub" x="500" y="119" text-anchor="middle" font-size="10">「example.com は あっち」</text>
+      <rect class="nd" x="430" y="156" width="140" height="44" rx="8"/>
+      <text x="500" y="176" text-anchor="middle" font-size="12">権威サーバー</text>
+      <text class="sub" x="500" y="192" text-anchor="middle" font-size="10">「A = 203.0.113.5」</text>
+      <path class="edge" d="M140 105 H198" marker-end="url(#ar1)"/>
+      <path class="edge" d="M350 95 L428 35" marker-end="url(#ar1)"/>
+      <path class="edge" d="M350 105 H428" marker-end="url(#ar1)"/>
+      <path class="edge" d="M350 115 L428 175" marker-end="url(#ar1)"/>
+      <text class="sub" x="600" y="100" font-size="11">各段の答えは</text>
+      <text class="sub" x="600" y="116" font-size="11">TTL の間キャッシュ</text>
+    </svg></div>
+    <p class="note">実際はリゾルバがルートや TLD の答えをキャッシュしているので、毎回 3 段たどるわけではない。DNS を切り替えるときは<b>事前に TTL を短くしておく</b>と、古い IP を引かれ続ける時間を減らせる。</p>
+  </div>
+  <div class="card table-wrap">
+    <table>
+      <tr><th>レコード</th><th>中身</th><th>使いどころ</th></tr>
+      <tr><td>A / AAAA</td><td>IPv4 / IPv6 アドレス</td><td>名前 → サーバーの住所</td></tr>
+      <tr><td>CNAME</td><td>別名（ほかの名前を指す）</td><td><code>www</code> を CDN のホスト名に向ける。ゾーンの頂点（<code>example.com</code> 自体）には置けない</td></tr>
+      <tr><td>HTTPS (SVCB)</td><td>対応プロトコル（h3 など）・別ポート・ECH 設定</td><td>最初から HTTP/3 で接続してもらう。頂点でも別名を指せる</td></tr>
+      <tr><td>TXT</td><td>任意の文字列</td><td>ドメイン所有の確認、SPF などメールの認証</td></tr>
+      <tr><td>MX</td><td>メールの受け取り先</td><td>メールサーバー</td></tr>
+      <tr><td>CAA</td><td>証明書を発行してよい CA</td><td>関係ない CA による誤発行を防ぐ</td></tr>
+    </table>
+  </div>
+
+  <h2 id="versions">HTTP/1.1 → 2 → 3</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="v1">HTTP/1.1</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="v2">HTTP/2</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="v3">HTTP/3</button>
+  </div>
+  <div class="panel card" id="v1">
+    <span class="label">テキストで 1 本ずつ</span>
+    <pre>GET /app.js HTTP/1.1
+Host: example.com
+Accept-Encoding: gzip, br</pre>
+    <p>1 本の接続では<b>レスポンスがリクエストの順番どおりにしか返らない</b>。仕様上はレスポンスを待たずに続けて送れる（パイプライン）が、先頭が遅いと後ろも待たされるため主要ブラウザは使っておらず、実質 1 本につき 1 リクエストずつになる。そこでブラウザは同じオリジンに<b>最大 6 本程度</b>の接続を張って並列化する。画像をスプライトにまとめる、ドメインを分ける（シャーディング）、JS を 1 ファイルに結合する、といった昔の最適化はこの制限への対策。</p>
+  </div>
+  <div class="panel card" id="v2" hidden>
+    <span class="label">1 本の TCP に多重化</span>
+    <p>メッセージを<b>バイナリのフレーム</b>に分け、ストリーム ID を付けて 1 本の接続に混ぜて流す。リクエストを好きなだけ並べられ、ヘッダーは HPACK で圧縮される。</p>
+    <p>弱点は下の TCP。TCP は「バイト列を順番どおりに渡す」約束なので、<b>パケットが 1 つ欠けると、その後ろの全ストリームのデータが届いていても待たされる</b>（TCP レベルのヘッドオブライン・ブロッキング）。回線の悪いモバイルでは 1.1 の 6 本より遅くなることもある。</p>
+    <p class="note">サーバープッシュは仕様にあったが、効果が出にくく主要ブラウザでは使われなくなった。代わりに <code>103 Early Hints</code> と <code>&lt;link rel="preload"&gt;</code> を使う。</p>
+  </div>
+  <div class="panel card" id="v3" hidden>
+    <span class="label">UDP の上の QUIC</span>
+    <p>QUIC はストリームの区別を<b>トランスポート層で</b>持つので、欠けたパケットが待たせるのはそのストリームだけ。TLS 1.3 が組み込まれていて、接続と暗号化が 1 往復で済む。</p>
+    <p>接続を IP とポートではなく<b>コネクション ID</b>で識別するため、Wi-Fi からモバイル回線に切り替わっても張り直さずに続けられる（コネクション・マイグレーション）。</p>
+    <p class="note">HTTP/3 が使えることをブラウザが知る方法は 2 つ。<code>Alt-Svc</code> ヘッダーだけに頼る場合は、最初に HTTP/2 で接続し、そのレスポンスで「h3 も使える」と知ってから次の接続を HTTP/3 にする。DNS の HTTPS レコードに h3 があれば、<b>初回から HTTP/3 を試せる</b>（Chrome は HTTP/2 と並行して試し、速い方を使う）。UDP が社内ネットワークなどで塞がれていれば HTTP/2 に戻る。</p>
+  </div>
+
+  <h2 id="hol">ヘッドオブライン・ブロッキングの違い</h2>
+  <div class="card">
+    <div class="svgwrap"><svg class="fig" viewBox="0 0 720 190" role="img" aria-label="パケットが1つ失われたときの HTTP/2 と HTTP/3 の違い">
+      <text x="10" y="22" font-size="12" style="fill:var(--accent)">HTTP/2 (TCP)</text>
+      <text class="sub" x="10" y="40" font-size="10">1 列に並んだバイト列</text>
+      <g font-size="11">
+        <rect x="140" y="12" width="56" height="30" rx="5" style="fill:var(--c-a);opacity:.85"/><text x="168" y="32" text-anchor="middle" style="fill:var(--bg)">A1</text>
+        <rect x="200" y="12" width="56" height="30" rx="5" style="fill:none;stroke:var(--c-ng);stroke-width:2;stroke-dasharray:4 3"/><text x="228" y="32" text-anchor="middle" style="fill:var(--c-ng)">B1 欠</text>
+        <rect x="260" y="12" width="56" height="30" rx="5" style="fill:var(--c-ok);opacity:.4"/><text x="288" y="32" text-anchor="middle">C1</text>
+        <rect x="320" y="12" width="56" height="30" rx="5" style="fill:var(--c-a);opacity:.4"/><text x="348" y="32" text-anchor="middle">A2</text>
+        <rect x="380" y="12" width="56" height="30" rx="5" style="fill:var(--c-ok);opacity:.4"/><text x="408" y="32" text-anchor="middle">C2</text>
+      </g>
+      <text class="sub" x="450" y="24" font-size="11">B1 の再送が届くまで</text>
+      <text class="sub" x="450" y="40" font-size="11">A も C も渡せない</text>
+      <text x="10" y="102" font-size="12" style="fill:var(--accent)">HTTP/3 (QUIC)</text>
+      <text class="sub" x="10" y="120" font-size="10">ストリームごとに独立</text>
+      <g font-size="11">
+        <text class="sub" x="140" y="88" font-size="10">A</text>
+        <rect x="155" y="74" width="56" height="22" rx="5" style="fill:var(--c-a);opacity:.85"/><text x="183" y="89" text-anchor="middle" style="fill:var(--bg)">A1</text>
+        <rect x="215" y="74" width="56" height="22" rx="5" style="fill:var(--c-a);opacity:.85"/><text x="243" y="89" text-anchor="middle" style="fill:var(--bg)">A2</text>
+        <text class="sub" x="140" y="120" font-size="10">B</text>
+        <rect x="155" y="106" width="56" height="22" rx="5" style="fill:none;stroke:var(--c-ng);stroke-width:2;stroke-dasharray:4 3"/><text x="183" y="121" text-anchor="middle" style="fill:var(--c-ng)">B1 欠</text>
+        <text class="sub" x="140" y="152" font-size="10">C</text>
+        <rect x="155" y="138" width="56" height="22" rx="5" style="fill:var(--c-ok);opacity:.85"/><text x="183" y="153" text-anchor="middle" style="fill:var(--bg)">C1</text>
+        <rect x="215" y="138" width="56" height="22" rx="5" style="fill:var(--c-ok);opacity:.85"/><text x="243" y="153" text-anchor="middle" style="fill:var(--bg)">C2</text>
+      </g>
+      <text class="sub" x="300" y="122" font-size="11">待つのは B だけ。A と C は先にアプリへ渡る</text>
+    </svg></div>
+  </div>
+
+  <h2 id="tls">TLS 1.3：何を確かめ、何を守るか</h2>
+  <ol class="steps">
+    <li><b>ClientHello</b>使える暗号方式、鍵交換の材料（key share）、接続先の名前（SNI）、使いたいプロトコル（ALPN: h2 / http/1.1）を送る。</li>
+    <li><b>ServerHello ＋ 証明書 ＋ Finished</b>サーバーも鍵交換の材料を返し、ここから先は暗号化される。証明書と、その秘密鍵を持っている証拠の署名もこの中で送る。</li>
+    <li><b>クライアントが検証</b>証明書が信頼できる CA までつながるか、<b>名前がアクセス先と一致するか</b>、期限内かを確認。OK なら Finished を返し、同時に HTTP リクエストを送れる。</li>
+  </ol>
+  <div class="grid2">
+    <div class="card"><span class="label">守れるもの</span><p>盗聴（中身は見えない）、改ざん（途中で書き換えると検出される）、なりすまし（証明書の名前が一致しないと接続しない）。</p></div>
+    <div class="card"><span class="label">守れないもの</span><p>接続先のドメイン名は SNI と DNS で見えうる（ECH・暗号化 DNS で隠す取り組みがある）。<b>サーバー自体が悪意を持っている場合</b>は防げない。鍵マークは「正しい相手と暗号化できた」だけを意味する。</p></div>
+  </div>
+  <p class="note">0-RTT（再接続時に最初のパケットでデータを送る）は速い代わりに、<b>攻撃者が同じパケットを再送できる（リプレイ）</b>。そのため GET など何度実行しても結果が同じリクエストだけに使うのが原則。</p>
+
+  <h2 id="check">自分のサイトで確かめる</h2>
+  <div class="card">
+    <p><b>DevTools → Network</b> の列ヘッダーを右クリックして「Protocol」を出すと <code>http/1.1</code>・<code>h2</code>・<code>h3</code> が見える。各リクエストの <b>Timing</b> タブには DNS Lookup・Initial connection・SSL の時間が並ぶ。</p>
+<pre><span class="cm"># 名前解決（どのレコードが、何秒の TTL で返るか）</span>
+dig example.com A +noall +answer
+dig example.com HTTPS +short
+
+<span class="cm"># どのプロトコルで話しているか・TLS の情報</span>
+curl -sI --http2 https://example.com -o /dev/null -w '%{http_version}\n'
+openssl s_client -connect example.com:443 -servername example.com &lt;/dev/null | head</pre>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="card myth"><summary>「HTTPS にすると遅くなる」</summary><p>TLS 1.3 なら追加は 1 往復だけで、再接続はさらに短い。しかも HTTP/2・3 はブラウザでは HTTPS でしか使えないので、多重化の恩恵まで考えるとむしろ速くなることが多い。</p></details>
+  <details class="card myth"><summary>「HTTP/2 なら JS を 1 ファイルに結合しなくていい」</summary><p>接続の制限はなくなったが、リクエストごとのオーバーヘッドや、import が深くつながると往復が重なる問題（ウォーターフォール）は残る。ほどよく分割してまとめる、が今のバンドラーの方針。</p></details>
+  <details class="card myth"><summary>「HTTP/3 は常に HTTP/2 より速い」</summary><p>効くのは主に RTT が長い・パケットロスが多い・回線が切り替わる環境。安定した有線では差が小さく、UDP の処理が重い環境では逆に遅いこともある。</p></details>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="http-cache.html">HTTP キャッシュ</a><a href="security-headers.html">セキュリティヘッダー</a><a href="realtime-comm.html">リアルタイム通信</a><a href="web-performance.html">Core Web Vitals</a><a href="cloudflare-services.html">Cloudflare サービス</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://www.rfc-editor.org/rfc/rfc9110">RFC 9110: HTTP Semantics</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc9113">RFC 9113: HTTP/2</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc9114">RFC 9114: HTTP/3</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc9000">RFC 9000: QUIC</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc8446">RFC 8446: TLS 1.3</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc9460">RFC 9460: SVCB / HTTPS レコード</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {"q": "海外のサーバーにあるサイトの初回表示が遅い。転送量は小さいのに、DevTools の Timing を見ると Initial connection と SSL が長い。最も効く対策は？", "choices": ["画像を WebP に変換して軽くする", "CDN でユーザーの近くに TLS の終端を置き、TLS 1.3 / HTTP/3 を有効にする", "JS を 1 ファイルに結合してリクエスト数を減らす"], "answer": 1, "explain": "接続と TLS の時間は往復回数 × RTT で決まる。距離を縮め（CDN）、往復を減らす（TLS 1.3・QUIC）のが直接効く。", "ref": "#journey"},
+  {"q": "回線が不安定なモバイルで、HTTP/2 にしたらかえって遅くなった。考えられる理由は？", "choices": ["HTTP/2 はヘッダーを圧縮しないから", "1 本の TCP 接続で 1 つのパケットが欠けると、全ストリームが再送を待たされるから", "HTTP/2 は同時に 1 リクエストしか送れないから"], "answer": 1, "explain": "多重化した全ストリームが 1 本の TCP の順序保証に縛られる。HTTP/3 は QUIC でこの影響をストリーム単位に閉じ込めた。", "ref": "#hol"},
+  {"q": "サーバーを移行するので DNS の A レコードを新しい IP に切り替えたい。古い IP へのアクセスが残る時間を短くするには？", "choices": ["切り替えの数日前から TTL を短くしておく", "切り替えと同時に TTL を短くする", "CNAME に変えればすぐ反映される"], "answer": 0, "explain": "リゾルバは古いレコードを古い TTL の間キャッシュし続ける。切り替え時点で TTL が短くなっていないと効果がない。", "ref": "#dns"},
+  {"q": "HTTP/3 の 0-RTT を有効にした。0-RTT のデータとして送らせてよいリクエストは？", "choices": ["決済を確定する POST", "記事一覧を取得する GET", "どちらも問題ない（TLS で守られているので）"], "answer": 1, "explain": "0-RTT のデータは攻撃者に再送（リプレイ）されうる。何度実行しても結果が同じリクエストに限るのが原則。", "ref": "#tls"},
+  {"q": "HTTPS の鍵マークが表示されているサイトについて、正しいのは？", "choices": ["運営者が信頼できることを CA が保証している", "通信が暗号化され、証明書の名前と接続先が一致している", "通信先のドメイン名も第三者からは一切見えない"], "answer": 1, "explain": "TLS が保証するのは暗号化と相手の名前の確認まで。運営者の善悪は保証しない。ドメイン名は SNI や DNS から見えうる。", "ref": "#tls"}
+]
+</script>
+</body>
+</html>

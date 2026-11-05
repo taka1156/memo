@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tsrs と tsgo の比較</title>
+<meta name="description" content="TypeScript のネイティブ実装 tsgo（Go）と tsrs（Rust）の仕組み・性能・使い分けを図で比較。">
+<meta name="memo:tags" content="言語">
+<meta name="memo:date" content="2026-11-02">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ts: #3178c6;
+  --c-go: #007d9c;
+  --c-rs: #c2410c;
+  --c-ts-bg: #e8f0fb;
+  --c-go-bg: #e3f4f8;
+  --c-rs-bg: #fdeee6;
+  --c-warn: #a16207;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ts: #6aa8f7;
+    --c-go: #3fd0f0;
+    --c-rs: #ff8a5c;
+    --c-ts-bg: #132238;
+    --c-go-bg: #0f2a33;
+    --c-rs-bg: #2e1810;
+    --c-warn: #f5c451;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 8px; }
+p { margin: 8px 0; }
+ul.plain { margin: 6px 0 6px 1.2em; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note { color: var(--fg-2); font-size: 0.8rem; margin-top: 10px; }
+.go { color: var(--c-go); font-weight: 700; }
+.rs { color: var(--c-rs); font-weight: 700; }
+.ts { color: var(--c-ts); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 系譜 */
+.lineage { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; }
+.node {
+  flex: 1 1 200px;
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1.5px solid;
+}
+.node .name { font: 700 1rem 'JetBrains Mono', ui-monospace, monospace; }
+.node .lang { font-size: 0.75rem; font-weight: 700; letter-spacing: .05em; }
+.node p { font-size: 0.82rem; margin: 6px 0 0; color: var(--fg); }
+.n-ts { border-color: var(--c-ts); background: var(--c-ts-bg); }
+.n-ts .name, .n-ts .lang { color: var(--c-ts); }
+.n-go { border-color: var(--c-go); background: var(--c-go-bg); }
+.n-go .name, .n-go .lang { color: var(--c-go); }
+.n-rs { border-color: var(--c-rs); background: var(--c-rs-bg); }
+.n-rs .name, .n-rs .lang { color: var(--c-rs); }
+.arrow {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font: 600 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--fg-2);
+  min-width: 64px;
+  text-align: center;
+}
+.arrow .glyph { font-size: 1.4rem; line-height: 1; color: var(--fg-2); }
+@media (max-width: 680px) {
+  .lineage { flex-direction: column; }
+  .arrow { flex-direction: row; gap: 8px; min-width: 0; }
+  .arrow .glyph { transform: rotate(90deg); }
+}
+
+/* パイプライン */
+.pipe { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
+.stage {
+  flex: 1 1 120px;
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  position: relative;
+}
+.stage .t { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.stage .d { font-size: 0.78rem; color: var(--fg-2); line-height: 1.5; margin-top: 2px; }
+.stage .par {
+  display: inline-block; margin-top: 6px;
+  font: 600 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  padding: 1px 7px; border-radius: 999px;
+  border: 1px solid var(--accent); color: var(--accent);
+}
+
+/* checker プール図 */
+.pool { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+.checker {
+  border: 1.5px solid; border-radius: 8px; padding: 8px 10px;
+  font-size: 0.78rem;
+}
+.checker .h { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+.checker .files { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.checker .f {
+  font: 500 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  background: var(--surface); border: 1px solid var(--line);
+  padding: 0 5px; border-radius: 4px;
+}
+.checker .cache { font-size: 0.7rem; color: var(--fg-2); }
+.pool.go .checker { border-color: var(--c-go); background: var(--c-go-bg); }
+.pool.go .checker .h { color: var(--c-go); }
+.pool.rs .checker { border-color: var(--c-rs); background: var(--c-rs-bg); }
+.pool.rs .checker .h { color: var(--c-rs); }
+.shared {
+  margin-top: 8px; border: 1.5px dashed var(--line); border-radius: 8px;
+  padding: 8px 10px; font-size: 0.78rem; text-align: center; color: var(--fg-2);
+}
+.shared strong { color: var(--fg); }
+
+/* 2 列比較 */
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 620px) { .twocol { grid-template-columns: 1fr; } }
+.side { border-radius: 10px; padding: 12px 14px; border: 1.5px solid; }
+.side.go { border-color: var(--c-go); background: var(--c-go-bg); }
+.side.rs { border-color: var(--c-rs); background: var(--c-rs-bg); }
+.side h4 { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; margin-bottom: 6px; }
+.side.go h4 { color: var(--c-go); }
+.side.rs h4 { color: var(--c-rs); }
+.side ul { margin-left: 1.1em; font-size: 0.84rem; }
+
+/* メモリ図 */
+.memviz { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.mem-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.blk {
+  font: 500 0.66rem 'JetBrains Mono', ui-monospace, monospace;
+  padding: 3px 6px; border-radius: 4px; border: 1px solid var(--line);
+  background: var(--surface);
+}
+.blk.gc { border-style: dashed; color: var(--fg-2); }
+.blk.arena { background: transparent; border-color: var(--c-rs); color: var(--c-rs); }
+.blk.freed { text-decoration: line-through; color: var(--fg-2); opacity: .7; }
+
+/* 棒グラフ */
+.bench { display: flex; flex-direction: column; gap: 14px; }
+.bench .proj { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; margin-bottom: 4px; }
+.bar-row { display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 8px; margin: 3px 0; }
+.bar-row .lbl { font: 600 0.72rem 'JetBrains Mono', ui-monospace, monospace; text-align: right; }
+.bar-track { position: relative; height: 20px; }
+.bar {
+  height: 100%; border-radius: 0 4px 4px 0;
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 6px;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  color: #fff; min-width: 44px;
+}
+.bar.go { background: var(--c-go); }
+.bar.rs { background: var(--c-rs); }
+@media (prefers-color-scheme: dark) { .bar { color: #0a0e14; } }
+.bar-row.go .lbl { color: var(--c-go); }
+.bar-row.rs .lbl { color: var(--c-rs); }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 8px; text-align: left; vertical-align: top; }
+th { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); background: var(--chip); }
+th.go { color: var(--c-go); }
+th.rs { color: var(--c-rs); }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 誤解 */
+.myth { margin: 10px 0; }
+.myth .q { font-weight: 700; }
+.myth .q::before { content: "✕ "; color: var(--c-warn); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.myth .a { font-size: 0.88rem; color: var(--fg); margin-left: 1.3em; }
+
+/* 使い分け */
+.choose { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 620px) { .choose { grid-template-columns: 1fr; } }
+
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="tsrs と tsgo の比較">
+<meta property="og:description" content="TypeScript のネイティブ実装 tsgo（Go）と tsrs（Rust）の仕組み・性能・使い分けを図で比較。">
+<meta property="og:url" content="https://memo.taka1156.site/tsrs-vs-tsgo.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>tsrs vs tsgo</h1>
+  <p class="subtitle">TypeScript コンパイラのネイティブ移植 2 系統 ― Go 版と Rust 版の仕組みと違い（2026 年 11 月時点）</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><span class="go">tsgo</span> は Microsoft 公式の Go 移植で、<strong>TypeScript 7 の正式な <code>tsc</code></strong>。旧 JS 版より約 10 倍速い。</li>
+      <li><span class="rs">tsrs</span> はその Go 実装を<strong>関数単位で Rust に移植</strong>した実験版（Oxc 傘下、Cloudflare / VoidZero ほか）。同じワーカー数で最大 8 倍速・メモリ約 70% 減と主張。</li>
+      <li>どちらも型チェックを<strong>省略しない</strong>本物のコンパイラ。違いは主に<strong>メモリ管理（GC か所有権＋アリーナか）</strong>と <strong>Wasm 適性</strong>、そして成熟度。</li>
+    </ul>
+  </div>
+
+  <!-- ================================================= -->
+  <h2 id="lineage">系譜: 同じ設計を言語ごとに写している</h2>
+  <div class="lineage">
+    <div class="node n-ts">
+      <div class="lang">TypeScript / JS</div>
+      <div class="name">tsc（〜6.x）</div>
+      <p>元祖。Node.js 上で 1 スレッド実行。言語仕様の基準。</p>
+    </div>
+    <div class="arrow"><span class="glyph">→</span><span>忠実移植<br>(port)</span></div>
+    <div class="node n-go">
+      <div class="lang">Go ・ Microsoft</div>
+      <div class="name">tsgo（TS 7）</div>
+      <p>Project Corsa。2025/3 発表 → 7.0 で正式版。<code>typescript</code> パッケージそのもの。</p>
+    </div>
+    <div class="arrow"><span class="glyph">→</span><span>関数単位で<br>移植</span></div>
+    <div class="node n-rs">
+      <div class="lang">Rust ・ Oxc</div>
+      <div class="name">tsrs</div>
+      <p>2026/10 発表の実験版。fork ではなく、言語設計は TS チームに従う。</p>
+    </div>
+  </div>
+  <p class="note">「書き直し (rewrite)」ではなく「移植 (port)」なので、どれも同じ構造・同じ型チェックの挙動を目指す。tsrs の最適化の一部は TS 7.1 beta に逆輸入されている。</p>
+
+  <!-- ================================================= -->
+  <h2 id="pipeline">共通のパイプライン</h2>
+  <div class="card">
+    <div class="pipe">
+      <div class="stage"><div class="t">① config</div><div class="d">tsconfig を読み対象ファイルを決定</div></div>
+      <div class="stage"><div class="t">② parse</div><div class="d">テキスト → AST（構文木）</div><span class="par">ファイル単位で並列</span></div>
+      <div class="stage"><div class="t">③ bind</div><div class="d">名前とシンボル（宣言）を結びつける</div><span class="par">並列</span></div>
+      <div class="stage"><div class="t">④ check</div><div class="d">型を計算しエラーを出す。一番重い</div><span class="par">checker プール</span></div>
+      <div class="stage"><div class="t">⑤ emit</div><div class="d">.js / .d.ts / source map 出力</div><span class="par">並列</span></div>
+    </div>
+    <p class="note">旧 tsc は ①〜⑤ をすべて 1 スレッドで処理していた。ネイティブ版は「共有メモリ上のマルチスレッド」で ②〜⑤ を並列化するのが速さの源。<code>--singleThreaded</code> で並列化を全部オフにできる点も両者共通。</p>
+  </div>
+
+  <!-- ================================================= -->
+  <h2 id="internals">仕組みの違い</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="p-go">tsgo の内部</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-rs">tsrs の内部</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-mem">メモリと Wasm</button>
+  </div>
+
+  <div class="panel card" id="p-go">
+    <h3>checker プール（既定 4 個）</h3>
+    <p>import 関係をグラフとみなし、<strong>関係の深いファイルを同じ checker に寄せつつ負荷を均す</strong>ように分割（FENNEL 系のグラフ分割を重み付きで応用）。ファイルの重さは構文ノード数・文字数・import 数から見積もる。</p>
+    <div class="pool go">
+      <div class="checker"><div class="h">checker #1</div><div class="files"><span class="f">a.ts</span><span class="f">b.ts</span><span class="f">c.ts</span></div><div class="cache">型キャッシュ（専用）</div></div>
+      <div class="checker"><div class="h">checker #2</div><div class="files"><span class="f">d.ts</span><span class="f">e.ts</span></div><div class="cache">型キャッシュ（専用）</div></div>
+      <div class="checker"><div class="h">checker #3</div><div class="files"><span class="f">f.ts</span><span class="f">g.ts</span></div><div class="cache">型キャッシュ（専用）</div></div>
+      <div class="checker"><div class="h">checker #4</div><div class="files"><span class="f">h.ts</span><span class="f">i.ts</span><span class="f">j.ts</span></div><div class="cache">型キャッシュ（専用）</div></div>
+    </div>
+    <div class="shared"><strong>AST・シンボル</strong>（parse / bind 済み）は全 checker から参照される ― Go の goroutine が同じヒープを共有</div>
+    <ul class="plain" style="margin-top:12px;font-size:.86rem">
+      <li>各 checker が<strong>独自の型キャッシュ</strong>を持つ → 同じ型を別々に計算する重複が出る。checker を増やすと速くなるがメモリも増える。</li>
+      <li>診断はファイル番号の「スロット」に格納 → 処理の終わる順番に関係なく<strong>出力は決定的</strong>。</li>
+      <li>調整用フラグ: <code>--checkers N</code>（上限 256）、モノレポ用 <code>--builders N</code>（掛け算で効く）。</li>
+      <li>メモリ回収は Go の <strong>GC</strong> 任せ。</li>
+    </ul>
+  </div>
+
+  <div class="panel card" id="p-rs" hidden>
+    <h3>同じ骨格 + Rust ならではの最適化</h3>
+    <p>tsgo の関数を 1 つずつ Rust に写しているので、パイプラインや checker プールの考え方は同じ。そのうえで次を足している。</p>
+    <div class="pool rs">
+      <div class="checker"><div class="h">checker × 16（既定例）</div><div class="cache">マシンに応じて適応的に設定。メモリを多めに使う代わりに速い</div></div>
+      <div class="checker"><div class="h">ポインタ圧縮</div><div class="cache">参照をアリーナ内の小さな番号（ハンドル）にして、参照だらけの構造を縮める。番号→アドレス変換のコストとのトレードオフ</div></div>
+      <div class="checker"><div class="h">葉ファイルの早期解放</div><div class="cache">もう誰も参照しない「葉」のファイルの構文データを途中で捨てる（import・宣言マージ等の条件付き）</div></div>
+      <div class="checker"><div class="h">PGO ビルド</div><div class="cache">実行プロファイルを使った最適化でリリースバイナリをビルド</div></div>
+    </div>
+    <ul class="plain" style="margin-top:12px;font-size:.86rem">
+      <li>独自フラグ: <code>--maxMemory</code>（目標値）、<code>--checkerCostCache</code>、Go と割り当てを揃える <code>--checkerAssignment go</code> など。</li>
+      <li>メモリは所有権 + アリーナで管理し、<strong>GC が無い</strong>。</li>
+      <li>tsc-rs（ping.gg 発）と統合予定。LSP や content mapper（Vue/Svelte 等）を統合版で整える計画。</li>
+    </ul>
+  </div>
+
+  <div class="panel card" id="p-mem" hidden>
+    <div class="twocol">
+      <div class="side go">
+        <h4>tsgo: GC 付きヒープ</h4>
+        <div class="memviz">
+          <div class="mem-row"><span class="blk">Node</span><span class="blk">Node</span><span class="blk">Symbol</span><span class="blk">Type</span><span class="blk">Node</span></div>
+          <div class="mem-row"><span class="blk gc">GC が定期的に走査して回収</span></div>
+        </div>
+        <ul>
+          <li>書きやすく移植しやすい（JS の構造に近い）</li>
+          <li>Wasm にするとランタイムと GC も同梱する必要がある</li>
+        </ul>
+      </div>
+      <div class="side rs">
+        <h4>tsrs: 所有権 + アリーナ</h4>
+        <div class="memviz">
+          <div class="mem-row"><span class="blk arena">arena[0] Node</span><span class="blk arena">[1] Node</span><span class="blk arena">[2] Type</span></div>
+          <div class="mem-row"><span class="blk freed">leaf.ts の AST</span><span class="blk">← 不要になった時点で解放</span></div>
+        </div>
+        <ul>
+          <li>参照は小さな番号、寿命はコンパイル時に確定</li>
+          <li>Wasm でホスト（JS）とメモリを直接やり取りしやすい</li>
+        </ul>
+      </div>
+    </div>
+    <h3>Wasm 版 <code>@tsrs/wasm</code> の制約</h3>
+    <ul class="plain" style="font-size:.86rem">
+      <li>Node / ブラウザで動く。仮想ファイルシステムを渡し、標準ライブラリの型定義を同梱。</li>
+      <li><strong>シングルスレッド</strong>。<code>--watch</code>・LSP・API サーバーモードは無し。</li>
+      <li>線形メモリ上限 4 GiB。深い再帰型でスタックを使い切ることがある。インクリメンタル状態は呼び出し側で持ち回す。</li>
+    </ul>
+  </div>
+
+  <!-- ================================================= -->
+  <h2 id="bench">速さの比較（ベンダー計測）</h2>
+  <div class="card">
+    <p style="font-size:.85rem">型チェック時間。<strong>両方 checker 4 個</strong>に揃えた条件（16 vCPU / 63 GB RAM）。短いほど速い。</p>
+    <div class="bench">
+      <div>
+        <div class="proj">VS Code</div>
+        <div class="bar-row go"><span class="lbl">tsgo</span><div class="bar-track"><div class="bar go" style="width:100%">10.94s</div></div></div>
+        <div class="bar-row rs"><span class="lbl">tsrs</span><div class="bar-track"><div class="bar rs" style="width:20.2%">2.21s</div></div></div>
+      </div>
+      <div>
+        <div class="proj">Supabase Studio</div>
+        <div class="bar-row go"><span class="lbl">tsgo</span><div class="bar-track"><div class="bar go" style="width:66.2%">7.24s</div></div></div>
+        <div class="bar-row rs"><span class="lbl">tsrs</span><div class="bar-track"><div class="bar rs" style="width:12%">1.31s</div></div></div>
+      </div>
+      <div>
+        <div class="proj">webpack</div>
+        <div class="bar-row go"><span class="lbl">tsgo</span><div class="bar-track"><div class="bar go" style="width:13.3%">1.46s</div></div></div>
+        <div class="bar-row rs"><span class="lbl">tsrs</span><div class="bar-track"><div class="bar rs" style="width:2.7%">0.29s</div></div></div>
+      </div>
+    </div>
+    <p class="note">tsrs 側が出した初期の数字で、ワークロード次第。参考までに tsgo 自体は旧 JS 版 tsc 比で 8〜12 倍（VS Code: 125.7s → 10.6s）。TS 7.1 beta は 7.0 比で最大 2.5 倍速くなっており、差は縮みつつある。</p>
+  </div>
+
+  <!-- ================================================= -->
+  <h2 id="compare">比較表</h2>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>項目</th><th class="go">tsgo（TypeScript 7）</th><th class="rs">tsrs</th></tr></thead>
+      <tbody>
+        <tr><td>開発</td><td>Microsoft（TypeScript チーム）</td><td>Oxc 傘下。Cloudflare・VoidZero・Owner.com、TS チームと協力</td></tr>
+        <tr><td>言語</td><td>Go</td><td>Rust</td></tr>
+        <tr><td>移植元</td><td>JS 版 tsc</td><td>Go 版 tsgo（関数単位）</td></tr>
+        <tr><td>位置づけ</td><td>正式版。<code>npm i -D typescript</code> で入る</td><td>実験版。<code>npm i -D tsrs</code></td></tr>
+        <tr><td>メモリ管理</td><td>GC</td><td>所有権 + アリーナ、ポインタ圧縮、早期解放</td></tr>
+        <tr><td>checker 既定数</td><td>4</td><td>マシン適応（ベンチ例 16）</td></tr>
+        <tr><td>LSP</td><td>あり（マルチスレッド）</td><td><code>--lsp</code> はあるが既知の欠落あり</td></tr>
+        <tr><td>プログラム API</td><td>7.0 は安定 API なし → 7.1 で予定</td><td>統合版で整備予定</td></tr>
+        <tr><td>Wasm</td><td>不向き（GC 同梱）</td><td><code>@tsrs/wasm</code> あり（単一スレッド）</td></tr>
+        <tr><td>互換性</td><td>基準そのもの（差分は CHANGES.md）</td><td>診断の順序・位置などに差異あり。差は「バグ」扱い。目標は 7.1 完全準拠</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ================================================= -->
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card">
+    <div class="myth"><div class="q">tsrs は TypeScript の fork（別言語）</div><div class="a">fork ではない。言語設計は TypeScript チームが握り、tsrs は upstream に追従する実装の 1 つ。</div></div>
+    <div class="myth"><div class="q">「8 倍速」は旧 tsc と比べた数字</div><div class="a">比較相手は <strong>TypeScript 7.0（tsgo）</strong>で、checker 数を揃えた条件。旧 tsc 比の「約 10 倍」は tsgo の話。</div></div>
+    <div class="myth"><div class="q">swc / esbuild / Biome の仲間</div><div class="a">それらは型を剥がすだけで型チェックはしない。tsgo も tsrs も<strong>型チェックまでやる本物の tsc</strong>。</div></div>
+    <div class="myth"><div class="q">Wasm 版ならブラウザでも本番同等に動く</div><div class="a">Wasm 版はシングルスレッドで watch / LSP なし。ネイティブ版のベンチ数値は当てはまらない。</div></div>
+    <div class="myth"><div class="q">TS 7 にすれば typescript-eslint や Vue ツールもすぐ速くなる</div><div class="a">7.0 には安定したプログラム API が無く、API 依存のツールは 7.1 待ち。当面は <code>@typescript/typescript6</code>（<code>tsc6</code>）と併用する。</div></div>
+  </div>
+
+  <!-- ================================================= -->
+  <h2 id="choose">使い分けの目安</h2>
+  <div class="choose">
+    <div class="side go">
+      <h4>tsgo を選ぶ</h4>
+      <ul>
+        <li>CI・本番ビルド・普段のエディタ</li>
+        <li>公式サポートと互換性が最優先</li>
+        <li>まずは 6.0 → 7.0 の段階移行</li>
+      </ul>
+    </div>
+    <div class="side rs">
+      <h4>tsrs を試す</h4>
+      <ul>
+        <li>巨大リポジトリで CI 時間・メモリを詰めたい（結果は tsgo と突き合わせる）</li>
+        <li>ブラウザ・サンドボックス・エッジで型チェックを動かしたい</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>コマンド例</h3>
+<pre># tsgo（TypeScript 7）
+npm i -D typescript
+npx tsc -p . --noEmit --checkers 8
+
+# tsrs
+npm i -D tsrs
+npx tsrs -p . --noEmit
+npx tsrs -p . --noEmit --checkerAssignment go   # Go 版と割り当てを揃えて比較
+npx tsrs --lsp -stdio                            # 言語サーバー（実験的）</pre>
+
+  <h2>出典</h2>
+  <ul class="sources">
+    <li><a href="https://blog.cloudflare.com/typescript-rust-port/">Introducing tsrs: a Port of TypeScript to Rust（Cloudflare Blog, 2026-10-20）</a></li>
+    <li><a href="https://flaviocopes.com/tsrs/">A deep dive into tsrs（flaviocopes.com）</a></li>
+    <li><a href="https://infoq.com/news/2026/08/typescript-7-released/">TypeScript 7 released（InfoQ, 2026-08）</a></li>
+    <li><a href="https://dev.to/puffball1567/inside-typescript-7-parallel-type-checking-without-giving-up-determinism-2l0m">Inside TypeScript 7: Parallel Type Checking Without Giving Up Determinism（DEV Community）</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "CI と本番ビルドの型チェックを速くしたい。公式サポートと互換性を最優先するなら、どちらを使う？",
+    "choices": [
+      "esbuild",
+      "tsrs",
+      "tsgo"
+    ],
+    "answer": 2,
+    "explain": "tsgo は公式の正式版。tsrs は実験版で、診断の順序などに差異があるため、試すなら結果を tsgo と突き合わせる。",
+    "ref": "#choose"
+  },
+  {
+    "q": "プロジェクトで typescript-eslint など TypeScript の API に依存するツールを使っている。TypeScript 7.0 に移行するときの注意点は？",
+    "choices": [
+      "7.0 には安定したプログラム API がないので、当面は TypeScript 6 系と併用する",
+      "API 依存のツールも自動で 10 倍速くなる",
+      "7.0 にすると typescript-eslint は使えなくなるので削除する"
+    ],
+    "answer": 0,
+    "explain": "API に依存するツールは 7.1 待ち。それまでは @typescript/typescript6（tsc6）と併用する。",
+    "ref": "#myths"
+  },
+  {
+    "q": "ビルドに swc や esbuild を使っている。これで型チェックも済んでいる？",
+    "choices": [
+      "済んでいる。tsrs と同じ仕組みで動いている",
+      "済んでいない。型を剥がすだけなので、型チェックは tsc（tsgo）などで別に行う",
+      "済んでいる。Rust / Go 製なので型チェックも速く行う"
+    ],
+    "answer": 1,
+    "explain": "tsgo と tsrs は型チェックまでやる本物のコンパイラ。swc / esbuild / Biome は型を剥がすだけ。",
+    "ref": "#myths"
+  },
+  {
+    "q": "ブラウザやサンドボックスの中で TypeScript の型チェックを動かしたい。候補とその制約は？",
+    "choices": [
+      "tsrs の Wasm 版（シングルスレッドで LSP なし）",
+      "ブラウザで型チェックを動かす方法は、まだない",
+      "tsgo の Wasm 版。ネイティブ版と同じ速さで動く"
+    ],
+    "answer": 0,
+    "explain": "Go は GC を同梱する必要があり Wasm に不向き。tsrs は所有権とアリーナで管理するので Wasm にしやすい。",
+    "ref": "#p-mem"
+  },
+  {
+    "q": "tsgo で --checkers の数を増やしたら型チェックは速くなったが、メモリ使用量も増えた。理由は？",
+    "choices": [
+      "checker を増やすと AST がファイルごとに複製される",
+      "checker ごとに型キャッシュを持ち、同じ型を重複して計算するから",
+      "checker の数とメモリは関係なく、GC の不具合"
+    ],
+    "answer": 1,
+    "explain": "AST やシンボルは全 checker で共有するが、型キャッシュは checker ごと。速さとメモリのトレードオフになる。",
+    "ref": "#p-go"
+  }
+]
+</script>
+</body>
+</html>

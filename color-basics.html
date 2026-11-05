@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>色の基礎</title>
+<meta name="description" content="コントラスト比の基準と計算、ダークモードの色の作り方、HSL ではなく OKLCH でパレットを作る理由を、チェッカーと見比べられる色見本で説明する">
+<meta name="memo:tags" content="デザイン, フロントエンド">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #cf222e;
+  --c-warn: #9a6700;
+  --c-a: #0077b6;
+  --c-b: #8250df;
+  --c-c: #1a7f37;
+  --c-d: #bc4c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-a: #00d4ff;
+    --c-b: #bc8cff;
+    --c-c: #3fb950;
+    --c-d: #f0883e;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.2em; }
+ul.plain li { margin: 2px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+  margin: 10px 0;
+}
+.en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* 図 */
+.diagram { margin: 8px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
+.d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
+.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--accent); }
+.d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
+.d-ng-head { fill: var(--c-ng); }
+
+/* ステップ・フロー */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.flow span {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+.tbl td:first-child { font-weight: 700; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+
+/* チェックリスト */
+.progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
+.bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
+.checklist { list-style: none; }
+.checklist li { border-bottom: 1px solid var(--line); }
+.checklist li:last-child { border-bottom: none; }
+.checklist label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 2px; cursor: pointer; }
+.checklist input { margin-top: 5px; accent-color: var(--accent); flex: none; width: 16px; height: 16px; }
+.checklist .txt { flex: 1; }
+.checklist .txt small { display: block; color: var(--fg-2); font-size: 0.8rem; }
+.checklist input:checked + .txt { color: var(--fg-2); text-decoration: line-through; }
+.badge {
+  display: inline-block;
+  font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  color: var(--fg-2);
+}
+.badge.a { color: var(--c-a); }
+.badge.b { color: var(--c-b); }
+.badge.c { color: var(--c-c); }
+.badge.d { color: var(--c-d); }
+
+/* よくある誤解 */
+.myth { margin-bottom: 10px; }
+.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
+.myth summary::-webkit-details-marker { display: none; }
+.myth summary::before { content: '✕ '; color: var(--c-ng); }
+.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
+.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+/* OK / NG コード比較 */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.vs > div { min-width: 0; }
+.vs .lbl { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.checker { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.pickers { display: grid; gap: 10px; }
+.pick { display: flex; align-items: center; gap: 10px; }
+.pick input[type=color] { width: 44px; height: 36px; border: 1px solid var(--line); border-radius: 8px; background: none; padding: 2px; cursor: pointer; flex: none; }
+.pick input[type=text] { width: 100%; min-width: 0; font: 500 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.pick label { font-size: 0.8rem; color: var(--fg-2); width: 3.5em; flex: none; }
+.ratio { font: 700 2rem/1.1 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.judges { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 10px; font-size: 0.78rem; margin-top: 6px; }
+.judges span b { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.sample { border-radius: 10px; padding: 16px; border: 1px solid var(--line); }
+.sample .big { font-size: 24px; font-weight: 700; line-height: 1.3; }
+.sample .body { font-size: 15px; margin-top: 6px; }
+.sample .small { font-size: 12px; margin-top: 4px; }
+.sample .ui { display: inline-block; margin-top: 10px; border: 2px solid currentColor; border-radius: 6px; padding: 2px 10px; font-size: 0.8rem; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.presets button { border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font: 600 0.72rem 'JetBrains Mono', ui-monospace, monospace; cursor: pointer; }
+
+.strip { display: grid; grid-template-columns: repeat(6, 1fr); border-radius: 8px; overflow: hidden; margin: 4px 0 2px; }
+.strip div { height: 48px; display: flex; align-items: flex-end; justify-content: center; font: 700 0.62rem 'JetBrains Mono', ui-monospace, monospace; padding-bottom: 4px; color: #000; }
+.strip-label { font: 600 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-top: 10px; }
+.ramp { display: grid; grid-template-columns: repeat(9, 1fr); border-radius: 8px; overflow: hidden; }
+.ramp div { height: 40px; display: flex; align-items: flex-end; justify-content: center; font: 700 0.58rem 'JetBrains Mono', ui-monospace, monospace; padding-bottom: 3px; }
+.slider-row { display: grid; grid-template-columns: 70px 1fr 60px; gap: 8px; align-items: center; font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace; margin: 4px 0; }
+.slider-row input { width: 100%; accent-color: var(--accent); }
+.dm-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.dm { border-radius: 10px; padding: 14px; font-size: 0.85rem; }
+.dm .lbl { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; margin-bottom: 6px; display: block; }
+.dm .layer { border-radius: 8px; padding: 10px; margin-top: 8px; }
+.dm .btn { display: inline-block; border-radius: 6px; padding: 3px 12px; font-weight: 700; margin-top: 8px; }
+.cb-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; font-size: 0.85rem; }
+.cb-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="色の基礎">
+<meta property="og:description" content="コントラスト比の基準と計算、ダークモードの色の作り方、HSL ではなく OKLCH でパレットを作る理由を、チェッカーと見比べられる色見本で説明する">
+<meta property="og:url" content="https://memo.taka1156.site/color-basics.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>色の基礎</h1>
+  <p class="subtitle">コントラスト比・ダークモード・OKLCH —— 「なんとなく」で選ばないための 3 点</p>
+<div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>文字と背景の<b>コントラスト比は 4.5:1 以上</b>（大きな文字・アイコン・入力欄の枠は 3:1 以上）。見た目の好みより先にこれを満たす。</li>
+      <li>ダークモードは「白黒反転」ではない。<b>真っ黒・真っ白を避け、アクセントは明るく彩度控えめ</b>に作り直し、重なりは「明るさ」で表す。</li>
+      <li>パレットは <b>OKLCH</b> で作ると、色相を変えても「同じ明るさ」に見える段階がそろう。HSL の L は人間の見た目の明るさと一致しない。</li>
+    </ul>
+  </div>
+
+  <h2 id="contrast">コントラスト比</h2>
+  <p>2 色の<b>相対輝度</b>（人の目に感じる明るさに近づけた値）の比で、1:1（同じ色）〜 21:1（白と黒）。アクセシビリティ基準 WCAG の AA レベルが実務の目安です。</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>対象</th><th>AA（目安）</th><th>AAA</th></tr>
+    <tr><td>本文などの通常の文字</td><td><b>4.5 : 1</b></td><td>7 : 1</td></tr>
+    <tr><td>大きな文字（約 24px 以上、太字なら約 18.66px 以上）</td><td><b>3 : 1</b></td><td>4.5 : 1</td></tr>
+    <tr><td>アイコン・入力欄の枠・フォーカスリングなど UI 部品</td><td><b>3 : 1</b></td><td>—（フォーカス表示は 2.4.13 で、フォーカス前後の差 3:1 以上）</td></tr>
+    <tr><td>無効化 (disabled) の部品・ロゴ・飾り</td><td colspan="2">基準の対象外</td></tr>
+  </table></div>
+
+  <h3 id="checker">チェッカー</h3>
+  <div class="checker card">
+    <div>
+      <div class="pickers">
+        <div class="pick"><label for="fg-c">文字</label><input type="color" id="fg-c" value="#5a6376"><input type="text" id="fg-t" value="#5a6376" aria-label="文字色の 16 進コード"></div>
+        <div class="pick"><label for="bg-c">背景</label><input type="color" id="bg-c" value="#ffffff"><input type="text" id="bg-t" value="#ffffff" aria-label="背景色の 16 進コード"></div>
+      </div>
+      <div class="presets" id="presets">
+        <button data-f="#999999" data-b="#ffffff" style="color:#999;background:#fff">薄いグレー</button>
+        <button data-f="#ffffff" data-b="#0077b6" style="color:#fff;background:#0077b6">白 on 青</button>
+        <button data-f="#ffffff" data-b="#f0883e" style="color:#fff;background:#f0883e">白 on オレンジ</button>
+        <button data-f="#cdd9e5" data-b="#0a0e14" style="color:#cdd9e5;background:#0a0e14">このサイト(暗)</button>
+      </div>
+      <div style="margin-top:12px"><span class="ratio" id="ratio">-</span></div>
+      <div class="judges" id="judges"></div>
+    </div>
+    <div class="sample" id="sample">
+      <div class="big">大きな見出し 24px</div>
+      <div class="body">本文 15px：読みやすさは比率で決まる。</div>
+      <div class="small">注釈 12px：小さいほど厳しく見える。</div>
+      <span class="ui">ボタンの枠</span>
+    </div>
+  </div>
+  <p class="note">計算式：各色を sRGB → 線形化して相対輝度 L を出し、(明るい方の L + 0.05) ÷ (暗い方の L + 0.05)。文字の太さや明暗の向きも考慮する APCA という方式が提案されたが、2023 年に WCAG 3 の草案から外れ、次期基準のコントラスト計算方法は未定。現行の基準は WCAG 2.x のこの比率。</p>
+
+  <h2 id="hsl-vs-oklch">HSL ではなく OKLCH を使う理由</h2>
+  <p>下の 2 段は、どちらも「明度を同じ値に固定して色相だけ回した」色です。HSL は数値上同じでも、黄色は明るく青は暗く見えます。OKLCH は<b>人の見え方に合わせた色空間</b>なので、明るさがそろって見えます。</p>
+  <div class="card">
+    <div class="strip-label">hsl(H 90% 50%) — L はすべて 50%</div>
+    <div class="strip" id="strip-hsl"></div>
+    <div class="strip-label">oklch(0.7 0.15 H) — L はすべて 0.7</div>
+    <div class="strip" id="strip-oklch"></div>
+    <p class="note" style="margin-bottom:0">HSL 段では黄緑・緑の上の黒文字はとても読みやすいが、青の上ではほぼ読めない（同じ L=50% なのにコントラスト比が約 14:1 から約 2.5:1 まで開く）。OKLCH 段は同じ黒文字がどの色でも同程度に読める ＝ 明度を固定すれば<b>コントラストもほぼ固定</b>できる。</p>
+  </div>
+
+  <h3 id="oklch-syntax">OKLCH の読み方</h3>
+  <div class="grid-3">
+    <div class="card"><b class="mono">L</b> 明度 <span class="en">Lightness</span><p class="note" style="border:0;padding:0">0（黒）〜 1（白）。見た目の明るさにほぼ比例。</p></div>
+    <div class="card"><b class="mono">C</b> 彩度 <span class="en">Chroma</span><p class="note" style="border:0;padding:0">0（灰色）〜 0.3 前後。上限は色相と明度で変わる。</p></div>
+    <div class="card"><b class="mono">H</b> 色相 <span class="en">Hue</span><p class="note" style="border:0;padding:0">0〜360 の角度。約 25 赤・90 黄・145 緑・250 青。</p></div>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <div class="slider-row"><span>H</span><input type="range" id="ramp-h" min="0" max="360" value="250"><span id="ramp-hv">250</span></div>
+    <div class="slider-row"><span>C</span><input type="range" id="ramp-c" min="0" max="0.25" step="0.01" value="0.13"><span id="ramp-cv">0.13</span></div>
+    <div class="ramp" id="ramp"></div>
+    <p class="note" style="margin-bottom:0">L だけを 0.95 → 0.25 まで、ほぼ等間隔（約 0.07〜0.10 刻み）に下げた 9 段階のパレット。色相を変えても段ごとの明るさがそろうので、<code>--blue-500</code> と <code>--green-500</code> を入れ替えても文字のコントラストが崩れにくい。</p>
+  </div>
+
+<pre><code><span class="cm">/* パレット：L だけを変える */</span>
+--blue-100: oklch(0.95 0.03 250);
+--blue-500: oklch(0.62 0.15 250);
+--blue-900: oklch(0.30 0.08 250);
+
+<span class="cm">/* ホバー色を元の色から計算（相対カラー構文） */</span>
+.button:hover { background: oklch(from var(--accent) calc(l - 0.08) c h); }
+
+<span class="cm">/* 混ぜるときも OKLCH で（途中がくすみにくい） */</span>
+.badge { background: color-mix(in oklch, var(--accent) 15%, transparent); }</code></pre>
+  <p class="note">C を上げすぎると、普通のディスプレイ（sRGB）で表示できない色になり、ブラウザが近い色に丸める。広色域（Display P3）の画面ではより鮮やかに出る。</p>
+
+  <h2 id="dark">ダークモードの色の作り方</h2>
+  <p>ライトの色を反転しただけだと、まぶしく、ギラつき、階層がわからなくなります。</p>
+  <div class="dm-compare">
+    <div class="dm" style="background:#000;color:#fff">
+      <span class="lbl" style="color:#ff6b6b">✕ 反転しただけ</span>
+      純黒の背景に純白の文字。アクセントもライトと同じ濃い青。
+      <div class="layer" style="background:#000;border:1px solid #333">カード（背景と区別できない）</div>
+      <span class="btn" style="background:#0050a0;color:#fff">ボタン</span>
+    </div>
+    <div class="dm" style="background:#0a0e14;color:#cdd9e5">
+      <span class="lbl" style="color:#3fb950">○ 作り直した</span>
+      少し青みのある暗色の背景、少し落とした白の文字。アクセントは明るく。
+      <div class="layer" style="background:#111823;border:1px solid #1e2d3d">カード（一段明るい面で浮かせる）</div>
+      <span class="btn" style="background:#00d4ff;color:#0a0e14">ボタン</span>
+    </div>
+  </div>
+  <div class="tbl-wrap" style="margin-top:10px"><table class="tbl">
+    <tr><th>ポイント</th><th>理由</th></tr>
+    <tr><td>背景は純黒を避ける</td><td>純白の文字との差が大きすぎて文字がにじんで見える（ハレーション）。#0a0e14 程度の暗色に。</td></tr>
+    <tr><td>重なりは「明るさ」で表す</td><td>暗い背景では影がほとんど見えない。上にあるものほど少し明るい面にする。</td></tr>
+    <tr><td>アクセントは明るく・彩度控えめに</td><td>ライト用の濃い色は暗い背景に沈む。L を上げ、鮮やかすぎる色は C を少し下げる。</td></tr>
+    <tr><td>コントラストは測り直す</td><td>ライトで 4.5:1 を満たしても、ダークの組み合わせは別物。両方でチェックする。</td></tr>
+  </table></div>
+  <p class="note">実装はトークンのセマンティック層を差し替えるのが基本 → <a href="design-tokens.html">デザイントークン</a></p>
+
+  <h2 id="meaning">色だけで意味を伝えない</h2>
+  <p>色の見え方には個人差があり、日本人男性では約 20 人に 1 人が赤と緑を見分けにくいとされます。エラー・成功などは<b>色＋形（アイコン）＋文字</b>で伝えます。</p>
+  <div class="vs">
+    <div class="card"><b class="ng">NG：色だけ</b>
+      <div class="cb-row"><span class="cb-dot" style="background:#2da44e"></span>API サーバー</div>
+      <div class="cb-row"><span class="cb-dot" style="background:#cf6a22"></span>DB サーバー</div>
+    </div>
+    <div class="card"><b class="ok">OK：形と文字も</b>
+      <div class="cb-row"><span style="color:var(--c-ok)">✔</span>API サーバー <small>（稼働中）</small></div>
+      <div class="cb-row"><span style="color:var(--c-ng)">✕</span>DB サーバー <small>（停止）</small></div>
+    </div>
+  </div>
+  <p class="note">グラフでも同じ。線の色だけでなく、線種・マーカー・凡例を直接ラベルにするなどで区別する。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth card"><summary>HSL の L をそろえれば同じ明るさになる</summary><p>HSL の L は計算上の値で、人の見え方とは一致しない。同じ 50% でも黄色と青では見た目の明るさが大きく違う。OKLCH の L はほぼ見た目どおり。</p></details>
+  <details class="myth card"><summary>コントラストは高ければ高いほど良い</summary><p>基準は「最低ライン」。ダークモードで純黒 × 純白にすると眩しさやにじみで逆に読みにくくなる。基準を満たした上で少し抑える。</p></details>
+  <details class="myth card"><summary>ブランド色の上の白文字なら読める</summary><p>オレンジや黄緑など明るいブランド色は、白文字だと 3:1 にも届かないことがある。チェッカーで確かめ、ダメなら暗い文字にするか色を暗くする。</p></details>
+  <details class="myth card"><summary>ダークモードはフィルターで反転すれば作れる</summary><p>画像やブランド色まで反転してしまい、影や重なりの表現も崩れる。色はダーク用にトークンを作り直す。</p></details>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      const p = t.dataset.panel && document.getElementById(t.dataset.panel);
+      if (p) p.hidden = !on;
+    });
+  });
+});
+document.querySelectorAll('[data-checklist]').forEach(box => {
+  const key = 'memo-check:' + location.pathname + ':' + box.dataset.checklist;
+  const inputs = [...box.querySelectorAll('input[type=checkbox]')];
+  const bar = box.querySelector('.bar div');
+  const count = box.querySelector('.count');
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {}
+  inputs.forEach((el, i) => { el.checked = !!saved[i]; });
+  const update = () => {
+    const n = inputs.filter(el => el.checked).length;
+    if (bar) bar.style.width = (n / inputs.length * 100) + '%';
+    if (count) count.textContent = n + ' / ' + inputs.length;
+    try { localStorage.setItem(key, JSON.stringify(inputs.map(el => el.checked))); } catch (e) {}
+  };
+  inputs.forEach(el => el.addEventListener('change', update));
+  update();
+});
+
+(() => {
+  const $ = id => document.getElementById(id);
+  const hexToRgb = h => { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(x => x + x).join(''); const n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+  const lum = rgb => { const [r, g, b] = rgb.map(v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const ratio = (a, b) => { const [x, y] = [lum(hexToRgb(a)), lum(hexToRgb(b))].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const valid = h => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(h);
+  const update = () => {
+    const f = $('fg-t').value.trim(), b = $('bg-t').value.trim();
+    if (!valid(f) || !valid(b)) return;
+    const r = ratio(f, b);
+    $('ratio').textContent = r.toFixed(2) + ' : 1';
+    const j = (t, ok) => '<span>' + t + ' <b class="' + (ok ? 'ok' : 'ng') + '">' + (ok ? '✔ 合格' : '✕ 不足') + '</b></span>';
+    $('judges').innerHTML = j('本文 AA 4.5', r >= 4.5) + j('本文 AAA 7', r >= 7) + j('大文字 AA 3', r >= 3) + j('UI 部品 3', r >= 3);
+    $('sample').style.color = f; $('sample').style.background = b;
+  };
+  const sync = (c, t) => {
+    $(c).addEventListener('input', () => { $(t).value = $(c).value; update(); });
+    $(t).addEventListener('input', () => { const v = $(t).value.trim(); if (valid(v) && v.length === 7) $(c).value = v; update(); });
+  };
+  sync('fg-c', 'fg-t'); sync('bg-c', 'bg-t');
+  $('presets').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    $('fg-t').value = $('fg-c').value = b.dataset.f; $('bg-t').value = $('bg-c').value = b.dataset.b; update();
+  });
+  update();
+
+  const hues = [25, 90, 145, 200, 250, 310];
+  $('strip-hsl').innerHTML = hues.map(h => '<div style="background:hsl(' + h + ' 90% 50%)">' + h + '</div>').join('');
+  $('strip-oklch').innerHTML = hues.map(h => '<div style="background:oklch(0.7 0.15 ' + h + ')">' + h + '</div>').join('');
+
+  const steps = [[100, .95], [200, .88], [300, .80], [400, .71], [500, .62], [600, .53], [700, .44], [800, .35], [900, .25]];
+  const ramp = () => {
+    const h = $('ramp-h').value, c = $('ramp-c').value;
+    $('ramp-hv').textContent = h; $('ramp-cv').textContent = (+c).toFixed(2);
+    $('ramp').innerHTML = steps.map(([n, l]) => '<div style="background:oklch(' + l + ' ' + c + ' ' + h + ');color:' + (l > 0.6 ? '#000' : '#fff') + '">' + n + '</div>').join('');
+  };
+  ['ramp-h', 'ramp-c'].forEach(id => $(id).addEventListener('input', ramp));
+  ramp();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "本文 15px のグレー文字を白背景に置いたら、コントラスト比が 3.8:1 だった。WCAG AA を満たすにはどうする？",
+    "choices": ["そのままで良い（3:1 以上なので合格）", "文字色を濃くして 4.5:1 以上にする", "文字を太字にすれば 3.8:1 のままで合格", "背景を少しだけ灰色にする"],
+    "answer": 1,
+    "explain": "通常サイズの文字は 4.5:1 が基準。3:1 で良いのは大きな文字や UI 部品。背景を灰色にすると比率はさらに下がる。",
+    "ref": "#contrast"
+  },
+  {
+    "q": "色相だけを変えて「明るさのそろった」タグの色を 6 色作りたい。どの方法が向いている？",
+    "choices": ["oklch() の L と C を固定して H だけ変える", "hsl() の L と S を固定して H だけ変える", "rgb() の合計値をそろえる", "16 進コードの先頭の桁をそろえる"],
+    "answer": 0,
+    "explain": "OKLCH の L は見た目の明るさにほぼ比例する。HSL の L は同じでも黄色は明るく青は暗く見える。",
+    "ref": "#hsl-vs-oklch"
+  },
+  {
+    "q": "ダークモードで、カードが背景に埋もれて境界がわからない。影を濃くしても改善しない。どうする？",
+    "choices": ["カードの面を背景より一段明るい色にする", "背景を純黒 #000 にする", "カードに白い太枠を付ける", "カードを半透明にする"],
+    "answer": 0,
+    "explain": "暗い背景では影が見えにくい。ダークモードでは「上にあるものほど明るい面」で重なりを表す。",
+    "ref": "#dark"
+  },
+  {
+    "q": "サーバーの状態一覧で、稼働中を緑の丸、停止を赤の丸だけで表示している。何が問題？",
+    "choices": ["緑と赤は印刷すると同じ色になる", "丸はアイコンとして小さすぎる", "赤と緑を見分けにくい人には状態が伝わらない", "特に問題はない"],
+    "answer": 2,
+    "explain": "色だけで意味を伝えると、色覚の個人差で情報が失われる。アイコンの形や文字ラベルを併用する。",
+    "ref": "#meaning"
+  }
+]
+</script>
+</body>
+</html>

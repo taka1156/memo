@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vue と Svelte</title>
+<meta name="description" content="Vue の Proxy リアクティブと仮想 DOM、Vapor Mode、Svelte のコンパイラと runes を、コンパイル結果と依存追跡のデモで比較。">
+<meta name="memo:tags" content="JavaScript, フロントエンド">
+<meta name="memo:date" content="2026-11-02">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-front: #c2410c;
+  --c-back: #15803d;
+  --c-ng: #b91c1c;
+  --c-ok: #15803d;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-front: #fb923c;
+    --c-back: #4ade80;
+    --c-ng: #f87171;
+    --c-ok: #4ade80;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.big { font-size: 1.05rem; font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* トークン表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+.myth .ng { color: var(--c-ng); font-weight: 700; }
+.myth .ok { color: var(--c-ok); font-weight: 700; }
+
+.related a { display: inline-block; margin: 4px 8px 4px 0; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.side { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.side .card { border-top: 4px solid var(--k); }
+.side .ttl { font: 700 0.95rem 'JetBrains Mono', monospace; color: var(--k); }
+.k-vue { --k: var(--c-vue); }
+.k-svelte { --k: var(--c-svelte); }
+
+.bands { display: flex; flex-direction: column; gap: 10px; }
+.band .nm { font: 700 0.8rem 'JetBrains Mono', monospace; margin-bottom: 3px; }
+.band .bar { display: flex; height: 30px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+.band .bar > div { display: flex; align-items: center; justify-content: center; font: 600 0.7rem 'Noto Sans JP', sans-serif; color: #fff; white-space: nowrap; overflow: hidden; padding: 0 4px; }
+.b-build { background: var(--c-build); }
+.b-rt { background: var(--c-rt); }
+.bands-key { display: flex; gap: 14px; font-size: 0.78rem; color: var(--fg-2); margin-top: 8px; flex-wrap: wrap; }
+.bands-key i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+
+.dep { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.dep .state { font: 600 0.85rem 'JetBrains Mono', monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.dep .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.dep button {
+  border: 1px solid var(--c-vue);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font: 600 0.78rem 'JetBrains Mono', monospace;
+  cursor: pointer;
+}
+.eff { border: 2px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font: 500 0.78rem 'JetBrains Mono', monospace; transition: background .3s, border-color .3s; }
+.eff b { display: block; font-family: 'Noto Sans JP', sans-serif; font-size: 0.8rem; }
+.eff .runs { color: var(--fg-2); font-size: 0.72rem; }
+.eff.fire { border-color: var(--c-ok); background: color-mix(in srgb, var(--c-ok) 18%, transparent); }
+
+.pf { color: var(--c-svelte); font-weight: 700; }
+
+:root { --c-vue: #15803d; --c-svelte: #c2410c; --c-build: #7c3aed; --c-rt: #0369a1; }
+@media (prefers-color-scheme: dark) { :root { --c-vue: #4ade80; --c-svelte: #fb923c; --c-build: #8b5cf6; --c-rt: #0284c7; } }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="Vue と Svelte">
+<meta property="og:description" content="Vue の Proxy リアクティブと仮想 DOM、Vapor Mode、Svelte のコンパイラと runes を、コンパイル結果と依存追跡のデモで比較。">
+<meta property="og:url" content="https://memo.taka1156.site/vue-vs-svelte.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+<h1>Vue と Svelte</h1>
+  <p class="subtitle">ランタイムで賢く追跡する Vue、ビルド時に書き出す Svelte</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>Vue</b> は Proxy による依存追跡でどのコンポーネントを更新するかを決め、その中は仮想 DOM で差分を取る。コンパイラが「変わりうる場所」に印を付けて差分を絞り込む</li>
+      <li><b>Svelte</b> は「コンパイラが本体」。<code>.svelte</code> ファイルを、DOM を直接操作する JS に変換する。仮想 DOM はない</li>
+      <li>両者は近づいている。Svelte 5 は runes でシグナルに移り、Vue は 3.6 の <b>Vapor Mode</b> で仮想 DOM なしのコンパイルを選べるようになる</li>
+    </ul>
+  </div>
+  <p class="muted">方式そのものの説明は <a href="reactivity-models.html">UI 更新の3つの方式</a> にまとめてある。</p>
+
+  <h2 id="counter">同じカウンターを書く</h2>
+  <div class="side">
+    <div class="card k-vue">
+      <div class="ttl">Vue（Counter.vue）</div>
+      <pre><code>&lt;script setup&gt;
+import { ref, computed } from 'vue'
+const count = ref(0)
+const doubled = computed(() =&gt; count.value * 2)
+&lt;/script&gt;
+
+&lt;template&gt;
+  &lt;button @click="count++"&gt;
+    {{ count }}（×2 = {{ doubled }}）
+  &lt;/button&gt;
+&lt;/template&gt;</code></pre>
+      <p class="muted">script では <code>count.value</code>、テンプレートでは自動で <code>.value</code> が外れる。</p>
+    </div>
+    <div class="card k-svelte">
+      <div class="ttl">Svelte 5（Counter.svelte）</div>
+      <pre><code>&lt;script&gt;
+  let count = $state(0)
+  let doubled = $derived(count * 2)
+&lt;/script&gt;
+
+&lt;button onclick={() =&gt; count++}&gt;
+  {count}（×2 = {doubled}）
+&lt;/button&gt;</code></pre>
+      <p class="muted"><code>$state</code> などの <b>runes</b> はコンパイラへの目印。普通の変数のように読み書きでき、裏でシグナルに変換される。</p>
+    </div>
+  </div>
+
+  <h2 id="timing">仕事をいつするか</h2>
+  <p>同じ「更新を最小にする」でも、どれだけをビルド時に前倒しするかが違う（幅はイメージ）。</p>
+  <div class="card">
+    <div class="bands">
+      <div class="band"><div class="nm">Vue（従来モード）</div><div class="bar"><div class="b-build" style="flex:30">テンプレート解析・印付け</div><div class="b-rt" style="flex:70">依存追跡 ＋ 仮想 DOM の差分</div></div></div>
+      <div class="band"><div class="nm">Vue Vapor Mode</div><div class="bar"><div class="b-build" style="flex:65">DOM 操作コードを生成</div><div class="b-rt" style="flex:35">依存追跡</div></div></div>
+      <div class="band"><div class="nm">Svelte 5</div><div class="bar"><div class="b-build" style="flex:70">DOM 操作コードを生成</div><div class="b-rt" style="flex:30">シグナル</div></div></div>
+    </div>
+    <div class="bands-key"><span><i class="b-build"></i>ビルド時（コンパイラ）</span><span><i class="b-rt"></i>実行時（ランタイム）</span></div>
+  </div>
+
+  <h2 id="vue-internals">Vue の内部</h2>
+  <h3>Proxy による依存追跡</h3>
+  <p><code>reactive()</code> や <code>ref()</code> は値を Proxy（またはゲッター・セッター）で包む。<b>読まれたとき（get）</b>に「今どの処理が読んだか」を記録し、<b>書かれたとき（set）</b>にその処理だけを再実行する。ボタンで値を変えて、どの処理が動くか確かめる。</p>
+  <div class="card">
+    <div class="dep">
+      <div>
+        <div class="state" id="st"></div>
+        <div class="btns">
+          <button type="button" id="b-count">state.count++</button>
+          <button type="button" id="b-name">state.name を変更</button>
+          <button type="button" id="b-other">state.unused++</button>
+        </div>
+        <p class="muted" style="margin-top:8px">unused はどの処理からも読まれていないので、変えても何も起きない。</p>
+      </div>
+      <div>
+        <div class="eff" id="e1"><b>Counter の描画</b>読む：state.count<div class="runs">実行回数 <span>1</span></div></div>
+        <div class="eff" id="e2"><b>Greeting の描画</b>読む：state.name<div class="runs">実行回数 <span>1</span></div></div>
+        <div class="eff" id="e3"><b>computed: summary</b>読む：state.count、state.name<div class="runs">実行回数 <span>1</span></div></div>
+      </div>
+    </div>
+  </div>
+  <p class="muted">Vue 3.6 では、このリアクティブの仕組みが alien-signals という高速なシグナル実装をもとに作り直された。</p>
+
+  <h3>コンパイラによる最適化</h3>
+  <p>Vue の仮想 DOM は「素朴に全部比べる」わけではない。テンプレートをコンパイルするときに、動的な部分に<b>パッチフラグ</b>を付け、静的な部分は使い回す。</p>
+  <pre><code>// &lt;div&gt;&lt;h1&gt;Todo&lt;/h1&gt;&lt;p&gt;{{ count }}&lt;/p&gt;&lt;/div&gt; のコンパイル結果（簡略）
+const _hoisted = createVNode("h1", null, "Todo")      // 静的：一度だけ作って使い回す
+
+function render(ctx) {
+  return (openBlock(), createElementBlock("div", null, [
+    _hoisted,
+    createElementVNode("p", null, toDisplayString(ctx.count), <span class="pf">1 /* TEXT */</span>)
+  ]))
+}</code></pre>
+  <p>差分計算のときは、印の付いたノード（ここでは <code>p</code> のテキストだけ）を見ればよい。これにより、仮想 DOM を使いながら比較の量を大きく減らしている。</p>
+
+  <h3>Vapor Mode</h3>
+  <div class="card">
+    <p>コンポーネント単位で選べる、<b>仮想 DOM を使わない</b>コンパイルモード。Solid や Svelte 5 と同じく、テンプレートを直接 DOM 操作するコードに変換する。</p>
+    <pre><code>&lt;script setup vapor&gt;
+// 書き方は同じ。vapor を付けたコンポーネントだけが新方式でコンパイルされる
+&lt;/script&gt;</code></pre>
+    <p class="muted">Vue 3.6 で導入。2026年9月にリリース候補 (RC) の機能凍結段階に入った。従来のコンポーネントと混在でき、少しずつ移行できるのが特徴。<code>&lt;script setup&gt;</code> 専用で、Options API や <code>&lt;Suspense&gt;</code> には対応しない。</p>
+  </div>
+
+  <h2 id="svelte-internals">Svelte の内部</h2>
+  <h3>Svelte 4 と 5 の違い</h3>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="s5">Svelte 5（runes）</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="s4">Svelte 4 まで</button>
+  </div>
+  <div class="panel card" id="s5">
+    <pre><code>let count = $state(0)
+let doubled = $derived(count * 2)
+$effect(() =&gt; { console.log(count) })
+let { title } = $props()</code></pre>
+    <p>runes は明示的な目印なので、<b>.svelte.js / .svelte.ts ファイル</b>の中でも使え、コンポーネントの外にリアクティブな状態を切り出せる。オブジェクトや配列の <code>$state</code> は Proxy で深く追跡される。</p>
+  </div>
+  <div class="panel card" id="s4" hidden>
+    <pre><code>let count = 0               // トップレベルの let は自動でリアクティブ
+$: doubled = count * 2      // $: ラベルで派生値
+export let title            // export let で props</code></pre>
+    <p>コンパイラが「代入文」を見つけて更新コードを差し込む方式。手軽だった反面、<code>arr.push()</code> のような代入を伴わない変更は検知されない、コンポーネントの外では使えない、といった制約があった。</p>
+  </div>
+
+  <h3>コンパイル結果（イメージ）</h3>
+  <pre><code>// Counter.svelte → JS（Svelte 5、簡略化）
+import * as $ from 'svelte/internal/client'
+const root = $.template(`&lt;button&gt; &lt;/button&gt;`)
+
+export default function Counter($$anchor) {
+  let count = $.state(0)                              // シグナルに変換
+  let doubled = $.derived(() =&gt; $.get(count) * 2)
+
+  const button = root()
+  const text = button.firstChild
+  button.onclick = () =&gt; $.set(count, $.get(count) + 1)
+  $.template_effect(() =&gt;                             // このテキストだけを更新する effect
+    $.set_text(text, `${$.get(count)}（×2 = ${$.get(doubled)}）`))
+  $.append($$anchor, button)
+}</code></pre>
+  <p>普通の変数に見えた <code>count</code> が、コンパイル後はシグナルの読み書き（<code>$.get</code> / <code>$.set</code>）になっている。構造は <a href="react-vs-solid.html">Solid のコンパイル結果</a>とほぼ同じ。</p>
+
+  <h2 id="compare">比較表</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>観点</th><th>Vue</th><th>Svelte 5</th></tr>
+      <tr><td>リアクティブ</td><td>ref / reactive（Proxy）。3.6 で alien-signals ベースに</td><td>runes（$state、$derived）→ シグナル</td></tr>
+      <tr><td>仮想 DOM</td><td>あり（Vapor Mode を選べばなし）</td><td>なし</td></tr>
+      <tr><td>状態の読み書き</td><td>script では <code>.value</code> が必要</td><td>普通の変数として書ける</td></tr>
+      <tr><td>テンプレート</td><td>HTML ＋ <code>v-if</code>、<code>v-for</code>、<code>{{ }}</code>（JSX も可）</td><td>HTML ＋ <code>{#if}</code>、<code>{#each}</code>、<code>{}</code></td></tr>
+      <tr><td>更新の単位</td><td>コンポーネント（中は差分を絞った仮想 DOM）</td><td>DOM ノード</td></tr>
+      <tr><td>ランタイムの大きさ</td><td>中程度（仮想 DOM を含む）。Vapor のみなら小さい</td><td>小さい。コンポーネントが増えると生成コードが増える</td></tr>
+      <tr><td>フルスタックの枠組み</td><td>Nuxt</td><td>SvelteKit</td></tr>
+      <tr><td>非同期</td><td><code>&lt;Suspense&gt;</code>（実験的）</td><td>テンプレート内の <code>await</code> など（実験的機能として提供）</td></tr>
+    </table>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「Svelte はランタイムがゼロ」</p>
+    <p><span class="ok">○</span> シグナルや DOM ヘルパーなどの小さなランタイムはある（上のコンパイル結果の <code>svelte/internal/client</code>）。「仮想 DOM のような大きなランタイムがない」が正確。</p>
+  </div>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「Vue は仮想 DOM だから遅い」</p>
+    <p><span class="ok">○</span> 依存追跡で更新するコンポーネントを絞り、パッチフラグで比較対象も絞っているので、素朴な仮想 DOM よりずっと効率的。Vapor Mode ではベンチマーク上 Solid や Svelte 5 と並ぶ。</p>
+  </div>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「Svelte 5 は Svelte 4 の書き方を少し変えただけ」</p>
+    <p><span class="ok">○</span> 「代入の検知」から「シグナル」へと、内部の仕組みが丸ごと作り直された。書き方の変化はその結果。</p>
+  </div>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="reactivity-models.html">← UI 更新の3つの方式</a> <a href="react-vs-solid.html">← React と Solid</a></p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+const state = { count: 0, name: 'Taro', unused: 0 };
+const runs = { e1: 1, e2: 1, e3: 1 };
+const deps = { count: ['e1', 'e3'], name: ['e2', 'e3'], unused: [] };
+const NAMES = ['Taro', 'Hanako', 'Jiro', 'Sakura'];
+function showState() {
+  document.getElementById('st').textContent =
+    'state = {\n  count: ' + state.count + ',\n  name: "' + state.name + '",\n  unused: ' + state.unused + '\n}';
+  document.getElementById('st').style.whiteSpace = 'pre';
+}
+function trigger(key) {
+  document.querySelectorAll('.eff').forEach(e => e.classList.remove('fire'));
+  void document.body.offsetWidth;
+  deps[key].forEach(id => {
+    runs[id]++;
+    const el = document.getElementById(id);
+    el.querySelector('span').textContent = runs[id];
+    el.classList.add('fire');
+  });
+  showState();
+}
+document.getElementById('b-count').addEventListener('click', () => { state.count++; trigger('count'); });
+document.getElementById('b-name').addEventListener('click', () => {
+  state.name = NAMES[(NAMES.indexOf(state.name) + 1) % NAMES.length];
+  trigger('name');
+});
+document.getElementById('b-other').addEventListener('click', () => { state.unused++; trigger('unused'); });
+showState();
+</script>
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Vue の <script setup> で const count = ref(0) とし、関数の中で count++ と書いたが動かない。どう書く？",
+    "choices": [
+      "this.count++",
+      "count.value++",
+      "count = count + 1"
+    ],
+    "answer": 1,
+    "explain": "script の中では .value で読み書きする。テンプレートの中では自動で .value が外れる。",
+    "ref": "#counter"
+  },
+  {
+    "q": "Svelte 4 で配列に arr.push(x) したのに、画面が更新されない。理由は？",
+    "choices": [
+      "push の結果は次のフレームまで反映されないから",
+      "Svelte では配列をリアクティブにできないから",
+      "代入文を検知する方式で、push は代入ではないから"
+    ],
+    "answer": 2,
+    "explain": "Svelte 4 では arr = [...arr, x] のように代入が必要だった。Svelte 5 の $state は Proxy で深く追跡するので push も検知される。",
+    "ref": "#s4"
+  },
+  {
+    "q": "Svelte 5 で、複数のコンポーネントで共有するリアクティブな状態を、コンポーネントの外に切り出したい。どうする？",
+    "choices": [
+      ".svelte.js / .svelte.ts ファイルで $state を使う",
+      "外には切り出せないので親コンポーネントに置く",
+      "普通の .js ファイルで let を export する"
+    ],
+    "answer": 0,
+    "explain": "runes は明示的な目印なので、.svelte.js などのファイルでも使える。Svelte 4 の書き方ではコンポーネントの外で使えなかった。",
+    "ref": "#s5"
+  },
+  {
+    "q": "既存の大きな Vue アプリで、更新の多い一部のコンポーネントだけ仮想 DOM なしの方式にしたい。どうする？",
+    "choices": [
+      "そのコンポーネントだけ <script setup vapor> にする",
+      "Options API のまま vapor オプションを付ける",
+      "アプリ全体を一度に Vapor Mode へ書き換える"
+    ],
+    "answer": 0,
+    "explain": "Vapor Mode はコンポーネント単位で選べ、少しずつ移行できる。<script setup> 専用で Options API には対応しない。",
+    "ref": "#vue-internals"
+  },
+  {
+    "q": "Vue の reactive なオブジェクトで、どの描画や computed からも読まれていないプロパティを変更した。何が起きる？",
+    "choices": [
+      "そのオブジェクトを持つコンポーネントがすべて再描画される",
+      "何も再実行されない",
+      "アプリ全体の仮想 DOM が比較し直される"
+    ],
+    "answer": 1,
+    "explain": "Proxy は読まれたときに「どの処理が読んだか」を記録し、書かれたときにその処理だけを再実行する。",
+    "ref": "#vue-internals"
+  }
+]
+</script>
+</body>
+</html>

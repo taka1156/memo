@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TCP/IP とネットワーク基礎</title>
+<meta name="description" content="階層とカプセル化、IP アドレスと CIDR の計算、ルーティングとデフォルトゲートウェイ、NAT、ポート、TCP と UDP の違い、調査コマンドまでを図解。HTTP の一段下の層。">
+<meta name="memo:tags" content="ネットワーク, インフラ">
+<meta name="memo:date" content="2026-11-04">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-a: #c2410c;
+  --c-b: #15803d;
+  --c-c: #7c3aed;
+  --c-d: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-a: #fb923c;
+    --c-b: #4ade80;
+    --c-c: #c4b5fd;
+    --c-d: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.dots { margin: 6px 0 6px 1.3em; }
+ul.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.grid2 > .card + .card, .grid3 > .card + .card { margin-top: 0; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.big { font-size: 1.05rem; font-weight: 700; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+input[type="text"], textarea, input[type="number"] {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: 500 0.85rem 'JetBrains Mono', monospace;
+  min-width: 0;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.myth { margin-bottom: 10px; }
+.myth p { margin: 4px 0; }
+
+svg.fig { width: 100%; height: auto; display: block; }
+svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); }
+svg.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+svg.fig .sub { fill: var(--fg-2); }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.encap { display: grid; gap: 6px; }
+.encap .lay { display: flex; align-items: stretch; font: 600 0.75rem 'JetBrains Mono', monospace; }
+.encap .lay > span { padding: 6px 8px; display: flex; align-items: center; }
+.encap .name { width: 9.5em; flex: none; color: var(--fg-2); font-weight: 500; font-family: 'Noto Sans JP', sans-serif; font-size: 0.75rem; }
+.encap .hdr { border-radius: 6px 0 0 6px; color: #fff; }
+.encap .data { flex: 1; background: var(--chip); border-radius: 0 6px 6px 0; }
+.h-l7 { background: #0077b6; } .h-l4 { background: #c2410c; } .h-l3 { background: #15803d; } .h-l2 { background: #7c3aed; }
+.encap .tail { background: #7c3aed; color: #fff; border-radius: 0 6px 6px 0; }
+.calc { display: grid; gap: 10px; }
+.calc .inrow { display: flex; gap: 6px; flex-wrap: wrap; }
+.calc input { flex: 1 1 200px; }
+.res { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px; }
+.res div { background: var(--chip); border-radius: 8px; padding: 6px 10px; }
+.res small { display: block; font-size: 0.7rem; color: var(--fg-2); }
+.res b { font: 700 0.85rem 'JetBrains Mono', monospace; word-break: break-all; }
+.bits { font: 600 0.78rem/1.8 'JetBrains Mono', monospace; overflow-x: auto; white-space: nowrap; }
+.bits .n { color: var(--accent); }
+.bits .h { color: var(--c-a); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.nat { min-width: 480px; }
+.hs { display: grid; grid-template-columns: 1fr auto 1fr; gap: 4px 8px; align-items: center; font-size: 0.82rem; max-width: 520px; }
+.hs .c { text-align: right; font-weight: 700; }
+.hs .s { font-weight: 700; }
+.hs .m { font: 700 0.75rem 'JetBrains Mono', monospace; text-align: center; padding: 3px 8px; border-radius: 6px; background: var(--chip); white-space: nowrap; }
+.hs .note { grid-column: 1 / -1; color: var(--fg-2); font-size: 0.75rem; text-align: center; margin-bottom: 4px; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="TCP/IP とネットワーク基礎">
+<meta property="og:description" content="階層とカプセル化、IP アドレスと CIDR の計算、ルーティングとデフォルトゲートウェイ、NAT、ポート、TCP と UDP の違い、調査コマンドまでを図解。HTTP の一段下の層。">
+<meta property="og:url" content="https://memo.taka1156.site/tcp-ip.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>TCP/IP とネットワーク基礎</h1>
+  <p class="subtitle">IP・CIDR・ルーティング・NAT・ポート・TCP/UDP — HTTP の下で何が起きているか</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>通信は層に分かれていて、HTTP のデータに <b>TCP（どのプロセス宛て）</b>、<b>IP（どのホスト宛て）</b>、<b>Ethernet（隣の機器まで）</b>のヘッダーを順に付けて送る。</li>
+      <li>宛先が<b>同じネットワーク（CIDR の範囲内）なら直接</b>、外なら<b>デフォルトゲートウェイ（ルーター）</b>に渡す。家庭や VPC 内のプライベートアドレスは <b>NAT</b> でグローバルアドレスに変換されて外に出る。</li>
+      <li><b>TCP</b> は接続を張って順序と再送を保証する、<b>UDP</b> は投げっぱなしで軽い。HTTP/3（QUIC）は UDP の上に信頼性を自前で作っている。</li>
+    </ul>
+  </div>
+
+  <h2 id="layers">層とカプセル化</h2>
+  <p>各層は自分の仕事に必要なヘッダーだけを付け足し、受け取った側は外から順に剥がしていく。</p>
+  <div class="card encap">
+    <div class="lay"><span class="name">アプリケーション層</span><span class="hdr h-l7">HTTP</span><span class="data">GET /index.html …</span></div>
+    <div class="lay"><span class="name">トランスポート層</span><span class="hdr h-l4">TCP<br>ポート</span><span class="data">HTTP ＋ データ</span></div>
+    <div class="lay"><span class="name">インターネット層</span><span class="hdr h-l3">IP<br>アドレス</span><span class="data">TCP ＋ HTTP ＋ データ</span></div>
+    <div class="lay"><span class="name">リンク層</span><span class="hdr h-l2">Eth<br>MAC</span><span class="data" style="border-radius:0">IP ＋ TCP ＋ HTTP ＋ データ</span><span class="tail">FCS</span></div>
+  </div>
+  <div class="table-wrap" style="margin-top:12px">
+  <table>
+    <tr><th>層（TCP/IP）</th><th>OSI だと</th><th>宛先の単位</th><th>主な仕組み</th><th>機器</th></tr>
+    <tr><td>アプリケーション</td><td>5〜7</td><td>URL・ホスト名</td><td>HTTP, DNS, SSH, TLS</td><td>—</td></tr>
+    <tr><td>トランスポート</td><td>4</td><td>ポート番号</td><td>TCP, UDP（QUIC）</td><td>L4 ロードバランサー</td></tr>
+    <tr><td>インターネット</td><td>3</td><td>IP アドレス</td><td>IP, ICMP</td><td>ルーター</td></tr>
+    <tr><td>リンク</td><td>1〜2</td><td>MAC アドレス</td><td>Ethernet, Wi-Fi, ARP</td><td>スイッチ</td></tr>
+  </table>
+  </div>
+  <p class="muted">IP アドレスは最終目的地まで変わらない（NAT を除く）が、MAC アドレスはルーターを越えるたびに「次の機器」のものに付け替えられる。</p>
+
+  <h2 id="cidr">IP アドレスと CIDR</h2>
+  <p>IPv4 アドレスは 32 bit。<code>192.168.1.10/24</code> の <b>/24</b> は「先頭 24 bit がネットワーク部（同じネットワークの印）、残り 8 bit がホスト部」という意味。</p>
+  <div class="card calc">
+    <span class="label">TRY · CIDR 計算</span>
+    <div class="inrow"><input type="text" id="cidr-in" value="192.168.1.10/24" aria-label="CIDR"><button class="btn primary" id="cidr-go">計算</button></div>
+    <div class="chips">
+      <button class="btn" data-c="10.0.0.0/16">10.0.0.0/16</button>
+      <button class="btn" data-c="10.0.1.0/24">10.0.1.0/24</button>
+      <button class="btn" data-c="172.16.5.20/20">172.16.5.20/20</button>
+      <button class="btn" data-c="203.0.113.7/29">203.0.113.7/29</button>
+    </div>
+    <div class="bits" id="cidr-bits"></div>
+    <div class="res" id="cidr-res"></div>
+  </div>
+  <ul class="dots">
+    <li>ホスト部が全部 0 は<b>ネットワークアドレス</b>、全部 1 は<b>ブロードキャスト</b>なので、機器に割り当てられるのは 2 つ少ない（クラウドの VPC ではさらに数個を予約する）。</li>
+    <li>/16 は /24 を 256 個含む。VPC を /16、サブネットを /24 で切る、のような設計をよく見る。</li>
+    <li>VPC ピアリングや VPN でつなぐ予定のネットワーク同士は、<b>範囲が重ならない</b>ように最初に決める。後から変えるのは大変。</li>
+  </ul>
+  <h3 id="special">覚えておく範囲</h3>
+  <div class="table-wrap">
+  <table>
+    <tr><th>範囲</th><th>用途</th></tr>
+    <tr><td>10.0.0.0/8<br>172.16.0.0/12<br>192.168.0.0/16</td><td><b>プライベートアドレス</b>。家庭・社内・VPC 内で自由に使える。インターネットへは直接出られない（NAT が必要）</td></tr>
+    <tr><td>127.0.0.0/8</td><td>ループバック（自分自身）。<code>127.0.0.1</code> = localhost</td></tr>
+    <tr><td>169.254.0.0/16</td><td>リンクローカル。DHCP で取れなかったときの自動割り当て。クラウドではメタデータサーバー（169.254.169.254）</td></tr>
+    <tr><td>100.64.0.0/10</td><td>キャリアグレード NAT 用（携帯回線など）。Tailscale もこの範囲を使う</td></tr>
+    <tr><td>0.0.0.0</td><td>「全インターフェース」（待ち受け時）や「未指定」の意味。宛先として使うものではない</td></tr>
+  </table>
+  </div>
+  <p><b>IPv6</b> は 128 bit（<code>2001:db8::1</code> のように 16 進）。アドレスが十分にあるので各機器がグローバルアドレスを持て、LAN は通常 /64。ループバックは <code>::1</code>、リンクローカルは <code>fe80::/10</code>。</p>
+
+  <h2 id="routing">ルーティング — 誰に渡すか</h2>
+  <p>パケットを送るとき、OS は宛先 IP を自分のルーティングテーブルと照らし合わせる。</p>
+  <div class="grid2">
+    <div class="card"><span class="label">同じネットワーク内</span><p>例: 自分 <code>192.168.1.10/24</code> → 宛先 <code>192.168.1.20</code></p><p>範囲内なので<b>直接送る</b>。ARP で「192.168.1.20 の MAC アドレスは？」と尋ね、その MAC 宛てに送る。</p></div>
+    <div class="card"><span class="label">外のネットワーク</span><p>例: 自分 <code>192.168.1.10/24</code> → 宛先 <code>203.0.113.14</code></p><p>範囲外なので<b>デフォルトゲートウェイ</b>（例: <code>192.168.1.1</code> のルーター）の MAC 宛てに送る。ルーターが同じ判断を繰り返して目的地まで運ぶ。</p></div>
+  </div>
+  <pre><code>$ ip route
+default via 192.168.1.1 dev eth0          <span class="cm"># どこにも当てはまらなければルーターへ</span>
+192.168.1.0/24 dev eth0 proto kernel      <span class="cm"># この範囲は直接</span>
+172.17.0.0/16 dev docker0                 <span class="cm"># Docker のブリッジネットワーク</span></code></pre>
+  <p class="muted">複数の行に当てはまるときは、<b>より長いプレフィックス（範囲が狭い方）</b>が優先される（最長一致）。</p>
+
+  <h2 id="nat">NAT — プライベートからインターネットへ</h2>
+  <p>ルーターは、内側からの通信の送信元を自分のグローバル IP とポートに書き換え、その対応を表に覚えておく。返事が来たら表を見て内側へ戻す。</p>
+  <div class="card table-wrap">
+  <table class="nat">
+    <tr><th>内側（送信元）</th><th>書き換え後</th><th>宛先</th></tr>
+    <tr><td>192.168.1.10:51000</td><td>198.51.100.5:40001</td><td>203.0.113.14:443</td></tr>
+    <tr><td>192.168.1.23:51000</td><td>198.51.100.5:40002</td><td>203.0.113.14:443</td></tr>
+  </table>
+  </div>
+  <ul class="dots">
+    <li>表に載るのは<b>内側から始めた通信だけ</b>。外から内側のサーバーに直接つなぐには、ポートフォワーディング（静的な対応）を設定する。</li>
+    <li><code>docker run -p 8080:80</code> も同じ仕組み（ホストの 8080 宛てをコンテナの 80 に転送）。</li>
+    <li>クラウドのプライベートサブネットから外に出るための「NAT ゲートウェイ」も、これをマネージドにしたもの。</li>
+  </ul>
+  <p class="related"><a href="docker.html">Docker 動作原理</a><a href="docker-files.html">Dockerfile と Compose</a></p>
+
+  <h2 id="ports">ポートとソケット</h2>
+  <p>IP アドレスでホストまで届いたあと、<b>ポート番号（0〜65535）</b>でどのプロセスに渡すかが決まる。1 本の通信は <b>送信元 IP・送信元ポート・宛先 IP・宛先ポート・プロトコル</b>の 5 つ組で識別される。</p>
+  <div class="table-wrap">
+  <table>
+    <tr><th>ポート</th><th>よく使うもの</th></tr>
+    <tr><td>22</td><td>SSH</td></tr>
+    <tr><td>53</td><td>DNS（UDP、大きい応答は TCP）</td></tr>
+    <tr><td>80 / 443</td><td>HTTP / HTTPS（HTTP/3 は UDP 443）</td></tr>
+    <tr><td>5432 / 3306 / 6379</td><td>PostgreSQL / MySQL / Redis</td></tr>
+    <tr><td>49152〜</td><td>エフェメラルポート。クライアント側の送信元ポートとして OS が自動で選ぶ（範囲は OS による）</td></tr>
+  </table>
+  </div>
+  <p>サーバーがどのアドレスで待ち受けるか（bind）で、届く範囲が変わる。</p>
+  <div class="grid2">
+    <div class="card"><span class="label">127.0.0.1:3000</span><p>同じマシンの中からだけ。コンテナ内でこう待ち受けると、<code>-p</code> で公開しても<b>ホストから届かない</b>。</p></div>
+    <div class="card"><span class="label">0.0.0.0:3000</span><p>すべてのインターフェースで待ち受ける。外から届くので、ファイアウォールの設定とセットで考える。</p></div>
+  </div>
+
+  <h2 id="tcp">TCP と UDP</h2>
+  <div class="grid2">
+    <div class="card">
+      <span class="label">TCP</span>
+      <p class="big">接続して、確実に順番どおり</p>
+      <ul class="dots">
+        <li>最初に 3 ウェイハンドシェイクで接続を張る</li>
+        <li>番号（シーケンス番号）で順序を保証し、届かなければ再送</li>
+        <li>受信側の余裕（フロー制御）や回線の混み具合（輻輳制御）に合わせて速度を調整</li>
+        <li>HTTP/1.1・HTTP/2、SSH、DB 接続</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="label">UDP</span>
+      <p class="big">投げっぱなしで軽い</p>
+      <ul class="dots">
+        <li>接続なし。届いたかどうか、順番も保証しない</li>
+        <li>ヘッダーが小さく、待ちが発生しない</li>
+        <li>多少欠けても新しいデータの方が大事な用途向き</li>
+        <li>DNS、音声・ビデオ通話、ゲーム、QUIC（HTTP/3）</li>
+      </ul>
+    </div>
+  </div>
+  <h3>3 ウェイハンドシェイク</h3>
+  <div class="card">
+    <div class="hs">
+      <span class="c">クライアント</span><span></span><span class="s">サーバー</span>
+      <span></span><span class="m">SYN →</span><span></span>
+      <span class="note">「つなぎたい。こちらの番号は x から」</span>
+      <span></span><span class="m">← SYN + ACK</span><span></span>
+      <span class="note">「了解（x+1 を待つ）。こちらは y から」</span>
+      <span></span><span class="m">ACK →</span><span></span>
+      <span class="note">「了解」— ここから データ送信。TLS ならこの後に TLS のハンドシェイク</span>
+    </div>
+  </div>
+  <ul class="dots">
+    <li>接続のたびに 1 往復かかるので、HTTP は接続を使い回す（Keep-Alive、HTTP/2 の多重化）。</li>
+    <li>パケットが 1 つ失われると、後ろのデータは届いていてもアプリに渡せず待たされる（<b>Head-of-Line ブロッキング</b>）。QUIC はストリームごとに独立させてこれを避ける。</li>
+    <li>閉じた側には TIME_WAIT 状態がしばらく残る。短い接続を大量に作るとポートが足りなくなる原因になる。</li>
+  </ul>
+  <p class="related"><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a><a href="realtime-comm.html">リアルタイム通信</a></p>
+
+  <h2 id="debug">つながらないときの切り分け</h2>
+  <p>下の層から順に確かめると早い。</p>
+  <pre><code>ip addr                      <span class="cm"># 自分の IP とサブネットは正しいか</span>
+ip route                     <span class="cm"># デフォルトゲートウェイはあるか</span>
+dig api.example.com          <span class="cm"># 名前は正しい IP に解決されるか</span>
+ping 10.0.1.5                <span class="cm"># IP で届くか（ICMP を止めている環境もある）</span>
+traceroute 10.0.1.5          <span class="cm"># どこまで届いて、どこで止まるか</span>
+nc -zv 10.0.1.5 5432         <span class="cm"># そのポートで TCP 接続できるか</span>
+ss -tlnp                     <span class="cm"># （サーバー側）どのアドレス・ポートで待ち受けているか</span>
+curl -v https://api.example.com/health   <span class="cm"># TLS と HTTP まで通るか</span></code></pre>
+  <div class="grid2">
+    <div class="card"><span class="label">Connection refused</span><p>相手のホストまでは届いたが、そのポートで待ち受けているプロセスがない（または 127.0.0.1 でしか待っていない）。</p></div>
+    <div class="card"><span class="label">タイムアウト</span><p>返事自体が来ない。ファイアウォール・セキュリティグループで落とされている、ルートがない、相手が落ちている、など。</p></div>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✗</span> ping が通らないのでサーバーは落ちている</p><p><span class="ok">✓</span> ICMP だけを止めているネットワークは多い。目的のポートに TCP でつないで確かめる。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> プライベート IP なら外部から攻撃されないので安全</p><p><span class="ok">✓</span> 直接は届きにくいが、内側の侵害されたマシンや、ポートフォワーディング・VPN 経由では届く。認証や通信の暗号化は別途必要。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> UDP は信頼性がないので、重要な通信には使えない</p><p><span class="ok">✓</span> 信頼性をアプリ側（QUIC など）で実装すれば、TCP より柔軟に作れる。HTTP/3 はその例。</p></div>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+function ip2n(s) {
+  const p = s.split('.');
+  if (p.length !== 4 || p.some(x => !/^\d{1,3}$/.test(x) || +x > 255)) return null;
+  return p.reduce((a, x) => (a * 256) + +x, 0);
+}
+function n2ip(n) { return [24, 16, 8, 0].map(s => Math.floor(n / 2 ** s) % 256).join('.'); }
+function bin(n) { return n.toString(2).padStart(32, '0'); }
+const inEl = document.getElementById('cidr-in');
+function calc() {
+  const m = inEl.value.trim().match(/^([\d.]+)\/(\d{1,2})$/);
+  const res = document.getElementById('cidr-res'), bits = document.getElementById('cidr-bits');
+  const ip = m ? ip2n(m[1]) : null, pre = m ? +m[2] : -1;
+  if (ip === null || pre < 0 || pre > 32) { res.innerHTML = '<div><b>例: 192.168.1.10/24 の形で入力</b></div>'; bits.textContent = ''; return; }
+  const size = 2 ** (32 - pre);
+  const net = Math.floor(ip / size) * size, bc = net + size - 1;
+  const mask = 2 ** 32 - size;
+  const hosts = pre >= 31 ? size : size - 2;
+  const b = bin(ip);
+  let out = '', i = 0;
+  for (const ch of b) { if (i && i % 8 === 0) out += '.'; out += '<span class="' + (i < pre ? 'n' : 'h') + '">' + ch + '</span>'; i++; }
+  bits.innerHTML = out + '<br><span class="n">■ ネットワーク部 ' + pre + ' bit</span>　<span class="h">■ ホスト部 ' + (32 - pre) + ' bit</span>';
+  const first = pre >= 31 ? net : net + 1, last = pre >= 31 ? bc : bc - 1;
+  const priv = (ip >= ip2n('10.0.0.0') && ip <= ip2n('10.255.255.255')) || (ip >= ip2n('172.16.0.0') && ip <= ip2n('172.31.255.255')) || (ip >= ip2n('192.168.0.0') && ip <= ip2n('192.168.255.255'));
+  const cells = [
+    ['ネットワークアドレス', n2ip(net) + '/' + pre],
+    ['サブネットマスク', n2ip(mask)],
+    ['使えるホスト', n2ip(first) + ' 〜 ' + n2ip(last)],
+    ['ブロードキャスト', pre >= 31 ? '—' : n2ip(bc)],
+    ['ホスト数', hosts.toLocaleString() + ' 台'],
+    ['種別', priv ? 'プライベート' : 'プライベート以外']
+  ];
+  res.innerHTML = cells.map(([k, v]) => '<div><small>' + k + '</small><b>' + v + '</b></div>').join('');
+}
+document.getElementById('cidr-go').onclick = calc;
+inEl.addEventListener('keydown', e => { if (e.key === 'Enter') calc(); });
+document.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { inEl.value = b.dataset.c; calc(); });
+calc();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Docker コンテナ内で Node.js サーバーを 127.0.0.1:3000 で起動し、docker run -p 3000:3000 で公開した。ホストのブラウザから開けない。原因は？",
+    "choices": ["コンテナ内のループバックでしか待ち受けておらず、転送されてきた通信を受け取れないから", "3000 番はウェルノウンポートなので使えないから", "-p は UDP しか転送しないから"],
+    "answer": 0,
+    "explain": "127.0.0.1 はコンテナ自身の中だけ。外から転送された通信はコンテナのネットワークインターフェースに届くので、0.0.0.0 で待ち受ける必要がある。",
+    "ref": "#ports"
+  },
+  {
+    "q": "自分が 10.0.1.15/24 のとき、10.0.2.8 宛てのパケットはまずどこに送られる？",
+    "choices": ["10.0.2.8 に直接", "デフォルトゲートウェイ（ルーター）", "DNS サーバー"],
+    "answer": 1,
+    "explain": "/24 なので同じネットワークは 10.0.1.0〜10.0.1.255。10.0.2.8 は範囲外なのでルーターに渡す。",
+    "ref": "#routing"
+  },
+  {
+    "q": "社内ネットワーク 10.0.0.0/16 と VPN でつなぐ新しい VPC のアドレス範囲を決める。避けるべきなのは？",
+    "choices": ["172.20.0.0/16", "10.0.128.0/20", "192.168.100.0/24"],
+    "answer": 1,
+    "explain": "10.0.128.0/20 は 10.0.0.0/16 の中に含まれ、範囲が重なる。重なるとどちらに送るべきか決められず、つながらなくなる。",
+    "ref": "#cidr"
+  },
+  {
+    "q": "DB サーバーに nc -zv で接続すると、すぐに「Connection refused」が返る。まず疑うのは？",
+    "choices": ["途中のファイアウォールでパケットが黙って破棄されている", "DNS で名前が解決できていない", "相手には届いているが、そのポートで待ち受けているプロセスがない（または待ち受けアドレスが違う）"],
+    "answer": 2,
+    "explain": "refused は相手のホストが「そのポートは誰も聞いていない」と即座に拒否した応答。黙って破棄される場合はタイムアウトになる。",
+    "ref": "#debug"
+  },
+  {
+    "q": "家庭のルーターの内側にある PC で動かしているサーバーに、外出先から直接つなげない。なぜ？",
+    "choices": ["NAT の変換表は内側から始めた通信の分しか作られず、外から来た通信をどの機器に渡すか決められないから", "プライベートアドレスは TCP を使えないから", "ルーターが TLS を復号できないから"],
+    "answer": 0,
+    "explain": "外から内側に届けるには、ポートフォワーディングで静的な対応を設定するか、トンネル（VPN やトンネルサービス）を使う。",
+    "ref": "#nat"
+  }
+]
+</script>
+</body>
+</html>

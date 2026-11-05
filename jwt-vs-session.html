@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JWT とセッション</title>
+<meta name="description" content="JWT の中身と署名、セッションとの違い、失効の難しさ、Cookie と localStorage のどちらに置くかまでを図解。">
+<meta name="memo:tags" content="セキュリティ">
+<meta name="memo:date" content="2026-11-02">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-front: #c2410c;
+  --c-back: #15803d;
+  --c-ng: #b91c1c;
+  --c-ok: #15803d;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-front: #fb923c;
+    --c-back: #4ade80;
+    --c-ng: #f87171;
+    --c-ok: #4ade80;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.big { font-size: 1.05rem; font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* トークン表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+.myth .ng { color: var(--c-ng); font-weight: 700; }
+.myth .ok { color: var(--c-ok); font-weight: 700; }
+
+.related a { display: inline-block; margin: 4px 8px 4px 0; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.axis { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .axis { grid-template-columns: 1fr; } }
+.axis .q { font-weight: 700; color: var(--accent); }
+
+.jwt {
+  font: 600 0.82rem/1.6 'JetBrains Mono', ui-monospace, monospace;
+  word-break: break-all;
+  background: var(--chip);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.jwt span { cursor: pointer; border-radius: 3px; transition: background .2s; }
+.jwt .dot { color: var(--fg-2); cursor: default; }
+.seg-h { color: var(--c-h); }
+.seg-p { color: var(--c-p); }
+.seg-s { color: var(--c-s); }
+.jwt span.hl { background: var(--surface); outline: 2px solid currentColor; }
+.decoded { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 12px; }
+.decoded > div { border: 2px solid var(--line); border-radius: 8px; padding: 10px 12px; transition: border-color .2s; }
+.decoded > div.hl { border-color: currentColor; }
+.decoded .ttl { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .08em; }
+.decoded pre { margin: 6px 0 0; border: none; padding: 0; background: none; color: var(--fg); }
+.verdict { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-weight: 700; border: 1px solid; }
+.verdict.ok { color: var(--c-ok); }
+.verdict.ng { color: var(--c-ng); }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.btns button {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+
+.lane { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.lane .flow { flex-direction: column; align-items: stretch; }
+.lane .arrow { text-align: center; }
+.box.db { border-style: dashed; }
+
+.matrix { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; font-size: 0.85rem; }
+.matrix > div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.matrix .hd { background: var(--chip); font-weight: 700; text-align: center; display: flex; align-items: center; justify-content: center; }
+.matrix .corner { background: none; border: none; }
+.matrix .rec { border: 2px solid var(--c-ok); }
+.matrix .warn { border: 2px solid var(--c-ng); }
+.matrix b { display: block; margin-bottom: 2px; }
+@media (max-width: 560px) { .matrix { font-size: 0.78rem; } .matrix > div { padding: 8px 6px; } }
+
+.check li { margin: 4px 0 4px 1.3em; }
+:root { --c-h: #b91c1c; --c-p: #7c3aed; --c-s: #0369a1; }
+@media (prefers-color-scheme: dark) { :root { --c-h: #f87171; --c-p: #c4b5fd; --c-s: #38bdf8; } }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="JWT とセッション">
+<meta property="og:description" content="JWT の中身と署名、セッションとの違い、失効の難しさ、Cookie と localStorage のどちらに置くかまでを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/jwt-vs-session.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+<h1>JWT とセッション</h1>
+  <p class="subtitle">「何を持たせるか」と「どこに置くか」は別の話</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>セッション</b>は、状態をサーバーが持ち、ブラウザには「引換券（セッション ID）」だけを渡す方式</li>
+      <li><b>JWT</b> は、ユーザー情報そのものに<b>署名</b>を付けて渡す方式。サーバーは照合不要だが、発行後に取り消しにくい</li>
+      <li>「Cookie か localStorage か」は保存場所の話で、JWT かセッションかとは<b>別の軸</b>。混ぜて議論すると話がかみ合わない</li>
+    </ul>
+  </div>
+
+  <h2 id="axes">比較の軸は2本ある</h2>
+  <div class="axis">
+    <div class="card">
+      <p class="q">軸1：何を渡すか（形式）</p>
+      <p><b>セッション ID</b>：意味のないランダム文字列。中身はサーバー側のストアにある。</p>
+      <p><b>JWT</b>：ユーザー ID や権限などの中身を含み、署名で改ざんを防ぐ。</p>
+    </div>
+    <div class="card">
+      <p class="q">軸2：ブラウザのどこに置くか（保存場所）</p>
+      <p><b>Cookie</b>：ブラウザが自動で送る。<code>HttpOnly</code> にすれば JS から読めない。</p>
+      <p><b>localStorage など</b>：JS で読み書きし、自分でヘッダーに付けて送る。</p>
+    </div>
+  </div>
+  <p class="muted">JWT を Cookie に入れることも、セッション ID をヘッダーで送ることもできる。この2軸の組み合わせは<a href="#matrix">後半の表</a>で整理する。</p>
+
+  <h2 id="contents">JWT の中身</h2>
+  <p>JWT (JSON Web Token) は <code>.</code> で区切られた3つの部分からなる。色の付いた部分にカーソルを乗せる（タップする）と、デコード結果と対応する。</p>
+  <div class="card">
+    <div class="jwt" id="jwt"></div>
+    <div class="decoded">
+      <div class="seg-h" data-seg="h"><div class="ttl">HEADER：署名方式</div><pre id="dh"></pre></div>
+      <div class="seg-p" data-seg="p"><div class="ttl">PAYLOAD：中身（クレーム）</div><pre id="dp"></pre></div>
+      <div class="seg-s" data-seg="s"><div class="ttl">SIGNATURE：署名</div><pre id="ds"></pre></div>
+    </div>
+    <div class="btns">
+      <button type="button" id="tamper">payload を改ざんしてみる（role を admin に）</button>
+      <button type="button" id="reset">元に戻す</button>
+    </div>
+    <div class="verdict ok" id="verdict"></div>
+  </div>
+  <p>ヘッダーとペイロードは <b>Base64URL でエンコードしただけ</b>で、暗号化はされていない。誰でもデコードして読める。守られているのは「改ざんされていないこと」だけ。</p>
+
+  <h3>署名の2つの方式</h3>
+  <div class="grid2">
+    <div class="card">
+      <span class="label">HS256（共通鍵）</span>
+      <p>同じ秘密鍵で署名も検証もする。発行元と検証側が同じサーバーなら手軽。</p>
+      <p class="muted">検証する側全員に秘密鍵を配る必要があり、誰でも偽造できるようになる。</p>
+    </div>
+    <div class="card">
+      <span class="label">RS256 / ES256（公開鍵）</span>
+      <p>秘密鍵で署名し、公開鍵で検証する。検証側は署名を作れない。</p>
+      <p class="muted">OIDC の ID トークンはこちら。公開鍵は JWKS（<code>/.well-known/jwks.json</code> など）で配り、ヘッダーの <code>kid</code> でどの鍵かを指す。</p>
+    </div>
+  </div>
+
+  <h2>リクエストのたびに起きること</h2>
+  <div class="lane">
+    <div class="card">
+      <span class="label">セッション（ステートフル）</span>
+      <div class="flow">
+        <div class="box">Cookie: sid=a8f3k2…</div>
+        <span class="arrow">↓</span>
+        <div class="box db">セッションストアを引く<small>Redis、DB、メモリなど</small></div>
+        <span class="arrow">↓</span>
+        <div class="box">user_id=42, role=editor</div>
+      </div>
+      <p class="muted">毎回ストアへの問い合わせが発生する代わりに、ストアから消せば即ログアウト。</p>
+    </div>
+    <div class="card">
+      <span class="label">JWT（ステートレス）</span>
+      <div class="flow">
+        <div class="box">Authorization: Bearer eyJ…</div>
+        <span class="arrow">↓</span>
+        <div class="box">公開鍵で署名を検証<small>exp、iss、aud も確認</small></div>
+        <span class="arrow">↓</span>
+        <div class="box">sub=42, role=editor</div>
+      </div>
+      <p class="muted">ストア不要でどのサーバーでも検証できる代わりに、有効期限までは取り消せない。</p>
+    </div>
+  </div>
+
+  <h2 id="compare">比較表</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>観点</th><th>セッション</th><th>JWT</th></tr>
+      <tr><td>状態の置き場所</td><td>サーバー（ストア）</td><td>トークン自身</td></tr>
+      <tr><td>即時ログアウト・権限剥奪</td><td>◎ ストアから消すだけ</td><td>△ 期限まで有効。拒否リストを持つと結局ステートフルに</td></tr>
+      <tr><td>スケール</td><td>○ 共有ストア（Redis など）があれば問題なし</td><td>◎ 鍵さえあればどこでも検証</td></tr>
+      <tr><td>サービスをまたぐ</td><td>△ ストアを共有する必要がある</td><td>◎ 別サービス・別組織にも渡せる</td></tr>
+      <tr><td>サイズ</td><td>◎ 数十バイト</td><td>△ 数百バイト〜。毎リクエスト送る</td></tr>
+      <tr><td>情報の秘匿</td><td>◎ 中身はサーバーにしかない</td><td>△ 誰でも読める。秘密は入れない</td></tr>
+      <tr><td>実装の落とし穴</td><td>少ない（フレームワーク任せ）</td><td>多い（alg、鍵管理、検証漏れ）</td></tr>
+    </table>
+  </div>
+
+  <h2 id="revoke">JWT の「取り消せない」問題</h2>
+  <div class="card">
+    <p>JWT は「署名が正しく、期限内なら有効」なので、ログアウトしても、アカウントを停止しても、<b>発行済みのトークンは期限まで使えてしまう</b>。よくある対策は次の組み合わせ。</p>
+    <div class="flow">
+      <div class="box">アクセストークン<small>JWT・寿命 5〜15 分</small></div>
+      <span class="arrow">＋</span>
+      <div class="box db">リフレッシュトークン<small>サーバーで管理・取り消し可能</small></div>
+    </div>
+    <p>被害が続くのは最大でもアクセストークンの寿命まで。取り消しはリフレッシュトークン側で行う。つまり<b>「状態を完全になくす」のではなく「状態を見る頻度を減らす」</b>設計になる。</p>
+  </div>
+
+  <h2 id="matrix">どこに置くか（2軸の組み合わせ）</h2>
+  <div class="matrix">
+    <div class="corner"></div>
+    <div class="hd">HttpOnly Cookie</div>
+    <div class="hd">localStorage</div>
+    <div class="hd">セッション ID</div>
+    <div class="rec"><b>◎ 定番</b>従来型 Web アプリの標準。XSS で盗まれない。CSRF は SameSite で対策</div>
+    <div><b>△ 珍しい</b>メリットが薄い。XSS で読まれる</div>
+    <div class="hd">JWT</div>
+    <div><b>○ 可</b>XSS で読まれない。サイズと CSRF に注意</div>
+    <div class="warn"><b>△ 要注意</b>よく見るが、XSS が1つあれば盗まれて外部から使われる</div>
+  </div>
+
+  <div class="table-wrap" style="margin-top:12px">
+    <table>
+      <tr><th>保存場所</th><th>XSS（悪意ある JS の実行）</th><th>CSRF（他サイトからのなりすましリクエスト）</th></tr>
+      <tr><td>HttpOnly Cookie</td><td>トークン自体は読めない（ただし、その場で API を叩かれることは防げない）</td><td>自動送信されるので対策が必要。<code>SameSite=Lax</code> 以上 ＋ 必要なら CSRF トークン</td></tr>
+      <tr><td>localStorage</td><td>読み出されて外部に送られ、攻撃者の手元で使い放題になる</td><td>自動送信されないので基本的に起きない</td></tr>
+    </table>
+  </div>
+  <p class="muted">SPA で外部の認可サーバーを使う場合は、トークンをブラウザに置かず、同じドメインのバックエンドが保持してブラウザとは HttpOnly のセッション Cookie でやり取りする <b>BFF (Backend for Frontend)</b> パターンが推奨されている。</p>
+
+  <h2 id="usage">使い分け</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="u1">普通の Web アプリ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="u2">SPA</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="u3">サービス間・API</button>
+  </div>
+  <div class="panel card" id="u1">
+    <p><b>セッション ＋ HttpOnly Cookie</b> で十分。フレームワーク（Rails、Django、Laravel など）の標準機能をそのまま使うのが一番安全。</p>
+  </div>
+  <div class="panel card" id="u2" hidden>
+    <p>同じドメインに API があるなら、<b>セッション Cookie</b> でよい。外部 IdP の OAuth/OIDC を使うなら <b>BFF</b> に寄せる。JWT を localStorage に置くのは、XSS 対策に自信がある場合に限る。</p>
+  </div>
+  <div class="panel card" id="u3" hidden>
+    <p><b>JWT が本領を発揮する場面</b>。マイクロサービス間で「誰の何のリクエストか」を伝える、別組織の API に渡す、ID トークンでログイン結果を伝える、など。寿命は短くする。</p>
+  </div>
+
+  <h2 id="verify">JWT を検証するときのチェックリスト</h2>
+  <div class="card">
+    <ul class="check">
+      <li><b>アルゴリズムを固定する</b>：ヘッダーの <code>alg</code> を信用しない。<code>alg: none</code> や、公開鍵を HMAC の秘密鍵として使わせる「アルゴリズム混同」攻撃がある</li>
+      <li><b>署名を検証する</b>：デコードしただけで中身を信じない（<code>decode</code> と <code>verify</code> は別の関数のことが多い）</li>
+      <li><b>期限を確認する</b>：<code>exp</code>（期限）、<code>nbf</code>（これより前は無効）。時計のずれを数十秒許容</li>
+      <li><b>発行者と宛先を確認する</b>：<code>iss</code> が想定の発行元か、<code>aud</code> に自分が含まれるか</li>
+      <li><b>鍵のローテーションに備える</b>：<code>kid</code> で JWKS から鍵を選び、キャッシュを適度に更新する</li>
+    </ul>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「JWT は暗号化されているから、中に何を入れても安全」</p>
+    <p><span class="ok">○</span> 普通の JWT（JWS）は署名だけ。中身は誰でも読める。暗号化したいなら JWE という別形式を使う。</p>
+  </div>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「セッションはスケールしない」</p>
+    <p><span class="ok">○</span> サーバーごとのメモリに持つとそうなるが、Redis などの共有ストアに置けば何台でも増やせる。数ミリ秒の問い合わせが問題になる規模はまれ。</p>
+  </div>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「JWT にすればログアウト処理が要らない」</p>
+    <p><span class="ok">○</span> クライアントから消しても、盗まれたコピーは期限まで有効。サーバー側でリフレッシュトークンを無効化する処理は必要。</p>
+  </div>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「HttpOnly Cookie なら XSS は怖くない」</p>
+    <p><span class="ok">○</span> トークンを盗まれないだけで、XSS が起きればそのページ上から本人として API を叩ける。XSS 対策そのものは必須。</p>
+  </div>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="oauth-oidc.html">← OAuth 2.0 / OIDC のフロー</a></p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+const b64u = o => btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const HEADER = { alg: 'RS256', typ: 'JWT', kid: '2026-11' };
+const BASE = { sub: '42', name: 'Taro', role: 'editor', iss: 'https://auth.example.com', aud: 'api.example.com', exp: 1793635200 };
+const SIG = 'kR3m9Zp0QxV7tLw2bN8cYfH5uJ1sA6dE4gT0oPq_iWzMvXyBnC';
+const el = id => document.getElementById(id);
+let tampered = false;
+
+function render() {
+  const payload = tampered ? Object.assign({}, BASE, { role: 'admin' }) : BASE;
+  const h = b64u(HEADER), p = b64u(payload);
+  el('jwt').innerHTML =
+    '<span class="seg-h" data-seg="h">' + h + '</span><span class="dot">.</span>' +
+    '<span class="seg-p" data-seg="p">' + p + '</span><span class="dot">.</span>' +
+    '<span class="seg-s" data-seg="s">' + SIG + '</span>';
+  el('dh').textContent = JSON.stringify(HEADER, null, 2);
+  el('dp').textContent = JSON.stringify(payload, null, 2);
+  el('ds').textContent = 'RSASSA(\n  SHA256(header + "." + payload),\n  発行者の秘密鍵\n)';
+  const v = el('verdict');
+  if (tampered) {
+    v.className = 'verdict ng';
+    v.textContent = '✕ 署名が一致しない → 拒否。payload を書き換えると署名の計算結果が変わり、秘密鍵を持たない攻撃者は正しい署名を作り直せない';
+  } else {
+    v.className = 'verdict ok';
+    v.textContent = '○ 署名を検証すると一致 → 中身は発行時のまま';
+  }
+  bind();
+}
+
+function bind() {
+  document.querySelectorAll('[data-seg]').forEach(n => {
+    const on = () => document.querySelectorAll('[data-seg="' + n.dataset.seg + '"]').forEach(x => x.classList.add('hl'));
+    const off = () => document.querySelectorAll('[data-seg]').forEach(x => x.classList.remove('hl'));
+    n.onmouseenter = on;
+    n.onmouseleave = off;
+    n.onclick = () => { off(); on(); };
+  });
+}
+
+el('tamper').addEventListener('click', () => { tampered = true; render(); });
+el('reset').addEventListener('click', () => { tampered = false; render(); });
+render();
+</script>
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "普通の Web アプリで、管理者がアカウントを停止したら、その瞬間から使えなくしたい。向いている方式は？",
+    "choices": [
+      "セッション（サーバーのストアから消せば即無効）",
+      "JWT を localStorage に置き、クライアントで削除する",
+      "寿命の長い JWT"
+    ],
+    "answer": 0,
+    "explain": "JWT は署名が正しく期限内なら有効なので、発行済みのものを即座には止められない。",
+    "ref": "#compare"
+  },
+  {
+    "q": "JWT のペイロードにメールアドレスや内部の機密情報を入れてもよい？",
+    "choices": [
+      "よい。署名されているので第三者には読めない",
+      "よくない。Base64URL でエンコードしただけなので誰でも読める",
+      "よい。HTTPS で送れば JWT の中身は暗号化される"
+    ],
+    "answer": 1,
+    "explain": "普通の JWT（JWS）が守るのは改ざんされていないことだけ。秘匿したいなら JWE を使うか、そもそも入れない。",
+    "ref": "#contents"
+  },
+  {
+    "q": "JWT を使いつつ「ログアウトしても期限まで使える」問題を小さくしたい。定番の構成は？",
+    "choices": [
+      "ログアウト時にブラウザからトークンを消せば十分",
+      "短命のアクセストークンと、取り消せるリフレッシュトークンを組み合わせる",
+      "アクセストークンの寿命を 1 年に延ばし、再発行の回数を減らす"
+    ],
+    "answer": 1,
+    "explain": "被害はアクセストークンの寿命までに抑え、取り消しはリフレッシュトークン側で行う。",
+    "ref": "#revoke"
+  },
+  {
+    "q": "受け取った JWT を検証する処理として正しいのは？",
+    "choices": [
+      "ヘッダーの alg に書かれたアルゴリズムで署名を検証し、exp も確認する",
+      "デコードして中身が読め、exp が期限内なら有効とみなす",
+      "使うアルゴリズムをサーバー側で固定し、署名と exp・iss・aud を確認する"
+    ],
+    "answer": 2,
+    "explain": "alg を信用すると alg: none やアルゴリズム混同攻撃を受ける。decode と verify は別物。",
+    "ref": "#verify"
+  },
+  {
+    "q": "トークンを HttpOnly Cookie に置いた。XSS 対策はもう不要？",
+    "choices": [
+      "必要。ページ上から本人として API を叩かれうる",
+      "不要。HttpOnly なら XSS の影響は受けない",
+      "不要。代わりに CSRF 対策だけすればよい"
+    ],
+    "answer": 0,
+    "explain": "HttpOnly はトークンの持ち出しを防ぐだけで、XSS そのものは防がない。",
+    "ref": "#myths"
+  }
+]
+</script>
+</body>
+</html>

@@ -1,0 +1,248 @@
+<!-- scripts/memo.py build が自動生成。手で編集しない -->
+
+# S3 互換ストレージの仕組み
+
+> S3 API の仕組みと、互換ストレージの範囲・落とし穴・製品の違いを図解。
+
+- URL: https://memo.taka1156.site/s3-compatible.html
+- タグ: インフラ, データベース
+- 日付: 2026-11-03
+
+---
+
+「S3 互換」とは、Amazon S3 の HTTP API の話し方をまねていること ─ どこまで同じで、どこから違うか
+
+**ざっくり言うと**
+
+- S3 API は「 **バケット** の中に、 **キー** （ただの文字列）で **オブジェクト** を置く」HTTP API。フォルダは実在せず、 `/` 区切りで見せているだけ。
+- リクエストは **SigV4** で署名する。エンドポイント・リージョン・アクセスキーを差し替えれば、同じ SDK や CLI が R2・MinIO・Ceph などにもそのまま話しかけられる ─ これが「互換」の正体。
+- 互換なのは主に **基本操作** （Put / Get / List / マルチパート / 署名付き URL）。ACL・バージョニング・ライフサイクル・チェックサムなどは製品ごとに差があり、そこでつまずく。
+
+## データモデル ─ バケット・キー・オブジェクト
+
+S3 はファイルシステムではなく **巨大なキーバリューストア** です。値（オブジェクト）は丸ごと置き換えるもので、途中だけ書き換えたり追記したりはできません（一部の特殊なストレージクラスを除く）。
+
+（図: バケット photos-prod / 名前空間・権限・設定の単位 / キー（文字列） / 2026/11/cat.jpg / 値（バイト列 ＋ メタデータ） / JPEG 本体 / Content-Type, ETag, x-amz-meta-* / キー / 2026/11/dog.jpg / 値 / index.json / JSON → https://memo.taka1156.site/s3-compatible.html#model）
+
+### フォルダは無い ─ プレフィックスと区切り文字
+
+コンソールでフォルダのように見えるのは、 `ListObjectsV2` に `prefix` と `delimiter=/` を渡して「次の `/` までで束ねて」返してもらっているだけです。
+
+prefix = （空） 2026/ 2026/11/ delimiter =
+
+/
+
+なし
+
+バケットに実在するキー
+
+ListObjectsV2 の結果
+
+「フォルダの名前変更」は全キーのコピー＋削除になります。1 回の List で返るのは最大 1000 件で、続きは `ContinuationToken` で取ります。
+
+（元のページで操作できます → https://memo.taka1156.site/s3-compatible.html#folders）
+
+## リクエストの中身 ─ エンドポイントと SigV4 署名
+
+S3 API の呼び出しは、ただの HTTPS リクエストです。 **どこに送るか** （エンドポイントとアドレス形式）と、 **誰が送ったか** （署名）さえ合っていれば、相手が AWS でなくても通じます。
+
+### アドレス形式：virtual-hosted と path-style
+
+AWS S3（ap-northeast-1） Cloudflare R2 セルフホスト（localhost:9000）
+
+virtual-hosted
+
+path-style
+
+AWS は **virtual-hosted 形式** （バケット名がホスト名に入る）を標準にしています。セルフホストでは DNS やワイルドカード証明書を用意しにくいので **path-style** を使うことが多く、SDK に `forcePathStyle: true` （boto3 なら `addressing_style: path` ）を指定します。
+
+（元のページで操作できます → https://memo.taka1156.site/s3-compatible.html#addressing）
+
+### SigV4 署名：秘密鍵そのものは送らない
+
+（図: ① 正規化リクエスト / メソッド / パス / クエリ / 署名するヘッダー / 本文の SHA-256 / SHA256 / ② 署名対象文字列 / AWS4-HMAC-SHA256 / 日時 / スコープ / ①のハッシュ / 秘密鍵 / 手元から出ない / 日付 / リージョン / s3 / aws4_request / HMAC を 4 回重ねて「その日・そのリージョン・S3 専用」の署名鍵を作る / ③ 署名 / HMAC(鍵, ②) / → Authorization ヘッダー / （またはクエリ文字列）に入れて送る → https://memo.taka1156.site/s3-compatible.html#sigv4）
+
+サーバー側も同じ秘密鍵で同じ計算をし、署名が一致するかを見ます。 **リージョン名が署名に入る** ので、相手が期待するリージョン（R2 なら `auto` 、セルフホストなら設定した値。多くは `us-east-1` ）とずれると `SignatureDoesNotMatch` になります。
+
+### 署名付き URL：ブラウザから直接アップロード
+
+（図: ブラウザ / 鍵を持たない / アプリサーバー / 鍵を持つ・署名だけする / ストレージ / 署名を検証 / ① アップロードしたい / ② 期限付き URL を返す / ③ その URL に直接 PUT（ファイル本体はアプリを通らない） → https://memo.taka1156.site/s3-compatible.html#presign）
+
+署名・期限・対象キー・メソッドが URL のクエリに入っていて、ストレージ側がそれを検証します。期限は最長 7 日（一時的な認証情報で署名した場合は、その認証情報が切れた時点で無効）。純粋に計算だけで作れるので、ほとんどの互換ストレージで使えます。
+
+## 大きなファイル ─ マルチパートアップロード
+
+1 回の PUT で送れるのは AWS S3 で 5 GB まで。それより大きいもの、または途中で切れても再送を小さくしたいものは、パートに分けて並列に送ります。
+
+（図: CreateMultipartUpload / UploadId をもらう / UploadPart #1 → ETag / UploadPart #2 → ETag / UploadPart #N → ETag / 並列可 / CompleteMultipartUpload / 番号と ETag の一覧で結合 → https://memo.taka1156.site/s3-compatible.html#multipart）
+
+パート数を計算（AWS S3 の制限で判定）
+
+ファイルサイズ (GiB) パートサイズ (MiB)
+
+AWS の制限：パートは 5 MiB〜5 GiB（最後のパートだけ 5 MiB 未満でよい）、1 回のアップロードで最大 10,000 パート、オブジェクトは最大 48.8 TiB（約 50 TB。2025 年 12 月に 5 TB から引き上げ）。互換ストレージでは上限が違うことがあります。
+
+**Complete も Abort もされなかったパートは見えないまま残り、容量として課金され続けます。** ライフサイクルルールの `AbortIncompleteMultipartUpload` （例：7 日で破棄）を入れておくのが定番です。
+
+## 一貫性と同時書き込み
+
+書いた直後に読める？
+
+上書き競合を防ぐ
+
+AWS S3 は 2020 年 12 月から、PUT・DELETE の直後の GET / LIST が **必ず最新を返す強い整合性 (strong read-after-write consistency)** になっています。それ以前は「上書き直後に古い版が見えることがある」結果整合性で、この時代の注意書きが今も古い記事に残っています。
+
+互換ストレージの整合性は実装次第です。キャッシュや複数拠点構成をとるものでは、LIST への反映が遅れる・拠点間で一時的に食い違うなどがありえるので、各製品のドキュメントで確認します。
+
+S3 にはロックがありません。2 つのプロセスが同じキーに同時に PUT すると、後に完了した方が黙って勝ちます。これを防ぐのが **条件付き書き込み (conditional writes)** です。
+
+| ヘッダー | 意味 | 使い道 |
+| --- | --- | --- |
+| `If-None-Match: *` | そのキーがまだ無いときだけ書く | 二重作成の防止、ロックファイル、冪等なアップロード |
+| `If-Match: "<ETag>"` | 今の ETag が読んだときと同じなら書く | 読み→変更→書き戻しの楽観ロック（マニフェスト・インデックスの更新） |
+
+条件を満たさないと `412 Precondition Failed` が返ります。AWS S3 では 2024 年に対応しました（8 月に `If-None-Match` 、11 月に `If-Match` ）。 **互換ストレージでは未対応・部分対応のこともあり、無視されると競合を検出できないまま上書きされる** ので、使う前に必ず動作を確かめます。
+
+（元のページで操作できます → https://memo.taka1156.site/s3-compatible.html#consistency）
+
+## 「互換」の範囲 ─ どこまで同じか
+
+S3 API には 100 を超えるオペレーションがあり、互換ストレージが全部を実装しているわけではありません。だいたい次の 3 層で考えると判断しやすくなります。
+
+**✓ ほぼどこでも使える（コア）**
+
+`PutObject` `GetObject` `HeadObject` `DeleteObject(s)` `ListObjectsV2` `CopyObject` `マルチパート` `署名付き URL` `Range 読み取り`
+
+**△ 製品によって有無・挙動が違う**
+
+`バージョニング` `ライフサイクル` `条件付き書き込み` `Object Lock` `CORS 設定` `サーバー側暗号化` `イベント通知` `追加チェックサム`
+
+**✗ AWS 固有と考える**
+
+`IAM ポリシー・条件キー` `ストレージクラス（Glacier など）` `S3 Inventory` `Access Points` `EventBridge 連携`
+
+例えば Cloudflare R2 は ACL・バケットポリシー・バージョニング・オブジェクトタグなどを実装しておらず、権限は R2 側の API トークンで管理します。「互換」と書いてあっても、使う機能を各製品の互換性一覧で照らし合わせるのが確実です。
+
+## つまずきどころ
+
+AWS SDK を更新したら互換ストレージへのアップロードが失敗した
+
+2025 年初めに AWS SDK 各言語版が、アップロード時に CRC32 などの **チェックサムを既定で付けて送る** ように変わりました。これを理解しない互換ストレージでエラーが相次ぎました。チェックサムを「必要なときだけ」に戻す設定で回避できます（相手側が対応済みなら不要）。
+
+```
+# 環境変数（SDK 共通）
+AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+
+# ~/.aws/config
+[default]
+request_checksum_calculation = when_required
+response_checksum_validation = when_required
+```
+
+ETag をファイルの MD5 だと思って照合したら合わない
+
+単純な PUT なら多くの場合 MD5 ですが、マルチパートでアップロードしたオブジェクトの ETag は「各パートの MD5 をつなげたものの MD5」に `-パート数` が付いた値で、ファイル全体の MD5 ではありません。暗号化の方式によっても MD5 になりません。整合性の確認には ETag ではなくチェックサム（ `x-amz-checksum-*` ）を使います。
+
+エンドポイントを変えたのに `SignatureDoesNotMatch` / 名前解決エラーになる
+
+リージョン名が相手の期待と違う（署名に入るため）か、virtual-hosted 形式で `バケット名.localhost` のようなホストを引こうとしているのが典型です。リージョンを合わせ、セルフホストでは path-style を指定します。
+
+「S3 にファイルを置けばファイルサーバーの代わりになる」
+
+部分書き換え・追記・原子的なリネーム・ファイルロックがありません。FUSE でマウントするツールもありますが、ログ追記や DB ファイルの置き場には向きません。大量の小さなオブジェクトは 1 リクエストごとの課金・遅延が効いてくるので、まとめて置く設計にします。
+
+## 主な S3 互換ストレージ
+
+### マネージド（サービスとして借りる）
+
+### Amazon S3
+
+本家・事実上の仕様
+
+機能が最も多い。ストレージクラス・IAM・他 AWS サービス連携が強み。インターネットへの転送量 (egress) が課金される。
+
+### Cloudflare R2
+
+リージョン = auto
+
+egress 無料が最大の特徴で、配信元に向く。ACL・バージョニングなど一部の S3 機能は未実装。Workers からは S3 API を使わず直接バインドできる。
+
+### Google Cloud Storage
+
+XML API の相互運用
+
+本来の API は別物だが、HMAC キーを発行すると XML API 経由で S3 の SDK・ツールから使える（対応範囲は一部）。
+
+### Backblaze B2 / Wasabi など
+
+容量単価・egress を抑えた系
+
+バックアップやアーカイブ向けに、保存単価や転送料金の安さを打ち出すサービス。最低保存期間などの条件に注意。
+
+### セルフホスト（自分で動かす）
+
+### MinIO 開発終了
+
+Go / AGPLv3（コミュニティ版）
+
+長くセルフホストの定番だったが、コミュニティ版は 2025 年に管理画面の削除・バイナリ配布停止を経てメンテナンスモードに入り、2026 年 4 月にリポジトリがアーカイブされた。開発は商用版 AIStor に移っている。新規採用は避け、既存環境は移行先を検討する段階。
+
+### Ceph RGW
+
+C++ / 大規模向け
+
+分散ストレージ Ceph の S3 ゲートウェイ。ブロック・ファイルと同じ基盤で、マルチサイト・イレージャーコーディングまで揃うが、運用は重い。
+
+### SeaweedFS
+
+Go / 小さなファイルが大量
+
+追記型のボリュームファイルに小さなオブジェクトを詰めて扱う設計。S3 のほか FUSE・WebDAV などの入口も持つ。
+
+### Garage
+
+Rust / AGPLv3
+
+普通のサーバーを複数拠点にまたいで並べる小〜中規模向け。軽量だが、バケットポリシー・ACL・バージョニングなど実装していない機能も多い。
+
+### RustFS
+
+Rust / Apache-2.0
+
+MinIO に近い運用感を狙った新しめの分散オブジェクトストレージ。互換性表で対応範囲を公開している。MinIO の移行先候補としてよく名前が挙がる。
+
+### どう選ぶ
+
+| やりたいこと | まず検討するもの |
+| --- | --- |
+| 画像・動画をたくさん配信したい | egress 無料・安価なもの（R2 など）＋ CDN |
+| AWS の他サービスと組み合わせる | Amazon S3（ストレージクラス・IAM・イベント連携） |
+| 開発・テストでローカルに S3 が欲しい | 軽いセルフホスト（Garage・RustFS・SeaweedFS など）をコンテナで |
+| オンプレで PB 級・ブロックやファイルも | Ceph |
+| アプリをどこにでも持っていけるようにしたい | コア操作だけに絞って実装し、エンドポイント・リージョン・path-style を設定で差し替えられるようにする |
+
+## コマンド例
+
+```
+# 同じ AWS CLI で、エンドポイントだけ差し替えて使う
+aws s3 ls s3://photos-prod/2026/ --endpoint-url https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+aws s3 cp ./cat.jpg s3://photos-prod/2026/11/cat.jpg --endpoint-url http://localhost:9000
+
+# 署名付き URL（読み取り・1 時間）
+aws s3 presign s3://photos-prod/2026/11/cat.jpg --expires-in 3600 --endpoint-url ...
+
+# 失敗したマルチパートの残骸を一覧
+aws s3api list-multipart-uploads --bucket photos-prod --endpoint-url ...
+```
+
+```
+// JavaScript（AWS SDK v3）で互換ストレージにつなぐ
+import { S3Client } from "@aws-sdk/client-s3";
+const s3 = new S3Client({
+  endpoint: "http://localhost:9000",
+  region: "us-east-1",          // 相手が期待するリージョン（R2 なら "auto"）
+  forcePathStyle: true,         // セルフホストでは path-style
+  credentials: { accessKeyId: "...", secretAccessKey: "..." },
+});
+```

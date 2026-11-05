@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ブラウザのレンダリング</title>
+<meta name="description" content="HTML と CSS が DOM・CSSOM・レイアウト・ペイント・合成を経て画面になるまでと、どの CSS 変更がどこからやり直しになるか、ブロッキングとレイアウトスラッシングを図解。">
+<meta name="memo:tags" content="フロントエンド, JavaScript">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-warn: #b45309;
+  --c-a: #7c3aed;
+  --c-b: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-warn: #fbbf24;
+    --c-a: #c4b5fd;
+    --c-b: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.list, ol.list { margin: 6px 0 6px 1.3em; }
+ul.list li, ol.list li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* ステップ */
+ol.steps { list-style: none; counter-reset: st; }
+ol.steps > li {
+  counter-increment: st;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 12px; top: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps b { display: block; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.fig .sub { fill: var(--fg-2); font-family: 'Noto Sans JP', sans-serif; }
+.fig .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+details.card summary { cursor: pointer; font-weight: 700; }
+details.card[open] summary { margin-bottom: 8px; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.hdr { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); padding: 8px 12px; border-radius: 8px; word-break: break-all; margin: 6px 0; }
+.lane { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .lane { grid-template-columns: 1fr; } }
+.lane .flow { flex-direction: column; align-items: stretch; }
+.lane .arrow { text-align: center; font-size: 0.75rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; }
+.svgwrap { overflow-x: auto; }
+.lane > *, .grid2 > *, .grid3 > * { min-width: 0; }
+.svgwrap > svg { min-width: 560px; }
+@media (max-width: 560px) {
+  .flow { flex-direction: column; align-items: stretch; }
+  .flow .arrow { align-self: center; transform: rotate(90deg); line-height: 1; }
+}
+:is(.grid2, .grid3, .lane, .life, .vit, .who, .cmp, .shape) > .card + .card { margin-top: 0; }
+
+/* ---- このページ専用 ---- */
+.pipe { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; margin: 10px 0; }
+.pipe .st { flex: 1 1 100px; text-align: center; border: 2px solid var(--line); border-radius: 8px; padding: 8px 6px; background: var(--chip); transition: .2s; }
+.pipe .st b { display: block; font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace; }
+.pipe .st small { font-size: 0.7rem; color: var(--fg-2); }
+.pipe .st.on { border-color: var(--c-ng); background: var(--surface); }
+.pipe .st.on b::after { content: ' ●'; color: var(--c-ng); }
+.pipe .st.skip { opacity: .4; }
+.pipe .thread { flex-basis: 100%; font-size: 0.72rem; color: var(--fg-2); display: flex; justify-content: space-between; }
+.props { display: flex; flex-wrap: wrap; gap: 6px; }
+.props button { border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 999px; padding: 4px 12px; font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace; cursor: pointer; }
+.props button[aria-pressed="true"] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+#cost { margin-top: 10px; font-size: 0.85rem; }
+.tl { display: grid; grid-template-columns: 90px 1fr; gap: 6px 10px; align-items: center; font-size: 0.75rem; }
+.tl .nm { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; }
+.tl .bar { position: relative; height: 22px; background: var(--chip); border-radius: 4px; }
+.tl .bar span { position: absolute; top: 0; bottom: 0; border-radius: 4px; font: 700 0.65rem/22px 'JetBrains Mono', ui-monospace, monospace; color: var(--bg); text-align: center; overflow: hidden; }
+.b-parse { background: var(--c-ok); }
+.b-fetch { background: var(--c-a); }
+.b-exec { background: var(--c-ng); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="ブラウザのレンダリング">
+<meta property="og:description" content="HTML と CSS が DOM・CSSOM・レイアウト・ペイント・合成を経て画面になるまでと、どの CSS 変更がどこからやり直しになるか、ブロッキングとレイアウトスラッシングを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/browser-rendering.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>ブラウザのレンダリング</h1>
+  <p class="subtitle">「どの段からやり直すか」がわかると、速い CSS・遅い JS の理由が見える</p>
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>画面は <b>DOM＋CSSOM → スタイル計算 → レイアウト → ペイント → 合成</b> の順で作られる。変更があると、影響する段から後ろだけやり直す。</li>
+      <li><code>width</code> や <code>top</code> を変えるとレイアウトから、<code>color</code> ならペイントから、<b><code>transform</code> と <code>opacity</code> は合成だけ</b>で済む。アニメーションはこの 2 つで作る。</li>
+      <li>JS で「書く → 読む」を交互にするとレイアウトが何度も強制される（レイアウトスラッシング）。読むのをまとめてから書く。</li>
+    </ul>
+  </div>
+
+  <h2 id="pipeline">パイプライン</h2>
+  <div class="card">
+    <div class="pipe" id="pipe">
+      <div class="st" data-s="0"><b>Parse</b><small>HTML → DOM<br>CSS → CSSOM</small></div>
+      <div class="st" data-s="1"><b>Style</b><small>要素ごとに最終的な値を計算</small></div>
+      <div class="st" data-s="2"><b>Layout</b><small>位置と大きさを決める</small></div>
+      <div class="st" data-s="3"><b>Paint</b><small>描画命令のリストを作る</small></div>
+      <div class="st" data-s="4"><b>Composite</b><small>レイヤーを重ねて GPU で表示</small></div>
+      <div class="thread"><span>← メインスレッド（JS と同じスレッド）</span><span>コンポジタースレッド / GPU →</span></div>
+    </div>
+    <p class="note"><code>display: none</code> の要素はレイアウト以降に出てこない。<code>visibility: hidden</code> は場所を取るのでレイアウトには参加する。</p>
+  </div>
+
+  <h2 id="cost">どの変更がどこからやり直しになるか</h2>
+  <div class="card">
+    <p>CSS プロパティを選ぶと、やり直しになる段が赤くなる。</p>
+    <div class="props" id="props">
+      <button data-from="2" aria-pressed="true">width</button>
+      <button data-from="2">top / left</button>
+      <button data-from="2">font-size</button>
+      <button data-from="2">DOM に要素を追加</button>
+      <button data-from="3">color</button>
+      <button data-from="3">background</button>
+      <button data-from="3">box-shadow</button>
+      <button data-from="4">transform</button>
+      <button data-from="4">opacity</button>
+    </div>
+    <div class="pipe" id="pipe2" aria-live="polite">
+      <div class="st"><b>Style</b></div><div class="st"><b>Layout</b></div><div class="st"><b>Paint</b></div><div class="st"><b>Composite</b></div>
+    </div>
+    <p id="cost"></p>
+  </div>
+  <p class="note">transform / opacity が合成だけで済むのは、その要素が独立したレイヤーになっているとき。アニメーション中はブラウザが自動で昇格させる。<code>will-change: transform</code> で事前に昇格できるが、付けすぎるとレイヤーごとに GPU メモリを使うので、動かす要素だけに付ける。</p>
+
+  <h2 id="blocking">何が描画を止めるか</h2>
+  <div class="grid2">
+    <div class="card"><span class="label">CSS はレンダリングをブロック</span><p><code>&lt;head&gt;</code> の CSS が届くまで、ブラウザは画面を描かない（スタイルなしの一瞬を見せないため）。重要な CSS は小さく、残りは遅らせる。</p></div>
+    <div class="card"><span class="label">同期 script はパースをブロック</span><p><code>&lt;script src&gt;</code> に出会うと、取得と実行が終わるまで HTML の解析が止まる。スクリプトが <code>document.write</code> する可能性があるため。</p></div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <p>HTML の解析（緑）と、スクリプトの取得（紫）・実行（赤）の関係。</p>
+    <div class="tl" style="margin-top:10px">
+      <span class="nm">&lt;script&gt;</span><div class="bar"><span class="b-parse" style="left:0;width:25%">解析</span><span class="b-fetch" style="left:25%;width:30%">取得</span><span class="b-exec" style="left:55%;width:15%">実行</span><span class="b-parse" style="left:70%;width:30%">解析</span></div>
+      <span class="nm">async</span><div class="bar"><span class="b-parse" style="left:0;width:50%">解析</span><span class="b-exec" style="left:50%;width:15%">実行</span><span class="b-parse" style="left:65%;width:35%">解析</span></div>
+      <span class="nm">defer</span><div class="bar"><span class="b-parse" style="left:0;width:85%">解析（裏で取得）</span><span class="b-exec" style="left:85%;width:15%">実行</span></div>
+      <span class="nm">type=module</span><div class="bar"><span class="b-parse" style="left:0;width:85%">解析（裏で取得）</span><span class="b-exec" style="left:85%;width:15%">実行</span></div>
+    </div>
+    <p class="note"><b>async</b>：取れしだい実行。順番は保証されない（広告・計測向け）。<b>defer</b>：解析が終わってから書いた順に実行（アプリ本体向け）。<b>module</b> は既定で defer と同じ動き。どれも取得自体は解析と並行して進む。さらにブラウザは本解析の先を読む<b>プリロードスキャナー</b>で画像や CSS を早めに取りに行く。JS で後から差し込んだ <code>&lt;img&gt;</code> はこれに見つけてもらえない。</p>
+  </div>
+
+  <h2 id="thrash">レイアウトスラッシング</h2>
+  <p>レイアウトは通常「次のフレームの前に 1 回」まとめて行われる。ところが JS が<b>サイズや位置を読む</b>と、ブラウザは最新の値を返すためにその場でレイアウトを実行する（強制同期レイアウト）。</p>
+  <div class="lane">
+    <div class="card">
+      <span class="label ng">NG：書く・読むを交互に</span>
+<pre>for (const el of items) {
+  el.style.width = box.offsetWidth + 'px';
+  <span class="cm">// ↑ 読む → 直前の書き込みのせいで毎回レイアウト</span>
+}</pre>
+    </div>
+    <div class="card">
+      <span class="label ok">OK：まとめて読んでから書く</span>
+<pre>const w = box.offsetWidth;   <span class="cm">// 読むのは 1 回</span>
+for (const el of items) {
+  el.style.width = w + 'px'; <span class="cm">// 書くだけ</span>
+}</pre>
+    </div>
+  </div>
+  <p class="note">レイアウトを強制する読み取りの例：<code>offsetWidth/Height</code>・<code>getBoundingClientRect()</code>・<code>scrollTop</code>・<code>getComputedStyle()</code>。ループの中に読みがあったら疑う。</p>
+
+  <h2 id="frame">1 フレームの中身</h2>
+  <div class="card">
+    <div class="flow">
+      <div class="box">入力イベント</div><div class="arrow">→</div>
+      <div class="box">JS（タスク）</div><div class="arrow">→</div>
+      <div class="box">requestAnimationFrame</div><div class="arrow">→</div>
+      <div class="box">Style・Layout</div><div class="arrow">→</div>
+      <div class="box">Paint</div><div class="arrow">→</div>
+      <div class="box">Composite</div>
+    </div>
+    <p>60Hz の画面なら 1 フレームは約 16.7ms。<b>メインスレッドで 50ms を超えて走る処理はロングタスク</b>と呼ばれ、その間クリックへの反応も描画も止まる。重い処理は分割して合間に描画を挟むか、Web Worker に逃がす。</p>
+    <p class="note">見た目を JS で毎フレーム動かすなら <code>setTimeout</code> ではなく <code>requestAnimationFrame</code>。描画の直前に呼ばれるので、無駄なフレームやズレが出ない。</p>
+  </div>
+
+  <h2 id="tools">描画を軽くする CSS</h2>
+  <div class="card table-wrap">
+    <table>
+      <tr><th>書き方</th><th>効果</th></tr>
+      <tr><td><code>content-visibility: auto</code></td><td>画面外のセクションのレイアウト・ペイントを省く。長いページに。<code>contain-intrinsic-size</code> で仮の高さを与えないとスクロールバーが跳ねる。</td></tr>
+      <tr><td><code>contain: layout paint</code></td><td>中の変更が外に影響しないと宣言し、やり直しの範囲を狭める。</td></tr>
+      <tr><td><code>transform</code> でアニメーション</td><td>位置を <code>left</code> ではなく <code>translate</code> で動かす。合成だけで済む。</td></tr>
+      <tr><td>アニメーションに <code>height</code> を使わない</td><td>毎フレームレイアウトが走る。レイアウトを避けたいなら <code>transform: scale</code> で開閉する。中身の高さが決まらないときの <code>grid-template-rows: 0fr → 1fr</code> は書きやすいが、これもレイアウトが走るので、中の要素が少ない箇所に限って使う。</td></tr>
+    </table>
+  </div>
+  <p class="note">確認は DevTools の Performance パネル。紫（Layout）が細かく何本も並んでいたらスラッシング、Rendering タブの「Paint flashing」で再ペイント範囲が光る。</p>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="web-performance.html">Core Web Vitals</a><a href="reactivity-models.html">UI 更新の3つの方式</a><a href="css-layout.html">CSS レイアウト</a><a href="js-runtimes.html">JS ランタイム比較</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://developer.mozilla.org/ja/docs/Web/Performance/Guides/How_browsers_work">MDN: ブラウザーはどのように動作するか</a></li>
+    <li><a href="https://web.dev/articles/rendering-performance">web.dev: Rendering performance</a></li>
+    <li><a href="https://html.spec.whatwg.org/multipage/scripting.html#attr-script-defer">HTML Standard: script の async / defer</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+<script>
+(() => {
+  const names = ['Style', 'Layout', 'Paint', 'Composite'];
+  const msg = {
+    2: '<b>レイアウトから全部</b>。大きさや位置が変わると周りの要素の配置も計算し直す。毎フレーム変えると重い。',
+    3: '<b>ペイントから</b>。配置は変わらないので塗り直しだけ。広い範囲や影・ぼかしは塗りが重い。',
+    4: '<b>合成だけ</b>。レイヤーを動かす・透かすだけなのでメインスレッドが忙しくても滑らか。'
+  };
+  const btns = document.querySelectorAll('#props button');
+  const st = document.querySelectorAll('#pipe2 .st');
+  function show(from) {
+    st.forEach((s, i) => {
+      const idx = i + 1; // Style=1
+      s.classList.toggle('on', idx >= from || idx === 1);
+      s.classList.toggle('skip', idx < from && idx !== 1);
+    });
+    document.getElementById('cost').innerHTML = msg[from];
+  }
+  btns.forEach(b => b.addEventListener('click', () => {
+    btns.forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    show(Number(b.dataset.from));
+  }));
+  show(2);
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {"q": "モーダルを右からスライドインさせたい。メインスレッドが重いときでもカクつきにくい書き方は？", "choices": ["left を -100% から 0 へアニメーションする", "transform: translateX(100%) から 0 へアニメーションする", "width を 0 から 400px へアニメーションする"], "answer": 1, "explain": "transform と opacity は合成だけで済み、コンポジタースレッドで動かせる。left や width は毎フレームレイアウトが走る。", "ref": "#cost"},
+  {"q": "アプリ本体の JS（複数ファイル、実行順が大事）を head に置きたい。HTML の解析を止めず、順番も守るには？", "choices": ["async を付ける", "defer を付ける", "何も付けずに body の先頭に置く"], "answer": 1, "explain": "defer は取得を並行して進め、解析後に書いた順で実行する。async は取れた順に実行するので順番が崩れうる。", "ref": "#blocking"},
+  {"q": "リストの各要素の幅を、ループ内で container.offsetWidth を読みながら設定したら極端に遅くなった。原因は？", "choices": ["offsetWidth の読み取りが、直前のスタイル変更を反映するためにその場でレイアウトを強制するから", "style.width への代入はペイントを毎回走らせるから", "ループの中で DOM を参照すること自体が遅いから"], "answer": 0, "explain": "書いた直後に読むと強制同期レイアウトが発生し、要素数だけレイアウトが走る。読みをループの外に出す。", "ref": "#thrash"},
+  {"q": "クリックしても数百 ms 反応しない。Performance パネルでは 1 つのタスクが 400ms 走っていた。まず考える対策は？", "choices": ["処理を分割して合間にブラウザへ制御を返すか、Web Worker に移す", "will-change: transform を付ける", "CSS を小さくする"], "answer": 0, "explain": "メインスレッドのロングタスク中は入力処理も描画もできない。分割するか別スレッドに逃がす。", "ref": "#frame"}
+]
+</script>
+</body>
+</html>

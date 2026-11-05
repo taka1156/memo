@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>vinext と Next.js の比較</title>
+<meta name="description" content="Cloudflare の vinext と本家 Next.js の違いと、Workers・Node.js・SSG の 3 つのデプロイパターンを図解。">
+<meta name="memo:tags" content="JavaScript, フロントエンド">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-cf: #b45309;
+  --c-node: #047857;
+  --c-ssg: #1d4ed8;
+  --c-ok: #047857;
+  --c-warn: #b91c1c;
+  --c-note: #a16207;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-cf: #f59e0b;
+    --c-node: #34d399;
+    --c-ssg: #60a5fa;
+    --c-ok: #34d399;
+    --c-warn: #f87171;
+    --c-note: #facc15;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+a { color: var(--accent); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+
+/* 構造図 */
+.flow { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; }
+.flow .box {
+  flex: 1 1 200px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--chip);
+}
+.flow .box b { display: block; font-size: 0.9rem; }
+.flow .box span { font-size: 0.78rem; color: var(--fg-2); }
+.flow .box.main { border-color: var(--accent); }
+.flow .arrow {
+  align-self: center;
+  color: var(--fg-2);
+  font-family: 'JetBrains Mono', monospace;
+}
+.down { text-align: center; color: var(--fg-2); margin: 6px 0; font-size: 0.85rem; }
+/* 比較表 */
+.cmp { display: grid; gap: 0; }
+.cmp .row {
+  display: grid;
+  grid-template-columns: 9em 1fr 1fr;
+  border-top: 1px solid var(--line);
+}
+.cmp .row > div { padding: 8px 10px; font-size: 0.86rem; }
+.cmp .head > div { font-weight: 700; font-size: 0.8rem; color: var(--fg-2); }
+.cmp .row > div:first-child { font-weight: 700; color: var(--fg-2); font-size: 0.8rem; }
+@media (max-width: 600px) {
+  .cmp .row { grid-template-columns: 1fr 1fr; }
+  .cmp .row > div:first-child { grid-column: 1 / -1; padding-bottom: 0; }
+  .cmp .head > div:first-child { display: none; }
+}
+
+/* 数字 */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.stat .label { font-size: 0.78rem; color: var(--fg-2); }
+.bar { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 0.78rem; }
+.bar .name { width: 5.5em; flex: none; color: var(--fg-2); }
+.bar .track { flex: 1; height: 10px; background: var(--chip); border-radius: 5px; overflow: hidden; }
+.bar .fill { height: 100%; border-radius: 5px; }
+.bar .val { width: 4.5em; flex: none; text-align: right; font-family: 'JetBrains Mono', monospace; }
+.fill.next { background: var(--fg-2); }
+.fill.vin { background: var(--accent); }
+
+
+/* デプロイパターン表 */
+.matrix { display: grid; grid-template-columns: 7em repeat(3, 1fr); gap: 8px; }
+.matrix .rl { align-self: center; font-weight: 700; font-size: 0.82rem; color: var(--fg-2); }
+.matrix .c { border: 1px solid; border-radius: 8px; padding: 8px 10px; text-align: center; }
+.matrix .c b { display: block; font-size: 0.84rem; font-weight: 500; overflow-wrap: anywhere; }
+.matrix .c span { display: block; font-size: 0.74rem; overflow-wrap: anywhere; }
+.matrix .hd { border-width: 2px; }
+.matrix .hd b { font-size: 0.95rem; font-weight: 700; }
+.c.cf { border-color: var(--c-cf); } .c.cf span, .c.cf.hd b { color: var(--c-cf); }
+.c.node { border-color: var(--c-node); } .c.node span, .c.node.hd b { color: var(--c-node); }
+.c.ssg { border-color: var(--c-ssg); } .c.ssg span, .c.ssg.hd b { color: var(--c-ssg); }
+.mtabs { display: none; }
+@media (max-width: 720px) {
+  .mtabs { display: flex; }
+  .matrix { grid-template-columns: 6em 1fr; }
+  .matrix[data-show="cf"] .c:not(.cf),
+  .matrix[data-show="node"] .c:not(.node),
+  .matrix[data-show="ssg"] .c:not(.ssg) { display: none; }
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+.faq dt { font-weight: 700; margin-top: 14px; }
+.faq dt::before { content: "誤解: "; color: var(--c-warn); }
+.faq dd { margin: 4px 0 0; }
+
+.sources li { margin-left: 1.2em; font-size: 0.85rem; overflow-wrap: anywhere; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="vinext と Next.js の比較">
+<meta property="og:description" content="Cloudflare の vinext と本家 Next.js の違いと、Workers・Node.js・SSG の 3 つのデプロイパターンを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/vinext.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>vinext vs Next.js</h1>
+  <p class="subtitle">同じ API、違うエンジン — Cloudflare 製の Next.js 再実装と、3 つのデプロイパターン</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>vinext は Next.js のフォークではなく、<b>Next.js の公開 API を Vite プラグインとして作り直したもの</b>。<code>app/</code>・<code>pages/</code>・<code>next.config.js</code> はそのまま使える。</li>
+      <li>メリットはビルドの速さとバンドルの小ささ、Cloudflare Workers への素直なデプロイ。代わりに API カバー率は約 94% で、細かい挙動の差が残る。</li>
+      <li>本家は「ビルド時に静的生成してサーブを速く」、vinext は「リクエスト時に描画してキャッシュで速く」が基本の考え方。</li>
+    </ul>
+  </div>
+
+  <h2 id="compare">Next.js との比較</h2>
+  <div class="card cmp">
+    <div class="row head"><div></div><div>Next.js（本家）</div><div>vinext</div></div>
+    <div class="row"><div>作り</div><div>Vercel によるオリジナル実装</div><div>公開 API をゼロから再実装（フォークではない）</div></div>
+    <div class="row"><div>ビルドツール</div><div>Turbopack / webpack</div><div>Vite 8（Rolldown・Oxc）</div></div>
+    <div class="row"><div>互換範囲</div><div>全機能（基準）</div><div>Next.js 16 API の約 94%。16.x のみ対象、古い非推奨 API は非対応</div></div>
+    <div class="row"><div>描画の既定</div><div>静的ページはビルド時に事前生成</div><div>リクエスト時描画＋キャッシュ寄り（SSG・ISR も可）</div></div>
+    <div class="row"><div>画像・フォント</div><div>ビルド時に最適化・自己ホスト</div><div>実行時最適化（Workers）、フォントは CDN／実行時注入</div></div>
+    <div class="row"><div>新機能</div><div>Cache Components・PPR が完全</div><div><code>"use cache"</code> は部分対応、PPR は未完</div></div>
+    <div class="row"><div>設定・周辺</div><div>webpack 設定、<code>next/jest</code>、create-next-app</div><div>Vite プラグイン、Vitest、create-vinext-app</div></div>
+    <div class="row"><div>成熟度</div><div>本番実績が豊富</div><div>開発中。「注意して本番利用可」という公式見解</div></div>
+  </div>
+
+  <h3>公式ベンチマーク（33 ルートの App Router アプリ、公開時の数値）</h3>
+  <div class="stats">
+    <div class="card stat">
+      <div class="label">本番ビルド時間（短いほど良い）</div>
+      <div class="bar"><span class="name">Next.js 16</span><span class="track"><span class="fill next" style="display:block;width:100%"></span></span><span class="val">7.38s</span></div>
+      <div class="bar"><span class="name">vinext</span><span class="track"><span class="fill vin" style="display:block;width:22.6%"></span></span><span class="val">1.67s</span></div>
+    </div>
+    <div class="card stat">
+      <div class="label">クライアントバンドル gzip（小さいほど良い）</div>
+      <div class="bar"><span class="name">Next.js 16</span><span class="track"><span class="fill next" style="display:block;width:100%"></span></span><span class="val">168.9KB</span></div>
+      <div class="bar"><span class="name">vinext</span><span class="track"><span class="fill vin" style="display:block;width:43.2%"></span></span><span class="val">72.9KB</span></div>
+    </div>
+  </div>
+  <p class="muted">測っているのはビルドとバンドルだけで、本番の配信速度ではない。公平にするため Next.js 側の静的事前生成は無効化している。公式も「方向性を示す参考値」としている。</p>
+
+  <h2 id="deploy">vinext アーキテクチャ：3 つのデプロイパターン</h2>
+  <div class="card">
+    <div class="flow">
+      <div class="box"><b>あなたの Next.js コード</b><span>app/ · pages/ · next.config.js</span></div>
+      <div class="arrow">→</div>
+      <div class="box main"><b>vinext（Vite プラグイン）</b><span>next/* シム · ルーター · plugin-rsc</span></div>
+      <div class="arrow">→</div>
+      <div class="box"><b>Vite 8 マルチ環境ビルド</b><span>rsc（RSC 生成）→ ssr（HTML 生成）→ client</span></div>
+    </div>
+    <div class="down">↓</div>
+
+    <div class="tabs mtabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-col="cf">Cloudflare Workers</button>
+      <button class="tab" role="tab" aria-selected="false" data-col="node">Node.js</button>
+      <button class="tab" role="tab" aria-selected="false" data-col="ssg">SSG</button>
+    </div>
+    <div class="matrix" id="matrix" data-show="cf">
+      <div class="rl"></div>
+      <div class="c cf hd"><b>Cloudflare Workers</b><span>第一級のネイティブ統合</span></div>
+      <div class="c node hd"><b>Node.js サーバー</b><span>standalone か Nitro</span></div>
+      <div class="c ssg hd"><b>SSG（静的書き出し）</b><span>サーバーなしでファイル配信</span></div>
+
+      <div class="rl">設定</div>
+      <div class="c cf"><b>vinext init</b><span>--platform=cloudflare</span></div>
+      <div class="c node"><b>vinext init --platform=node</b><span>output: "standalone"（任意）</span></div>
+      <div class="c ssg"><b>output: "export"</b><span>next.config で指定</span></div>
+
+      <div class="rl">追加プラグイン</div>
+      <div class="c cf"><b>@cloudflare/vite-plugin</b><span>RSC 環境を workerd で実行</span></div>
+      <div class="c node"><b>Nitro（他プラットフォーム向け）</b><span>standalone 出力なら不要</span></div>
+      <div class="c ssg"><b>不要 ※</b><span>CF プラグイン・Nitro とも不要</span></div>
+
+      <div class="rl">実行環境</div>
+      <div class="c cf"><b>workerd（V8 isolate）</b><span>エッジでサーバー実行</span></div>
+      <div class="c node"><b>Node.js プロセス</b><span>VM・Docker・自前サーバー</span></div>
+      <div class="c ssg"><b>実行時サーバーなし</b><span>ビルド済み HTML/JSON を配信</span></div>
+
+      <div class="rl">データ連携</div>
+      <div class="c cf"><b>cloudflare:workers の env</b><span>D1・R2・KV・DO など</span></div>
+      <div class="c node"><b>process.env + 任意の DB</b><span>バインディングはなし</span></div>
+      <div class="c ssg"><b>ビルド時に取得して固定</b><span>実行時の取得は不可</span></div>
+
+      <div class="rl">キャッシュ</div>
+      <div class="c cf"><b>KV + Workers Cache</b><span>ISR も CDN 側から配信</span></div>
+      <div class="c node"><b>MemoryCacheHandler（既定）</b><span>本番は自前実装を差し込む</span></div>
+      <div class="c ssg"><b>ホスティング/CDN 側に依存</b><span>再生成なし</span></div>
+
+      <div class="rl">デプロイ</div>
+      <div class="c cf"><b>npx @vinext/cloudflare deploy</b><span>ワンコマンド</span></div>
+      <div class="c node"><b>node dist/standalone/server.js</b><span>PORT・HOST で設定</span></div>
+      <div class="c ssg"><b>任意の静的ホスト</b><span>S3・GitHub Pages・Nginx など</span></div>
+
+      <div class="rl">使える機能</div>
+      <div class="c cf"><b>SSR・Server Actions</b><span>middleware・ISR すべて可</span></div>
+      <div class="c node"><b>SSR・Server Actions</b><span>middleware・ISR すべて可</span></div>
+      <div class="c ssg"><b>静的ページのみ</b><span>SSR・ISR・Server Actions・middleware は不可</span></div>
+    </div>
+    <p class="muted" style="margin-top:12px">※ SSG で追加プラグイン不要という点は、README の記述からの推論（静的書き出しのみでの動作は未検証）。</p>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card">
+    <dl class="faq">
+      <dt>vinext は Next.js のフォーク</dt>
+      <dd>フォークではなく API 表面の再実装。Next.js パッケージが無くても動く。</dd>
+      <dt>ビルドが 4 倍速いので、サイトも 4 倍速くなる</dt>
+      <dd>ベンチはビルドとバンドルだけ。配信速度は、本家が事前生成する静的ページではむしろ本家が有利な場面もある。</dd>
+      <dt>Cloudflare で Next.js を動かすなら vinext 一択</dt>
+      <dd>README 自身が「成熟していて安全なのは OpenNext」と書いている。互換性重視なら OpenNext、軽さと Vite 系ツールを取るなら vinext。</dd>
+      <dt>静的書き出しでも Server Actions が使える</dt>
+      <dd>使えない。サーバーが無い構成なので、フォーム送信などは外部 API に向ける必要がある（上の表の SSG 列参照）。</dd>
+    </dl>
+  </div>
+
+  <h2 id="migrate">移行を試すなら</h2>
+  <pre>npx vinext check   # 互換性の問題を事前にスキャン
+npx vinext init    # 非破壊で移行（既存の next dev もそのまま動く）
+npm run dev:vinext # ポート 3001 で vinext 版を起動して見比べる</pre>
+
+  <h2 id="sources">出典</h2>
+  <ul class="sources">
+    <li><a href="https://github.com/cloudflare/vinext">cloudflare/vinext README（GitHub）</a></li>
+    <li><a href="https://blog.cloudflare.com/vinext/">How we rebuilt Next.js with AI in one week（Cloudflare Blog）</a></li>
+    <li><a href="https://blog.logrocket.com/vinext-cloudflares-vite-based-next-js-replacement/">vinext: Cloudflare's Vite-based Next.js replacement（LogRocket）</a></li>
+    <li><a href="https://itbrief.co.uk/story/cloudflare-unveils-vinext-a-vite-based-next-js-rival">Cloudflare unveils vinext（IT Brief）</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.mtabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t === tab)));
+    document.getElementById('matrix').dataset.show = tab.dataset.col;
+  });
+});
+</script>
+<!-- 確認クイズ（問題データだけ書く。表示は memo.py がページ末尾に自動で入れる） -->
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "既存の Next.js アプリに vinext を試すとき、ほかの作業より前にまず実行しておくべきコマンドは？",
+    "choices": ["npx create-vinext-app で新規作成し直す", "npx vinext check で互換性の問題をスキャンする", "next.config を削除して vite.config.ts に書き直す"],
+    "answer": 1,
+    "explain": "vinext check で非対応 API を先に洗い出す。vinext init は非破壊で、next.config やソースは書き換えない。",
+    "ref": "#migrate"
+  },
+  {
+    "q": "vinext で Cloudflare Workers に載せたアプリから D1 や KV を使いたい。どう書くのが推奨？",
+    "choices": ["import { env } from \"cloudflare:workers\" でバインディングを読む", "process.env.DB で接続文字列を読む", "getPlatformProxy() とカスタム worker エントリを用意する"],
+    "answer": 0,
+    "explain": "RSC 環境が workerd で動くため、cloudflare:workers の env からそのままバインディングを使える。",
+    "ref": "#deploy"
+  },
+  {
+    "q": "vinext で output: \"export\"（SSG）にしたサイトで、フォーム送信を Server Actions で処理しようとした。どうなる？",
+    "choices": ["ビルド時に実行されて結果が HTML に固定される", "静的ホストの CDN が代わりに実行する", "実行時のサーバーが無いので使えない。外部 API などに送る必要がある"],
+    "answer": 2,
+    "explain": "Server Actions も middleware もリクエスト時に動くサーバーが必要。静的書き出しでは SSR・ISR とあわせて使えない。",
+    "ref": "#deploy"
+  },
+  {
+    "q": "vinext を Node.js の standalone 出力で複数台にスケールアウトした。ISR のキャッシュについて注意すべき点は？",
+    "choices": ["既定の MemoryCacheHandler はプロセスごとなので、共有したいなら自前の CacheHandler を差し込む", "Workers Cache が自動で使われるので何もしなくてよい", "standalone 出力では ISR 自体が使えない"],
+    "answer": 0,
+    "explain": "既定はプロセス内メモリ。本番では Redis などの共有ストアを使う CacheHandler に差し替える。",
+    "ref": "#deploy"
+  },
+  {
+    "q": "公式ベンチで vinext のビルドが Next.js より約 4 倍速かった。ここから言えることは？",
+    "choices": ["本番でのページ表示も約 4 倍速くなる", "ビルドとバンドルが速く小さいだけで、配信速度は別に比べる必要がある", "Next.js の静的事前生成より常に有利になる"],
+    "answer": 1,
+    "explain": "ベンチが測っているのはビルド時間とバンドルサイズだけ。本家は静的ページをビルド時に作るので、配信では本家が有利な場面もある。",
+    "ref": "#compare"
+  }
+]
+</script>
+</body>
+</html>

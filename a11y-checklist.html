@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アクセシビリティ チェックリスト</title>
+<meta name="description" content="WCAG 2.2 の AA 基準から Web 開発で押さえるべき項目を、キーボード・色・フォーム・ARIA などの分類ごとのチェックリストとコード例でまとめる">
+<meta name="memo:tags" content="デザイン, フロントエンド">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #cf222e;
+  --c-warn: #9a6700;
+  --c-a: #0077b6;
+  --c-b: #8250df;
+  --c-c: #1a7f37;
+  --c-d: #bc4c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-a: #00d4ff;
+    --c-b: #bc8cff;
+    --c-c: #3fb950;
+    --c-d: #f0883e;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.2em; }
+ul.plain li { margin: 2px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+  margin: 10px 0;
+}
+.en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* 図 */
+.diagram { margin: 8px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
+.d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
+.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--accent); }
+.d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
+.d-ng-head { fill: var(--c-ng); }
+
+/* ステップ・フロー */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.flow span {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+.tbl td:first-child { font-weight: 700; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+
+/* チェックリスト */
+.progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
+.bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
+.checklist { list-style: none; }
+.checklist li { border-bottom: 1px solid var(--line); }
+.checklist li:last-child { border-bottom: none; }
+.checklist label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 2px; cursor: pointer; }
+.checklist input { margin-top: 5px; accent-color: var(--accent); flex: none; width: 16px; height: 16px; }
+.checklist .txt { flex: 1; }
+.checklist .txt small { display: block; color: var(--fg-2); font-size: 0.8rem; }
+.checklist input:checked + .txt { color: var(--fg-2); text-decoration: line-through; }
+.badge {
+  display: inline-block;
+  font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  color: var(--fg-2);
+}
+.badge.a { color: var(--c-a); }
+.badge.b { color: var(--c-b); }
+.badge.c { color: var(--c-c); }
+.badge.d { color: var(--c-d); }
+
+/* よくある誤解 */
+.myth { margin-bottom: 10px; }
+.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
+.myth summary::-webkit-details-marker { display: none; }
+.myth summary::before { content: '✕ '; color: var(--c-ng); }
+.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
+.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+/* OK / NG コード比較 */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.vs > div { min-width: 0; }
+.vs .lbl { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.pour { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.pour .card { padding: 12px 14px; }
+.pour .k { font: 700 1.4rem/1 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.pour p { font-size: 0.82rem; color: var(--fg-2); margin: 4px 0 0; }
+.sc { font: 600 0.68rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-left: 4px; white-space: nowrap; }
+.lvl { font: 700 0.62rem 'JetBrains Mono', ui-monospace, monospace; padding: 0 4px; border-radius: 3px; background: var(--chip); color: var(--fg-2); margin-left: 4px; }
+.lvl.new { color: var(--c-d); }
+.check-group h3 { display: flex; align-items: center; gap: 8px; margin: 18px 0 2px; }
+.check-group h3:first-of-type { margin-top: 4px; }
+.sticky-progress { position: sticky; top: 0; background: var(--surface); z-index: 2; padding: 8px 0; margin: -8px 0 4px; }
+.reset { border: 1px solid var(--line); background: none; color: var(--fg-2); border-radius: 999px; padding: 2px 10px; font: 600 0.72rem 'JetBrains Mono', ui-monospace, monospace; cursor: pointer; }
+.test-steps .step b { display: block; }
+.focus-demo { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.focus-demo button { border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 8px; padding: 6px 14px; font: 600 0.85rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer; }
+.focus-demo .bad:focus { outline: none; }
+.focus-demo .good:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="アクセシビリティ チェックリスト">
+<meta property="og:description" content="WCAG 2.2 の AA 基準から Web 開発で押さえるべき項目を、キーボード・色・フォーム・ARIA などの分類ごとのチェックリストとコード例でまとめる">
+<meta property="og:url" content="https://memo.taka1156.site/a11y-checklist.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>アクセシビリティ チェックリスト</h1>
+  <p class="subtitle">WCAG 2.2 AA の要点を「実装でやること」に落としたチェックリスト</p>
+<div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>基準は <b>WCAG 2.2</b>（日本の JIS X 8341-3 は現行の 2016 年版が WCAG 2.0 相当で、WCAG 2.2 相当への改正が進行中）。実務の目標は <b>AA レベル</b>。2024 年 4 月から日本でも民間事業者の「合理的配慮」が義務になった。</li>
+      <li>一番効くのは<b>ネイティブの HTML 要素を正しく使う</b>こと。<code>&lt;button&gt;</code> を使えば、キーボード操作もスクリーンリーダーの読み上げも最初から付いてくる。</li>
+      <li>自動チェック（Lighthouse・axe）で見つかるのは一部だけ。<b>キーボードだけで操作</b>・<b>200% 拡大</b>・<b>スクリーンリーダー</b>の 3 つは手で確かめる。</li>
+    </ul>
+  </div>
+
+  <h2 id="pour">4 つの原則（POUR）</h2>
+  <p>WCAG の全項目は、この 4 つのどれかに分類されています。</p>
+  <div class="pour">
+    <div class="card"><span class="k">P</span> <b>知覚できる</b> <span class="en">Perceivable</span><p>見えない・聞こえない人にも情報が届く。代替テキスト、字幕、コントラスト。</p></div>
+    <div class="card"><span class="k">O</span> <b>操作できる</b> <span class="en">Operable</span><p>マウスが使えなくても操作できる。キーボード、フォーカス、十分な時間。</p></div>
+    <div class="card"><span class="k">U</span> <b>理解できる</b> <span class="en">Understandable</span><p>内容と操作が予測どおり。ラベル、エラーの説明、言語の指定。</p></div>
+    <div class="card"><span class="k">R</span> <b>堅牢</b> <span class="en">Robust</span><p>支援技術が正しく解釈できる。正しい HTML、名前・役割・状態。</p></div>
+  </div>
+
+  <h2 id="checklist">チェックリスト</h2>
+  <p>各項目の末尾の番号は WCAG の達成基準。<span class="lvl new">2.2</span> は 2.2 で追加された項目です。チェック状態はこのブラウザに保存されます。</p>
+  <div class="card check-group" data-checklist="a11y">
+    <div class="sticky-progress"><div class="progress"><div class="bar"><div></div></div><span class="count">0 / 0</span><button class="reset" id="reset" type="button">リセット</button></div></div>
+
+    <h3 id="c-structure"><span class="badge a">構造</span>ページの骨組み</h3>
+    <ul class="checklist">
+      <li><label><input type="checkbox"><span class="txt"><code>&lt;html lang="ja"&gt;</code> を指定している<span class="sc">3.1.1</span><small>読み上げソフトが正しい言語の発音で読む。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">ページごとに内容がわかる <code>&lt;title&gt;</code> がある<span class="sc">2.4.2</span><small>SPA では画面遷移のたびに更新する。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">見出し <code>h1</code>〜<code>h6</code> を見た目ではなく構造の順で使っている<span class="sc">1.3.1</span><small>スクリーンリーダー利用者は見出しで飛び回って読む。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt"><code>header</code> <code>nav</code> <code>main</code> <code>footer</code> などのランドマークを使っている<span class="sc">1.3.1</span></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">繰り返しのナビを飛ばす「本文へスキップ」リンクがある<span class="sc">2.4.1</span></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">リンクの文字か、その前後の文脈で行き先がわかる（「こちら」だけにしない）<span class="sc">2.4.4</span><small>リンクの文字だけでわかることまで求めるのは 2.4.9（AAA）。</small></span></label></li>
+    </ul>
+
+    <h3 id="c-keyboard"><span class="badge b">キーボード</span>操作とフォーカス</h3>
+    <ul class="checklist">
+      <li><label><input type="checkbox"><span class="txt">すべての操作が Tab / Enter / Space / 矢印キーでできる<span class="sc">2.1.1</span><small>クリックできる <code>&lt;div&gt;</code> は NG。<code>&lt;button&gt;</code> か <code>&lt;a&gt;</code> を使う。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">フォーカスが抜け出せなくなる場所がない<span class="sc">2.1.2</span><small>モーダルは Esc で閉じられ、閉じたら元の場所にフォーカスを戻す。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">Tab の移動順が見た目の順と一致する<span class="sc">2.4.3</span><small><code>tabindex</code> に正の数を使わない。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">フォーカス中の要素がはっきり見える<span class="sc">2.4.7</span><small><code>outline: none</code> で消したなら、代わりの見た目を必ず付ける。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">フォーカスした要素が固定ヘッダーやバナーに隠れない<span class="sc">2.4.11</span><span class="lvl new">2.2</span><small><code>scroll-padding-top</code> でヘッダー分の余白を取る。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">ドラッグ操作には、クリックやボタンでの代替手段がある<span class="sc">2.5.7</span><span class="lvl new">2.2</span><small>並べ替えなら「上へ」「下へ」ボタンなど。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">クリックできる対象は 24×24px 以上（または周りに十分な余白）<span class="sc">2.5.8</span><span class="lvl new">2.2</span></span></label></li>
+    </ul>
+
+    <h3 id="c-visual"><span class="badge c">見た目</span>色・文字・レイアウト</h3>
+    <ul class="checklist">
+      <li><label><input type="checkbox"><span class="txt">文字と背景のコントラスト比が 4.5:1 以上（大きな文字は 3:1）<span class="sc">1.4.3</span><small>計算とチェッカーは <a href="color-basics.html#checker">色の基礎</a>。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">入力欄の枠・アイコン・フォーカス表示が背景と 3:1 以上<span class="sc">1.4.11</span></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">色だけで情報を伝えていない（エラーを赤字だけで示さない）<span class="sc">1.4.1</span></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">200% に拡大しても文字が切れたり重なったりしない<span class="sc">1.4.4</span><small>文字サイズは <code>rem</code> で指定し、高さを固定しない。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">幅 320px 相当でも横スクロールなしで読める<span class="sc">1.4.10</span><small>表や地図など、2 次元で見る必要があるものは例外。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">行間・文字間を広げる設定をしても崩れない<span class="sc">1.4.12</span></span></label></li>
+    </ul>
+
+    <h3 id="c-form"><span class="badge d">フォーム</span>入力とエラー</h3>
+    <ul class="checklist">
+      <li><label><input type="checkbox"><span class="txt">すべての入力欄に <code>&lt;label&gt;</code> が紐づいている<span class="sc">1.3.1 / 3.3.2</span><small>placeholder はラベルの代わりにならない（入力すると消える）。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">エラーは「どこが・なぜ・どう直すか」を文字で示す<span class="sc">3.3.1 / 3.3.3</span><small><code>aria-describedby</code> でエラー文を入力欄に紐づける。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">名前・メールなどに <code>autocomplete</code> 属性を付けている<span class="sc">1.3.5</span></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">同じ手続きの中で、前に入力した情報を再入力させない<span class="sc">3.3.7</span><span class="lvl new">2.2</span><small>「請求先と同じ」チェックや自動入力で済ませる。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">ログインでパスワードの貼り付けやパスワード管理ツールを妨げない<span class="sc">3.3.8</span><span class="lvl new">2.2</span><small>パズル型の認証だけに頼らない。パスキーは有力な選択肢（<a href="passkeys.html">パスキー</a>）。</small></span></label></li>
+    </ul>
+
+    <h3 id="c-media"><span class="badge a">メディア</span>画像・動画・動き</h3>
+    <ul class="checklist">
+      <li><label><input type="checkbox"><span class="txt">意味のある画像に、内容を伝える <code>alt</code> がある<span class="sc">1.1.1</span><small>飾りの画像は <code>alt=""</code>（空）にして読み上げを飛ばす。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">音声つき動画に字幕がある<span class="sc">1.2.2</span></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">自動で 5 秒以上動くもの（カルーセルなど）に停止ボタンがある<span class="sc">2.2.2</span></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">1 秒に 3 回を超えて点滅するものがない<span class="sc">2.3.1</span></span></label></li>
+      <li><label><input type="checkbox"><span class="txt"><code>prefers-reduced-motion</code> で大きなアニメーションを控える<span class="sc">2.3.3</span><span class="lvl">AAA</span><small>AA 外だが、酔いやすい人のために実装コストが低いので推奨。</small></span></label></li>
+    </ul>
+
+    <h3 id="c-aria"><span class="badge b">ARIA</span>名前・役割・状態</h3>
+    <ul class="checklist">
+      <li><label><input type="checkbox"><span class="txt">ネイティブ要素で表せるものに ARIA を使っていない<small>「ARIA を使わない」が ARIA の第 1 ルール。</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">アイコンだけのボタンに名前がある（<code>aria-label</code> など）<span class="sc">4.1.2</span></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">開閉・選択などの状態を <code>aria-expanded</code> / <code>aria-selected</code> などで伝えている<span class="sc">4.1.2</span></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">「保存しました」などの通知を <code>role="status"</code> / <code>aria-live</code> で読み上げさせている<span class="sc">4.1.3</span></span></label></li>
+    </ul>
+  </div>
+
+  <h2 id="code">コード例</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="k-button">ボタン</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="k-focus">フォーカス</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="k-form">フォーム</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="k-live">通知</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="k-motion">動き</button>
+  </div>
+  <div class="panel card" id="k-button">
+    <div class="vs">
+      <div><div class="lbl ng">NG：div にクリック</div>
+<pre><code>&lt;div class="btn" onclick="save()"&gt;
+  保存
+&lt;/div&gt;
+<span class="cm">&lt;!-- Tab で届かない・Enter で押せない・
+     「ボタン」と読まれない --&gt;</span></code></pre></div>
+      <div><div class="lbl ok">OK：button を使う</div>
+<pre><code>&lt;button type="button" onclick="save()"&gt;
+  保存
+&lt;/button&gt;
+
+<span class="cm">&lt;!-- アイコンだけなら名前を付ける --&gt;</span>
+&lt;button type="button" aria-label="閉じる"&gt;
+  &lt;svg aria-hidden="true"&gt;…&lt;/svg&gt;
+&lt;/button&gt;</code></pre></div>
+    </div>
+    <p class="note">ページを移動するなら <code>&lt;a href&gt;</code>、その場で何かを実行するなら <code>&lt;button&gt;</code>。</p>
+  </div>
+  <div class="panel card" id="k-focus" hidden>
+<pre><code><span class="cm">/* ブラウザが必要と判断したときだけ出す（ボタンのマウスクリックでは通常出ない） */</span>
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+<span class="cm">/* 固定ヘッダーにフォーカスが隠れないように */</span>
+html { scroll-padding-top: 72px; }
+
+<span class="cm">/* スキップリンク：フォーカスされたときだけ見せる */</span>
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: 16px; top: 16px; }</code></pre>
+    <p>Tab キーで下の 2 つのボタンにフォーカスを移して違いを比べてみてください。</p>
+    <div class="focus-demo">
+      <button class="bad" type="button">outline: none（NG）</button>
+      <button class="good" type="button">:focus-visible（OK）</button>
+    </div>
+  </div>
+  <div class="panel card" id="k-form" hidden>
+<pre><code>&lt;label for="email"&gt;メールアドレス&lt;/label&gt;
+&lt;input id="email" type="email" autocomplete="email"
+       aria-invalid="true" aria-describedby="email-err"&gt;
+&lt;p id="email-err"&gt;
+  「@」が含まれていません。例：taro@example.com
+&lt;/p&gt;</code></pre>
+    <p class="note"><code>aria-describedby</code> で紐づけると、入力欄にフォーカスしたときにエラー文も読み上げられる。</p>
+  </div>
+  <div class="panel card" id="k-live" hidden>
+<pre><code><span class="cm">&lt;!-- 最初から DOM に置いておき、中身だけ書き換える --&gt;</span>
+&lt;div role="status" aria-live="polite" id="toast"&gt;&lt;/div&gt;
+
+&lt;script&gt;
+  document.getElementById('toast').textContent = '保存しました';
+&lt;/script&gt;</code></pre>
+    <p class="note">要素ごと後から追加すると読み上げられないことがある。入れ物は先に置いておく。</p>
+  </div>
+  <div class="panel card" id="k-motion" hidden>
+<pre><code>@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}</code></pre>
+  </div>
+
+  <h2 id="test">確かめ方</h2>
+  <div class="steps test-steps">
+    <div class="step"><b>1. 自動チェック</b><p>Lighthouse や axe DevTools でコントラスト・alt・ラベル漏れなどを一掃。ただし自動で見つかるのは問題の一部だけ。</p></div>
+    <div class="step"><b>2. マウスを置く</b><p>Tab / Shift+Tab / Enter / Space / Esc だけで全操作。フォーカスが見えるか、順番は自然か、閉じ込められないか。</p></div>
+    <div class="step"><b>3. 200% 拡大</b><p>ブラウザのズームで 200%、スマホ幅でも。文字切れ・重なり・横スクロールがないか。</p></div>
+    <div class="step"><b>4. 読み上げ</b><p>macOS / iOS は VoiceOver、Windows は NVDA。見出し・ボタン名・状態の変化が正しく読まれるか。</p></div>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth card"><summary>Lighthouse で 100 点ならアクセシブル</summary><p>自動チェックは「alt があるか」は見られても「alt の中身が正しいか」や「キーボードで操作できるか」はほとんど判定できない。手での確認が必須。</p></details>
+  <details class="myth card"><summary>ARIA をたくさん付けるほど親切</summary><p>間違った ARIA は付けないより悪い。<code>role="button"</code> を付けた div はキー操作を自分で全部実装する必要がある。まずネイティブ要素を使う。</p></details>
+  <details class="myth card"><summary>フォーカスの枠は見た目が悪いので消してよい</summary><p>キーボード利用者は現在地がわからなくなる。<code>:focus-visible</code> を使えば、ボタンをマウスでクリックしたときは枠を出さず、キーボード操作時などには表示できる。</p></details>
+  <details class="myth card"><summary>アクセシビリティは障害のある人だけのためのもの</summary><p>片手がふさがっている、屋外で画面が見にくい、一時的なけが、高齢による視力低下など、誰もが当事者になり得る。字幕やキーボード操作は多くの人の役に立つ。</p></details>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      const p = t.dataset.panel && document.getElementById(t.dataset.panel);
+      if (p) p.hidden = !on;
+    });
+  });
+});
+document.querySelectorAll('[data-checklist]').forEach(box => {
+  const key = 'memo-check:' + location.pathname + ':' + box.dataset.checklist;
+  const inputs = [...box.querySelectorAll('input[type=checkbox]')];
+  const bar = box.querySelector('.bar div');
+  const count = box.querySelector('.count');
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {}
+  inputs.forEach((el, i) => { el.checked = !!saved[i]; });
+  const update = () => {
+    const n = inputs.filter(el => el.checked).length;
+    if (bar) bar.style.width = (n / inputs.length * 100) + '%';
+    if (count) count.textContent = n + ' / ' + inputs.length;
+    try { localStorage.setItem(key, JSON.stringify(inputs.map(el => el.checked))); } catch (e) {}
+  };
+  inputs.forEach(el => el.addEventListener('change', update));
+  update();
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+  document.querySelectorAll('[data-checklist="a11y"] input[type=checkbox]').forEach(el => {
+    el.checked = false; el.dispatchEvent(new Event('change'));
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "クリックで動く要素を <div onclick> で作っている。キーボード利用者のために最も手間が少なく確実な直し方は？",
+    "choices": ["role=\"button\" を付ける", "tabindex=\"0\" を付ける", "<button> 要素に置き換える", "aria-label を付ける"],
+    "answer": 2,
+    "explain": "<button> にすれば Tab での到達、Enter / Space での実行、「ボタン」としての読み上げが最初から付く。div に role や tabindex を足してもキー操作は自前で実装が必要。",
+    "ref": "#k-button"
+  },
+  {
+    "q": "デザイナーから「クリックしたときの青い枠が見た目に悪い」と言われた。キーボード利用者を困らせずに対応するには？",
+    "choices": ["outline: none で全部消す", ":focus-visible で、主にキーボード操作時に枠を出す", "枠の色を背景と同じにする", "hover 時だけ枠を出す"],
+    "answer": 1,
+    "explain": ":focus-visible はブラウザがフォーカス表示を必要と判断したときに一致する。ボタンのマウスクリックでは通常一致しないので、キーボード利用者には枠を残しつつクリック時は出さずに済む。",
+    "ref": "#k-focus"
+  },
+  {
+    "q": "入力欄にラベルを付けず、placeholder に「メールアドレス」と書いている。何が問題？",
+    "choices": ["入力を始めると説明が消え、何の欄か確かめられなくなる", "placeholder は検索エンジンに読まれない", "placeholder はスマホで表示されない", "特に問題はない"],
+    "answer": 0,
+    "explain": "placeholder はラベルの代わりにならない。<label> を紐づけると、読み上げでも常に名前が伝わる。",
+    "ref": "#c-form"
+  },
+  {
+    "q": "「保存しました」というトーストを表示しているが、スクリーンリーダーで読み上げられない。どうする？",
+    "choices": ["トーストを 10 秒以上表示する", "トーストに alt 属性を付ける", "トーストの文字を大きくする", "role=\"status\"（aria-live）の入れ物を先に置き、中身を書き換える"],
+    "answer": 3,
+    "explain": "ライブリージョンは「変化」を読み上げる仕組み。入れ物ごと後から追加すると気づかれないことがあるので、先に置いておく。",
+    "ref": "#k-live"
+  },
+  {
+    "q": "Lighthouse のアクセシビリティスコアが 100 点になった。リリース前に追加でやるべきことは？",
+    "choices": ["特になし。100 点なら基準を満たしている", "キーボードだけでの操作と、スクリーンリーダーでの読み上げを手で確かめる", "スコアが下がらないよう ARIA を全要素に付ける", "別の自動チェックツールで同じ確認を繰り返す"],
+    "answer": 1,
+    "explain": "自動チェックで見つかるのは一部。操作順・フォーカスの見え方・読み上げ内容の正しさは人が確かめる必要がある。",
+    "ref": "#test"
+  }
+]
+</script>
+</body>
+</html>

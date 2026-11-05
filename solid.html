@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLID と依存性逆転</title>
+<meta name="description" content="SOLID の 5 原則を「どんな症状を防ぐか」で整理し、オニオン／クリーンで内側に依存させる理由＝依存性逆転 (DIP) を図で説明する">
+<meta name="memo:tags" content="設計">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #cf222e;
+  --c-warn: #9a6700;
+  --c-a: #0077b6;
+  --c-b: #8250df;
+  --c-c: #1a7f37;
+  --c-d: #bc4c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-a: #00d4ff;
+    --c-b: #bc8cff;
+    --c-c: #3fb950;
+    --c-d: #f0883e;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.2em; }
+ul.plain li { margin: 2px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+  margin: 10px 0;
+}
+.en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* 図 */
+.diagram { margin: 8px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
+.d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
+.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--accent); }
+.d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
+.d-ng-head { fill: var(--c-ng); }
+
+/* ステップ・フロー */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.flow span {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+.tbl td:first-child { font-weight: 700; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+
+/* チェックリスト */
+.progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
+.bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
+.checklist { list-style: none; }
+.checklist li { border-bottom: 1px solid var(--line); }
+.checklist li:last-child { border-bottom: none; }
+.checklist label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 2px; cursor: pointer; }
+.checklist input { margin-top: 5px; accent-color: var(--accent); flex: none; width: 16px; height: 16px; }
+.checklist .txt { flex: 1; }
+.checklist .txt small { display: block; color: var(--fg-2); font-size: 0.8rem; }
+.checklist input:checked + .txt { color: var(--fg-2); text-decoration: line-through; }
+.badge {
+  display: inline-block;
+  font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  color: var(--fg-2);
+}
+.badge.a { color: var(--c-a); }
+.badge.b { color: var(--c-b); }
+.badge.c { color: var(--c-c); }
+.badge.d { color: var(--c-d); }
+
+/* よくある誤解 */
+.myth { margin-bottom: 10px; }
+.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
+.myth summary::-webkit-details-marker { display: none; }
+.myth summary::before { content: '✕ '; color: var(--c-ng); }
+.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
+.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+/* OK / NG コード比較 */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.vs > div { min-width: 0; }
+.vs .lbl { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.principle-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.letter {
+  font: 700 2rem/1 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--accent);
+}
+.symptom { background: var(--chip); border-radius: 8px; padding: 8px 12px; font-size: 0.86rem; margin: 10px 0; }
+.symptom b { color: var(--c-ng); }
+.dip-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+.dip-cols .card { padding: 12px; }
+.dip-cols h3 { margin-top: 0; }
+.d-frame { fill: none; stroke: var(--c-ok); stroke-width: 1.4; stroke-dasharray: 5 4; }
+.d-frame-label { fill: var(--c-ok); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="SOLID と依存性逆転">
+<meta property="og:description" content="SOLID の 5 原則を「どんな症状を防ぐか」で整理し、オニオン／クリーンで内側に依存させる理由＝依存性逆転 (DIP) を図で説明する">
+<meta property="og:url" content="https://memo.taka1156.site/solid.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>SOLID と依存性逆転</h1>
+  <p class="subtitle">5 原則を「防ぎたい症状」で覚える。DIP はオニオンが内側を向く理由そのもの</p>
+<div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>SOLID は「変更したら別の場所が壊れる」「直すたびに同じファイルを触る」を防ぐための 5 つの経験則。</li>
+      <li>一番効くのは <b>D（依存性逆転）</b>。ビジネスルールが DB や API の都合に引きずられないよう、<b>インターフェースを内側（ドメイン側）が持ち、外側がそれを実装する</b>。</li>
+      <li>オニオン／クリーン／ヘキサゴナルの「依存は内側へ」は、この DIP を層全体に適用したもの。</li>
+    </ul>
+  </div>
+
+  <h2 id="principles">5 つの原則と防ぐ症状</h2>
+  <p>名前を暗記するより「どんな痛みを防ぐか」で覚えるほうが使えます。コードは TypeScript。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="p-s">S 単一責任</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-o">O 開放閉鎖</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-l">L リスコフ置換</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-i">I インターフェース分離</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-d">D 依存性逆転</button>
+  </div>
+
+  <div class="panel card" id="p-s">
+    <div class="principle-head"><span class="letter">S</span><b>単一責任の原則</b> <span class="en">Single Responsibility Principle</span></div>
+    <p>「1 つのクラスは 1 つのことだけ」ではなく、正確には<b>「変更する理由（＝依頼してくる人・部署）が 1 つだけ」</b>になるように分ける。</p>
+    <div class="symptom"><b>防ぐ症状:</b> 経理の依頼で給与計算を直したら、人事向けの勤怠レポートが壊れた。</div>
+    <div class="vs">
+      <div><div class="lbl ng">NG</div>
+<pre><code>class Employee {
+  calcPay() {}      <span class="cm">// 経理の都合</span>
+  reportHours() {}  <span class="cm">// 人事の都合</span>
+  save() {}         <span class="cm">// DBA の都合</span>
+}</code></pre></div>
+      <div><div class="lbl ok">OK</div>
+<pre><code>class PayCalculator { calc(e: Employee) {} }
+class HourReporter  { report(e: Employee) {} }
+class EmployeeRepo  { save(e: Employee) {} }</code></pre></div>
+    </div>
+    <p class="note">関数を細かく割ること自体が目的ではない。「誰の都合で変わるか」が同じものはまとめたままでよい。</p>
+  </div>
+
+  <div class="panel card" id="p-o" hidden>
+    <div class="principle-head"><span class="letter">O</span><b>開放閉鎖の原則</b> <span class="en">Open/Closed Principle</span></div>
+    <p>機能追加に対しては<b>開いて</b>いて（足せる）、既存コードの修正に対しては<b>閉じて</b>いる（触らなくて済む）。</p>
+    <div class="symptom"><b>防ぐ症状:</b> 支払い方法を 1 つ足すたびに、同じ <code>switch</code> 文をあちこち直す。</div>
+    <div class="vs">
+      <div><div class="lbl ng">NG</div>
+<pre><code>function pay(kind: string, amt: number) {
+  switch (kind) {
+    case 'card':   <span class="cm">/* … */</span> break;
+    case 'paypay': <span class="cm">/* … */</span> break;
+    <span class="cm">// 追加のたびにここを修正</span>
+  }
+}</code></pre></div>
+      <div><div class="lbl ok">OK</div>
+<pre><code>interface PaymentMethod { pay(amt: number): void }
+class Card   implements PaymentMethod { … }
+class PayPay implements PaymentMethod { … }
+<span class="cm">// 追加は新しいクラスを足すだけ</span>
+function pay(m: PaymentMethod, amt: number) {
+  m.pay(amt);
+}</code></pre></div>
+    </div>
+    <p class="note">増える見込みがない分岐まで抽象化する必要はない。「2 回目の追加が来たら」切り出すくらいでちょうどいい。</p>
+  </div>
+
+  <div class="panel card" id="p-l" hidden>
+    <div class="principle-head"><span class="letter">L</span><b>リスコフの置換原則</b> <span class="en">Liskov Substitution Principle</span></div>
+    <p>親の型（インターフェース）を使っているコードに、どの子・どの実装を渡しても<b>期待どおりに動く</b>こと。「型が合う」だけでなく「約束（振る舞い）が守られる」ことが条件。</p>
+    <div class="symptom"><b>防ぐ症状:</b> 呼び出し側に <code>if (x instanceof 特定の実装)</code> の分岐が増えていく。</div>
+    <div class="vs">
+      <div><div class="lbl ng">NG</div>
+<pre><code>interface Storage { save(k: string, v: string): void }
+class ReadOnlyStorage implements Storage {
+  save() { throw new Error('read only'); }
+}
+<span class="cm">// Storage を受け取る側は落ちる</span></code></pre></div>
+      <div><div class="lbl ok">OK</div>
+<pre><code>interface Reader { get(k: string): string }
+interface Writer { save(k: string, v: string): void }
+class ReadOnlyStorage implements Reader { … }
+<span class="cm">// できないことは型で表す</span></code></pre></div>
+    </div>
+    <p class="note">DIP で実装を差し替える設計は、LSP が守られていて初めて安全になる（テスト用のフェイクも同じ約束を守る）。</p>
+  </div>
+
+  <div class="panel card" id="p-i" hidden>
+    <div class="principle-head"><span class="letter">I</span><b>インターフェース分離の原則</b> <span class="en">Interface Segregation Principle</span></div>
+    <p>使う側が<b>使わないメソッドに依存させない</b>。大きなインターフェースは、使う側ごとに小さく分ける。</p>
+    <div class="symptom"><b>防ぐ症状:</b> 一覧表示しかしないのに、テスト用のフェイクで <code>delete</code> や <code>bulkImport</code> まで実装させられる。</div>
+    <div class="vs">
+      <div><div class="lbl ng">NG</div>
+<pre><code>interface UserRepo {
+  find(id: string): User;
+  list(): User[];
+  save(u: User): void;
+  delete(id: string): void;
+  bulkImport(csv: string): void;
+}</code></pre></div>
+      <div><div class="lbl ok">OK</div>
+<pre><code><span class="cm">// 使う側（ユースケース）ごとに定義</span>
+interface UserFinder { find(id: string): User }
+interface UserLister { list(): User[] }
+<span class="cm">// 実装は 1 クラスで両方満たしてよい</span>
+class PgUserRepo implements UserFinder, UserLister { … }</code></pre></div>
+    </div>
+    <p class="note">TypeScript は構造的型付けなので、<code>Pick&lt;UserRepo, 'find'&gt;</code> のように必要な部分だけを受け取る書き方でも同じ効果になる。</p>
+  </div>
+
+  <div class="panel card" id="p-d" hidden>
+    <div class="principle-head"><span class="letter">D</span><b>依存性逆転の原則</b> <span class="en">Dependency Inversion Principle</span></div>
+    <p>上位（ビジネスルール）は下位（DB・外部 API などの詳細）に依存しない。<b>両方が抽象（インターフェース）に依存し、その抽象は上位側が持つ</b>。</p>
+    <div class="symptom"><b>防ぐ症状:</b> DB を変えたら、注文の計算ロジックまで書き直しになる／テストのたびに本物の DB が要る。</div>
+    <p>詳しくは次のセクションで図にしています → <a href="#dip">依存性逆転を図で見る</a></p>
+  </div>
+
+  <h2 id="dip">依存性逆転を図で見る</h2>
+  <p>矢印は「知っている（import している）」方向。<b>処理が流れる向き</b>と<b>依存の向き</b>を分けて考えるのがポイントです。</p>
+  <div class="dip-cols">
+    <div class="card">
+      <h3><span class="ng">逆転前</span>：上が下を直接知っている</h3>
+      <div class="diagram">
+        <svg viewBox="0 0 320 250" role="img" aria-label="OrderService が MySqlOrderRepo を直接 import している図">
+          <defs><marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="d-ng-head"/></marker></defs>
+          <rect x="40" y="16" width="240" height="60" rx="8" class="d-box hl"/>
+          <text x="160" y="42" text-anchor="middle" class="d-title">OrderService</text>
+          <text x="160" y="62" text-anchor="middle" class="d-sub">ビジネスルール（上位）</text>
+          <line x1="160" y1="78" x2="160" y2="168" class="d-ng" marker-end="url(#ah1)"/>
+          <text x="172" y="128" class="d-sub">import</text>
+          <rect x="40" y="172" width="240" height="60" rx="8" class="d-box"/>
+          <text x="160" y="198" text-anchor="middle" class="d-title">MySqlOrderRepo</text>
+          <text x="160" y="218" text-anchor="middle" class="d-sub">DB の詳細（下位）</text>
+        </svg>
+      </div>
+      <p class="note">処理の流れも依存も上→下で同じ向き。DB を変えると上位まで修正が波及する。</p>
+    </div>
+    <div class="card">
+      <h3><span class="ok">逆転後</span>：下が上の約束に合わせる</h3>
+      <div class="diagram">
+        <svg viewBox="0 0 320 300" role="img" aria-label="OrderService とインターフェースがドメイン側にあり、MySqlOrderRepo がそのインターフェースを実装している図">
+          <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker></defs>
+          <rect x="16" y="8" width="288" height="172" rx="10" class="d-frame"/>
+          <text x="28" y="26" class="d-frame-label">ドメイン側が所有</text>
+          <rect x="40" y="34" width="240" height="52" rx="8" class="d-box hl"/>
+          <text x="160" y="57" text-anchor="middle" class="d-title">OrderService</text>
+          <text x="160" y="75" text-anchor="middle" class="d-sub">ビジネスルール</text>
+          <line x1="160" y1="88" x2="160" y2="112" class="d-arrow" marker-end="url(#ah2)"/>
+          <rect x="40" y="116" width="240" height="52" rx="8" class="d-box hl"/>
+          <text x="160" y="139" text-anchor="middle" class="d-title">«interface»</text>
+          <text x="160" y="157" text-anchor="middle" class="d-sub">OrderRepository</text>
+          <line x1="160" y1="232" x2="160" y2="172" class="d-arrow" marker-end="url(#ah2)"/>
+          <text x="172" y="206" class="d-label">implements</text>
+          <rect x="40" y="236" width="240" height="52" rx="8" class="d-box"/>
+          <text x="160" y="259" text-anchor="middle" class="d-title">MySqlOrderRepo</text>
+          <text x="160" y="277" text-anchor="middle" class="d-sub">インフラ層</text>
+        </svg>
+      </div>
+      <p class="note">処理は上→下に流れるが、依存の矢印は下→上に<b>逆転</b>。DB を変えても枠の中は無傷。</p>
+    </div>
+  </div>
+
+<pre><code><span class="cm">// domain/order-repository.ts  ← ドメイン側に置く</span>
+export interface OrderRepository {
+  findById(id: OrderId): Promise&lt;Order | null&gt;;
+  save(order: Order): Promise&lt;void&gt;;
+}
+
+<span class="cm">// application/place-order.ts</span>
+export class PlaceOrder {
+  constructor(private repo: OrderRepository) {}   <span class="cm">// 抽象だけを知る</span>
+}
+
+<span class="cm">// infra/mysql-order-repository.ts  ← 外側がドメインを import</span>
+import type { OrderRepository } from '../domain/order-repository';
+export class MySqlOrderRepository implements OrderRepository { … }
+
+<span class="cm">// main.ts（組み立て役＝コンポジションルート）だけが両方を知る</span>
+const placeOrder = new PlaceOrder(new MySqlOrderRepository(pool));</code></pre>
+
+  <h3 id="who-owns">「インターフェースを誰が持つか」が本体</h3>
+  <p>インターフェースを作っても、それが <code>infra/</code> に置かれていたら依存はまだ下向きです。DIP の肝は<b>使う側（上位）の言葉で約束を書き、使う側のフォルダに置く</b>こと。メソッド名も <code>executeQuery</code> ではなく <code>findById</code> のようにドメインの言葉になります。</p>
+
+  <h2 id="onion-link">オニオンが「内側に依存」する理由</h2>
+  <p>DIP を 1 か所ではなく層の境界すべてに適用すると、依存の矢印がすべて中心を向きます。これがオニオン／クリーン／ヘキサゴナルの共通ルールです。</p>
+  <div class="flow"><span>インフラ（DB・HTTP）</span><i>→</i><span>アプリケーション（ユースケース）</span><i>→</i><span>ドメイン（エンティティ・リポジトリの interface）</span></div>
+  <div class="grid">
+    <div class="card"><b>変わりにくいものを中心に</b><p class="note" style="border:0;padding:0">業務ルールは DB やフレームワークより長生き。変わりやすい側が変わりにくい側に合わせるほうが、修正の波及が小さい。</p></div>
+    <div class="card"><b>テストが速くなる</b><p class="note" style="border:0;padding:0">中心はインターフェースしか知らないので、インメモリのフェイクを渡すだけでユースケースをテストできる。</p></div>
+    <div class="card"><b>決定を遅らせられる</b><p class="note" style="border:0;padding:0">DB や外部サービスの選定前でも、約束（interface）さえあれば中心のロジックを書き始められる。</p></div>
+  </div>
+  <p class="note">層ごとの構成は <a href="ddd-onion.html">DDD とオニオンアーキテクチャ</a>、ほかの方式との違いは <a href="architecture-compare.html">アーキテクチャ比較</a> へ。</p>
+
+  <h2 id="dip-di-ioc">DIP・DI・IoC の違い</h2>
+  <p>名前が似ていて混同しやすい 3 つ。DIP が「設計の原則」、DI はそれを実現する「手段」です。</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>名前</th><th>種類</th><th>中身</th></tr>
+    <tr><td>DIP <span class="en">Dependency Inversion</span></td><td>原則</td><td>依存の向きを「詳細 → 抽象」にする。抽象は上位が所有する。</td></tr>
+    <tr><td>DI <span class="en">Dependency Injection</span></td><td>手段</td><td>使う物を自分で <code>new</code> せず、コンストラクタ引数などで外から渡してもらう。</td></tr>
+    <tr><td>IoC <span class="en">Inversion of Control</span></td><td>考え方</td><td>処理の主導権をフレームワーク側に渡す（呼ぶのではなく呼ばれる）。DI コンテナはその一例。</td></tr>
+  </table></div>
+  <p class="note">DI していても、渡している型が具体クラス（<code>MySqlOrderRepository</code>）なら DIP はできていない。逆に DI コンテナがなくても、<code>main.ts</code> で手で組み立てれば DIP は成立する。</p>
+
+  <h2 id="how-far">どこまでやるか</h2>
+  <div class="grid">
+    <div class="card"><b class="ok">抽象化する価値が高い</b>
+      <ul class="plain">
+        <li>DB・外部 API・メール送信・決済など I/O の境界</li>
+        <li>現在時刻・乱数（テストで固定したいもの）</li>
+        <li>複数の実装が実際にある／近く増える箇所</li>
+      </ul></div>
+    <div class="card"><b class="warn">やりすぎになりやすい</b>
+      <ul class="plain">
+        <li>実装が 1 つしかなく、テストでも差し替えない純粋なロジック</li>
+        <li>全クラスに <code>IFoo</code> と <code>FooImpl</code> を機械的に作る</li>
+        <li>小さなスクリプトや使い捨てのツール</li>
+      </ul></div>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth card"><summary>インターフェースを作れば DIP になる</summary><p>インターフェースが下位（infra）側に置かれ、下位の言葉で書かれていれば依存は下向きのまま。上位が所有して初めて「逆転」になる。</p></details>
+  <details class="myth card"><summary>DI コンテナを入れれば SOLID になる</summary><p>DI コンテナは組み立てを自動化する道具にすぎない。具体クラスを注入していれば DIP にはならないし、手で組み立てても DIP は成立する。</p></details>
+  <details class="myth card"><summary>単一責任 ＝ メソッドが 1 つのクラス</summary><p>基準は「変更の理由が 1 つか」。同じ人・同じ理由で一緒に変わるものは、まとめておいたほうが変更が楽。</p></details>
+  <details class="myth card"><summary>SOLID はオブジェクト指向（クラス）専用</summary><p>関数型でも「関数を引数で受け取る」「型で必要な形だけを要求する」ことで同じ効果が得られる。考え方は言語やパラダイムを選ばない。</p></details>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      const p = t.dataset.panel && document.getElementById(t.dataset.panel);
+      if (p) p.hidden = !on;
+    });
+  });
+});
+document.querySelectorAll('[data-checklist]').forEach(box => {
+  const key = 'memo-check:' + location.pathname + ':' + box.dataset.checklist;
+  const inputs = [...box.querySelectorAll('input[type=checkbox]')];
+  const bar = box.querySelector('.bar div');
+  const count = box.querySelector('.count');
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {}
+  inputs.forEach((el, i) => { el.checked = !!saved[i]; });
+  const update = () => {
+    const n = inputs.filter(el => el.checked).length;
+    if (bar) bar.style.width = (n / inputs.length * 100) + '%';
+    if (count) count.textContent = n + ' / ' + inputs.length;
+    try { localStorage.setItem(key, JSON.stringify(inputs.map(el => el.checked))); } catch (e) {}
+  };
+  inputs.forEach(el => el.addEventListener('change', update));
+  update();
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "注文処理のロジックが MySQL のリポジトリクラスを直接 import している。DB を差し替えても注文ロジックを書き直さずに済むようにするには、インターフェースをどこに置く？",
+    "choices": ["infra 層に置き、MySQL クラスの隣で定義する", "ドメイン（注文処理を使う側）に置き、MySQL クラスがそれを実装する", "共通の utils フォルダに置き、どちらからも参照する", "インターフェースは作らず DI コンテナに任せる"],
+    "answer": 1,
+    "explain": "DIP では抽象を上位（使う側）が所有する。下位がその約束を実装することで、依存の向きが詳細→抽象に逆転する。",
+    "ref": "#who-owns"
+  },
+  {
+    "q": "コンストラクタで OrderRepository を受け取るようにしたが、引数の型は MySqlOrderRepository（具体クラス）のまま。この状態の説明として正しいのは？",
+    "choices": ["DI はしているが、DIP はまだできていない", "DIP はできているが、DI はできていない", "DI も DIP もできている", "DI コンテナがないのでどちらもできていない"],
+    "answer": 0,
+    "explain": "外から渡しているので DI ではあるが、具体クラスに依存しているので依存の向きは逆転していない。",
+    "ref": "#dip-di-ioc"
+  },
+  {
+    "q": "経理の依頼で給与計算を直したら、人事向けの勤怠レポートの出力が変わってしまった。どの原則に違反している可能性が高い？",
+    "choices": ["リスコフの置換原則", "インターフェース分離の原則", "単一責任の原則", "開放閉鎖の原則"],
+    "answer": 2,
+    "explain": "変更の理由（依頼元）が異なる処理が 1 つのクラスに同居していると、片方の修正がもう片方を壊す。",
+    "ref": "#principles"
+  },
+  {
+    "q": "Storage インターフェースを実装した ReadOnlyStorage の save() が例外を投げる。呼び出し側に instanceof の分岐が増えてきた。どう直すのが筋がいい？",
+    "choices": ["save() の中で何もしないようにして例外を消す", "呼び出し側の instanceof チェックを共通関数にまとめる", "Storage を継承した別クラスで save() をオーバーライドし直す", "読み取りと書き込みのインターフェースを分け、ReadOnlyStorage は読み取りだけを実装する"],
+    "answer": 3,
+    "explain": "できないことを型で表すのがリスコフ置換の守り方。黙って何もしないのは約束違反を隠すだけ。",
+    "ref": "#principles"
+  },
+  {
+    "q": "オニオンアーキテクチャで、依存の矢印がすべてドメインに向かうように作る一番の理由は？",
+    "choices": ["変わりにくい業務ルールを、変わりやすい DB やフレームワークの変更から守るため", "処理速度を上げるため", "フォルダ数を減らして見通しをよくするため", "ドメイン層から DB に直接アクセスできるようにするため"],
+    "answer": 0,
+    "explain": "変わりやすい側が変わりにくい側に合わせる構造にすると、変更の波及が外側で止まり、中心のテストも容易になる。",
+    "ref": "#onion-link"
+  }
+]
+</script>
+</body>
+</html>

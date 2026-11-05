@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux 端末・プロセス・シグナル 全体像</title>
+<meta name="description" content="ターミナル・擬似端末・シェル・カーネルがどうつながり、キー入力や Ctrl+C がプロセスに届くまでを 1 枚でたどる入口ページ。">
+<meta name="memo:tags" content="インフラ">
+<meta name="memo:date" content="2026-11-06">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-user: #1f8a50;
+  --c-kernel: #c2410c;
+  --c-hw: #6b7280;
+  --c-sig: #b45309;
+  --c-dead: #9aa3b2;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-user: #4ade80;
+    --c-kernel: #fb923c;
+    --c-hw: #94a3b8;
+    --c-sig: #fbbf24;
+    --c-dead: #4b5869;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 40px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.98rem; margin: 22px 0 8px; }
+p { margin: 8px 0; }
+ul.dots { margin: 8px 0 8px 1.3em; }
+ul.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  line-height: 1.6;
+}
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.table-wrap { overflow-x: auto; margin: 10px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--surface); }
+th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 700; white-space: nowrap; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* ボタン */
+.btn {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn.on { border-color: var(--accent); color: var(--accent); }
+.ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
+.stepmsg {
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+  min-height: 4.6em;
+  font-size: 0.9rem;
+}
+.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); display: block; }
+
+a { color: var(--accent); }
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: -12px 0 24px; }
+.series a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font: 600 0.75rem 'Noto Sans JP', system-ui, sans-serif; }
+.series a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.series a:hover:not([aria-current]) { color: var(--accent); }
+.map { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.map a { text-decoration: none; color: var(--fg); display: block; }
+.map a:hover .card { border-color: var(--accent); }
+.map .card { height: 100%; }
+.map b { color: var(--accent); font-size: 0.95rem; }
+.map p { font-size: 0.8rem; color: var(--fg-2); }
+.map ul { margin: 6px 0 0 1.1em; font-size: 0.78rem; }
+/* 全体像の層 */
+.layers { display: grid; gap: 6px; }
+.layer { border-radius: 8px; padding: 10px 14px; border: 1px solid var(--line); border-left-width: 4px; }
+.layer.user { border-left-color: var(--c-user); background: color-mix(in srgb, var(--c-user) 7%, var(--surface)); }
+.layer.kernel { border-left-color: var(--c-kernel); background: color-mix(in srgb, var(--c-kernel) 7%, var(--surface)); }
+.layer.hw { border-left-color: var(--c-hw); background: color-mix(in srgb, var(--c-hw) 8%, var(--surface)); }
+.layer b { font-size: 0.85rem; }
+.layer .items { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.layer .items span { font-size: 0.78rem; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; }
+.syscall {
+  text-align: center;
+  font: 600 0.75rem 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--fg-2);
+  padding: 2px 0;
+}
+.syscall span { color: var(--accent); }
+
+/* キー入力の旅 */
+.path { display: grid; gap: 4px; }
+.band { border: 1px dashed var(--line); border-radius: 10px; padding: 8px; position: relative; }
+.band-l { font: 700 0.66rem 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .1em; display: block; margin-bottom: 6px; }
+.band.hw .band-l { color: var(--c-hw); }
+.band.user .band-l { color: var(--c-user); }
+.band.kernel .band-l { color: var(--c-kernel); }
+.band.kernel { background: color-mix(in srgb, var(--c-kernel) 5%, transparent); }
+.band.user { background: color-mix(in srgb, var(--c-user) 5%, transparent); }
+.kgrid { display: grid; grid-template-columns: 1fr 200px; gap: 8px; align-items: center; }
+.kcol { display: grid; gap: 2px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.node {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: 0.86rem;
+  transition: border-color .2s, box-shadow .2s, opacity .2s;
+}
+.node small { display: block; color: var(--fg-2); font-size: 0.74rem; line-height: 1.5; }
+.node.on { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.path.playing .node:not(.on) { opacity: .45; }
+.arr { text-align: center; color: var(--fg-2); font-size: 0.8rem; line-height: 1.2; }
+.scn { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+
+@media (max-width: 640px) {
+  .kgrid { grid-template-columns: 1fr; }
+  .row2 { grid-template-columns: 1fr; }
+  .pipefig { grid-template-columns: 1fr; }
+  .pgs { grid-template-columns: 1fr; }
+  .life { grid-template-columns: 1fr 1fr; }
+  .simrow, .simhead { grid-template-columns: 74px 1fr 56px 56px; gap: 6px; }
+  .sigcard dl { grid-template-columns: 6em 1fr; }
+}
+@media (max-width: 420px) {
+  .life { grid-template-columns: 1fr; }
+}
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="Linux 端末・プロセス・シグナル 全体像">
+<meta property="og:description" content="ターミナル・擬似端末・シェル・カーネルがどうつながり、キー入力や Ctrl+C がプロセスに届くまでを 1 枚でたどる入口ページ。">
+<meta property="og:url" content="https://memo.taka1156.site/linux-process-signal.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>Linux 端末・プロセス・シグナル</h1>
+  <p class="subtitle">全体像 — キー入力と Ctrl+C がプロセスに届くまで</p>
+  <nav class="series" aria-label="このシリーズのページ"><a href="linux-process-signal.html" aria-current="page">全体像</a><a href="linux-terminal.html">端末とシェル</a><a href="linux-process.html">プロセス</a><a href="linux-signal.html">シグナルとジョブ制御</a></nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>ターミナルは「画面とキーボード」、シェルは「コマンドを起動するプログラム」。どちらも普通のプロセスで、間をつなぐ<b>端末デバイス（擬似端末）とラインディシプリンはカーネルの中</b>にある。</li>
+      <li>プロセスは <code>fork</code>（自分を複製）→ <code>exec</code>（中身を別のプログラムに入れ替え）→ <code>wait</code>（親が終了を回収）で生まれて消える。</li>
+      <li>シグナルはカーネルがプロセスに付ける「割り込みの印」。Ctrl+C も <code>kill</code> も、カーネルが印を付け、プロセスが次に動くときに既定動作・ハンドラ・無視のどれかで処理される。</li>
+    </ul>
+  </div>
+
+  <!-- ===================== 全体像 ===================== -->
+  <h2 id="overview">全体像: OS の層とシステムコール</h2>
+  <p>Linux は大きく<b>ユーザー空間</b>と<b>カーネル空間</b>に分かれる。アプリはハードウェアを直接触れず、必ず<b>システムコール (system call)</b> でカーネルに頼む。シェルもターミナルも、ユーザー空間で動くただのプロセス。</p>
+  <div class="layers">
+    <div class="layer user">
+      <b>ユーザー空間 (user space)</b> <span class="muted">— 普通のプロセス。互いのメモリは見えない</span>
+      <div class="items"><span>ターミナルエミュレータ</span><span>シェル (bash / zsh)</span><span>ls・vim・python …</span><span>sshd</span><span>systemd (PID 1)</span></div>
+    </div>
+    <div class="syscall">↕ システムコール: <span>read</span> <span>write</span> <span>fork</span> <span>execve</span> <span>wait4</span> <span>kill</span> <span>ioctl</span> …</div>
+    <div class="layer kernel">
+      <b>カーネル (kernel)</b> <span class="muted">— 全プロセスの管理者。特権モードで動く</span>
+      <div class="items"><span>プロセス管理・スケジューラ</span><span>シグナル配送</span><span>メモリ管理</span><span>VFS・ファイル</span><span>TTY / PTY・ラインディシプリン</span><span>デバイスドライバ</span><span>ネットワーク</span></div>
+    </div>
+    <div class="syscall">↕ 割り込み・I/O</div>
+    <div class="layer hw">
+      <b>ハードウェア</b>
+      <div class="items"><span>CPU</span><span>メモリ</span><span>ディスク</span><span>キーボード・画面</span><span>NIC</span></div>
+    </div>
+  </div>
+  <p class="muted">システムコールの入口と出口は、カーネルがシグナルを処理する大事なタイミングでもある（後述）。</p>
+
+
+  <!-- ===================== キー入力の旅 ===================== -->
+  <h2 id="path">キー入力の旅（ステップで追う）</h2>
+  <p>シナリオを選んで「次へ」を押すと、そのとき関わる部品が光る。</p>
+  <div class="scn" id="scn">
+    <button class="btn on" data-s="ls">ls ⏎ を打つ</button>
+    <button class="btn" data-s="intr">sleep 中に Ctrl+C</button>
+    <button class="btn" data-s="hup">ウィンドウを閉じる</button>
+  </div>
+  <div class="path" id="pathfig">
+    <div class="band hw"><span class="band-l">HARDWARE</span>
+      <div class="node" data-n="hw"><b>キーボード / 画面</b><small>キー入力は GUI（X11 / Wayland）経由でターミナルへ届く</small></div>
+    </div>
+    <div class="arr">↕</div>
+    <div class="band user"><span class="band-l">USER SPACE</span>
+      <div class="node" data-n="term"><b>ターミナルエミュレータ</b><small>キー → バイト列、バイト列 → 描画。PTY マスターの fd を持つ</small></div>
+    </div>
+    <div class="arr">↕ write / read</div>
+    <div class="band kernel"><span class="band-l">KERNEL</span>
+      <div class="kgrid">
+        <div class="kcol">
+          <div class="node" data-n="master"><b>PTY マスター</b></div>
+          <div class="arr">↕</div>
+          <div class="node" data-n="ld"><b>ラインディシプリン (n_tty)</b><small>行編集・エコー・改行変換・特殊文字 → シグナル</small></div>
+          <div class="arr">↕</div>
+          <div class="node" data-n="slave"><b>PTY スレーブ /dev/pts/3</b></div>
+        </div>
+        <div class="node" data-n="sig"><b>プロセス管理・シグナル</b><small>対象を選んで処理待ち (pending) に印を付け、動くときに処理させる</small></div>
+      </div>
+    </div>
+    <div class="arr">↕ read / write（fd 0, 1, 2）</div>
+    <div class="band user"><span class="band-l">USER SPACE</span>
+      <div class="row2">
+        <div class="node" data-n="shell"><b>シェル bash</b><small>セッションリーダー。プロンプトを出し、行を読み、コマンドを起動する</small></div>
+        <div class="node" data-n="child"><b>コマンド ls / sleep</b><small>bash の子。同じ /dev/pts/3 を stdin/stdout/stderr として受け継ぐ</small></div>
+      </div>
+    </div>
+  </div>
+  <div class="ctrl">
+    <button class="btn" id="p-prev">← 前へ</button>
+    <button class="btn primary" id="p-next">次へ →</button>
+    <button class="btn" id="p-reset">最初から</button>
+  </div>
+  <div class="stepmsg" id="p-msg"></div>
+
+  <p class="muted">それぞれの部品の詳細は、<a href="linux-terminal.html">端末とシェル</a>・<a href="linux-process.html">プロセス</a>・<a href="linux-signal.html">シグナルとジョブ制御</a>で。</p>
+
+  <h2 id="map">このシリーズの地図</h2>
+  <p>同じ仕組みを 3 つの面から詳しく見る。上の「キー入力の旅」で全体の流れをつかんでから、気になるところへ進む。</p>
+  <div class="map">
+    <a href="linux-terminal.html"><div class="card"><b>端末とシェル</b>
+      <p>キーが届くまでの道のりを担う部品</p>
+      <ul><li>ターミナル・擬似端末・ラインディシプリン・シェルの役割</li><li>カノニカルモードと raw モード、特殊キー</li><li>エスケープシーケンス、SSH・端末がない場合</li></ul></div></a>
+    <a href="linux-process.html"><div class="card"><b>プロセス</b>
+      <p>コマンドが動く単位と、その生まれ方・消え方</p>
+      <ul><li>プロセスが持つ情報</li><li>fork → exec → wait、ゾンビと孤児</li><li>状態 (R/S/D/T/Z)、fd とパイプ</li></ul></div></a>
+    <a href="linux-signal.html"><div class="card"><b>シグナルとジョブ制御</b>
+      <p>プロセスへの割り込みと、端末からの操作</p>
+      <ul><li>発生 → 処理待ち → 配送 → 処理</li><li>ハンドラ、主なシグナル図鑑</li><li>セッション・プロセスグループ・Ctrl+Z / fg / bg</li></ul></div></a>
+  </div>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+/* ---------- キー入力の旅 ---------- */
+(() => {
+  const S = {
+    ls: [
+      { on: ['hw', 'term'], t: 'l と s を押す。ターミナルエミュレータが GUI 経由でキーを受け取り、バイト列 6c 73 にする。' },
+      { on: ['term', 'master'], t: 'ターミナルはそのバイトを PTY マスターに write する。まだ誰も「コマンド」とは思っていない。' },
+      { on: ['ld', 'slave', 'shell'], t: '対話 bash は readline（行編集ライブラリ）で端末を非カノニカル・エコーなしに設定している。ラインディシプリンは行をためず、1 バイトずつスレーブ経由で bash に渡す。' },
+      { on: ['shell', 'slave', 'ld', 'master', 'term'], t: 'bash（readline）が受け取った文字を自分でスレーブへ書き戻し、ターミナルが画面に描く。打った文字が見えるのはこのため。Backspace や ↑ の履歴も bash 自身が処理している。' },
+      { on: ['shell'], t: 'Enter（\\r）が届くと readline が行の確定と判断する。bash は端末の設定を元に戻して（カノニカル・エコーあり）から "ls" を解釈する。' },
+      { on: ['shell', 'child', 'sig'], t: 'bash が fork → exec で ls を起動（カーネルのプロセス管理）。ls は bash の fd を受け継ぐので、stdout も同じ /dev/pts/3。bash は wait で終わりを待つ。' },
+      { on: ['child', 'slave', 'ld', 'master', 'term', 'hw'], t: 'ls の出力がスレーブ → ラインディシプリン（\\n を \\r\\n に変換）→ マスター → ターミナルへ流れ、画面に描かれる。ls が終わると bash は次のプロンプトを出す。' }
+    ],
+    intr: [
+      { on: ['hw', 'term', 'master'], t: 'sleep 100 の実行中に Ctrl+C。ターミナルは 0x03 という 1 バイトをマスターに書くだけ。' },
+      { on: ['ld'], t: 'ラインディシプリンが 0x03 を「割り込み文字 (INTR)」と認識する（stty の isig が有効なとき）。0x03 は誰にも読ませずに捨てる。' },
+      { on: ['ld', 'sig', 'child'], t: 'カーネルが端末のフォアグラウンドプロセスグループ全員に SIGINT を送る。いま前面にいるのは sleep のグループ。bash は別グループなので届かない。' },
+      { on: ['child', 'sig', 'shell'], t: 'sleep は SIGINT の既定動作で終了。カーネルが親の bash に SIGCHLD を送り、waitpid で待っていた bash が起きて終了ステータス（130 = 128+2）を受け取る。' },
+      { on: ['shell', 'slave', 'term'], t: 'bash が端末のフォアグラウンドを自分のグループに戻し（tcsetpgrp）、プロンプトを表示する。' }
+    ],
+    hup: [
+      { on: ['hw', 'term'], t: 'ウィンドウを閉じる。ターミナルエミュレータが終了し、持っていた PTY マスターの fd が閉じられる。' },
+      { on: ['master', 'slave', 'sig'], t: 'マスターがなくなると、カーネルは端末が切れた (hangup) と判断する。以後スレーブの read は 0 バイト（EOF）を返し、write はエラー（EIO）になる。' },
+      { on: ['sig', 'shell'], t: 'カーネルがセッションリーダー（bash）に SIGHUP を送る。' },
+      { on: ['shell', 'child', 'sig'], t: 'bash は自分の管理するジョブ全部に SIGHUP を転送してから終了する。既定動作で子も終了する。nohup で起動したもの（SIGHUP を無視）や disown したものは生き残る。' }
+    ]
+  };
+  const fig = document.getElementById('pathfig');
+  const msg = document.getElementById('p-msg');
+  const prev = document.getElementById('p-prev');
+  const next = document.getElementById('p-next');
+  let cur = 'ls', i = -1;
+  function render() {
+    const steps = S[cur];
+    fig.classList.toggle('playing', i >= 0);
+    fig.querySelectorAll('.node').forEach(n => n.classList.toggle('on', i >= 0 && steps[i].on.includes(n.dataset.n)));
+    msg.innerHTML = i < 0
+      ? '<span class="n">READY</span>「次へ」で 1 ステップずつ進む。'
+      : '<span class="n">STEP ' + (i + 1) + ' / ' + steps.length + '</span>' + steps[i].t;
+    prev.disabled = i < 0;
+    next.disabled = i >= steps.length - 1;
+  }
+  next.onclick = () => { i++; render(); };
+  prev.onclick = () => { i--; render(); };
+  document.getElementById('p-reset').onclick = () => { i = -1; render(); };
+  document.getElementById('scn').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    document.querySelectorAll('#scn .btn').forEach(x => x.classList.toggle('on', x === b));
+    cur = b.dataset.s; i = 0; render();
+  });
+  render();
+})();
+
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "対話シェルで `sleep 100 | cat` を実行中に Ctrl+C を押した。SIGINT を受け取るのは？",
+    "choices": [
+      "パイプラインの最後の cat だけ",
+      "シェル (bash) だけで、bash が子を止める",
+      "フォアグラウンドのプロセスグループに属する sleep と cat の両方",
+      "セッション内の全プロセス"
+    ],
+    "answer": 2,
+    "explain": "ラインディシプリンは端末のフォアグラウンドプロセスグループ全員に SIGINT を送る。パイプラインは 1 グループにまとめられ、bash は別グループなので受け取らない。",
+    "ref": "#path"
+  },
+  {
+    "q": "SSH で接続した先で sleep 100 を実行中、手元がどのターミナルアプリでも Ctrl+C で止められるのはなぜ？",
+    "choices": [
+      "0x03 をシグナルに変えるのがサーバー側のカーネル（ラインディシプリン）で、ターミナルアプリはバイトを送るだけだから",
+      "どのターミナルアプリも kill コマンドを内部で実行する決まりになっているから",
+      "ssh クライアントが Ctrl+C を検知してサーバーのプロセスを強制終了するから",
+      "sleep が 0x03 を読み取って自分で終了するから"
+    ],
+    "answer": 0,
+    "explain": "ターミナルは 0x03 を書くだけ。sshd が持つ擬似端末のラインディシプリンがそれを SIGINT に変え、フォアグラウンドのグループに送る。",
+    "ref": "#path"
+  },
+  {
+    "q": "bash のプロンプトで打った文字が画面に表示されるのは、主に何が書き戻しているから？",
+    "choices": [
+      "ラインディシプリンのエコー機能",
+      "bash の行編集（readline）が自分で書き戻している",
+      "ターミナルアプリがキー入力をそのまま画面に描いている",
+      "X11 / Wayland が入力欄を描いている"
+    ],
+    "answer": 1,
+    "explain": "対話 bash は readline で端末を非カノニカル・エコーなしにしている。cat のようにカノニカルモードで読むプログラムのときは、ラインディシプリンがエコーする。",
+    "ref": "#path"
+  }
+]
+</script>
+</body>
+</html>
