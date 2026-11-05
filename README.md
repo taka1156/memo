@@ -3,11 +3,12 @@
 Claude に作ってもらった解説ページ (HTML) を貯めておくリポジトリ。
 仕組み（`scripts/`・スキル・ワークフロー・テスト・`branding/` など）は [memo-kit](https://github.com/taka1156/memo-kit) と同じ構成で、このリポジトリはその実運用（ドッグフーディング）を兼ねています。
 
-- トップページ: `docs/index.html`（メモ一覧・検索・タグ絞り込み・ランダムクイズ）
-- クイズページ: `docs/quiz.html`（ランダム 10 問・カテゴリ別 10 問。最後にスコアと正答一覧、本文へのリンク）
+- トップページ: `src/index.html`（メモ一覧・検索・タグ絞り込み・ランダムクイズ）
+- クイズページ: `src/quiz.html`（ランダム 10 問・カテゴリ別 10 問。最後にスコアと正答一覧、本文へのリンク）
 - 設定ページ: https://memo.taka1156.site/settings.html  （トップページのいちばん下の「設定」から開ける。アクセント色を試して、Actions の `Set accent color` で全ページに固定する。手順は memo-kit の README の「アクセント色を変える」）
 - 公開 URL: https://memo.taka1156.site/  
-  （`docs/CNAME` の独自ドメイン。OGP の URL もここから自動で決まります）
+  （`src/CNAME` の独自ドメイン。OGP の URL もここから自動で決まります）
+- 公開のしくみ: `main` には原本（HTML・スクリプト）だけを置き、push すると GitHub Actions（Deploy MEMO）が `memo.py build` で `dist/` に公開用のサイト一式を作って **dist ブランチ**にコミットします。GitHub Pages の公開元は dist ブランチです（生成物が `main` に混ざらない）
 - 設定: `memo.config.json`（サイト名・説明・リポジトリ・ブランチ・タイムゾーン・アクセント色とアイコン/OGP 画像の文字。コードやスキルには直接書かない）
 - アイコン・OGP 画像: `memo.config.json` の `branding`（`icon: "lines"` で今の横線のアイコン）から `branding/render.py` で作る。設定ページから色を固定すると、Actions が画像も同じ色で作り直す
 
@@ -21,7 +22,7 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 | 「〜の図解ページを作って」 | `memo-style` | デザイン規約とテンプレートに沿って新規作成 |
 | 「さっきの説明を MEMO にして」 | `memo-from-chat` | 会話内容をページ化して、ファクトチェックを通して登録まで |
 | 「〇〇をファクトチェックして」 | `memo-factcheck` | サブエージェントで独立に事実確認 → 指摘を報告 → 確認後に修正・push |
-| 「前に〜のメモ書いたよね」「〜のメモのここを直して」 | `memo-reference` | Markdown 版（`docs/md/`）で探して読む／直すときは HTML の該当箇所だけ編集 → 変えた箇所をファクトチェック → push |
+| 「前に〜のメモ書いたよね」「〜のメモのここを直して」 | `memo-reference` | Markdown 版（build で作る `dist/md/`）で探して読む／直すときは HTML の該当箇所だけ編集 → 変えた箇所をファクトチェック → push |
 | 「memo.py を直して」「コマンドを追加して」「リファクタして」 | `memo-maintain` | テストを流す → 変更 → 出力の前後比較・テスト → memo-detail.md を更新 → push |
 
 新しい会話では最初に「taka1156/memo リポジトリで作業して」と伝えるとスキルが効きます。
@@ -29,7 +30,7 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 ## アプリ（claude.ai）から使うとき
 
 アプリ側に置くのは「このリポジトリを取ってきて、ここのスキルに従う」だけの入口スキルです。手順やデザイン規約はすべてこのリポジトリが唯一の情報源で、アプリ側には書きません。
-入口スキルの中身は `entry-skill/SKILL.md` にあり、`memo.py build` が `memo.config.json` のリポジトリ名とブランチから作ります。設定を変えたらアプリ側に貼り直してください。
+入口スキルの中身は `memo.py build` が `memo.config.json` のリポジトリ名とブランチから `dist/entry-skill/SKILL.md` に作ります（dist ブランチと公開サイトの `/entry-skill/SKILL.md` にもあります）。設定を変えたらアプリ側に貼り直してください。
 
 入口スキルは依頼に応じて次のように振り分けます（上の表と同じ対応で、違いは保存のタイミングだけ）。
 
@@ -59,9 +60,9 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 
 | ファイル | 内容 |
 | --- | --- |
-| `docs/` 直下のメモ・`docs/md/`・`memos.json`・`quizzes.json`・`llms.txt` | メモ本体と生成物 |
-| `docs/CNAME` | 独自ドメイン（memo.taka1156.site） |
-| `docs/assets/` の画像 | このサイトのアイコン・OGP 画像 |
+| `src/` 直下のメモ | メモ本体（原本。生成物は build が `dist/` に作り、dist ブランチで公開する） |
+| `src/CNAME` | 独自ドメイン（memo.taka1156.site） |
+| `src/assets/` の画像 | このサイトのアイコン・OGP 画像 |
 | `branding/source.png` | アイコンの元画像 |
 | `memo.config.json` の値 | このサイトの設定 |
 | `README.md` | この説明 |

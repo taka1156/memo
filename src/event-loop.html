@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JS のイベントループと非同期</title>
+<meta name="description" content="コールスタック・タスクキュー・マイクロタスクキューの関係を、実行順をステップ実行で追いながら図解。await の正体、描画との関係、長いタスクの分け方、Node.js との違いまで。">
+<meta name="memo:tags" content="JavaScript, フロントエンド">
+<meta name="memo:date" content="2026-11-04">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-a: #c2410c;
+  --c-b: #15803d;
+  --c-c: #7c3aed;
+  --c-d: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-a: #fb923c;
+    --c-b: #4ade80;
+    --c-c: #c4b5fd;
+    --c-d: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.dots { margin: 6px 0 6px 1.3em; }
+ul.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.grid2 > .card + .card, .grid3 > .card + .card { margin-top: 0; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.big { font-size: 1.05rem; font-weight: 700; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+input[type="text"], textarea, input[type="number"] {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: 500 0.85rem 'JetBrains Mono', monospace;
+  min-width: 0;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.myth { margin-bottom: 10px; }
+.myth p { margin: 4px 0; }
+
+svg.fig { width: 100%; height: auto; display: block; }
+svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); }
+svg.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+svg.fig .sub { fill: var(--fg-2); }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.loop { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; counter-reset: s; }
+.loop > div { background: var(--chip); border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; position: relative; }
+.loop > div::before { counter-increment: s; content: counter(s); font: 700 0.7rem 'JetBrains Mono', monospace; color: var(--accent); display: block; }
+.loop b { display: block; font-size: 0.88rem; }
+.stepper { display: grid; gap: 12px; }
+.code { font: 500 0.8rem/1.7 'JetBrains Mono', monospace; background: var(--chip); border-radius: 8px; padding: 8px 0; overflow-x: auto; }
+.code div { padding: 0 12px; white-space: pre; border-left: 3px solid transparent; }
+.code div.cur { background: color-mix(in srgb, var(--accent) 16%, transparent); border-left-color: var(--accent); }
+.areas { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.area { border: 1px solid var(--line); border-radius: 8px; padding: 8px; min-height: 86px; }
+.area h4 { font: 700 0.7rem 'JetBrains Mono', monospace; letter-spacing: .06em; margin-bottom: 6px; }
+.area.stack h4 { color: var(--accent); }
+.area.web h4 { color: var(--c-d); }
+.area.task h4 { color: var(--c-a); }
+.area.micro h4 { color: var(--c-c); }
+.area.out h4 { color: var(--c-b); }
+.item { font: 500 0.75rem 'JetBrains Mono', monospace; background: var(--chip); border-radius: 6px; padding: 3px 7px; margin-bottom: 4px; }
+.area.stack .items { display: flex; flex-direction: column-reverse; }
+.out .items { display: flex; gap: 6px; flex-wrap: wrap; }
+.out .item { font-weight: 700; color: var(--c-b); }
+.ctrl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.ctrl .pos { font: 600 0.78rem 'JetBrains Mono', monospace; color: var(--fg-2); margin-left: auto; }
+.note { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border-radius: 8px; padding: 8px 12px; font-size: 0.85rem; min-height: 3.2em; }
+.blockdemo { display: grid; gap: 10px; }
+.meter { display: flex; align-items: center; gap: 10px; }
+.ball { width: 100%; height: 22px; background: var(--chip); border-radius: 999px; position: relative; overflow: hidden; }
+.ball span { position: absolute; top: 3px; left: 0; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); }
+.fps { font: 700 0.8rem 'JetBrains Mono', monospace; min-width: 7em; text-align: right; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>JS のイベントループと非同期</h1>
+  <p class="subtitle">シングルスレッドの JS が「同時に」いろいろできる仕組み</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>JS の実行は<b>1 本のスレッド</b>。待ち時間のかかる処理（タイマー・通信）はブラウザや Node.js 側に任せ、終わったらコールバックが<b>キュー</b>に並ぶ。</li>
+      <li>ループの 1 周は「<b>タスクを 1 つ</b> → <b>マイクロタスクを全部</b> → （ブラウザなら）<b>描画</b>」。Promise の <code>then</code> や <code>await</code> の続きはマイクロタスク、<code>setTimeout</code> はタスク。</li>
+      <li>1 つのタスクが長いと、その間は描画もクリック処理も止まる。重い処理は<b>分割して譲る</b>か <b>Worker</b> に逃がす。</li>
+    </ul>
+  </div>
+
+  <h2 id="parts">登場人物</h2>
+  <div class="grid3">
+    <div class="card"><span class="label">CALL STACK</span><p class="big">コールスタック</p><p class="muted">いま実行中の関数の積み重ね。ここが空にならないと、次のものは動けない。</p></div>
+    <div class="card"><span class="label" style="color:var(--c-d)">WEB API / RUNTIME</span><p class="big">ブラウザ・Node.js 側</p><p class="muted">タイマー、fetch、ファイル I/O などを JS の外で待つ。終わったらコールバックをキューへ。</p></div>
+    <div class="card"><span class="label" style="color:var(--c-a)">TASK QUEUE</span><p class="big">タスクキュー</p><p class="muted"><code>setTimeout</code>、イベントハンドラ、メッセージ受信など。1 周に 1 つずつ取り出す。</p></div>
+    <div class="card"><span class="label" style="color:var(--c-c)">MICROTASK QUEUE</span><p class="big">マイクロタスクキュー</p><p class="muted"><code>Promise.then</code>、<code>await</code> の続き、<code>queueMicrotask</code>。タスクの直後に<b>空になるまで</b>全部実行。</p></div>
+  </div>
+
+  <h2 id="loop">ループの 1 周</h2>
+  <div class="loop">
+    <div><b>タスクを 1 つ実行</b>最初のスクリプト全体も 1 つのタスク</div>
+    <div><b>マイクロタスクを全部実行</b>途中で追加された分も含めて空になるまで</div>
+    <div><b>requestAnimationFrame</b>描画する周だけ。画面更新の直前に呼ばれる</div>
+    <div><b>スタイル計算・レイアウト・ペイント</b>ブラウザが必要と判断したとき（通常 60Hz なら約 16.7ms ごと）</div>
+    <div><b>次のタスクへ</b>キューが空なら、何か来るまで待つ</div>
+  </div>
+  <p class="muted">描画は毎周ではなく、画面の更新タイミングに合わせて行われる。</p>
+
+  <h2 id="order">ステップ実行で順番を追う</h2>
+  <p>次のコードの出力順を予想してから、ステップを進めてみる。</p>
+  <div class="card stepper">
+    <div class="code" id="ev-code"></div>
+    <div class="ctrl">
+      <button class="btn" id="ev-prev">← 戻る</button>
+      <button class="btn primary" id="ev-next">次へ →</button>
+      <button class="btn" id="ev-reset">最初から</button>
+      <span class="pos" id="ev-pos"></span>
+    </div>
+    <div class="note" id="ev-note"></div>
+    <div class="areas">
+      <div class="area stack"><h4>CALL STACK</h4><div class="items" id="ev-stack"></div></div>
+      <div class="area web"><h4>WEB API</h4><div class="items" id="ev-web"></div></div>
+      <div class="area task"><h4>TASK QUEUE</h4><div class="items" id="ev-task"></div></div>
+      <div class="area micro"><h4>MICROTASK</h4><div class="items" id="ev-micro"></div></div>
+      <div class="area out"><h4>CONSOLE</h4><div class="items" id="ev-out"></div></div>
+    </div>
+  </div>
+  <p>結果は <code>A D F C E B</code>。<code>setTimeout(…, 0)</code> が最後になるのは、0ms でも「次以降のタスク」になり、その前に今のタスクとマイクロタスクがすべて終わるから。</p>
+
+  <h2 id="await">await の正体</h2>
+  <p><code>async</code> 関数は Promise を返す関数、<code>await</code> は「残りを <code>then</code> に登録して、いったん関数から抜ける」の書き換えと考えるとよい。</p>
+  <div class="grid2">
+    <pre><code>async function load() {
+  console.log(1);
+  const r = await fetch(url);
+  console.log(2, r.status);
+}</code></pre>
+    <pre><code>function load() {
+  console.log(1);
+  return fetch(url).then(r =&gt; {
+    console.log(2, r.status);
+  });
+}</code></pre>
+  </div>
+  <ul class="dots">
+    <li><code>await</code> の前までは<b>同期的に</b>実行される（上の例の <code>D</code>）。</li>
+    <li><code>await</code> で止まっている間、スレッドは空いていて他のタスクが動ける。<b>ブロックではなく中断</b>。</li>
+    <li>直列に <code>await</code> を並べると待ち時間が足し算になる。独立した処理は <code>Promise.all([a(), b()])</code> で同時に待つ。</li>
+  </ul>
+
+  <h2 id="block">長いタスクは画面を止める</h2>
+  <p>同じ 1.5 秒分の計算を、一気にやる場合と、細かく分けて間に譲る場合。ボールの動き（requestAnimationFrame で動かしている）を見比べる。</p>
+  <div class="card blockdemo">
+    <div class="meter"><div class="ball"><span id="ball"></span></div><span class="fps" id="fps">— fps</span></div>
+    <div class="ctrl">
+      <button class="btn" id="b-block">一気に計算（1.5 秒）</button>
+      <button class="btn" id="b-chunk">分割して計算（1.5 秒分）</button>
+    </div>
+    <div class="muted" id="b-msg">ボタンを押すと計算を始める</div>
+  </div>
+  <ul class="dots">
+    <li>50ms を超えるタスクは「長いタスク」と呼ばれ、クリックへの反応（INP）を悪化させる。</li>
+    <li>分割の方法: 対応ブラウザでは <code>await scheduler.yield()</code>、なければ <code>await new Promise(r =&gt; setTimeout(r, 0))</code> でタスクを区切る。</li>
+    <li><b>マイクロタスクでは譲れない</b>。<code>await Promise.resolve()</code> を挟んでも同じタスクの続きとして空になるまで実行されるので、描画の機会は来ない。</li>
+    <li>本当に重い計算（画像処理・パースなど）は <b>Web Worker</b> へ。別スレッドで動き、結果は <code>postMessage</code> で受け取る（受け取りはタスク）。</li>
+  </ul>
+  <p class="related"><a href="web-performance.html">Core Web Vitals</a><a href="browser-rendering.html">ブラウザのレンダリング</a></p>
+
+  <h2 id="node">Node.js のイベントループ</h2>
+  <p>考え方は同じだが、タスク側が<b>フェーズ</b>に分かれている（libuv）。</p>
+  <div class="flow">
+    <span class="box">timers<small>setTimeout / setInterval</small></span><span class="arrow">→</span>
+    <span class="box">pending<small>持ち越された I/O コールバック</small></span><span class="arrow">→</span>
+    <span class="box">poll<small>I/O の完了を受け取る</small></span><span class="arrow">→</span>
+    <span class="box">check<small>setImmediate</small></span><span class="arrow">→</span>
+    <span class="box">close<small>close イベント</small></span><span class="arrow">↺</span>
+  </div>
+  <p class="muted">※内部用の idle / prepare フェーズは省略</p>
+  <ul class="dots">
+    <li>各コールバックの後に、<code>process.nextTick</code> のキュー → Promise のマイクロタスクの順で空にする。CommonJS では<b>nextTick が Promise より先</b>。ただし ES Modules ではモジュール本体がマイクロタスクとして動いているため、同期処理の中で登録した Promise / <code>queueMicrotask</code> の方が先になる。</li>
+    <li>メインのスクリプトから呼んだ <code>setTimeout(fn, 0)</code> と <code>setImmediate</code> の順は不定。I/O コールバックの中からなら <code>setImmediate</code> が必ず先。</li>
+    <li>同期 API（<code>fs.readFileSync</code> など）や重い JSON 処理は、サーバー全体のリクエスト処理を止める。</li>
+  </ul>
+  <p class="related"><a href="js-runtimes.html">JS ランタイム比較</a></p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✗</span> <code>setTimeout(fn, 0)</code> はすぐに実行される</p><p><span class="ok">✓</span> 早くても「今のタスクとマイクロタスクが全部終わった後」。入れ子が深くなると最低 4ms に切り上げられ、バックグラウンドのタブではさらに間引かれる。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> async 関数にすれば別スレッドで並列に動く</p><p><span class="ok">✓</span> 同じスレッドで、待ち時間の間に他の処理を進めるだけ。CPU を使う計算は速くならない（Worker が必要）。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> DOM を書き換えた直後に画面へ反映されている</p><p><span class="ok">✓</span> 画面に出るのは、今のタスクとマイクロタスクが終わった後の描画タイミング。ただし直後に <code>offsetHeight</code> などを読むと、レイアウトだけはその場で強制的に計算される。</p></div>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+const CODE = [
+  "console.log('A');",
+  "setTimeout(() => console.log('B'), 0);",
+  "Promise.resolve().then(() => console.log('C'));",
+  "(async () => {",
+  "  console.log('D');",
+  "  await null;",
+  "  console.log('E');",
+  "})();",
+  "console.log('F');"
+];
+const STEPS = [
+  { line: -1, stack: [], web: [], task: ['script'], micro: [], out: [], note: 'スクリプト全体が最初の「タスク」としてキューに入っている。' },
+  { line: 0, stack: ['script', "log('A')"], web: [], task: [], micro: [], out: ['A'], note: '同期処理はその場で実行される。A を出力。' },
+  { line: 1, stack: ['script', 'setTimeout'], web: ['timer 0ms → B'], task: [], micro: [], out: ['A'], note: 'setTimeout はタイマーをブラウザに預けてすぐ戻る。JS は待たない。' },
+  { line: 2, stack: ['script', 'then(...)'], web: [], task: ['() => log(B)'], micro: ['() => log(C)'], out: ['A'], note: 'すでに解決済みの Promise の then は、マイクロタスクに入る。0ms のタイマーも満了し、コールバックがタスクキューへ。' },
+  { line: 4, stack: ['script', 'async fn', "log('D')"], web: [], task: ['() => log(B)'], micro: ['() => log(C)'], out: ['A', 'D'], note: 'async 関数も、最初の await までは普通の関数と同じく同期的に動く。D を出力。' },
+  { line: 5, stack: ['script'], web: [], task: ['() => log(B)'], micro: ['() => log(C)', 'async 続き (E)'], out: ['A', 'D'], note: 'await で関数を中断。「続き」はマイクロタスクとして並び、呼び出し元に戻る。' },
+  { line: 8, stack: ['script', "log('F')"], web: [], task: ['() => log(B)'], micro: ['() => log(C)', 'async 続き (E)'], out: ['A', 'D', 'F'], note: '残りの同期処理。F を出力。' },
+  { line: -1, stack: [], web: [], task: ['() => log(B)'], micro: ['() => log(C)', 'async 続き (E)'], out: ['A', 'D', 'F'], note: '最初のタスク（スクリプト）が終わり、スタックが空に。ここでマイクロタスクを全部実行する。' },
+  { line: 2, stack: ['() => log(C)'], web: [], task: ['() => log(B)'], micro: ['async 続き (E)'], out: ['A', 'D', 'F', 'C'], note: '先に並んだ C から。' },
+  { line: 6, stack: ['async 続き'], web: [], task: ['() => log(B)'], micro: [], out: ['A', 'D', 'F', 'C', 'E'], note: '続けて await の続き。マイクロタスクキューが空になった。' },
+  { line: -1, stack: [], web: [], task: ['() => log(B)'], micro: [], out: ['A', 'D', 'F', 'C', 'E'], note: '（ブラウザなら）ここで描画の機会。そのあと次のタスクを 1 つ取り出す。' },
+  { line: 1, stack: ['() => log(B)'], web: [], task: [], micro: [], out: ['A', 'D', 'F', 'C', 'E', 'B'], note: 'やっとタイマーのコールバック。結果は A D F C E B。' }
+];
+let si = 0;
+const $ = id => document.getElementById(id);
+const codeEl = $('ev-code');
+CODE.forEach(l => { const d = document.createElement('div'); d.textContent = l; codeEl.appendChild(d); });
+function fill(id, arr) {
+  const el = $(id); el.innerHTML = '';
+  arr.forEach(t => { const d = document.createElement('div'); d.className = 'item'; d.textContent = t; el.appendChild(d); });
+}
+function render() {
+  const s = STEPS[si];
+  [...codeEl.children].forEach((d, i) => d.classList.toggle('cur', i === s.line));
+  fill('ev-stack', s.stack); fill('ev-web', s.web); fill('ev-task', s.task); fill('ev-micro', s.micro); fill('ev-out', s.out);
+  $('ev-note').textContent = s.note;
+  $('ev-pos').textContent = (si + 1) + ' / ' + STEPS.length;
+  $('ev-prev').disabled = si === 0;
+  $('ev-next').disabled = si === STEPS.length - 1;
+}
+$('ev-next').onclick = () => { if (si < STEPS.length - 1) { si++; render(); } };
+$('ev-prev').onclick = () => { if (si > 0) { si--; render(); } };
+$('ev-reset').onclick = () => { si = 0; render(); };
+render();
+
+const ball = $('ball'), fpsEl = $('fps'), msg = $('b-msg');
+let x = 0, dir = 1, last = performance.now(), frames = 0, acc = 0;
+function tick(now) {
+  const dt = now - last; last = now;
+  const w = ball.parentElement.clientWidth - 22;
+  x += dir * dt * 0.25;
+  if (x > w) { x = w; dir = -1; } if (x < 0) { x = 0; dir = 1; }
+  ball.style.transform = 'translateX(' + x + 'px)';
+  frames++; acc += dt;
+  if (acc > 500) { fpsEl.textContent = Math.round(frames * 1000 / acc) + ' fps'; frames = 0; acc = 0; }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+function busy(ms) { const end = performance.now() + ms; while (performance.now() < end) {} }
+const bBlock = $('b-block'), bChunk = $('b-chunk');
+function lock(on) { bBlock.disabled = on; bChunk.disabled = on; }
+bBlock.onclick = () => {
+  lock(true); msg.textContent = '計算中…（この間は画面が止まる）';
+  setTimeout(() => {
+    const t0 = performance.now(); busy(1500);
+    msg.textContent = '完了: 1 つのタスクで ' + Math.round(performance.now() - t0) + 'ms。その間ボールは止まっていた。';
+    lock(false);
+  }, 50);
+};
+bChunk.onclick = async () => {
+  lock(true); msg.textContent = '計算中…（10ms ごとに譲っている）';
+  const yieldNow = () => (window.scheduler && scheduler.yield) ? scheduler.yield() : new Promise(r => setTimeout(r, 0));
+  let n = 0;
+  for (let done = 0; done < 1500; done += 10) { busy(10); n++; await yieldNow(); }
+  msg.textContent = '完了: ' + n + ' 個の小さなタスクに分割。ボールは動き続けた（全体の時間は延びる。scheduler.yield のないブラウザでは setTimeout の 4ms の下限で特に延びやすい）。';
+  lock(false);
+};
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "console.log('1'); setTimeout(() => console.log('2'), 0); Promise.resolve().then(() => console.log('3')); console.log('4'); の出力順は？",
+    "choices": ["1 2 3 4", "1 4 2 3", "1 4 3 2", "1 3 4 2"],
+    "answer": 2,
+    "explain": "同期処理（1, 4）が先。スクリプトというタスクが終わるとマイクロタスク（3）を全部実行し、その後で次のタスク（setTimeout の 2）が動く。",
+    "ref": "#order"
+  },
+  {
+    "q": "重いループの途中に await Promise.resolve() を挟んだのに、処理中ずっと画面が固まる。なぜ？",
+    "choices": ["await の続きはマイクロタスクなので、同じタスクの続きとして描画の前に全部実行されてしまうから", "Promise.resolve() は同期的に完了するので await が無視されるから", "ブラウザは async 関数の実行中は描画しない仕様だから"],
+    "answer": 0,
+    "explain": "マイクロタスクキューは空になるまで実行される。描画の機会を作るには setTimeout や scheduler.yield() でタスクを区切る必要がある。",
+    "ref": "#block"
+  },
+  {
+    "q": "ユーザー情報と通知一覧を、互いに依存しない 2 つの API から取得する。待ち時間を短くする書き方は？",
+    "choices": ["const u = await getUser(); const n = await getNotices();", "const [u, n] = await Promise.all([getUser(), getNotices()]);", "両方を async 関数で包めば自動的に並行になるので、どちらでも同じ"],
+    "answer": 1,
+    "explain": "await を直列に並べると 1 つ目の完了を待ってから 2 つ目を開始する。先に両方開始してから Promise.all でまとめて待つと、待ち時間が重なる。",
+    "ref": "#await"
+  },
+  {
+    "q": "画像を数秒かけて加工する処理を入れたら、ボタンのクリック反応が悪くなった。根本的な対策は？",
+    "choices": ["加工処理を async 関数にする", "加工処理を Web Worker に移し、結果を postMessage で受け取る", "requestAnimationFrame の中で加工処理を呼ぶ"],
+    "answer": 1,
+    "explain": "async にしても同じメインスレッドで計算する。CPU を使う処理は Worker で別スレッドに移すと、メインスレッドが入力と描画に専念できる。",
+    "ref": "#block"
+  },
+  {
+    "q": "Node.js の CommonJS スクリプト（require を使う形式）で、process.nextTick と Promise.then を同じ同期処理の中で登録した。先に実行されるのは？",
+    "choices": ["Promise.then のコールバック", "登録した順", "process.nextTick のコールバック"],
+    "answer": 2,
+    "explain": "CommonJS では、各コールバックの後に nextTick のキューを先に空にしてから Promise のマイクロタスクを処理する。ES Modules ではモジュール本体がマイクロタスクとして動くため、順番が逆になる。",
+    "ref": "#node"
+  }
+]
+</script>
+</body>
+</html>

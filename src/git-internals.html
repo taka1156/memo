@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git の内部構造</title>
+<meta name="description" content="blob・tree・commit・ref の4つで Git を理解し、merge と rebase の違い、reset の3種類、reflog での復旧までを図解。">
+<meta name="memo:tags" content="開発ツール">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-warn: #b45309;
+  --c-a: #7c3aed;
+  --c-b: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-warn: #fbbf24;
+    --c-a: #c4b5fd;
+    --c-b: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.list, ol.list { margin: 6px 0 6px 1.3em; }
+ul.list li, ol.list li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* ステップ */
+ol.steps { list-style: none; counter-reset: st; }
+ol.steps > li {
+  counter-increment: st;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 12px; top: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps b { display: block; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.fig .sub { fill: var(--fg-2); font-family: 'Noto Sans JP', sans-serif; }
+.fig .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+details.card summary { cursor: pointer; font-weight: 700; }
+details.card[open] summary { margin-bottom: 8px; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.fig .c-commit { stroke: var(--c-a); }
+.fig .c-tree { stroke: var(--c-ok); }
+.fig .c-blob { stroke: var(--c-b); }
+.fig .c-ref { stroke: var(--accent); }
+.fig .t-commit { fill: var(--c-a); }
+.fig .t-tree { fill: var(--c-ok); }
+.fig .t-blob { fill: var(--c-b); }
+.fig .t-ref { fill: var(--accent); }
+.fig .ah { fill: var(--fg-2); }
+.fig .dot { fill: var(--surface); stroke: var(--fg); stroke-width: 2; }
+.fig .dot.new { stroke: var(--accent); stroke-width: 3; }
+.fig .dot.old { stroke: var(--fg-2); stroke-dasharray: 4 3; }
+.fig .edge.old { stroke-dasharray: 4 3; opacity: .6; }
+.fig .reflbl { fill: var(--accent); font-weight: 700; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.8rem; margin-top: 8px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; border: 2px solid currentColor; margin-right: 5px; vertical-align: -1px; }
+.areas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+.areas .box { padding: 12px 6px; }
+.cmds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; font-size: 0.78rem; text-align: center; }
+.cmds div { color: var(--fg-2); }
+@media (max-width: 520px) { .areas .box { font-size: 0.72rem; } }
+.tbl-yes { color: var(--c-ok); font-weight: 700; }
+.tbl-no { color: var(--fg-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Git の内部構造</h1>
+  <p class="subtitle">オブジェクト4種類とポインタだけで、ほぼ全部が説明できる</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>Git の中身は<b>中身のハッシュを名前にしたファイル（オブジェクト）</b>の山。blob・tree・commit の3種類（＋タグ）が主役。</li>
+      <li>ブランチや HEAD は、<b>コミットを指すだけの小さなポインタ（ref）</b>。作るのも消すのも一瞬で、消してもコミット自体は残る。</li>
+      <li>merge・rebase・reset は「新しいコミットを作るか」「ポインタをどこへ動かすか」の違い。困ったら <code>reflog</code> でほぼ取り戻せる。</li>
+    </ul>
+  </div>
+
+  <h2 id="objects">4種類のオブジェクト</h2>
+  <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+    <div class="card"><span class="label" style="color:var(--c-b)">BLOB</span><p>ファイルの<b>中身だけ</b>。ファイル名も権限も持たない。同じ中身なら何ファイルあっても blob は1つ。</p></div>
+    <div class="card"><span class="label" style="color:var(--c-ok)">TREE</span><p>ディレクトリ1つ分の一覧。「名前・モード → blob か tree のハッシュ」を並べたもの。サブディレクトリは入れ子の tree。</p></div>
+    <div class="card"><span class="label" style="color:var(--c-a)">COMMIT</span><p>ルート tree のハッシュ ＋ 親コミット ＋ 作者・日時・メッセージ。<b>差分ではなく、その時点の全体のスナップショット</b>を指す。</p></div>
+    <div class="card"><span class="label">TAG（注釈付き）</span><p>コミットに名前・署名・メッセージを付けたオブジェクト。軽量タグは下の ref と同じただのポインタ。</p></div>
+  </div>
+  <p class="note">どのオブジェクトも名前は中身のハッシュ（今は既定で SHA-1、40 桁）。中身が1バイトでも変われば別の名前になるので、過去のコミットを「こっそり書き換える」ことはできない。</p>
+
+  <h2 id="graph">つながり方</h2>
+  <div class="card">
+    <svg class="fig" viewBox="0 0 520 300" role="img" aria-label="HEAD が main を指し、main がコミット C2 を指す。C2 は親 C1 と tree を指し、tree は blob を指す。README の blob は2つのコミットで共有されている">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0L10,5L0,10z"/></marker></defs>
+      <!-- refs -->
+      <rect class="nd c-ref" x="10" y="20" width="80" height="36" rx="6"/><text class="t-ref" x="50" y="43" text-anchor="middle" font-size="14" font-weight="700">HEAD</text>
+      <rect class="nd c-ref" x="10" y="98" width="80" height="36" rx="6"/><text class="t-ref" x="50" y="121" text-anchor="middle" font-size="14" font-weight="700">main</text>
+      <path class="edge" d="M50,56V96" marker-end="url(#ar)"/>
+      <path class="edge" d="M90,116H118" marker-end="url(#ar)"/>
+      <!-- commits -->
+      <rect class="nd c-commit" x="120" y="92" width="100" height="48" rx="6"/><text x="170" y="113" text-anchor="middle" font-size="14" font-weight="700">C2</text><text class="sub" x="170" y="131" text-anchor="middle" font-size="11">commit</text>
+      <rect class="nd c-commit" x="120" y="222" width="100" height="48" rx="6"/><text x="170" y="243" text-anchor="middle" font-size="14" font-weight="700">C1</text><text class="sub" x="170" y="261" text-anchor="middle" font-size="11">commit</text>
+      <path class="edge" d="M170,140V220" marker-end="url(#ar)"/><text class="sub" x="178" y="186" font-size="11">parent</text>
+      <!-- trees -->
+      <rect class="nd c-tree" x="260" y="96" width="90" height="40" rx="6"/><text class="t-tree" x="305" y="121" text-anchor="middle" font-size="13" font-weight="700">tree</text>
+      <rect class="nd c-tree" x="260" y="226" width="90" height="40" rx="6"/><text class="t-tree" x="305" y="251" text-anchor="middle" font-size="13" font-weight="700">tree</text>
+      <path class="edge" d="M220,116H258" marker-end="url(#ar)"/>
+      <path class="edge" d="M220,246H258" marker-end="url(#ar)"/>
+      <!-- blobs -->
+      <rect class="nd c-blob" x="390" y="20" width="120" height="40" rx="6"/><text class="t-blob" x="450" y="45" text-anchor="middle" font-size="13" font-weight="700">README</text>
+      <rect class="nd c-blob" x="390" y="120" width="120" height="40" rx="6"/><text class="t-blob" x="450" y="145" text-anchor="middle" font-size="13" font-weight="700">app.js v2</text>
+      <rect class="nd c-blob" x="390" y="240" width="120" height="40" rx="6"/><text class="t-blob" x="450" y="265" text-anchor="middle" font-size="13" font-weight="700">app.js v1</text>
+      <path class="edge" d="M350,108L388,48" marker-end="url(#ar)"/>
+      <path class="edge" d="M350,122L388,138" marker-end="url(#ar)"/>
+      <path class="edge" d="M350,236L388,56" marker-end="url(#ar)"/>
+      <path class="edge" d="M350,252L388,258" marker-end="url(#ar)"/>
+    </svg>
+    <div class="legend"><span style="color:var(--accent)">ref（ポインタ）</span><span style="color:var(--c-a)">commit</span><span style="color:var(--c-ok)">tree</span><span style="color:var(--c-b)">blob</span></div>
+    <p class="note">README は変更していないので、C1 と C2 の tree は<b>同じ blob を共有</b>している。毎回スナップショットでも容量が膨らまないのはこのため（さらに pack ファイルで差分圧縮される）。</p>
+  </div>
+
+  <h3>自分の目で見る</h3>
+<pre><code><span class="cm"># HEAD が指している先（ブランチ名が書いてあるだけ）</span>
+cat .git/HEAD                  <span class="cm"># ref: refs/heads/main</span>
+git rev-parse main             <span class="cm"># main が指すコミットのハッシュ</span>
+
+<span class="cm"># オブジェクトの種類と中身</span>
+git cat-file -t HEAD           <span class="cm"># commit</span>
+git cat-file -p HEAD           <span class="cm"># tree ... / parent ... / author ...</span>
+git cat-file -p 'HEAD^{tree}'  <span class="cm"># 100644 blob 3b18e5... README.md</span></code></pre>
+
+  <h2 id="areas">3つの置き場所</h2>
+  <div class="card">
+    <div class="areas">
+      <div class="box">作業ツリー<small>いま編集しているファイル</small></div>
+      <div class="box">インデックス<small>次のコミットの下書き（staging）</small></div>
+      <div class="box">リポジトリ<small>.git/objects のコミット</small></div>
+    </div>
+    <div class="cmds">
+      <div><code>git add</code> →</div>
+      <div><code>git commit</code> →</div>
+      <div>← <code>git restore</code></div>
+    </div>
+    <p class="note"><code>git add</code> した時点で blob はもう作られている。インデックスは「どのパスにどの blob を置くか」の一覧で、<code>commit</code> はそれを tree にして固めるだけ。</p>
+  </div>
+
+  <h2 id="commit">git commit で起きること</h2>
+  <ol class="steps">
+    <li><b>インデックスから tree を作る</b>ディレクトリごとに tree オブジェクトを書き出す（変わっていない部分は既存の tree をそのまま使う）。</li>
+    <li><b>commit オブジェクトを作る</b>ルート tree・親（今の HEAD が指すコミット）・作者・メッセージを書き、ハッシュを計算して保存。</li>
+    <li><b>今のブランチを新しいコミットに動かす</b><code>refs/heads/main</code> の中身を新しいハッシュに書き換える。HEAD は main を指したままなので、結果的に HEAD も進む。</li>
+  </ol>
+  <p class="note">HEAD がブランチではなくコミットを直接指している状態が「detached HEAD」。ここでコミットすると、どのブランチからも辿れないコミットができる（ブランチを作れば救える）。</p>
+
+  <h2 id="merge-rebase">merge・rebase・squash</h2>
+  <p>同じ「feature を main に取り込む」でも、履歴の形が変わる。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="mr-before">取り込む前</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="mr-merge">merge</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="mr-rebase">rebase</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="mr-squash">squash merge</button>
+  </div>
+  <div class="panel card" id="mr-before">
+    <svg class="fig" viewBox="0 0 440 150" role="img" aria-label="main は A B C、feature は B から分岐した D E">
+      <path class="edge" d="M40,40H180M110,40L180,110H250"/>
+      <circle class="dot" cx="40" cy="40" r="16"/><text x="40" y="45" text-anchor="middle" font-size="13">A</text>
+      <circle class="dot" cx="110" cy="40" r="16"/><text x="110" y="45" text-anchor="middle" font-size="13">B</text>
+      <circle class="dot" cx="180" cy="40" r="16"/><text x="180" y="45" text-anchor="middle" font-size="13">C</text>
+      <circle class="dot" cx="180" cy="110" r="16"/><text x="180" y="115" text-anchor="middle" font-size="13">D</text>
+      <circle class="dot" cx="250" cy="110" r="16"/><text x="250" y="115" text-anchor="middle" font-size="13">E</text>
+      <text class="reflbl" x="204" y="25" font-size="12">main</text>
+      <text class="reflbl" x="274" y="115" font-size="12">feature</text>
+    </svg>
+    <p>B から分岐したあと、main にも C が入った状態。</p>
+  </div>
+  <div class="panel card" id="mr-merge" hidden>
+    <svg class="fig" viewBox="0 0 440 150" role="img" aria-label="C と E を親に持つマージコミット M ができる">
+      <path class="edge" d="M40,40H320M110,40L180,110H250L320,40"/>
+      <circle class="dot" cx="40" cy="40" r="16"/><text x="40" y="45" text-anchor="middle" font-size="13">A</text>
+      <circle class="dot" cx="110" cy="40" r="16"/><text x="110" y="45" text-anchor="middle" font-size="13">B</text>
+      <circle class="dot" cx="180" cy="40" r="16"/><text x="180" y="45" text-anchor="middle" font-size="13">C</text>
+      <circle class="dot" cx="180" cy="110" r="16"/><text x="180" y="115" text-anchor="middle" font-size="13">D</text>
+      <circle class="dot" cx="250" cy="110" r="16"/><text x="250" y="115" text-anchor="middle" font-size="13">E</text>
+      <circle class="dot new" cx="320" cy="40" r="16"/><text x="320" y="45" text-anchor="middle" font-size="13">M</text>
+      <text class="reflbl" x="344" y="45" font-size="12">main</text>
+    </svg>
+    <p><b>親を2つ持つマージコミット M</b> を作る。既存のコミットは一切書き換えないので、共有ブランチでも安全。分岐した事実が履歴に残る。</p>
+  </div>
+  <div class="panel card" id="mr-rebase" hidden>
+    <svg class="fig" viewBox="0 0 440 150" role="img" aria-label="D E が C の後ろに D' E' として作り直される。元の D E は残るがどこからも参照されない">
+      <path class="edge" d="M40,40H320"/>
+      <path class="edge old" d="M110,40L180,110H250"/>
+      <circle class="dot" cx="40" cy="40" r="16"/><text x="40" y="45" text-anchor="middle" font-size="13">A</text>
+      <circle class="dot" cx="110" cy="40" r="16"/><text x="110" y="45" text-anchor="middle" font-size="13">B</text>
+      <circle class="dot" cx="180" cy="40" r="16"/><text x="180" y="45" text-anchor="middle" font-size="13">C</text>
+      <circle class="dot new" cx="250" cy="40" r="16"/><text x="250" y="45" text-anchor="middle" font-size="13">D'</text>
+      <circle class="dot new" cx="320" cy="40" r="16"/><text x="320" y="45" text-anchor="middle" font-size="13">E'</text>
+      <circle class="dot old" cx="180" cy="110" r="16"/><text x="180" y="115" text-anchor="middle" font-size="13">D</text>
+      <circle class="dot old" cx="250" cy="110" r="16"/><text x="250" y="115" text-anchor="middle" font-size="13">E</text>
+      <text class="reflbl" x="344" y="45" font-size="12">feature</text>
+      <text class="sub" x="274" y="115" font-size="11">参照なし（reflog には残る）</text>
+    </svg>
+    <p>D・E の変更を C の後ろに<b>新しいコミット D'・E' として作り直す</b>。親が変わるのでハッシュも別物。履歴は一直線になるが、元の D・E を持っている人とは食い違う。<b>push 済みの共有ブランチでは使わない</b>のが原則。</p>
+  </div>
+  <div class="panel card" id="mr-squash" hidden>
+    <svg class="fig" viewBox="0 0 440 150" role="img" aria-label="D と E の変更をまとめた1つのコミット S が main に乗る">
+      <path class="edge" d="M40,40H250"/>
+      <path class="edge old" d="M110,40L180,110H250"/>
+      <circle class="dot" cx="40" cy="40" r="16"/><text x="40" y="45" text-anchor="middle" font-size="13">A</text>
+      <circle class="dot" cx="110" cy="40" r="16"/><text x="110" y="45" text-anchor="middle" font-size="13">B</text>
+      <circle class="dot" cx="180" cy="40" r="16"/><text x="180" y="45" text-anchor="middle" font-size="13">C</text>
+      <circle class="dot new" cx="250" cy="40" r="16"/><text x="250" y="45" text-anchor="middle" font-size="13">S</text>
+      <circle class="dot old" cx="180" cy="110" r="16"/><text x="180" y="115" text-anchor="middle" font-size="13">D</text>
+      <circle class="dot old" cx="250" cy="110" r="16"/><text x="250" y="115" text-anchor="middle" font-size="13">E</text>
+      <text class="reflbl" x="274" y="45" font-size="12">main</text>
+    </svg>
+    <p>D＋E の変更をまとめた<b>親が1つだけの普通のコミット S</b> を作る（GitHub の「Squash and merge」）。main はきれいだが、feature の D・E とはつながっていないので、Git は「feature は取り込み済み」と判定できない。feature ブランチはそのまま使い続けず消す。</p>
+  </div>
+
+  <h2 id="reset">reset の3種類</h2>
+  <p><code>git reset &lt;コミット&gt;</code> は「<b>今のブランチ</b>をそのコミットへ動かす」。どこまで巻き戻すかがオプションで変わる。</p>
+  <div class="card table-wrap">
+    <table>
+      <tr><th>オプション</th><th>ブランチ（HEAD）</th><th>インデックス</th><th>作業ツリー</th><th>使いどころ</th></tr>
+      <tr><td><code>--soft</code></td><td class="tbl-yes">動く</td><td class="tbl-no">そのまま</td><td class="tbl-no">そのまま</td><td>直前のコミットをやり直す（変更は add 済みで残る）</td></tr>
+      <tr><td><code>--mixed</code>（既定）</td><td class="tbl-yes">動く</td><td class="tbl-yes">戻る</td><td class="tbl-no">そのまま</td><td>add をやり直したい</td></tr>
+      <tr><td><code>--hard</code></td><td class="tbl-yes">動く</td><td class="tbl-yes">戻る</td><td class="tbl-yes">戻る</td><td>変更ごと捨てる。<span class="ng">未コミットの変更は戻せない</span></td></tr>
+    </table>
+  </div>
+  <p class="note">共有ブランチの過去を取り消したいときは、履歴を書き換える reset ではなく、打ち消しコミットを足す <code>git revert</code> を使う。</p>
+
+  <h2 id="reflog">reflog で取り戻す</h2>
+  <p>ブランチを消しても、rebase や reset --hard で「消えた」ように見えても、<b>コミットオブジェクトはしばらく残っている</b>。HEAD やブランチが過去にどこを指していたかは reflog（ローカルだけの移動履歴）に記録されている。ただし<b>ブランチを削除するとそのブランチ自身の reflog も消える</b>ので、消したブランチの先端は HEAD の reflog（そのブランチで作業していたときの記録）から探す。</p>
+<pre><code>git reflog
+<span class="cm"># a1b2c3d HEAD@{0}: rebase (finish): returning to refs/heads/feature</span>
+<span class="cm"># 9f8e7d6 HEAD@{3}: commit: E を追加   ← rebase 前の E</span>
+
+git branch rescue 9f8e7d6      <span class="cm"># そこにブランチを立てれば復活</span>
+git reset --hard ORIG_HEAD     <span class="cm"># 直前の rebase / merge / reset を丸ごと取り消す</span></code></pre>
+  <p class="note">どこからも参照されないコミットは、reflog の期限（既定で 30〜90 日）を過ぎたあと <code>git gc</code> で消える。<b>一度もコミットしていない変更は reflog にも無い</b>ので、reset --hard の前は <code>git stash</code> しておくと安全。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✕</span> コミットは前回からの差分を保存している</p><p><span class="ok">○</span> コミットは全体のスナップショット（tree）を指す。差分は表示のたびに2つの tree を比べて計算している。保存時の差分圧縮は pack ファイルの別の仕組み。</p></div>
+  <div class="card myth"><p><span class="ng">✕</span> ブランチを削除するとそのコミットも消える</p><p><span class="ok">○</span> 消えるのはポインタだけ。コミットは reflog から辿れるうちは復元できる。</p></div>
+  <div class="card myth"><p><span class="ng">✕</span> rebase はコミットを移動する</p><p><span class="ok">○</span> 同じ変更内容の<b>新しいコミットを作り直す</b>。元のコミットは残ったまま、ブランチが新しい方を指し直すだけ。</p></div>
+
+  <h2 id="future">これからの変更（Git 3.0）</h2>
+  <div class="card">
+    <ul class="list">
+      <li><b>ハッシュが SHA-256 に</b>：新規リポジトリの既定が SHA-1 から SHA-256 へ。オブジェクト名が 64 桁になる。ホスティング側の対応が鍵で、GitLab は対応済み、GitHub はベータ段階と案内されている。</li>
+      <li><b>ref の保存形式が reftable に</b>：ブランチ1本＝ファイル1つの方式から、まとめて保存する形式へ。ブランチやタグが大量にあるリポジトリで速く、更新も壊れにくい。</li>
+      <li><b>既定のブランチ名が main に</b>：<code>git init</code> で作られるブランチ名が master から main へ。</li>
+    </ul>
+    <p class="note">予定では 2.56（2026年9月）→ 2.98（2026年12月）→ 2.99 と 3.0（2027年春）。3.0 は 2.99 と機能が同じで、破壊的変更のスイッチだけが切り替わる。オブジェクトと ref の考え方自体は変わらない。</p>
+  </div>
+
+  <h2>関連</h2>
+  <p class="related"><a href="github-services.html">GitHub サービス</a><a href="db-internals.html">DB のしくみ（WAL も「先に記録」）</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://git-scm.com/book/en/v2/Git-Internals-Git-Objects">Pro Git「Git Internals - Git Objects」</a></li>
+    <li><a href="https://git-scm.com/docs/git-reset">git-reset ドキュメント</a> / <a href="https://git-scm.com/docs/git-reflog">git-reflog ドキュメント</a></li>
+    <li><a href="https://about.gitlab.com/blog/whats-new-in-git-2-56-0/">What's new in Git 2.56.0（GitLab, 2026-09）</a></li>
+    <li><a href="https://thoughtbot.com/blog/git-3-0-will-use-main-as-the-default-branch">Git 3.0 will use main as the default branch（thoughtbot）</a></li>
+  </ul>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "1000 回コミットしたリポジトリで、README.md は一度も変更していない。README.md の blob はいくつ保存されている？",
+    "choices": ["1000 個（コミットごとに 1 つ）", "1 個（全コミットの tree から共有される）", "0 個（差分が無いので保存されない）"],
+    "answer": 1,
+    "explain": "blob の名前は中身のハッシュなので、同じ中身なら同じ blob が 1 つだけ。各コミットの tree がそれを指すだけになる。",
+    "ref": "#graph"
+  },
+  {
+    "q": "誤って git branch -D feature で未マージのブランチを消してしまった。最初にやることは？",
+    "choices": ["もう復元できないので作業をやり直す", "git revert でブランチ削除を取り消す", "git reflog で消える前の先端コミットを探し、そこにブランチを作り直す"],
+    "answer": 2,
+    "explain": "消えたのはポインタ（ref）だけで、コミットはまだ残っている。reflog でハッシュを見つけて git branch で立て直せばよい。",
+    "ref": "#reflog"
+  },
+  {
+    "q": "チームで共有している develop ブランチ（push 済み）に main の最新を取り込みたい。安全なのは？",
+    "choices": ["git merge main", "git rebase main して force push", "git reset --hard main"],
+    "answer": 0,
+    "explain": "merge は既存コミットを書き換えず新しいマージコミットを足すだけ。rebase はコミットを作り直すため、同じブランチを持つ他の人の履歴と食い違う。",
+    "ref": "#merge-rebase"
+  },
+  {
+    "q": "直前のコミットに入れるべきファイルを入れ忘れた。変更は消さずに、コミットだけ作り直したい。合うのは？",
+    "choices": ["git reset --hard HEAD~1", "git reset --soft HEAD~1", "git revert HEAD"],
+    "answer": 1,
+    "explain": "--soft はブランチだけを1つ前に戻し、インデックスと作業ツリーはそのまま。ファイルを add して commit し直せる（git commit --amend でも同じことができる）。",
+    "ref": "#reset"
+  },
+  {
+    "q": "GitHub で feature を「Squash and merge」した後、同じ feature ブランチで作業を続けて再度 PR を出したら、前に取り込んだはずの変更まで差分に出てきた。なぜ？",
+    "choices": ["squash で main 側のコミットが壊れたから", "GitHub のキャッシュが古いから", "squash したコミットは feature のコミットとつながっておらず、Git が取り込み済みと判定できないから"],
+    "answer": 2,
+    "explain": "squash merge は変更をまとめた新しいコミットを作るだけで、feature の元コミットを親に持たない。そのため Git から見ると feature の元コミットは main に未取り込みのまま。",
+    "ref": "#merge-rebase"
+  }
+]
+</script>
+</body>
+</html>

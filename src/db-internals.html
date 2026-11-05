@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DB のしくみ</title>
+<meta name="description" content="SQL が結果になるまでの流れ、ページとバッファプール、WAL によるクラッシュ復旧、行指向と列指向、そして D1 などクラウドでも使われるようになった SQLite を図解。">
+<meta name="memo:tags" content="データベース">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-warn: #b45309;
+  --c-a: #7c3aed;
+  --c-b: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-warn: #fbbf24;
+    --c-a: #c4b5fd;
+    --c-b: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.list, ol.list { margin: 6px 0 6px 1.3em; }
+ul.list li, ol.list li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* ステップ */
+ol.steps { list-style: none; counter-reset: st; }
+ol.steps > li {
+  counter-increment: st;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 12px; top: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps b { display: block; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.fig .sub { fill: var(--fg-2); font-family: 'Noto Sans JP', sans-serif; }
+.fig .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+details.card summary { cursor: pointer; font-weight: 700; }
+details.card[open] summary { margin-bottom: 8px; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.pipe { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.pipe button {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 10px 4px; cursor: pointer;
+  font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.pipe button small { display: block; font: 400 0.68rem 'Noto Sans JP', sans-serif; color: var(--fg-2); margin-top: 2px; }
+.pipe button[aria-pressed="true"] { border-color: var(--accent); outline: 2px solid var(--accent); }
+@media (max-width: 560px) { .pipe { grid-template-columns: 1fr 1fr; } .pipe button:last-child { grid-column: span 2; } }
+.stage { margin-top: 12px; padding: 12px 14px; border-left: 3px solid var(--accent); background: var(--chip); border-radius: 0 8px 8px 0; min-height: 90px; }
+.stage pre { margin: 8px 0 0; }
+.mem { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .mem { grid-template-columns: 1fr; } }
+.zone { border: 2px dashed var(--line); border-radius: 10px; padding: 10px; }
+.zone > .label { display: block; }
+.pages { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.pg { width: 44px; height: 34px; border-radius: 6px; border: 2px solid var(--fg-2); display: flex; align-items: center; justify-content: center; font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace; }
+.pg.dirty { border-color: var(--c-warn); color: var(--c-warn); }
+.pg.wal { border-color: var(--c-a); color: var(--c-a); width: auto; padding: 0 6px; }
+.store { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .store { grid-template-columns: 1fr; } }
+.grid-cells { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin: 8px 0; }
+.grid-cells div { font: 0.68rem 'JetBrains Mono', ui-monospace, monospace; padding: 4px; border-radius: 4px; text-align: center; background: var(--chip); border: 2px solid transparent; }
+.row-store .r1 { border-color: var(--c-ok); }
+.col-store .c2 { border-color: var(--c-b); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>DB のしくみ</h1>
+  <p class="subtitle">SQL を投げてから、結果が返り、データが確実に残るまで</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>SQL は<b>「何が欲しいか」を書くだけ</b>。どう取ってくるか（実行計画）は DB のプランナが統計情報をもとに決める。</li>
+      <li>データは<b>ページ</b>（数 KB の固定サイズの塊）単位でディスクに置かれ、よく使うページはメモリ（<b>バッファプール</b>）に載せて使い回す。</li>
+      <li>COMMIT の瞬間に確実に書くのは<b>WAL（変更ログ）だけ</b>。本体のデータは後でまとめて書き、落ちても WAL を再生して復旧する。</li>
+      <li><b>SQLite</b> は同じ部品をサーバー無しでアプリに組み込んだもの。今では D1 や Turso のように<b>クラウドの DB サービスの中身</b>としても使われ、単なるローカル DB ではなくなっている。</li>
+    </ul>
+  </div>
+
+  <h2 id="pipeline">SQL が結果になるまで</h2>
+  <div class="card">
+    <p class="muted">各段階を押すと説明が出る。例：<code>SELECT name FROM users WHERE email = 'a@example.com';</code></p>
+    <div class="pipe" id="pipe">
+      <button aria-pressed="true" data-s="0">Parser<small>構文解析</small></button>
+      <button aria-pressed="false" data-s="1">Analyzer<small>意味解析</small></button>
+      <button aria-pressed="false" data-s="2">Planner<small>実行計画</small></button>
+      <button aria-pressed="false" data-s="3">Executor<small>実行</small></button>
+      <button aria-pressed="false" data-s="4">Storage<small>ページ読み書き</small></button>
+    </div>
+    <div class="stage" id="stage"></div>
+  </div>
+
+  <h2 id="pages">ページとテーブルの置き方</h2>
+  <p>DB は行を1件ずつではなく、<b>ページ</b>（PostgreSQL は 8KB、MySQL の InnoDB は 16KB）単位で読み書きする。1行だけ欲しくても、その行が入ったページ丸ごとを読む。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="st-heap">PostgreSQL（ヒープ）</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="st-cluster">MySQL InnoDB（クラスタ化）</button>
+  </div>
+  <div class="panel card" id="st-heap">
+    <p>テーブル本体（ヒープ）は<b>行を空いているページに順不同で詰める</b>。主キーも含め、インデックスは全部「キー → 行の場所（ページ番号＋位置）」を指す別の構造。</p>
+    <p class="note">更新すると新しい版の行が別の場所に書かれ、古い版は後で VACUUM が片付ける（MVCC。<a href="db-index-transaction.html#mvcc">次のページ</a>で詳しく）。</p>
+  </div>
+  <div class="panel card" id="st-cluster" hidden>
+    <p>テーブル本体そのものが<b>主キー順に並んだ B木</b>（クラスタ化インデックス）。主キーで探すと、そのまま行にたどり着く。セカンダリインデックスは「キー → 主キーの値」を持ち、そこから本体の B木をもう一度たどる。</p>
+    <p class="note">ランダムな UUID v4 を主キーにすると挿入位置がばらばらになり、ページ分割が増えやすい。時刻順に並ぶ UUID v7 や連番が好まれる理由。</p>
+  </div>
+
+  <h2 id="buffer">バッファプールと WAL</h2>
+  <div class="card">
+    <div class="mem">
+      <div class="zone">
+        <span class="label">メモリ（バッファプール）</span>
+        <div class="pages"><div class="pg">p1</div><div class="pg dirty">p7*</div><div class="pg">p12</div><div class="pg dirty">p30*</div></div>
+        <p class="note">ページを読むときはまずここを見る。無ければディスクから読み込む。更新はここで行い、まだディスクに書いていないページが <span class="warn">dirty</span>。</p>
+      </div>
+      <div class="zone">
+        <span class="label">ディスク</span>
+        <div class="pages"><div class="pg wal">WAL：…→ p7 変更 → p30 変更 → COMMIT</div></div>
+        <div class="pages"><div class="pg">p1</div><div class="pg">p7</div><div class="pg">p12</div><div class="pg">p30</div><div class="pg">…</div></div>
+        <p class="note">WAL は末尾に追記するだけのログ。データファイルは場所がばらばらなので書くのが遅い。</p>
+      </div>
+    </div>
+  </div>
+
+  <h3 id="commit">UPDATE して COMMIT するまで</h3>
+  <ol class="steps">
+    <li><b>メモリ上のページを書き換える</b>対象ページをバッファプールに読み込み、そこで行を更新する。ページは dirty になるが、ディスクにはまだ書かない。</li>
+    <li><b>変更内容を WAL に追記する</b>「どのページのどこをどう変えたか」をログとして書く。追記なので速い。</li>
+    <li><b>COMMIT で WAL をディスクに確定（fsync）</b>WAL がディスクに届いた時点で「コミット完了」をクライアントに返す。<b>データファイルはまだ古いまま</b>でよい。</li>
+    <li><b>あとでチェックポイントがまとめて書く</b>dirty ページは定期的に（チェックポイントで）データファイルへ書き出される。書き終えた分の WAL は不要になる。</li>
+  </ol>
+
+  <h3 id="recovery">落ちたらどうなる？</h3>
+  <div class="card">
+    <p>電源が落ちてメモリ上の dirty ページが消えても、<b>COMMIT 済みの変更は必ず WAL に残っている</b>。再起動時に最後のチェックポイントから WAL を読み直し（REDO）、データファイルを最新に戻す。COMMIT していない変更は反映しない。</p>
+    <p class="note">同じ WAL をネットワーク越しに送り続けて別サーバーで再生すれば、それがレプリケーション（ストリーミングレプリケーション）。バックアップからの任意時点復旧（PITR）も WAL の再生で行う。</p>
+  </div>
+
+  <h2 id="acid">ACID はどの仕組みが守っている？</h2>
+  <div class="card table-wrap">
+    <table>
+      <tr><th>性質</th><th>意味</th><th>主な仕組み</th></tr>
+      <tr><td>Atomicity 原子性</td><td>全部反映か、全く反映しないか</td><td>WAL / undo ログ。未コミット分は復旧時に捨てる</td></tr>
+      <tr><td>Consistency 一貫性</td><td>制約を破った状態にならない</td><td>主キー・外部キー・CHECK などの制約</td></tr>
+      <tr><td>Isolation 独立性</td><td>同時に動くトランザクションが干渉しない</td><td>ロック・MVCC・分離レベル（<a href="db-index-transaction.html#isolation">次のページ</a>）</td></tr>
+      <tr><td>Durability 永続性</td><td>COMMIT したら落ちても消えない</td><td>WAL の fsync</td></tr>
+    </table>
+  </div>
+
+  <h2 id="row-col">行指向と列指向</h2>
+  <div class="store">
+    <div class="card row-store">
+      <span class="label">行指向（PostgreSQL, MySQL など）</span>
+      <div class="grid-cells">
+        <div class="r1">id 1</div><div class="r1">山田</div><div class="r1">東京</div><div class="r1">¥980</div>
+        <div>id 2</div><div>佐藤</div><div>大阪</div><div>¥120</div>
+      </div>
+      <p>1行分がまとまって並ぶ。<b>1件を読む・書く</b>のが速い。注文処理のような日々の業務（OLTP）向け。</p>
+    </div>
+    <div class="card col-store">
+      <span class="label">列指向（BigQuery, ClickHouse, DuckDB など）</span>
+      <div class="grid-cells">
+        <div>id 1</div><div>山田</div><div>東京</div><div class="c2">¥980</div>
+        <div>id 2</div><div>佐藤</div><div>大阪</div><div class="c2">¥120</div>
+      </div>
+      <p>同じ列の値がまとまって並ぶ。「全注文の金額の合計」のように<b>少数の列を大量の行で集計</b>するのが速く、圧縮も効く。分析（OLAP）向け。</p>
+    </div>
+  </div>
+
+  <h2 id="sqlite">SQLite：組み込み DB からクラウドの DB まで</h2>
+  <p>PostgreSQL や MySQL は<b>別プロセスのサーバー</b>にネットワーク越しで問い合わせる。SQLite は<b>ライブラリとしてアプリの中に組み込まれ、ファイル1つを直接読み書きする</b>。中にあるパーサ・プランナ・B木のページ・ログ（WAL）といった部品は、ここまでの話とほぼ同じ。この「小さくて軽いエンジン」という性質が、後で見るようにクラウドでも活かされている。</p>
+  <div class="store">
+    <div class="card">
+      <span class="label">クライアント・サーバー型</span>
+      <div class="flow"><div class="box">アプリ</div><div class="arrow">⇄ ネットワーク</div><div class="box">DB サーバー<small>別プロセス</small></div><div class="arrow">→</div><div class="box">データファイル群</div></div>
+      <p class="note">クエリ1回ごとに往復の通信がかかる。接続数の管理、ユーザー権限、複数台からの同時書き込みが得意。</p>
+    </div>
+    <div class="card">
+      <span class="label">組み込み型（SQLite）</span>
+      <div class="flow"><div class="box">アプリ ＋ SQLite<small>同じプロセス内の関数呼び出し</small></div><div class="arrow">→</div><div class="box">app.db<small>ファイル1つ</small></div></div>
+      <p class="note">通信が無いのでクエリ1回はマイクロ秒単位。小さなクエリを何十回も投げる（N+1）書き方でもあまり困らない。バックアップはファイルのコピーに近い。</p>
+    </div>
+  </div>
+
+  <h3 id="sqlite-wal">書き込みは同時に1つだけ</h3>
+  <div class="card">
+    <p>SQLite はデータベースファイル単位でロックするので、<b>書き込みトランザクションは常に1つずつ</b>。既定（rollback journal）では書いている間は読み込みも止まるが、<b>WAL モード</b>にすると変更を別ファイル（<code>app.db-wal</code>）に追記するので、<b>書き込み中も読み込みは止まらない</b>。</p>
+    <p class="note">書き込み1回が速い（特に WAL モードで <code>synchronous = NORMAL</code> にすると、COMMIT のたびに fsync しないので大きく速くなる）ので、「1台のサーバーのアプリ」なら書き込み1本でも足りることが多い。足りなくなるのは、高頻度の書き込みが長いトランザクションで詰まるときや、複数のサーバーから同じ DB に書きたいとき。</p>
+  </div>
+
+  <h3 id="sqlite-why">なぜ今また注目されている？</h3>
+  <div class="card">
+    <ul class="list">
+      <li><b>ハードウェアが速くなった</b>：NVMe SSD と大きなメモリで、1台・1ファイルで捌ける量が大きく増えた。</li>
+      <li><b>弱点を補う道具がそろった</b>：Litestream（WAL を S3 などに送り続ける継続バックアップ）、libSQL / Turso（SQLite のフォークと Rust での書き直し。Rust 版の Turso エンジンでは、<code>BEGIN CONCURRENT</code> で複数の書き込みを並行させる MVCC が 2026年8月から Turso Cloud でアーリープレビュー中。本番向けではない）。</li>
+      <li><b>クラウドの DB エンジンになった</b>：Cloudflare D1 や Turso Cloud は、SQLite をサーバー側で動かして API 越しに提供する。詳しくは<a href="#sqlite-cloud">次の項</a>。</li>
+      <li><b>フレームワークや実行環境が標準で抱えた</b>：Rails 8 は SQLite を本番でも使える前提にし、ジョブキュー・キャッシュ・WebSocket まで SQLite で動く構成を用意した。Node.js は <code>node:sqlite</code> を内蔵し（v25.7 で Release Candidate に昇格）、Bun にも <code>bun:sqlite</code> がある。</li>
+      <li><b>「1ユーザー（1テナント・1エージェント）に1つの DB」</b>：ファイル1つなので、大量の小さな DB を作って捨てる使い方と相性が良い。AI エージェントごとに DB を持たせる用途も増え、2026年10月には Supabase が Turso の買収に合意した。</li>
+    </ul>
+  </div>
+
+  <h3 id="sqlite-cloud">単なるローカル DB ではなくなった</h3>
+  <p>SQLite の使われ方は大きく3つに広がっている。どれも中身は同じ SQLite で、<b>「書き込みは1 DB につき1本」という性質も同じ</b>。違うのは、誰がそのファイルを持ち、どこから使うか。</p>
+  <div class="grid3">
+    <div class="card">
+      <span class="label">① アプリに組み込む</span>
+      <div class="flow"><div class="box">アプリ ＋ SQLite</div><div class="arrow">→</div><div class="box">app.db</div></div>
+      <p class="note">従来の使い方。スマホ・デスクトップ・1台のサーバー。ファイルの管理（バックアップ・複製）は自分で行う。</p>
+    </div>
+    <div class="card">
+      <span class="label">② DB サービスの中身にする</span>
+      <div class="flow"><div class="box">Worker / アプリ</div><div class="arrow">→ API</div><div class="box">D1・Turso Cloud<small>中で SQLite が動く</small></div></div>
+      <p class="note">ファイルの置き場所・複製・バックアップをサービスが引き受ける。アプリからは普通のリモート DB に見え、複数のサーバーやエッジから使える。</p>
+    </div>
+    <div class="card">
+      <span class="label">③ 小さな DB を大量に</span>
+      <div class="flow"><div class="box">テナント A</div><div class="box">テナント B</div><div class="box">エージェント C</div><div class="arrow">…</div></div>
+      <p class="note">1つの巨大 DB ではなく、利用者ごとに独立した DB を持たせる。SQLite は1つあたりが軽いので、数十万〜数百万個でも成り立つ。</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <span class="label">CLOUDFLARE D1 の場合</span>
+    <ul class="list">
+      <li>Workers から SQL を投げるサーバーレス DB で、中身は SQLite。<b>1つの DB はシングルスレッドで、最大 10GB</b>。大きくするより DB を分けて増やす（アカウントあたり最大 100 万 DB）。</li>
+      <li>読み取りレプリカ（ベータ）や、直近 30 日の任意の時点に戻せる Time Travel をサービス側が用意している。</li>
+    </ul>
+    <p class="note">Hyperdrive＋PlanetScale（Postgres / MySQL）との比較は <a href="cloudflare-databases.html">D1 と Hyperdrive＋PlanetScale</a> にまとめた。</p>
+  </div>
+  <div class="card">
+    <span class="label">TURSO（libSQL）の場合</span>
+    <ul class="list">
+      <li>SQLite フォークの libSQL をサーバーとして動かし、HTTP・WebSocket 越しに提供する。</li>
+      <li><b>埋め込みレプリカ</b>：アプリの手元に SQLite ファイルのコピーを持ち、読み込みはローカルの速さ、書き込みはリモートのプライマリへ送って同期する。①と②のいいとこ取り。</li>
+      <li>「エージェントごとに DB」を売りにしていて、2026年10月に Supabase が買収に合意した。</li>
+    </ul>
+  </div>
+  <p class="note">つまり「SQLite＝ローカル専用」ではなく、<b>「SQLite＝軽くて大量に作れる DB エンジン」</b>として、置き場所はアプリの中にもクラウドにもなった。ただし1 DB への書き込みが1本なのは変わらないので、書き込みが集中するなら<b>DB を分ける設計</b>がセットになる。</p>
+
+  <h3 id="sqlite-fit">向く・向かない</h3>
+  <div class="grid2">
+    <div class="card"><span class="label" style="color:var(--c-ok)">向く</span>
+      <ul class="list">
+        <li>1台のサーバーで動く Web アプリ・社内ツール（読み込みが多いと特に有利）</li>
+        <li>スマホ・デスクトップアプリ、ブラウザ（WASM）、組み込み機器</li>
+        <li>テナントごと・ユーザーごとに分けた DB</li>
+        <li>テストや開発環境、CLI ツール、データの受け渡し用ファイル</li>
+      </ul>
+    </div>
+    <div class="card"><span class="label" style="color:var(--c-ng)">向かない</span>
+      <ul class="list">
+        <li>1つの DB に、全利用者の書き込みが集中し続ける構成（D1 などサービス経由でも、1 DB の書き込みは1本）</li>
+        <li>書き込みが非常に多く、長いトランザクションが混ざる処理</li>
+        <li>複数台から、NFS などの共有ディスク上の同じファイルを<b>直接</b>開く構成（ロックが信用できず壊れ得る。複数台から使うなら D1・Turso のようなサービス経由かサーバー型 DB に）</li>
+        <li>DB 側で細かいユーザー権限や行単位のアクセス制御をしたい</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 id="sqlite-setup">本番で使うときの定番設定</h3>
+<pre><code>PRAGMA journal_mode = WAL;     <span class="cm">-- 書き込み中も読める（ファイルに保存される設定）</span>
+PRAGMA busy_timeout = 5000;    <span class="cm">-- ロック中なら即エラーにせず最大 5 秒待つ</span>
+PRAGMA synchronous = NORMAL;   <span class="cm">-- WAL なら壊れない。電源断で直前の COMMIT が消える可能性と引き換えに速い</span>
+PRAGMA foreign_keys = ON;      <span class="cm">-- 外部キー制約は既定で無効！接続ごとに有効にする</span></code></pre>
+  <ul class="list">
+    <li>書き込むトランザクションは <code>BEGIN IMMEDIATE</code> で始める。<code>BEGIN</code>（DEFERRED）で読んでから書こうとすると、途中で書き込みロックが取れず <code>SQLITE_BUSY</code> になりやすい。</li>
+    <li>型は既定ではゆるい（INTEGER 列に文字列が入る）。厳しくしたいなら <code>CREATE TABLE ... STRICT</code>。</li>
+    <li>バックアップは稼働中のファイルを <code>cp</code> せず、<code>VACUUM INTO</code>・<code>.backup</code>・Litestream を使う（WAL ファイルとの整合が取れないため）。</li>
+  </ul>
+<pre><code><span class="cm">// Node.js 内蔵の SQLite（追加のパッケージ不要）</span>
+import { DatabaseSync } from 'node:sqlite';
+
+const db = new DatabaseSync('app.db');
+db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+db.exec('CREATE TABLE IF NOT EXISTS todos (id INTEGER PRIMARY KEY, title TEXT NOT NULL) STRICT');
+db.prepare('INSERT INTO todos (title) VALUES (?)').run('牛乳を買う');
+console.log(db.prepare('SELECT * FROM todos').all());</code></pre>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✕</span> SQLite はテスト用のおもちゃで、本番には使えない</p><p><span class="ok">○</span> スマホやブラウザの中で最も多く動いている DB で、1台構成の Web アプリなら本番でも十分に使える。限界は性能ではなく「書き込みが1本」「1台のマシン」という構造の方。</p></div>
+  <div class="card myth"><p><span class="ng">✕</span> COMMIT が返った時点で、テーブルのデータファイルは更新済み</p><p><span class="ok">○</span> 確実に書かれているのは WAL だけ。データファイルへの反映はチェックポイントで後から行われる。それでも WAL があるので永続性は守られる。</p></div>
+  <div class="card myth"><p><span class="ng">✕</span> SQL を書いた順番どおりに処理される</p><p><span class="ok">○</span> JOIN の順番や使うインデックスはプランナが決める。同じ SQL でもデータ量や統計情報が変わると実行計画が変わり、急に遅くなることがある。</p></div>
+  <div class="card myth"><p><span class="ng">✕</span> メモリを増やせば DB は無限に速くなる</p><p><span class="ok">○</span> 効くのは「よく使うページがバッファプールに収まるまで」。それ以降は実行計画（インデックスの有無）や書き込み量の方が支配的になる。</p></div>
+
+  <h2>関連</h2>
+  <p class="related"><a href="db-index-transaction.html">インデックスとトランザクション</a><a href="git-internals.html">Git の内部構造</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://www.postgresql.org/docs/current/query-path.html">PostgreSQL: The Path of a Query</a></li>
+    <li><a href="https://www.postgresql.org/docs/current/wal-intro.html">PostgreSQL: Write-Ahead Logging (WAL)</a></li>
+    <li><a href="https://dev.mysql.com/doc/refman/8.4/en/innodb-index-types.html">MySQL: Clustered and Secondary Indexes</a></li>
+    <li><a href="https://www.sqlite.org/wal.html">SQLite: Write-Ahead Logging</a> / <a href="https://www.sqlite.org/whentouse.html">Appropriate Uses For SQLite</a></li>
+    <li><a href="https://nodejs.org/api/sqlite.html">Node.js: node:sqlite</a></li>
+    <li><a href="https://developers.cloudflare.com/d1/">Cloudflare D1</a> / <a href="https://developers.cloudflare.com/d1/platform/limits/">D1 Limits</a> / <a href="https://developers.cloudflare.com/changelog/2025-04-07-sqlite-in-durable-objects-ga">SQLite in Durable Objects GA</a></li>
+    <li><a href="https://rubyonrails.org/2024/11/7/rails-8-no-paas-required">Rails 8.0: No PaaS Required</a></li>
+    <li><a href="https://turso.tech/blog/concurrent-writes-in-practice">Turso: Concurrent Writes in Practice（2026-08）</a></li>
+    <li><a href="https://turso.tech/what-is-turso">What is Turso</a> / <a href="https://runtimewire.com/article/supabase-raises-150m-acquires-turso">Supabase raises $150M and agrees to acquire Turso（2026-10）</a></li>
+    <li><a href="https://dev.to/pockit_tools/the-sqlite-renaissance-why-the-worlds-most-deployed-database-is-taking-over-production-in-2026-3jcc">The SQLite Renaissance（DEV Community）</a></li>
+  </ul>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+(() => {
+  const S = [
+    ['Parser：文字列 → 構文木', '文法どおりか確認し、SQL を木構造にする。<code>SELEC</code> のような綴り間違いはここでエラーになる。テーブルが実在するかはまだ見ない。'],
+    ['Analyzer：名前を実物に結びつける', '<code>users</code> テーブルや <code>email</code> 列が実在するか、型が合うかを確認する。ビューはこの後の書き換え（rewrite）段階で、中身の SQL に置き換えられる。'],
+    ['Planner：どう取ってくるか決める', '「全行を順に読む（Seq Scan）」「email のインデックスを使う（Index Scan）」など複数の方法のコストを、統計情報（行数・値の分布）から見積もり、一番安い計画を選ぶ。<pre><code>EXPLAIN SELECT name FROM users WHERE email = \'a@example.com\';\n-- Index Scan using users_email_key on users  (cost=0.29..8.31 rows=1)</code></pre>'],
+    ['Executor：計画どおりに動かす', '実行計画の木を下から順に動かし、行を1件ずつ上に渡していく（絞り込み・結合・並べ替え）。必要なページはストレージ層に頼む。'],
+    ['Storage：ページを読み書きする', 'まずメモリのバッファプールを探し、無ければディスクからページを読み込む。更新はメモリ上のページを書き換え、変更内容を WAL に記録する（下の図）。']
+  ];
+  const pipe = document.getElementById('pipe');
+  const stage = document.getElementById('stage');
+  const show = i => {
+    pipe.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.s === i)));
+    stage.innerHTML = `<b>${S[i][0]}</b><p>${S[i][1]}</p>`;
+  };
+  pipe.addEventListener('click', e => { const b = e.target.closest('button'); if (b) show(+b.dataset.s); });
+  show(0);
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "COMMIT が成功した直後に DB サーバーの電源が落ちた。データファイルにはまだ反映されていなかった。再起動後どうなる？",
+    "choices": [
+      "WAL を再生して、コミットした変更は復元される",
+      "データファイルに無いので変更は失われる",
+      "トランザクションが途中から再実行される"
+    ],
+    "answer": 0,
+    "explain": "COMMIT は WAL がディスクに確定した時点で成功を返す。再起動時に WAL を読み直して（REDO）データファイルを最新にするので、コミット済みの変更は消えない。",
+    "ref": "#recovery"
+  },
+  {
+    "q": "昨日まで速かった同じ SQL が、データが急増した今日から急に遅くなった。SQL は一文字も変えていない。まず疑うべきは？",
+    "choices": [
+      "SQL の構文エラー",
+      "プランナが選ぶ実行計画が変わった（EXPLAIN で確認する）",
+      "WAL が壊れた"
+    ],
+    "answer": 1,
+    "explain": "どう取ってくるかはプランナが統計情報から毎回決める。データ量や分布が変わると別の計画が選ばれることがあるので、EXPLAIN で計画を比べる。",
+    "ref": "#pipeline"
+  },
+  {
+    "q": "1台のサーバーで動く社内ツールに SQLite を使ったら、管理画面で重い書き込みをしている間に一覧画面の読み込みが止まる。まず試すことは？",
+    "choices": [
+      "PostgreSQL に移行する",
+      "PRAGMA journal_mode = WAL にする",
+      "DB ファイルを NFS に置いて分散させる"
+    ],
+    "answer": 1,
+    "explain": "既定のロールバックジャーナルでは書き込み中は読み込みも待たされる。WAL モードなら変更を別ファイルに追記するので、書き込み中も読み込みは止まらない（書き込みは引き続き1本ずつ）。",
+    "ref": "#sqlite-wal"
+  },
+  {
+    "q": "SQLite で外部キーを定義したのに、存在しない親 ID を持つ行が普通に INSERT できてしまった。なぜ？",
+    "choices": [
+      "SQLite は外部キーに対応していないから",
+      "STRICT テーブルにしていないから",
+      "外部キー制約は既定で無効で、接続ごとに PRAGMA foreign_keys = ON が必要だから"
+    ],
+    "answer": 2,
+    "explain": "SQLite は互換性のため外部キーの検査を既定でオフにしている。接続を開くたびに PRAGMA foreign_keys = ON を実行する。",
+    "ref": "#sqlite-setup"
+  },
+  {
+    "q": "D1 で全テナントのデータを 1 つの DB に入れていたら、利用者が増えて書き込みが詰まり始めた。D1 の仕組みに合った対策は？",
+    "choices": [
+      "テナントごとに DB を分け、書き込みを複数の DB に散らす",
+      "読み取りレプリカを増やす",
+      "同じ DB への書き込みをできるだけ並列に投げる"
+    ],
+    "answer": 0,
+    "explain": "D1 の各 DB はシングルスレッドでクエリを1つずつ処理するので、1 DB の書き込みには上限がある。D1 は大量の DB を持てる設計なので、分けて書き込みを散らすのが定石。レプリカは読み取り専用なので書き込みには効かない。",
+    "ref": "#sqlite-cloud"
+  }
+]
+</script>
+</body>
+</html>

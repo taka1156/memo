@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>メモリ管理</title>
+<meta name="description" content="スタックとヒープの違い、手動管理・ガベージコレクション・参照カウント・所有権という 4 つの解放方式、GC の到達可能性と世代別 GC、GC 言語でも起きるメモリリークの原因と調べ方までを図解。">
+<meta name="memo:tags" content="言語, JavaScript">
+<meta name="memo:date" content="2026-11-04">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-a: #c2410c;
+  --c-b: #15803d;
+  --c-c: #7c3aed;
+  --c-d: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-a: #fb923c;
+    --c-b: #4ade80;
+    --c-c: #c4b5fd;
+    --c-d: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.dots { margin: 6px 0 6px 1.3em; }
+ul.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.grid2 > .card + .card, .grid3 > .card + .card { margin-top: 0; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.big { font-size: 1.05rem; font-weight: 700; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+input[type="text"], textarea, input[type="number"] {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: 500 0.85rem 'JetBrains Mono', monospace;
+  min-width: 0;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.myth { margin-bottom: 10px; }
+.myth p { margin: 4px 0; }
+
+svg.fig { width: 100%; height: auto; display: block; }
+svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); }
+svg.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+svg.fig .sub { fill: var(--fg-2); }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; max-width: 460px; font-size: 0.8rem; }
+.layout div { border-radius: 6px; padding: 6px 10px; display: flex; justify-content: space-between; gap: 10px; }
+.layout b { font-family: 'JetBrains Mono', monospace; }
+.layout small { color: var(--fg-2); text-align: right; }
+.m-stack { background: color-mix(in srgb, var(--c-a) 18%, transparent); }
+.m-gap { background: transparent; border: 1px dashed var(--line); justify-content: center !important; color: var(--fg-2); }
+.m-heap { background: color-mix(in srgb, var(--c-b) 18%, transparent); }
+.m-data { background: color-mix(in srgb, var(--c-c) 16%, transparent); }
+.m-text { background: var(--chip); }
+.sh { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+@media (max-width: 520px) { .sh { grid-template-columns: 1fr; } }
+.frame { border: 1px solid var(--c-a); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; font: 500 0.75rem 'JetBrains Mono', monospace; }
+.frame b { color: var(--c-a); display: block; font-size: 0.72rem; }
+.obj { border: 1px solid var(--c-b); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; font: 500 0.75rem 'JetBrains Mono', monospace; }
+.obj b { color: var(--c-b); display: block; font-size: 0.72rem; }
+.ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.ways .card { margin: 0; }
+.ways .who { font: 600 0.72rem 'JetBrains Mono', monospace; color: var(--fg-2); }
+.gcwrap { display: grid; gap: 10px; }
+.gcwrap .ctrl { display: flex; gap: 6px; flex-wrap: wrap; }
+#gc .node rect { fill: var(--surface); stroke: var(--line); stroke-width: 2; transition: all .25s; }
+#gc .node text { font: 700 13px 'JetBrains Mono', monospace; text-anchor: middle; }
+#gc .node.root rect { stroke: var(--accent); }
+#gc .node.marked rect { stroke: var(--c-b); fill: color-mix(in srgb, var(--c-b) 18%, var(--surface)); }
+#gc .node.freed { opacity: .15; }
+#gc .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; marker-end: url(#arrow); transition: opacity .25s; }
+#gc .edge.freed { opacity: .1; }
+.gcmsg { font-size: 0.85rem; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border-radius: 8px; padding: 8px 12px; min-height: 3em; }
+.gen { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
+.gen > div { border-radius: 8px; padding: 10px; font-size: 0.82rem; }
+.gen .young { background: color-mix(in srgb, var(--c-d) 16%, transparent); }
+.gen .old { background: color-mix(in srgb, var(--c-c) 14%, transparent); }
+@media (max-width: 520px) { .gen { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>メモリ管理</h1>
+  <p class="subtitle">スタックとヒープ / 手動・GC・参照カウント・所有権 / リークの見つけ方</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>関数の中だけで使う決まった大きさの値は<b>スタック</b>（関数が終われば自動で消える）、大きさや寿命が実行時に決まるものは<b>ヒープ</b>に置く。</li>
+      <li>難しいのはヒープの「いつ解放するか」。<b>手動（C）・GC（JS, Go, Java）・参照カウント（Swift。Python は参照カウント＋循環検出 GC）・所有権（Rust）</b>の 4 通りの答えがある。</li>
+      <li>GC は「どこからもたどれなくなったもの」を回収する。<b>たどれるまま放置したもの</b>（リスナー、キャッシュ、タイマー）は GC があってもリークする。</li>
+    </ul>
+  </div>
+
+  <h2 id="layout">プロセスのメモリ配置</h2>
+  <p>プログラムを起動すると、OS はプロセスに（仮想的な）アドレス空間を与える。典型的な配置は次のとおり。</p>
+  <div class="layout">
+    <div class="m-stack"><b>スタック ↓</b><small>関数呼び出しごとに積む。スレッドごとに 1 本</small></div>
+    <div class="m-gap">（空き）</div>
+    <div class="m-heap"><b>ヒープ ↑</b><small>実行時に必要な分だけ確保</small></div>
+    <div class="m-data"><b>データ</b><small>グローバル変数・静的変数</small></div>
+    <div class="m-text"><b>テキスト</b><small>機械語のプログラム本体（読み取り専用）</small></div>
+  </div>
+  <p class="muted">スタックとヒープは、どちらも同じ RAM 上の領域。違うのは「確保と解放の決まり方」。</p>
+
+  <h2 id="stack-heap">スタックとヒープ</h2>
+  <div class="table-wrap">
+  <table>
+    <tr><th></th><th>スタック</th><th>ヒープ</th></tr>
+    <tr><td>置くもの</td><td>ローカル変数、引数、戻り先。大きさがコンパイル時に決まるもの</td><td>大きさや個数が実行時に決まるもの、関数より長生きするもの</td></tr>
+    <tr><td>確保・解放</td><td>関数の開始・終了で自動。ポインタを動かすだけ</td><td>空き領域を探して確保。解放の仕方が言語ごとに違う</td></tr>
+    <tr><td>速さ</td><td>非常に速い。連続しているのでキャッシュにも乗りやすい</td><td>確保に手間がかかり、散らばりやすい</td></tr>
+    <tr><td>大きさ</td><td>小さい（数 MB 程度）。深い再帰で溢れる（stack overflow）</td><td>大きい（物理メモリ＋スワップまで）</td></tr>
+  </table>
+  </div>
+  <h3>例: 関数の中でオブジェクトを作る</h3>
+  <pre><code>function makeUser(name) {
+  const age = 20;                 <span class="cm">// 小さな値</span>
+  const user = { name, age };     <span class="cm">// オブジェクト</span>
+  return user;
+}
+const u = makeUser("Mio");</code></pre>
+  <div class="card sh">
+    <div>
+      <span class="label" style="color:var(--c-a)">STACK</span>
+      <div class="frame"><b>makeUser のフレーム</b>name → "Mio"<br>age = 20<br>user → ●</div>
+      <div class="frame"><b>呼び出し元</b>u → ●</div>
+    </div>
+    <div>
+      <span class="label" style="color:var(--c-b)">HEAP</span>
+      <div class="obj"><b>{ name, age }</b>name: "Mio", age: 20</div>
+      <div class="obj"><b>"Mio"</b>文字列</div>
+    </div>
+  </div>
+  <p><code>makeUser</code> が終わるとそのフレームは消えるが、オブジェクトは <code>u</code> から指されているのでヒープに残る。<b>「誰かが指している間は生かし、誰も指さなくなったら解放する」</b>のがヒープ管理の課題。</p>
+  <p class="muted">JS エンジンの実際の配置は最適化で変わる（小さな整数を値のまま持つ、逃げないオブジェクトをスタックに置く、など）。上は概念図。</p>
+
+  <h2 id="ways">解放する 4 つの方式</h2>
+  <div class="ways">
+    <div class="card"><span class="label">手動</span><p class="who">C / C++（生ポインタ）</p><p>プログラマが <code>malloc</code> / <code>free</code> を書く。速く予測可能だが、忘れればリーク、早すぎれば<b>解放後使用</b>、二回解放で破壊。</p></div>
+    <div class="card"><span class="label">トレーシング GC</span><p class="who">JS / Java / Go / C#</p><p>ランタイムが時々「たどれるもの」を調べ、残りをまとめて回収。書くのは楽だが、回収のタイミングは選べず、一時停止が起きうる。</p></div>
+    <div class="card"><span class="label">参照カウント</span><p class="who">Swift (ARC) / Rust の Rc・Arc / Python（循環は補助の GC が回収）</p><p>指している数を数え、0 になった瞬間に解放。すぐ解放されて予測しやすいが、<b>循環参照</b>は 0 にならない。</p></div>
+    <div class="card"><span class="label">所有権</span><p class="who">Rust（C++ の RAII も近い）</p><p>値の持ち主を 1 人に決め、持ち主のスコープが終わると解放するコードを<b>コンパイラが挿入</b>。実行時のコストなしで安全。代わりに借用のルールを守る必要がある。</p></div>
+  </div>
+  <p>手動管理のミスは重大な脆弱性につながりやすい。Microsoft は自社が CVE を割り当てた脆弱性の約 7 割（2019 年）、Chromium は深刻なセキュリティバグの約 7 割（2020 年）がメモリ安全性の問題だと報告している。新しいコードをメモリ安全な言語で書く流れはここから来ている。</p>
+
+  <h2 id="gc">GC のしくみ — マーク＆スイープ</h2>
+  <p>GC は「生きているか」を<b>到達可能性</b>で判断する。ルート（スタック上の変数・グローバル変数）から参照をたどって届くものは生きている、届かないものはゴミ。</p>
+  <div class="card gcwrap">
+    <svg class="fig" id="gc" viewBox="0 0 440 230" role="img" aria-label="ルートから参照をたどるオブジェクトのグラフ">
+      <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--fg-2)"/></marker></defs>
+      <g id="gc-edges"></g>
+      <g id="gc-nodes"></g>
+    </svg>
+    <div class="ctrl">
+      <button class="btn primary" id="gc-mark">① マーク</button>
+      <button class="btn" id="gc-sweep" disabled>② スイープ</button>
+      <button class="btn" id="gc-reset">リセット</button>
+    </div>
+    <div class="gcmsg" id="gc-msg">root はスタック上の変数。どのオブジェクトが回収されるか予想してから ① を押す。</div>
+  </div>
+  <ul class="dots">
+    <li><b>D と E は互いに指し合っている</b>が、ルートから届かないのでトレーシング GC では回収される。参照カウントだけの仕組み（Swift の ARC など）だと、それぞれ 1 のまま残ってしまう（循環参照リーク）。</li>
+    <li>回収後に生き残ったものを詰めて隙間をなくす<b>コンパクション</b>を行う GC もある。</li>
+  </ul>
+
+  <h2 id="generational">世代別 GC — 「ほとんどのオブジェクトはすぐ死ぬ」</h2>
+  <div class="gen">
+    <div class="young"><b>若い世代</b><p>新しいオブジェクトはここに作る。小さいので頻繁に、短時間で回収できる。生き残ったものだけを移す。</p></div>
+    <div class="old"><b>古い世代</b><p>何回か生き残ったものを移す。大きいのでたまにしか回収しない。V8 ではメインの処理と並行・少しずつ進めて停止時間を短くしている。</p></div>
+  </div>
+  <ul class="dots">
+    <li>一時的なオブジェクトを大量に作っても、若い世代で安く回収されるので、多くの場合は気にしなくてよい。</li>
+    <li>大量のオブジェクトが長生きする（巨大なキャッシュなど）と古い世代の GC が重くなる。</li>
+    <li>ゲームやアニメーションで定期的にカクつくなら、DevTools の Performance で GC の時間を確かめる。</li>
+  </ul>
+
+  <h2 id="ownership">Rust の所有権 — コンパイル時に解放を決める</h2>
+  <pre><code>fn main() {
+    let a = String::from("hi");  <span class="cm">// ヒープに確保。持ち主は a</span>
+    let b = a;                   <span class="cm">// 所有権が b に移動（ムーブ）。a はもう使えない</span>
+    print_len(&amp;b);               <span class="cm">// 借用: 貸すだけで、持ち主は b のまま</span>
+}                                <span class="cm">// b のスコープ終了 → ここで自動的に解放（drop）</span>
+
+fn print_len(s: &amp;String) { println!("{}", s.len()); }</code></pre>
+  <ul class="dots">
+    <li>持ち主は常に 1 人なので、二回解放は起きず、通常は解放忘れも起きない（ただし <code>Rc</code> の循環や <code>mem::forget</code> ではリークしうる）。借用中に持ち主が消えるコード（ダングリング参照）は<b>コンパイルエラー</b>になる。</li>
+    <li>共有の持ち主が本当に必要なときだけ <code>Rc</code> / <code>Arc</code>（参照カウント）を使う。循環させるなら片方を <code>Weak</code> にする。</li>
+  </ul>
+  <p class="related"><a href="rust.html">Rust 学習フローと仕組み</a><a href="webassembly.html">WebAssembly</a></p>
+
+  <h2 id="leak">GC があってもリークする — JS の典型例</h2>
+  <p>GC が回収できるのは「たどれなくなったもの」だけ。<b>不要になったのに、どこかから参照が残っている</b>とずっと生き続ける。</p>
+  <div class="table-wrap">
+  <table>
+    <tr><th>原因</th><th>例</th><th>対策</th></tr>
+    <tr><td>イベントリスナー</td><td>コンポーネントのマウントごとに <code>window</code> に登録し、外さない</td><td>アンマウント時に <code>removeEventListener</code>、または <code>AbortController</code> の <code>signal</code> で一括解除</td></tr>
+    <tr><td>タイマー</td><td><code>setInterval</code> のコールバックが大きなデータをクロージャで持ち続ける</td><td><code>clearInterval</code>。React なら effect のクリーンアップで</td></tr>
+    <tr><td>無制限のキャッシュ</td><td>グローバルな <code>Map</code> にリクエストごとの結果を足し続ける</td><td>上限付き（LRU）にする。オブジェクトをキーにするなら <code>WeakMap</code></td></tr>
+    <tr><td>切り離された DOM</td><td>画面から消した要素を変数や配列が持ち続ける</td><td>参照を消す。DevTools のヒープスナップショットで「Detached」を検索</td></tr>
+    <tr><td>サーバーのモジュール変数</td><td>Node.js でリクエストごとにモジュールスコープの配列へ push</td><td>リクエストの外に状態を溜めない。外部ストアを使う</td></tr>
+  </table>
+  </div>
+  <h3>調べ方（Chrome DevTools）</h3>
+  <ol class="dots">
+    <li>Memory タブで<b>ヒープスナップショット</b>を取る</li>
+    <li>疑わしい操作（画面の開閉など）を何度か繰り返す</li>
+    <li>もう一度スナップショットを取り、<b>Comparison</b> で増え続けているオブジェクトを探す</li>
+    <li>そのオブジェクトの <b>Retainers</b>（誰が参照を持っているか）をたどって、原因の参照を見つける</li>
+  </ol>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✗</span> GC のある言語ではメモリリークは起きない</p><p><span class="ok">✓</span> 不要な参照が残っていれば回収されない。リスナー・タイマー・キャッシュが典型的な原因。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> スタックが速いのは、速い種類のメモリだから</p><p><span class="ok">✓</span> どちらも同じ RAM。確保がポインタを動かすだけで済み、連続していてキャッシュに乗りやすいから速い。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> 変数に null を入れれば、その場でメモリが解放される</p><p><span class="ok">✓</span> 参照が 1 つ減るだけ。他に参照がなければ回収の対象になり、その後 GC が動いたときに回収される（いつになるかはランタイム次第）。</p></div>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+const N = {
+  root: [40, 100, 'root', true],
+  A: [150, 50], B: [150, 150], C: [260, 50],
+  D: [300, 150], E: [400, 150], F: [400, 50]
+};
+const EDGES = [['root', 'A'], ['root', 'B'], ['A', 'C'], ['B', 'C'], ['D', 'E'], ['E', 'D'], ['F', 'C']];
+const W = 56, H = 34;
+const gEdges = document.getElementById('gc-edges'), gNodes = document.getElementById('gc-nodes');
+const ns = 'http://www.w3.org/2000/svg';
+const el = (t, a) => { const e = document.createElementNS(ns, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+const edgeEls = [];
+EDGES.forEach(([a, b], i) => {
+  const [x1, y1] = N[a], [x2, y2] = N[b];
+  const dx = x2 - x1, dy = y2 - y1;
+  let sx = x1, sy = y1, ex = x2, ey = y2;
+  const tAt = (dxx, dyy) => Math.min(dxx ? (W / 2) / Math.abs(dxx) : Infinity, dyy ? (H / 2) / Math.abs(dyy) : Infinity);
+  const t = tAt(dx, dy);
+  sx += dx * t; sy += dy * t; ex -= dx * t; ey -= dy * t;
+  const off = (a === 'D' && b === 'E') ? -8 : (a === 'E' && b === 'D') ? 8 : 0;
+  const p = el('path', { class: 'edge', d: 'M' + sx + ',' + (sy + off) + ' L' + ex + ',' + (ey + off) });
+  p.dataset.from = a; p.dataset.to = b;
+  gEdges.appendChild(p); edgeEls.push(p);
+});
+const nodeEls = {};
+for (const k in N) {
+  const [x, y, label, root] = N[k];
+  const g = el('g', { class: 'node' + (root ? ' root' : '') });
+  g.appendChild(el('rect', { x: x - W / 2, y: y - H / 2, width: W, height: H, rx: 8 }));
+  const t = el('text', { x, y: y + 5 }); t.textContent = label || k; g.appendChild(t);
+  gNodes.appendChild(g); nodeEls[k] = g;
+}
+const legend = el('text', { x: 40, y: 140, 'font-size': 11, class: 'sub', 'text-anchor': 'middle' }); legend.textContent = 'スタック';
+gNodes.appendChild(legend);
+const msg = document.getElementById('gc-msg'), bM = document.getElementById('gc-mark'), bS = document.getElementById('gc-sweep');
+let marked = new Set();
+bM.onclick = () => {
+  marked = new Set(['root']);
+  const q = ['root'];
+  while (q.length) { const c = q.shift(); EDGES.filter(([a]) => a === c).forEach(([, b]) => { if (!marked.has(b)) { marked.add(b); q.push(b); } }); }
+  for (const k in nodeEls) nodeEls[k].classList.toggle('marked', marked.has(k) && k !== 'root');
+  msg.textContent = 'root から矢印をたどって届いた A・B・C に印を付けた。F は C を指しているが、F 自身はどこからも指されていない。D と E は互いに指し合っているだけ。';
+  bM.disabled = true; bS.disabled = false;
+};
+bS.onclick = () => {
+  const freed = Object.keys(N).filter(k => !marked.has(k));
+  freed.forEach(k => nodeEls[k].classList.add('freed'));
+  edgeEls.forEach(e => e.classList.toggle('freed', !marked.has(e.dataset.from)));
+  msg.textContent = '印のない ' + freed.join('・') + ' を回収した。循環している D・E も、ルートから届かないので回収される。';
+  bS.disabled = true;
+};
+document.getElementById('gc-reset').onclick = () => {
+  marked = new Set();
+  for (const k in nodeEls) nodeEls[k].classList.remove('marked', 'freed');
+  edgeEls.forEach(e => e.classList.remove('freed'));
+  bM.disabled = false; bS.disabled = true;
+  msg.textContent = 'root はスタック上の変数。どのオブジェクトが回収されるか予想してから ① を押す。';
+};
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "SPA で画面を開閉するたびにメモリ使用量が増え続ける。コンポーネントは表示のたびに window.addEventListener('resize', handler) を呼んでいる。原因として最も疑わしいのは？",
+    "choices": ["GC が古い世代を回収しないから", "リスナーを外していないため、window から handler とそのクロージャ（コンポーネントの状態）が参照され続けているから", "resize イベントはブラウザがキャッシュするから"],
+    "answer": 1,
+    "explain": "window はルートから常にたどれるので、そこに登録されたリスナーと、それが参照するものは回収されない。アンマウント時に解除する。",
+    "ref": "#leak"
+  },
+  {
+    "q": "親オブジェクトが子を持ち、子も親を参照している。参照カウント方式の言語（Swift など）で、どちらも使わなくなったのに解放されないのを防ぐには？",
+    "choices": ["片方の参照を弱参照（weak）にする", "両方の変数に一度だけ値を再代入する", "参照カウントの言語では循環しても自動で回収されるので何もしなくてよい"],
+    "answer": 0,
+    "explain": "互いに指し合うとカウントが 0 にならない。片方を weak にするとカウントに数えられず、循環が切れる。",
+    "ref": "#ways"
+  },
+  {
+    "q": "JS で、DOM 要素ごとに追加情報を持たせたい。要素が削除されたら情報も自動で消えてほしい。何を使う？",
+    "choices": ["グローバルな Map に要素をキーとして保存する", "要素の id 文字列をキーにしたオブジェクトに保存する", "WeakMap に要素をキーとして保存する"],
+    "answer": 2,
+    "explain": "WeakMap のキーは弱く参照されるので、要素が他から参照されなくなれば値ごと回収される。Map だとキーとして要素を持ち続けてしまう。",
+    "ref": "#leak"
+  },
+  {
+    "q": "再帰で深い木構造をたどる処理が、入力が大きいときだけ stack overflow で落ちる。メモリの観点で何が起きている？",
+    "choices": ["ヒープが足りなくなった", "関数呼び出しごとにスタックへフレームが積まれ、上限の小さいスタックを使い切った", "GC が間に合わなかった"],
+    "answer": 1,
+    "explain": "スタックは数 MB 程度と小さい。再帰をループと自前のスタック（配列）に書き換えると、データはヒープに置かれるので深さに耐えられる。",
+    "ref": "#stack-heap"
+  },
+  {
+    "q": "Rust で let b = a; とした後に a を使うとコンパイルエラーになる。なぜそういうルールなのか？",
+    "choices": ["a と b が同じヒープ領域を持ち主として解放し、二回解放になるのを防ぐため", "a の値がスタックからヒープにコピーされるため", "変数の再代入が禁止されているため"],
+    "answer": 0,
+    "explain": "所有権を b に移す（ムーブ）ことで持ち主を 1 人に保ち、スコープ終了時の解放が一度だけになるようにしている。",
+    "ref": "#ownership"
+  }
+]
+</script>
+</body>
+</html>

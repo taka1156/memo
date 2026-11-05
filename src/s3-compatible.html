@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S3 互換ストレージの仕組み</title>
+<meta name="description" content="S3 API の仕組みと、互換ストレージの範囲・落とし穴・製品の違いを図解。">
+<meta name="memo:tags" content="インフラ, データベース">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #2e8b57;
+  --c-warn: #c27c0e;
+  --c-ng: #c8372d;
+  --c-ok-bg: #e8f5ee;
+  --c-warn-bg: #fdf3e2;
+  --c-ng-bg: #fbecea;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #5fd39a;
+    --c-warn: #f2b24c;
+    --c-ng: #ff7b6e;
+    --c-ok-bg: #12261c;
+    --c-warn-bg: #2a2010;
+    --c-ng-bg: #2a1614;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 40px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 16px 0 6px; }
+p { margin: 8px 0; }
+ul.plain { margin: 6px 0 6px 1.2em; }
+.note { color: var(--fg-2); font-size: 0.82rem; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); }
+.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.fig .sub { fill: var(--fg-2); font-size: 11px; }
+.fig .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.fig .box-acc { fill: var(--chip); stroke: var(--accent); stroke-width: 1.5; }
+.fig .box-ok { fill: var(--surface); stroke: var(--c-ok); stroke-width: 1.5; }
+.fig .box-warn { fill: var(--surface); stroke: var(--c-warn); stroke-width: 1.5; }
+.fig .arrow { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .arrow-acc { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig .dash { stroke-dasharray: 4 4; }
+.fig .ah { fill: var(--fg-2); }
+.fig .ah-acc { fill: var(--accent); }
+.scroll-x { overflow-x: auto; }
+
+/* キーとフォルダ表示 */
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .twocol { grid-template-columns: 1fr; } }
+.keys { font: 500 0.78rem 'JetBrains Mono', ui-monospace, monospace; }
+.keys div { padding: 4px 8px; border-bottom: 1px dashed var(--line); word-break: break-all; }
+.keys .pfx { color: var(--accent); font-weight: 700; }
+.tree { font: 500 0.8rem 'JetBrains Mono', ui-monospace, monospace; }
+.tree div { padding: 2px 0; }
+.label-s { font-size: 0.75rem; color: var(--fg-2); font-weight: 700; letter-spacing: .05em; margin-bottom: 6px; }
+
+/* フォーム部品 */
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.inp, select.inp {
+  font: 500 0.85rem 'JetBrains Mono', ui-monospace, monospace;
+  padding: 6px 9px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--fg); min-width: 0;
+}
+.inp.w { flex: 1 1 160px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.seg button {
+  border: none; background: var(--chip); color: var(--fg-2); padding: 5px 12px;
+  font: 600 0.75rem 'JetBrains Mono', ui-monospace, monospace; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
+.out {
+  font: 500 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+  background: var(--chip); border-radius: 8px; padding: 10px 12px; margin-top: 8px;
+  word-break: break-all;
+}
+.out .hl { color: var(--accent); font-weight: 700; }
+.verdict { font-weight: 700; }
+.verdict.ok { color: var(--c-ok); }
+.verdict.ng { color: var(--c-ng); }
+
+/* パート棒 */
+.parts { display: flex; gap: 2px; height: 26px; margin-top: 10px; }
+.parts span { flex: 1; background: var(--accent); opacity: .75; border-radius: 3px; }
+.parts span.last { opacity: .35; }
+
+/* 互換レイヤー */
+.layer { border-radius: 10px; padding: 12px 14px; margin: 8px 0; border: 1px solid var(--line); }
+.layer.ok { background: var(--c-ok-bg); border-color: var(--c-ok); }
+.layer.warn { background: var(--c-warn-bg); border-color: var(--c-warn); }
+.layer.ng { background: var(--c-ng-bg); border-color: var(--c-ng); }
+.layer strong { display: block; margin-bottom: 4px; }
+.layer .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.layer .chips code { background: var(--surface); }
+
+/* 製品 */
+.prods { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.prod { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.prod h3 { margin: 0 0 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.9rem; }
+.prod .meta { font: 500 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.prod p { font-size: 0.84rem; margin: 6px 0 0; }
+.badge { display: inline-block; font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; margin-left: 4px; vertical-align: 1px; }
+.badge.warn { color: var(--c-warn); }
+
+/* 表 */
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; vertical-align: top; }
+.tbl thead th { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.8rem; }
+.tbl tbody th { color: var(--fg-2); font-weight: 500; white-space: nowrap; }
+
+/* 誤解 */
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
+summary { cursor: pointer; font-weight: 700; }
+details[open] summary { margin-bottom: 6px; }
+
+.tip { border-bottom: 1px dotted var(--fg-2); cursor: help; position: relative; }
+.tip:hover::after, .tip:focus::after {
+  content: attr(data-tip); position: absolute; left: 0; top: 1.8em; z-index: 5;
+  width: max-content; max-width: 260px; background: var(--fg); color: var(--bg);
+  font-size: 0.75rem; line-height: 1.5; padding: 6px 9px; border-radius: 6px; font-weight: 400;
+}
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>S3 互換ストレージの仕組み</h1>
+  <p class="subtitle">「S3 互換」とは、Amazon S3 の HTTP API の話し方をまねていること ─ どこまで同じで、どこから違うか</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>S3 API は「<strong>バケット</strong>の中に、<strong>キー</strong>（ただの文字列）で<strong>オブジェクト</strong>を置く」HTTP API。フォルダは実在せず、<code>/</code> 区切りで見せているだけ。</li>
+      <li>リクエストは <strong>SigV4</strong> で署名する。エンドポイント・リージョン・アクセスキーを差し替えれば、同じ SDK や CLI が R2・MinIO・Ceph などにもそのまま話しかけられる ─ これが「互換」の正体。</li>
+      <li>互換なのは主に<strong>基本操作</strong>（Put / Get / List / マルチパート / 署名付き URL）。ACL・バージョニング・ライフサイクル・チェックサムなどは製品ごとに差があり、そこでつまずく。</li>
+    </ul>
+  </div>
+
+  <!-- ================= モデル ================= -->
+  <h2 id="model">データモデル ─ バケット・キー・オブジェクト</h2>
+  <p>S3 はファイルシステムではなく<strong>巨大なキーバリューストア</strong>です。値（オブジェクト）は丸ごと置き換えるもので、途中だけ書き換えたり追記したりはできません（一部の特殊なストレージクラスを除く）。</p>
+  <div class="card scroll-x">
+    <svg class="fig" viewBox="0 0 720 200" role="img" aria-label="バケットの中にキーとオブジェクトが並ぶ構造" style="min-width:520px">
+      <rect class="box-acc" x="10" y="20" width="700" height="168" rx="12"/>
+      <text x="26" y="44" font-size="13" font-weight="700">バケット <tspan class="mono" font-weight="500">photos-prod</tspan></text>
+      <text x="694" y="44" text-anchor="end" class="sub">名前空間・権限・設定の単位</text>
+      <g>
+        <rect class="box" x="30" y="60" width="210" height="112" rx="10"/>
+        <text x="44" y="82" font-size="11" class="sub">キー（文字列）</text>
+        <text x="44" y="100" font-size="12" class="mono">2026/11/cat.jpg</text>
+        <line x1="44" y1="112" x2="226" y2="112" stroke="var(--line)"/>
+        <text x="44" y="130" font-size="11" class="sub">値（バイト列 ＋ メタデータ）</text>
+        <text x="44" y="148" font-size="12">JPEG 本体</text>
+        <text x="44" y="164" font-size="10.5" class="sub mono">Content-Type, ETag, x-amz-meta-*</text>
+      </g>
+      <g>
+        <rect class="box" x="255" y="60" width="210" height="112" rx="10"/>
+        <text x="269" y="82" class="sub">キー</text>
+        <text x="269" y="100" font-size="12" class="mono">2026/11/dog.jpg</text>
+        <line x1="269" y1="112" x2="451" y2="112" stroke="var(--line)"/>
+        <text x="269" y="130" class="sub">値</text>
+        <text x="269" y="148" font-size="12">JPEG 本体</text>
+      </g>
+      <g>
+        <rect class="box" x="480" y="60" width="210" height="112" rx="10"/>
+        <text x="494" y="82" class="sub">キー</text>
+        <text x="494" y="100" font-size="12" class="mono">index.json</text>
+        <line x1="494" y1="112" x2="676" y2="112" stroke="var(--line)"/>
+        <text x="494" y="130" class="sub">値</text>
+        <text x="494" y="148" font-size="12">JSON</text>
+      </g>
+    </svg>
+  </div>
+
+  <h3 id="folders">フォルダは無い ─ プレフィックスと区切り文字</h3>
+  <p>コンソールでフォルダのように見えるのは、<code>ListObjectsV2</code> に <code>prefix</code> と <code>delimiter=/</code> を渡して「次の <code>/</code> までで束ねて」返してもらっているだけです。</p>
+  <div class="card">
+    <div class="row">
+      <span class="label-s" style="margin:0">prefix =</span>
+      <select class="inp" id="pfx">
+        <option value="">（空）</option>
+        <option value="2026/">2026/</option>
+        <option value="2026/11/">2026/11/</option>
+      </select>
+      <span class="label-s" style="margin:0">delimiter =</span>
+      <div class="seg" id="delim"><button aria-pressed="true" data-v="/">/</button><button aria-pressed="false" data-v="">なし</button></div>
+    </div>
+    <div class="twocol">
+      <div>
+        <div class="label-s">バケットに実在するキー</div>
+        <div class="keys" id="allkeys"></div>
+      </div>
+      <div>
+        <div class="label-s">ListObjectsV2 の結果</div>
+        <div class="tree" id="listout"></div>
+      </div>
+    </div>
+    <p class="note">「フォルダの名前変更」は全キーのコピー＋削除になります。1 回の List で返るのは最大 1000 件で、続きは <code>ContinuationToken</code> で取ります。</p>
+  </div>
+
+  <!-- ================= リクエスト ================= -->
+  <h2 id="request">リクエストの中身 ─ エンドポイントと SigV4 署名</h2>
+  <p>S3 API の呼び出しは、ただの HTTPS リクエストです。<strong>どこに送るか</strong>（エンドポイントとアドレス形式）と、<strong>誰が送ったか</strong>（署名）さえ合っていれば、相手が AWS でなくても通じます。</p>
+
+  <h3 id="addressing">アドレス形式：virtual-hosted と path-style</h3>
+  <div class="card">
+    <div class="row">
+      <select class="inp" id="ep" aria-label="エンドポイント">
+        <option value="aws">AWS S3（ap-northeast-1）</option>
+        <option value="r2">Cloudflare R2</option>
+        <option value="local">セルフホスト（localhost:9000）</option>
+      </select>
+      <div class="seg" id="style"><button aria-pressed="true" data-v="vh">virtual-hosted</button><button aria-pressed="false" data-v="path">path-style</button></div>
+    </div>
+    <div class="row">
+      <input class="inp w" id="bk" value="photos-prod" aria-label="バケット名" spellcheck="false">
+      <input class="inp w" id="ky" value="2026/11/cat.jpg" aria-label="キー" spellcheck="false">
+    </div>
+    <div class="out" id="urlout"></div>
+    <p class="note">AWS は <strong>virtual-hosted 形式</strong>（バケット名がホスト名に入る）を標準にしています。セルフホストでは DNS やワイルドカード証明書を用意しにくいので <strong>path-style</strong> を使うことが多く、SDK に <code>forcePathStyle: true</code>（boto3 なら <code>addressing_style: path</code>）を指定します。</p>
+  </div>
+
+  <h3 id="sigv4">SigV4 署名：秘密鍵そのものは送らない</h3>
+  <div class="card scroll-x">
+    <svg class="fig" viewBox="0 0 720 290" role="img" aria-label="SigV4 の署名鍵導出と署名の流れ" style="min-width:560px">
+      <defs>
+        <marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="m2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-acc" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+      <!-- 上段：正規化リクエスト -->
+      <rect class="box" x="10" y="16" width="200" height="88" rx="10"/>
+      <text x="110" y="38" text-anchor="middle" font-size="12.5" font-weight="700">① 正規化リクエスト</text>
+      <text x="110" y="58" text-anchor="middle" class="sub mono">メソッド / パス / クエリ</text>
+      <text x="110" y="74" text-anchor="middle" class="sub mono">署名するヘッダー</text>
+      <text x="110" y="90" text-anchor="middle" class="sub mono">本文の SHA-256</text>
+      <line class="arrow" x1="210" y1="60" x2="256" y2="60" marker-end="url(#m1)"/>
+      <text x="233" y="52" text-anchor="middle" class="sub mono">SHA256</text>
+      <rect class="box" x="258" y="16" width="200" height="88" rx="10"/>
+      <text x="358" y="38" text-anchor="middle" font-size="12.5" font-weight="700">② 署名対象文字列</text>
+      <text x="358" y="58" text-anchor="middle" class="sub mono">AWS4-HMAC-SHA256</text>
+      <text x="358" y="74" text-anchor="middle" class="sub mono">日時 / スコープ</text>
+      <text x="358" y="90" text-anchor="middle" class="sub mono">①のハッシュ</text>
+
+      <!-- 下段：署名鍵 -->
+      <rect class="box-warn" x="10" y="150" width="120" height="56" rx="10"/>
+      <text x="70" y="174" text-anchor="middle" font-size="12" font-weight="700">秘密鍵</text>
+      <text x="70" y="192" text-anchor="middle" class="sub">手元から出ない</text>
+      <g class="mono" font-size="11">
+        <rect class="box" x="152" y="158" width="80" height="40" rx="8"/><text x="192" y="182" text-anchor="middle" font-size="11">日付</text>
+        <rect class="box" x="252" y="158" width="80" height="40" rx="8"/><text x="292" y="182" text-anchor="middle" font-size="11">リージョン</text>
+        <rect class="box" x="352" y="158" width="80" height="40" rx="8"/><text x="392" y="182" text-anchor="middle" font-size="11">s3</text>
+        <rect class="box" x="452" y="158" width="100" height="40" rx="8"/><text x="502" y="182" text-anchor="middle" font-size="11">aws4_request</text>
+      </g>
+      <line class="arrow" x1="130" y1="178" x2="150" y2="178" marker-end="url(#m1)"/>
+      <line class="arrow" x1="232" y1="178" x2="250" y2="178" marker-end="url(#m1)"/>
+      <line class="arrow" x1="332" y1="178" x2="350" y2="178" marker-end="url(#m1)"/>
+      <line class="arrow" x1="432" y1="178" x2="450" y2="178" marker-end="url(#m1)"/>
+      <text x="340" y="222" text-anchor="middle" class="sub">HMAC を 4 回重ねて「その日・そのリージョン・S3 専用」の署名鍵を作る</text>
+
+      <!-- 合流 -->
+      <rect class="box-acc" x="580" y="80" width="130" height="70" rx="10"/>
+      <text x="645" y="108" text-anchor="middle" font-size="12.5" font-weight="700">③ 署名</text>
+      <text x="645" y="128" text-anchor="middle" class="sub mono">HMAC(鍵, ②)</text>
+      <path class="arrow-acc" d="M458,60 C530,60 560,80 600,82" marker-end="url(#m2)"/>
+      <path class="arrow-acc" d="M552,178 C590,178 630,170 640,152" marker-end="url(#m2)"/>
+      <text x="645" y="250" text-anchor="middle" font-size="12" font-weight="700">→ Authorization ヘッダー</text>
+      <text x="645" y="268" text-anchor="middle" class="sub">（またはクエリ文字列）に入れて送る</text>
+      <line class="arrow" x1="645" y1="150" x2="645" y2="232" marker-end="url(#m1)"/>
+    </svg>
+  </div>
+  <p>サーバー側も同じ秘密鍵で同じ計算をし、署名が一致するかを見ます。<strong>リージョン名が署名に入る</strong>ので、相手が期待するリージョン（R2 なら <code>auto</code>、セルフホストなら設定した値。多くは <code>us-east-1</code>）とずれると <code>SignatureDoesNotMatch</code> になります。</p>
+
+  <h3 id="presign">署名付き URL：ブラウザから直接アップロード</h3>
+  <div class="card scroll-x">
+    <svg class="fig" viewBox="0 0 720 200" role="img" aria-label="署名付き URL を使った直接アップロードの流れ" style="min-width:520px">
+      <defs><marker id="m3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-acc" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+      <rect class="box" x="10" y="70" width="150" height="60" rx="10"/>
+      <text x="85" y="97" text-anchor="middle" font-size="13" font-weight="700">ブラウザ</text>
+      <text x="85" y="116" text-anchor="middle" class="sub">鍵を持たない</text>
+      <rect class="box-acc" x="285" y="10" width="160" height="60" rx="10"/>
+      <text x="365" y="37" text-anchor="middle" font-size="13" font-weight="700">アプリサーバー</text>
+      <text x="365" y="56" text-anchor="middle" class="sub">鍵を持つ・署名だけする</text>
+      <rect class="box-ok" x="560" y="70" width="150" height="60" rx="10"/>
+      <text x="635" y="97" text-anchor="middle" font-size="13" font-weight="700">ストレージ</text>
+      <text x="635" y="116" text-anchor="middle" class="sub">署名を検証</text>
+      <path class="arrow-acc" d="M120,70 C160,30 220,30 283,36" marker-end="url(#m3)"/>
+      <text x="170" y="26" class="sub">① アップロードしたい</text>
+      <path class="arrow-acc" d="M285,56 C220,70 190,78 162,86" marker-end="url(#m3)"/>
+      <text x="196" y="96" class="sub">② 期限付き URL を返す</text>
+      <path class="arrow-acc" d="M160,118 C300,170 450,170 558,118" marker-end="url(#m3)"/>
+      <text x="360" y="178" text-anchor="middle" class="sub">③ その URL に直接 PUT（ファイル本体はアプリを通らない）</text>
+    </svg>
+    <p class="note">署名・期限・対象キー・メソッドが URL のクエリに入っていて、ストレージ側がそれを検証します。期限は最長 7 日（一時的な認証情報で署名した場合は、その認証情報が切れた時点で無効）。純粋に計算だけで作れるので、ほとんどの互換ストレージで使えます。</p>
+  </div>
+
+  <!-- ================= マルチパート ================= -->
+  <h2 id="multipart">大きなファイル ─ マルチパートアップロード</h2>
+  <p>1 回の PUT で送れるのは AWS S3 で 5 GB まで。それより大きいもの、または途中で切れても再送を小さくしたいものは、パートに分けて並列に送ります。</p>
+  <div class="card scroll-x">
+    <svg class="fig" viewBox="0 0 720 130" role="img" aria-label="マルチパートアップロードの 3 段階" style="min-width:520px">
+      <defs><marker id="m4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+      <rect class="box-acc" x="10" y="30" width="190" height="70" rx="10"/>
+      <text x="105" y="56" text-anchor="middle" font-size="12" font-weight="700" class="mono">CreateMultipartUpload</text>
+      <text x="105" y="78" text-anchor="middle" class="sub">UploadId をもらう</text>
+      <line class="arrow" x1="200" y1="65" x2="246" y2="65" marker-end="url(#m4)"/>
+      <rect class="box" x="248" y="10" width="200" height="34" rx="8"/><text x="348" y="32" text-anchor="middle" font-size="11.5" class="mono">UploadPart #1 → ETag</text>
+      <rect class="box" x="248" y="48" width="200" height="34" rx="8"/><text x="348" y="70" text-anchor="middle" font-size="11.5" class="mono">UploadPart #2 → ETag</text>
+      <rect class="box" x="248" y="86" width="200" height="34" rx="8"/><text x="348" y="108" text-anchor="middle" font-size="11.5" class="mono">UploadPart #N → ETag</text>
+      <line class="arrow" x1="448" y1="65" x2="494" y2="65" marker-end="url(#m4)"/>
+      <text x="471" y="56" text-anchor="middle" class="sub">並列可</text>
+      <rect class="box-ok" x="496" y="30" width="214" height="70" rx="10"/>
+      <text x="603" y="56" text-anchor="middle" font-size="12" font-weight="700" class="mono">CompleteMultipartUpload</text>
+      <text x="603" y="78" text-anchor="middle" class="sub">番号と ETag の一覧で結合</text>
+    </svg>
+  </div>
+
+  <div class="card" style="margin-top:10px">
+    <div class="label-s">パート数を計算（AWS S3 の制限で判定）</div>
+    <div class="row">
+      <label class="note" for="fsz">ファイルサイズ (GiB)</label>
+      <input class="inp" id="fsz" type="number" min="0.001" step="any" value="200" style="width:110px">
+      <label class="note" for="psz">パートサイズ (MiB)</label>
+      <input class="inp" id="psz" type="number" min="1" step="1" value="16" style="width:90px">
+    </div>
+    <div class="out" id="mpout"></div>
+    <div class="parts" id="mpbar" aria-hidden="true"></div>
+    <p class="note">AWS の制限：パートは 5 MiB〜5 GiB（最後のパートだけ 5 MiB 未満でよい）、1 回のアップロードで最大 10,000 パート、オブジェクトは最大 48.8 TiB（約 50 TB。2025 年 12 月に 5 TB から引き上げ）。互換ストレージでは上限が違うことがあります。</p>
+  </div>
+  <p><strong>Complete も Abort もされなかったパートは見えないまま残り、容量として課金され続けます。</strong>ライフサイクルルールの <code>AbortIncompleteMultipartUpload</code>（例：7 日で破棄）を入れておくのが定番です。</p>
+
+  <!-- ================= 一貫性 ================= -->
+  <h2 id="consistency">一貫性と同時書き込み</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="cs-read">書いた直後に読める？</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="cs-cond">上書き競合を防ぐ</button>
+  </div>
+  <div class="panel card" id="cs-read">
+    <p>AWS S3 は 2020 年 12 月から、PUT・DELETE の直後の GET / LIST が<strong>必ず最新を返す強い整合性 (strong read-after-write consistency)</strong> になっています。それ以前は「上書き直後に古い版が見えることがある」結果整合性で、この時代の注意書きが今も古い記事に残っています。</p>
+    <p class="note">互換ストレージの整合性は実装次第です。キャッシュや複数拠点構成をとるものでは、LIST への反映が遅れる・拠点間で一時的に食い違うなどがありえるので、各製品のドキュメントで確認します。</p>
+  </div>
+  <div class="panel card" id="cs-cond" hidden>
+    <p>S3 にはロックがありません。2 つのプロセスが同じキーに同時に PUT すると、後に完了した方が黙って勝ちます。これを防ぐのが<strong>条件付き書き込み (conditional writes)</strong> です。</p>
+    <table class="tbl">
+      <thead><tr><th>ヘッダー</th><th>意味</th><th>使い道</th></tr></thead>
+      <tbody>
+        <tr><th><code>If-None-Match: *</code></th><td>そのキーがまだ無いときだけ書く</td><td>二重作成の防止、ロックファイル、冪等なアップロード</td></tr>
+        <tr><th><code>If-Match: "&lt;ETag&gt;"</code></th><td>今の ETag が読んだときと同じなら書く</td><td>読み→変更→書き戻しの楽観ロック（マニフェスト・インデックスの更新）</td></tr>
+      </tbody>
+    </table>
+    <p>条件を満たさないと <code>412 Precondition Failed</code> が返ります。AWS S3 では 2024 年に対応しました（8 月に <code>If-None-Match</code>、11 月に <code>If-Match</code>）。<strong>互換ストレージでは未対応・部分対応のこともあり、無視されると競合を検出できないまま上書きされる</strong>ので、使う前に必ず動作を確かめます。</p>
+  </div>
+
+  <!-- ================= 互換の範囲 ================= -->
+  <h2 id="compat">「互換」の範囲 ─ どこまで同じか</h2>
+  <p>S3 API には 100 を超えるオペレーションがあり、互換ストレージが全部を実装しているわけではありません。だいたい次の 3 層で考えると判断しやすくなります。</p>
+  <div class="layer ok">
+    <strong>✓ ほぼどこでも使える（コア）</strong>
+    <div class="chips"><code>PutObject</code><code>GetObject</code><code>HeadObject</code><code>DeleteObject(s)</code><code>ListObjectsV2</code><code>CopyObject</code><code>マルチパート</code><code>署名付き URL</code><code>Range 読み取り</code></div>
+  </div>
+  <div class="layer warn">
+    <strong>△ 製品によって有無・挙動が違う</strong>
+    <div class="chips"><code>バージョニング</code><code>ライフサイクル</code><code>条件付き書き込み</code><code>Object Lock</code><code>CORS 設定</code><code>サーバー側暗号化</code><code>イベント通知</code><code>追加チェックサム</code></div>
+  </div>
+  <div class="layer ng">
+    <strong>✗ AWS 固有と考える</strong>
+    <div class="chips"><code>IAM ポリシー・条件キー</code><code>ストレージクラス（Glacier など）</code><code>S3 Inventory</code><code>Access Points</code><code>EventBridge 連携</code></div>
+  </div>
+  <p class="note">例えば Cloudflare R2 は ACL・バケットポリシー・バージョニング・オブジェクトタグなどを実装しておらず、権限は R2 側の API トークンで管理します。「互換」と書いてあっても、使う機能を各製品の互換性一覧で照らし合わせるのが確実です。</p>
+
+  <!-- ================= 落とし穴 ================= -->
+  <h2 id="pitfalls">つまずきどころ</h2>
+  <details id="checksum" open>
+    <summary>AWS SDK を更新したら互換ストレージへのアップロードが失敗した</summary>
+    <p>2025 年初めに AWS SDK 各言語版が、アップロード時に CRC32 などの<strong>チェックサムを既定で付けて送る</strong>ように変わりました。これを理解しない互換ストレージでエラーが相次ぎました。チェックサムを「必要なときだけ」に戻す設定で回避できます（相手側が対応済みなら不要）。</p>
+    <pre><code># 環境変数（SDK 共通）
+AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+
+# ~/.aws/config
+[default]
+request_checksum_calculation = when_required
+response_checksum_validation = when_required</code></pre>
+  </details>
+  <details>
+    <summary>ETag をファイルの MD5 だと思って照合したら合わない</summary>
+    <p>単純な PUT なら多くの場合 MD5 ですが、マルチパートでアップロードしたオブジェクトの ETag は「各パートの MD5 をつなげたものの MD5」に <code>-パート数</code> が付いた値で、ファイル全体の MD5 ではありません。暗号化の方式によっても MD5 になりません。整合性の確認には ETag ではなくチェックサム（<code>x-amz-checksum-*</code>）を使います。</p>
+  </details>
+  <details>
+    <summary>エンドポイントを変えたのに <code>SignatureDoesNotMatch</code> / 名前解決エラーになる</summary>
+    <p>リージョン名が相手の期待と違う（署名に入るため）か、virtual-hosted 形式で <code>バケット名.localhost</code> のようなホストを引こうとしているのが典型です。リージョンを合わせ、セルフホストでは path-style を指定します。</p>
+  </details>
+  <details>
+    <summary>「S3 にファイルを置けばファイルサーバーの代わりになる」</summary>
+    <p>部分書き換え・追記・原子的なリネーム・ファイルロックがありません。FUSE でマウントするツールもありますが、ログ追記や DB ファイルの置き場には向きません。大量の小さなオブジェクトは 1 リクエストごとの課金・遅延が効いてくるので、まとめて置く設計にします。</p>
+  </details>
+
+  <!-- ================= 製品 ================= -->
+  <h2 id="products">主な S3 互換ストレージ</h2>
+  <h3>マネージド（サービスとして借りる）</h3>
+  <div class="prods">
+    <div class="prod"><h3>Amazon S3</h3><div class="meta">本家・事実上の仕様</div><p>機能が最も多い。ストレージクラス・IAM・他 AWS サービス連携が強み。インターネットへの転送量 (egress) が課金される。</p></div>
+    <div class="prod"><h3>Cloudflare R2</h3><div class="meta">リージョン = auto</div><p>egress 無料が最大の特徴で、配信元に向く。ACL・バージョニングなど一部の S3 機能は未実装。Workers からは S3 API を使わず直接バインドできる。</p></div>
+    <div class="prod"><h3>Google Cloud Storage</h3><div class="meta">XML API の相互運用</div><p>本来の API は別物だが、HMAC キーを発行すると XML API 経由で S3 の SDK・ツールから使える（対応範囲は一部）。</p></div>
+    <div class="prod"><h3>Backblaze B2 / Wasabi など</h3><div class="meta">容量単価・egress を抑えた系</div><p>バックアップやアーカイブ向けに、保存単価や転送料金の安さを打ち出すサービス。最低保存期間などの条件に注意。</p></div>
+  </div>
+  <h3>セルフホスト（自分で動かす）</h3>
+  <div class="prods">
+    <div class="prod"><h3>MinIO<span class="badge warn">開発終了</span></h3><div class="meta">Go / AGPLv3（コミュニティ版）</div><p>長くセルフホストの定番だったが、コミュニティ版は 2025 年に管理画面の削除・バイナリ配布停止を経てメンテナンスモードに入り、2026 年 4 月にリポジトリがアーカイブされた。開発は商用版 AIStor に移っている。新規採用は避け、既存環境は移行先を検討する段階。</p></div>
+    <div class="prod"><h3>Ceph RGW</h3><div class="meta">C++ / 大規模向け</div><p>分散ストレージ Ceph の S3 ゲートウェイ。ブロック・ファイルと同じ基盤で、マルチサイト・イレージャーコーディングまで揃うが、運用は重い。</p></div>
+    <div class="prod"><h3>SeaweedFS</h3><div class="meta">Go / 小さなファイルが大量</div><p>追記型のボリュームファイルに小さなオブジェクトを詰めて扱う設計。S3 のほか FUSE・WebDAV などの入口も持つ。</p></div>
+    <div class="prod"><h3>Garage</h3><div class="meta">Rust / AGPLv3</div><p>普通のサーバーを複数拠点にまたいで並べる小〜中規模向け。軽量だが、バケットポリシー・ACL・バージョニングなど実装していない機能も多い。</p></div>
+    <div class="prod"><h3>RustFS</h3><div class="meta">Rust / Apache-2.0</div><p>MinIO に近い運用感を狙った新しめの分散オブジェクトストレージ。互換性表で対応範囲を公開している。MinIO の移行先候補としてよく名前が挙がる。</p></div>
+  </div>
+
+  <h3 id="choose">どう選ぶ</h3>
+  <table class="tbl">
+    <thead><tr><th>やりたいこと</th><th>まず検討するもの</th></tr></thead>
+    <tbody>
+      <tr><th>画像・動画をたくさん配信したい</th><td>egress 無料・安価なもの（R2 など）＋ CDN</td></tr>
+      <tr><th>AWS の他サービスと組み合わせる</th><td>Amazon S3（ストレージクラス・IAM・イベント連携）</td></tr>
+      <tr><th>開発・テストでローカルに S3 が欲しい</th><td>軽いセルフホスト（Garage・RustFS・SeaweedFS など）をコンテナで</td></tr>
+      <tr><th>オンプレで PB 級・ブロックやファイルも</th><td>Ceph</td></tr>
+      <tr><th>アプリをどこにでも持っていけるようにしたい</th><td>コア操作だけに絞って実装し、エンドポイント・リージョン・path-style を設定で差し替えられるようにする</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="commands">コマンド例</h2>
+  <pre><code># 同じ AWS CLI で、エンドポイントだけ差し替えて使う
+aws s3 ls s3://photos-prod/2026/ --endpoint-url https://&lt;ACCOUNT_ID&gt;.r2.cloudflarestorage.com
+aws s3 cp ./cat.jpg s3://photos-prod/2026/11/cat.jpg --endpoint-url http://localhost:9000
+
+# 署名付き URL（読み取り・1 時間）
+aws s3 presign s3://photos-prod/2026/11/cat.jpg --expires-in 3600 --endpoint-url ...
+
+# 失敗したマルチパートの残骸を一覧
+aws s3api list-multipart-uploads --bucket photos-prod --endpoint-url ...</code></pre>
+  <pre><code>// JavaScript（AWS SDK v3）で互換ストレージにつなぐ
+import { S3Client } from "@aws-sdk/client-s3";
+const s3 = new S3Client({
+  endpoint: "http://localhost:9000",
+  region: "us-east-1",          // 相手が期待するリージョン（R2 なら "auto"）
+  forcePathStyle: true,         // セルフホストでは path-style
+  credentials: { accessKeyId: "...", secretAccessKey: "..." },
+});</code></pre>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+// タブ
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+// セグメントボタン
+function seg(id, onChange) {
+  const el = document.getElementById(id);
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    onChange();
+  });
+  return () => el.querySelector('[aria-pressed="true"]').dataset.v;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// プレフィックスと区切り文字
+(() => {
+  const keys = ['2026/10/a.jpg', '2026/11/cat.jpg', '2026/11/dog.jpg', '2026/11/raw/cat.cr3', '2025/12/x.jpg', 'index.json'];
+  const pfx = document.getElementById('pfx');
+  const getDelim = seg('delim', render);
+  function render() {
+    const p = pfx.value, d = getDelim();
+    document.getElementById('allkeys').innerHTML = keys.map(k =>
+      '<div>' + (p && k.startsWith(p) ? '<span class="pfx">' + esc(p) + '</span>' + esc(k.slice(p.length)) : esc(k)) + '</div>').join('');
+    const hits = keys.filter(k => k.startsWith(p));
+    const prefixes = new Set(), contents = [];
+    hits.forEach(k => {
+      const rest = k.slice(p.length);
+      const i = d ? rest.indexOf(d) : -1;
+      if (i >= 0) prefixes.add(p + rest.slice(0, i + 1)); else contents.push(k);
+    });
+    let html = '';
+    [...prefixes].sort().forEach(x => html += '<div>📁 ' + esc(x) + ' <span class="note">CommonPrefixes</span></div>');
+    contents.forEach(x => html += '<div>📄 ' + esc(x) + ' <span class="note">Contents</span></div>');
+    document.getElementById('listout').innerHTML = html || '<div class="note">（該当なし）</div>';
+  }
+  pfx.addEventListener('change', render);
+  render();
+})();
+
+// URL 組み立て
+(() => {
+  const ep = document.getElementById('ep'), bk = document.getElementById('bk'), ky = document.getElementById('ky');
+  const getStyle = seg('style', render);
+  const hosts = {
+    aws: { host: 's3.ap-northeast-1.amazonaws.com', scheme: 'https', region: 'ap-northeast-1' },
+    r2: { host: '<ACCOUNT_ID>.r2.cloudflarestorage.com', scheme: 'https', region: 'auto' },
+    local: { host: 'localhost:9000', scheme: 'http', region: 'us-east-1（設定次第）' }
+  };
+  function render() {
+    const h = hosts[ep.value], b = bk.value.trim() || 'bucket', k = ky.value.replace(/^\/+/, '');
+    const enc = k.split('/').map(encodeURIComponent).join('/');
+    const vh = getStyle() === 'vh';
+    const host = vh ? b + '.' + h.host : h.host;
+    const path = vh ? '/' + enc : '/' + b + '/' + enc;
+    let warn = '';
+    if (vh && ep.value === 'local') warn = '<br>⚠ <span class="verdict ng">' + esc(b) + '.localhost を名前解決できないことが多い → path-style に</span>';
+    if (vh && b.includes('.') && h.scheme === 'https') warn = '<br>⚠ <span class="verdict ng">バケット名に「.」があると証明書のワイルドカードに合わない → path-style か名前変更</span>';
+    document.getElementById('urlout').innerHTML =
+      'GET ' + esc(h.scheme) + '://<span class="hl">' + esc(host) + '</span>' + esc(path) + '<br>' +
+      'Host: ' + esc(host) + '<br>' +
+      '署名に使うリージョン: <span class="hl">' + esc(h.region) + '</span>' + warn;
+  }
+  [ep, bk, ky].forEach(el => el.addEventListener('input', render));
+  ep.addEventListener('change', render);
+  render();
+})();
+
+// マルチパート計算
+(() => {
+  const fsz = document.getElementById('fsz'), psz = document.getElementById('psz');
+  const out = document.getElementById('mpout'), bar = document.getElementById('mpbar');
+  const MiB = 1024 ** 2, GiB = 1024 ** 3, MAX_OBJ = 10000 * 5 * GiB; // 48.8 TiB（発表上は「50 TB」）
+  function render() {
+    const f = parseFloat(fsz.value) * GiB, p = parseFloat(psz.value) * MiB;
+    if (!(f > 0) || !(p > 0)) { out.textContent = '数値を入れてください'; bar.innerHTML = ''; return; }
+    const n = Math.ceil(f / p);
+    const errs = [];
+    if (p < 5 * MiB && n > 1) errs.push('パートが 5 MiB 未満（最後以外は 5 MiB 以上が必要）');
+    if (p > 5 * GiB) errs.push('パートが 5 GiB を超える');
+    if (n > 10000) errs.push('10,000 パートを超える → パートサイズを ' + Math.ceil(f / 10000 / MiB) + ' MiB 以上に');
+    if (f > MAX_OBJ) errs.push('オブジェクトの上限（48.8 TiB）を超える');
+    out.innerHTML = 'パート数: <span class="hl">' + n.toLocaleString() + '</span>（最後のパート ' +
+      ((f - p * (n - 1)) / MiB).toFixed(1) + ' MiB）<br>' +
+      (errs.length ? '<span class="verdict ng">✗ ' + errs.join(' / ') + '</span>' : '<span class="verdict ok">✓ AWS S3 の制限内</span>');
+    const shown = Math.min(n, 40);
+    bar.innerHTML = Array.from({ length: shown }, (_, i) => '<span class="' + (i === shown - 1 ? 'last' : '') + '"></span>').join('');
+  }
+  [fsz, psz].forEach(el => el.addEventListener('input', render));
+  render();
+})();
+</script>
+
+<!-- 確認クイズ -->
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "S3 互換ストレージで、キー 2026/11/ 以下にある「サブフォルダ」の一覧だけを取りたい。ListObjectsV2 にどう指定する？",
+    "choices": ["prefix=2026/11/ を指定し、結果の Contents からキー名を加工する", "prefix=2026/11/ と delimiter=/ を指定し、CommonPrefixes を見る", "フォルダは HeadBucket で取得する"],
+    "answer": 1,
+    "explain": "フォルダは実在せず、delimiter を渡すと次の区切りまでで束ねたものが CommonPrefixes として返る。",
+    "ref": "#folders"
+  },
+  {
+    "q": "localhost:9000 で動かしているセルフホストの S3 互換ストレージに AWS SDK で接続したら、ホスト名の解決に失敗した。まず見直す設定は？",
+    "choices": ["アクセスキーを作り直す", "マルチパートのパートサイズを小さくする", "path-style（forcePathStyle）を有効にする"],
+    "answer": 2,
+    "explain": "既定の virtual-hosted 形式だと バケット名.localhost を引きに行く。セルフホストでは path-style でパスにバケット名を入れる。",
+    "ref": "#addressing"
+  },
+  {
+    "q": "200 GiB のファイルを AWS S3 にマルチパートでアップロードしたい。パートサイズ 16 MiB では何が問題になる？",
+    "choices": ["パート数が 10,000 を超えてしまう", "パートが 5 MiB 未満になってしまう", "1 回の PUT の上限 5 GB を超えるのでマルチパートは使えない"],
+    "answer": 0,
+    "explain": "200 GiB ÷ 16 MiB = 12,800 パートで上限 10,000 を超える。パートサイズを 21 MiB 以上にする。",
+    "ref": "#multipart"
+  },
+  {
+    "q": "複数のワーカーが同じ manifest.json を読んで更新して書き戻している。他のワーカーの更新を消さないためには？",
+    "choices": ["書き込み前に HeadObject で存在を確認する", "読んだときの ETag を If-Match に付けて PUT し、412 なら読み直す", "PUT の前に 1 秒待つ"],
+    "answer": 1,
+    "explain": "S3 にはロックがない。If-Match による条件付き書き込みで、読んだ後に誰かが更新していたら 412 で失敗させる（互換ストレージの対応は要確認）。",
+    "ref": "#consistency"
+  },
+  {
+    "q": "AWS SDK を新しくしたら、これまで動いていた互換ストレージへの PutObject がエラーになった。考えられる原因と対処は？",
+    "choices": ["SDK が既定でチェックサムを付けるようになったので、request_checksum_calculation を when_required にする", "署名が SigV2 に戻ったので SigV4 を指定する", "互換ストレージは最新 SDK を受け付けないので、旧版に固定するしかない"],
+    "answer": 0,
+    "explain": "2025 年初めから AWS SDK はアップロード時に CRC32 などのチェックサムを既定で送る。未対応の相手には、必要なときだけ送る設定に戻す。",
+    "ref": "#checksum"
+  }
+]
+</script>
+</body>
+</html>

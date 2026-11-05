@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テスト戦略</title>
+<meta name="description" content="静的チェック・単体・結合・E2E の役割分担と、場面ごとにどの層で書くかを選べるデモ、Vitest・Testing Library・Playwright・MSW の使いどころ、モックの境界、E2E の不安定さ（flaky）対策、ビジュアルリグレッションを図解。">
+<meta name="memo:tags" content="開発ツール, JavaScript, 設計">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-warn: #b45309;
+  --c-a: #7c3aed;
+  --c-b: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-warn: #fbbf24;
+    --c-a: #c4b5fd;
+    --c-b: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.list, ol.list { margin: 6px 0 6px 1.3em; }
+ul.list li, ol.list li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* ステップ */
+ol.steps { list-style: none; counter-reset: st; }
+ol.steps > li {
+  counter-increment: st;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 12px; top: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps b { display: block; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.fig .sub { fill: var(--fg-2); font-family: 'Noto Sans JP', sans-serif; }
+.fig .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+details.card summary { cursor: pointer; font-weight: 700; }
+details.card[open] summary { margin-bottom: 8px; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.hdr { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); padding: 8px 12px; border-radius: 8px; word-break: break-all; margin: 6px 0; }
+.lane { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .lane { grid-template-columns: 1fr; } }
+.lane .flow { flex-direction: column; align-items: stretch; }
+.lane .arrow { text-align: center; font-size: 0.75rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; }
+.svgwrap { overflow-x: auto; }
+.lane > *, .grid2 > *, .grid3 > * { min-width: 0; }
+.svgwrap > svg { min-width: 560px; }
+@media (max-width: 560px) {
+  .flow { flex-direction: column; align-items: stretch; }
+  .flow .arrow { align-self: center; transform: rotate(90deg); line-height: 1; }
+}
+:is(.grid2, .grid3, .lane, .life, .vit, .who, .cmp, .shape) > .card + .card { margin-top: 0; }
+
+/* ---- このページ専用 ---- */
+.shape { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 560px) { .shape { grid-template-columns: 1fr; } }
+.stack3 { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.stack3 div { border-radius: 6px; color: var(--bg); text-align: center; font: 700 0.72rem/1.3 'JetBrains Mono', ui-monospace, monospace; padding: 6px 4px; }
+.stack3 small { display: block; font: 400 0.65rem 'Noto Sans JP', sans-serif; }
+.l-e2e { background: var(--c-ng); }
+.l-int { background: var(--c-warn); }
+.l-unit { background: var(--c-ok); }
+.l-static { background: var(--c-a); }
+.pick { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 12px; }
+@media (max-width: 640px) { .pick { grid-template-columns: minmax(0, 1fr); } }
+.pick .list { display: flex; flex-direction: column; gap: 6px; }
+.pick .list button { text-align: left; border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 8px; padding: 6px 10px; font-size: 0.82rem; cursor: pointer; }
+.pick .list button[aria-pressed="true"] { border-color: var(--accent); background: var(--surface); box-shadow: inset 3px 0 0 var(--accent); }
+.pick .ans { align-self: start; border: 2px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--surface); font-size: 0.88rem; }
+.pick .ans .tag { display: inline-block; border-radius: 999px; padding: 1px 10px; font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--bg); margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>テスト戦略</h1>
+  <p class="subtitle">「速くて安い層で大半を、遅くて高い層で要所だけ」を、何を守りたいかから決める</p>
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>テストは<b>速く安く・壊れにくい</b>ほど数を書ける。型チェックとリンター → 単体 → 結合 → E2E の順に遅く・高く・不安定になる。</li>
+      <li>フロントエンドでは「関数単体」より<b>部品をユーザーと同じ操作で動かす結合テスト</b>が費用対効果が高い。E2E は<b>お金や登録に関わる主要な流れだけ</b>に絞る。</li>
+      <li>モックは<b>境界（ネットワーク・時刻・乱数）</b>で差し替える。自分のコードの内部をモックすると、テストは通るのに本番で壊れる。</li>
+    </ul>
+  </div>
+
+  <h2 id="shape">層の形：ピラミッドとトロフィー</h2>
+  <div class="card">
+    <div class="shape">
+      <div>
+        <span class="label">テストピラミッド</span>
+        <div class="stack3">
+          <div class="l-e2e" style="width:30%">E2E<small>少し</small></div>
+          <div class="l-int" style="width:55%">結合<small>中くらい</small></div>
+          <div class="l-unit" style="width:90%">単体<small>たくさん</small></div>
+        </div>
+      </div>
+      <div>
+        <span class="label">テスティングトロフィー</span>
+        <div class="stack3">
+          <div class="l-e2e" style="width:30%">E2E<small>少し</small></div>
+          <div class="l-int" style="width:90%">結合<small>いちばん多く</small></div>
+          <div class="l-unit" style="width:50%">単体<small>ロジックだけ</small></div>
+          <div class="l-static" style="width:80%">静的<small>型・リンターで常に</small></div>
+        </div>
+      </div>
+    </div>
+    <p style="margin-top:10px">ピラミッドは「単体を一番多く」。トロフィーは UI 開発向けに、<b>部品同士を組み合わせた結合テストを主役</b>にし、土台に型とリンターを置く。どちらも「上ほど少なく」は同じで、違うのは<b>何を一番厚くするか</b>。純粋な計算が多いライブラリはピラミッド、画面が中心のアプリはトロフィーに寄る。</p>
+  </div>
+
+  <h2 id="layers">各層が捕まえるもの</h2>
+  <div class="card table-wrap">
+    <table>
+      <tr><th>層</th><th>捕まえるバグ</th><th>速さ</th><th>主な道具</th></tr>
+      <tr><td>静的</td><td>型の不一致、未定義の変数、使っていない import、危険な書き方</td><td>保存するたび</td><td>TypeScript、ESLint / Oxlint</td></tr>
+      <tr><td>単体</td><td>計算・変換・判定のロジックの誤り、境界値</td><td>1 件ミリ秒</td><td>Vitest</td></tr>
+      <tr><td>結合</td><td>部品の組み合わせ、表示とイベント、API 応答の扱い</td><td>1 件数十〜数百ミリ秒</td><td>Vitest ＋ Testing Library、MSW</td></tr>
+      <tr><td>E2E</td><td>本物のブラウザ・サーバー・DB を通した流れ、ルーティング、認証</td><td>1 件数秒〜</td><td>Playwright</td></tr>
+      <tr><td>見た目</td><td>CSS の崩れ、意図しない見た目の変化</td><td>1 件数秒</td><td>Playwright のスクリーンショット比較など</td></tr>
+    </table>
+  </div>
+
+  <h2 id="pick">どの層で書く？</h2>
+  <div class="card">
+    <p>守りたいものを選ぶと、書くべき層と理由が出る。</p>
+    <div class="pick">
+      <div class="list" id="scn">
+        <button data-k="tax" aria-pressed="true">税込み価格と端数処理の計算</button>
+        <button data-k="form">フォームのエラー表示と送信ボタンの無効化</button>
+        <button data-k="api">一覧画面が API の空・エラー・遅延で正しく表示されるか</button>
+        <button data-k="checkout">ログイン → カート → 購入完了の流れ</button>
+        <button data-k="css">ボタンのデザインが崩れていないか</button>
+        <button data-k="payment">外部の決済サービスとの連携</button>
+        <button data-k="type">API の型が変わったときに画面が追従しているか</button>
+      </div>
+      <div class="ans" id="ans" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <h2 id="tools">道具の使いどころ</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="t-vitest">Vitest</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-tl">Testing Library</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-msw">MSW</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-pw">Playwright</button>
+  </div>
+  <div class="panel card" id="t-vitest">
+<pre>import { describe, it, expect } from 'vitest';
+import { priceWithTax } from './price';
+
+describe('priceWithTax', () =&gt; {
+  it.each([
+    [100, 110], [99, 108], [0, 0],     <span class="cm">// 端数と境界値を表で並べる</span>
+  ])('%i 円 → %i 円', (base, want) =&gt; {
+    expect(priceWithTax(base)).toBe(want);
+  });
+});</pre>
+    <p>Vite の設定をそのまま使えるテストランナー。DOM が必要なテストは jsdom / happy-dom（Node.js 上の疑似 DOM）で速く回すか、<b>ブラウザモード</b>で本物のブラウザ上で動かす。疑似 DOM はレイアウトを計算しないので、サイズや表示位置に依存するテストはブラウザモードか E2E で。</p>
+  </div>
+  <div class="panel card" id="t-tl" hidden>
+<pre>import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+
+it('メールが空なら送信できない', async () =&gt; {
+  render(&lt;SignupForm /&gt;);
+  const submit = screen.getByRole('button', { name: '登録' });
+  await userEvent.click(submit);
+  expect(screen.getByRole('alert')).toHaveTextContent('メールを入力してください');
+  expect(submit).toBeDisabled();
+});</pre>
+    <p><b>ユーザーと同じ手がかりで要素を探す</b>（役割と名前、ラベル、表示テキスト）。クラス名や内部の state を見ないので、見た目の実装を変えてもテストが壊れない。<code>getByRole</code> で見つからないなら、スクリーンリーダーにも見つけにくい部品になっているというアクセシビリティの警告にもなる。</p>
+  </div>
+  <div class="panel card" id="t-msw" hidden>
+<pre>import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
+
+const server = setupServer(
+  http.get('/api/items', () =&gt; HttpResponse.json([{ id: 1, name: 'りんご' }])),
+);
+beforeAll(() =&gt; server.listen());
+afterEach(() =&gt; server.resetHandlers());
+afterAll(() =&gt; server.close());
+
+it('API が 500 ならエラー表示', async () =&gt; {
+  server.use(http.get('/api/items', () =&gt; new HttpResponse(null, { status: 500 })));
+  render(&lt;ItemList /&gt;);
+  expect(await screen.findByRole('alert')).toBeVisible();
+});</pre>
+    <p><b>ネットワークの境界でモックする</b>道具。<code>fetch</code> 関数や API クライアントを差し替えるのではなく、リクエストを横取りして応答を返すので、アプリのコードは本番と同じ経路を通る。同じハンドラーをテスト・Storybook・開発中のブラウザで使い回せる。</p>
+  </div>
+  <div class="panel card" id="t-pw" hidden>
+<pre>import { test, expect } from '@playwright/test';
+
+test('購入できる', async ({ page }) =&gt; {
+  await page.goto('/products/1');
+  await page.getByRole('button', { name: 'カートに入れる' }).click();
+  await page.getByRole('link', { name: 'カート' }).click();
+  await page.getByRole('button', { name: '購入する' }).click();
+  await expect(page.getByRole('heading', { name: 'ご注文ありがとうございます' })).toBeVisible();
+});</pre>
+    <p>Chromium・Firefox・WebKit を操作する E2E ツール。<code>expect(...).toBeVisible()</code> などは<b>条件を満たすまで自動で待つ</b>ので、固定時間の待ちが要らない。失敗時のトレース（操作ごとの DOM・ネットワーク・スクリーンショット）で原因を追える。</p>
+  </div>
+
+  <h2 id="mock">何をモックするか</h2>
+  <div class="lane">
+    <div class="card">
+      <span class="label ok">差し替えてよい（境界）</span>
+      <ul style="margin-left:1.2em;font-size:.88rem">
+        <li>外部 API・決済・メール送信（MSW、テスト用の口座）</li>
+        <li>時刻（<code>vi.useFakeTimers()</code>・<code>vi.setSystemTime()</code>）</li>
+        <li>乱数・ID 生成</li>
+        <li>遅い・お金がかかる・副作用が外に出るもの</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="label ng">差し替えない（内部）</span>
+      <ul style="margin-left:1.2em;font-size:.88rem">
+        <li>自分で書いた子コンポーネントやフック</li>
+        <li>同じアプリ内のサービス関数</li>
+        <li>状態管理ライブラリ</li>
+        <li>「呼ばれた回数」の検証だけで終わるテスト</li>
+      </ul>
+    </div>
+  </div>
+  <p class="note">内部をモックすると、テストは「実装がこう呼んでいる」ことを確かめるだけになり、リファクタリングのたびに壊れるのに、本当の不具合（組み合わせたときのズレ）は見逃す。DB は可能なら<b>本物を使い捨てで</b>（Docker のコンテナ、SQLite のメモリ DB、テストごとのトランザクションのロールバック）。</p>
+
+  <h2 id="flaky">E2E が不安定になる原因と対策</h2>
+  <div class="card table-wrap">
+    <table>
+      <tr><th>原因</th><th>症状</th><th>対策</th></tr>
+      <tr><td>固定時間の待ち</td><td><code>waitForTimeout(1000)</code> が遅い CI で足りない</td><td>表示や URL など<b>状態を待つ</b>アサーションにする</td></tr>
+      <tr><td>テスト間でデータを共有</td><td>実行順や並列化で結果が変わる</td><td>テストごとにユーザー・データを作る。API で下準備し、UI 操作は確かめたい部分だけ</td></tr>
+      <tr><td>壊れやすいセレクタ</td><td>クラス名やデザイン変更で落ちる</td><td>役割と名前（<code>getByRole</code>）、最後の手段で <code>data-testid</code></td></tr>
+      <tr><td>外部サービス</td><td>相手の障害や遅延で落ちる</td><td>E2E では外部をスタブにし、本物との接続は別の少数のテストで</td></tr>
+      <tr><td>アニメーション・時刻</td><td>途中の状態を掴む、日付で表示が変わる</td><td>アニメーションを止める設定、時刻を固定する</td></tr>
+    </table>
+  </div>
+  <p class="note">CI での自動リトライは<b>応急処置</b>。リトライで通ったテストは flaky として記録し、原因を直す。放置すると「赤くても気にしない」文化になり、本物の失敗も見逃す。</p>
+
+  <h2 id="visual">見た目のテスト（ビジュアルリグレッション）</h2>
+  <div class="card">
+<pre>await expect(page).toHaveScreenshot('pricing.png', { maxDiffPixelRatio: 0.01 });</pre>
+    <p>前回承認した画像と比べて、差分があれば失敗させる。CSS の変更が<b>意図しない別の画面</b>を崩していないかを見つけるのに強い。</p>
+    <p class="note">OS やフォントの違いで 1px ずれるだけで差分が出るので、<b>基準画像の作成と比較を同じ環境（CI のコンテナ）で</b>行う。日付・広告・アニメーションなど毎回変わる部分は隠すか固定する。画面全体より、部品単位（Storybook のストーリーごと）で撮るほうが差分の原因を追いやすい。</p>
+  </div>
+
+  <h2 id="ci">CI での回し方</h2>
+  <ol class="steps">
+    <li><b>静的チェック</b>型チェックとリンター。数十秒で終わり、一番多くのミスを止める。</li>
+    <li><b>単体・結合</b>変更のあったパッケージだけ実行できると速い。並列で回す。</li>
+    <li><b>E2E（主要な流れ）</b>プレビュー環境にデプロイしたものに対して実行。ブラウザ・シャードで並列化。</li>
+    <li><b>見た目</b>差分が出たら人が確認して承認する（自動で基準を更新しない）。</li>
+  </ol>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="card myth"><summary>「カバレッジ 100% なら安心」</summary><p>カバレッジは「実行された行」であって「確かめた振る舞い」ではない。アサーションのないテストでも上がる。下限の目安（急に下がったら気づく）には使えるが、目標にすると意味の薄いテストが増える。</p></details>
+  <details class="card myth"><summary>「E2E で全部確かめれば単体テストは要らない」</summary><p>E2E は遅く、組み合わせの数を網羅できない（端数処理の 20 パターンを画面から入力するのは非現実的）。失敗しても原因の場所がわかりにくい。細かい分岐は下の層で。</p></details>
+  <details class="card myth"><summary>「スナップショットテストで UI を守れる」</summary><p>HTML の文字列スナップショットは差分が大きく、レビューされずに更新されがち。守りたい振る舞い（表示される文言、無効になるボタン）を直接アサーションするほうが壊れにくく意図も伝わる。</p></details>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="vite-toolchain.html">Vite ツールチェーン</a><a href="a11y-checklist.html">アクセシビリティ</a><a href="github-services.html">GitHub サービス</a><a href="api-styles.html">REST・GraphQL・gRPC・tRPC</a><a href="js-modules.html">JS のモジュールと依存管理</a><a href="ddd-onion.html">DDD とオニオン</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://vitest.dev/guide/">Vitest: Guide</a></li>
+    <li><a href="https://vitest.dev/guide/browser/">Vitest: Browser Mode</a></li>
+    <li><a href="https://testing-library.com/docs/guiding-principles">Testing Library: Guiding Principles</a></li>
+    <li><a href="https://testing-library.com/docs/queries/about#priority">Testing Library: クエリの優先順位</a></li>
+    <li><a href="https://mswjs.io/docs/">Mock Service Worker</a></li>
+    <li><a href="https://playwright.dev/docs/best-practices">Playwright: Best Practices</a></li>
+    <li><a href="https://playwright.dev/docs/test-snapshots">Playwright: Visual comparisons</a></li>
+    <li><a href="https://kentcdodds.com/blog/the-testing-trophy-and-testing-classifications">The Testing Trophy and Testing Classifications</a></li>
+  </ul>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+<script>
+(() => {
+  const C = { '静的': 'var(--c-a)', '単体': 'var(--c-ok)', '結合': 'var(--c-warn)', 'E2E': 'var(--c-ng)', '見た目': 'var(--accent)' };
+  const A = {
+    tax: ['単体', '入力と出力だけで決まる純粋な計算。端数・0・大きな値などの境界値を <code>it.each</code> で表にして並べる。画面から確かめる必要はない。'],
+    form: ['結合', 'Testing Library で部品を描画し、ユーザーと同じようにクリック・入力して、エラー文言とボタンの状態を確かめる。バリデーション関数そのものが複雑なら、その部分だけ単体テストを足す。'],
+    api: ['結合', 'MSW で API の応答を「空」「500」「遅延」に切り替え、それぞれの表示を確かめる。本物のサーバーではこの状態を再現しにくい。'],
+    checkout: ['E2E', 'ページ遷移・認証・サーバー・DB をまたぐ、止まると売上に響く流れ。Playwright で 1 本の通しテストにする。途中の細かい分岐（在庫切れ・クーポン）は下の層で。'],
+    css: ['見た目', '振る舞いのテストでは CSS の崩れは捕まらない。部品やページのスクリーンショットを基準画像と比べる。同じ環境で撮ることが前提。'],
+    payment: ['結合', '普段のテストは MSW などで決済 API を差し替えて、成功・失敗・タイムアウト時の画面とリトライを確かめる。本物の決済サービスのテスト環境につなぐ確認は、別の少数のテストとして定期実行する。'],
+    type: ['静的', 'API の型（OpenAPI から生成した型や、tRPC が推論する型）をサーバーとクライアントで共有しておけば、フィールドの削除や型の変更による追従漏れは型チェックで見つかる。テストを書くより速く確実。ただし値の意味の変化（同じ文字列型で中身の形式が変わったなど）は型では捕まらないので、必要なら結合テストで補う。']
+  };
+  const ans = document.getElementById('ans');
+  function show(k) {
+    const [layer, text] = A[k];
+    ans.style.borderColor = C[layer];
+    ans.innerHTML = '<span class="tag" style="background:' + C[layer] + '">' + layer + '</span><p>' + text + '</p>';
+  }
+  document.querySelectorAll('#scn button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#scn button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    show(b.dataset.k);
+  }));
+  show('tax');
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {"q": "送料の計算ロジック（地域・重さ・会員ランクで 30 通り以上の組み合わせ）を確かめたい。主に書くべきテストは？", "choices": ["画面から入力する E2E テストを 30 本", "計算関数の単体テストで組み合わせを表にして並べる", "スクリーンショット比較"], "answer": 1, "explain": "入力と出力で決まる計算は単体テストが速く確実。E2E で組み合わせを網羅するのは遅く、失敗時の原因も追いにくい。", "ref": "#pick"},
+  {"q": "コンポーネントのテストで、自作の子コンポーネントと API クライアント関数をすべてモックしたら、テストは通るのに本番で表示が壊れた。どう直すべき？", "choices": ["子コンポーネントは本物を使い、API はネットワークの境界（MSW など）で差し替える", "モックをさらに増やして網羅する", "スナップショットテストを追加する"], "answer": 0, "explain": "内部をモックすると組み合わせたときのズレが見えなくなる。差し替えるのは外部との境界だけにする。", "ref": "#mock"},
+  {"q": "E2E テストが CI でだけ時々落ちる。コードには page.waitForTimeout(1000) が多用されている。根本的な対策は？", "choices": ["待ち時間を 3000ms に延ばす", "CI のリトライ回数を増やす", "表示や URL など、状態を待つアサーションに置き換える"], "answer": 2, "explain": "固定時間の待ちは遅い環境で足りなくなる。Playwright の expect は条件を満たすまで自動で待つ。", "ref": "#flaky"},
+  {"q": "Testing Library で送信ボタンを探す書き方として、推奨されるのは？", "choices": ["container.querySelector('.btn-primary')", "screen.getByRole('button', { name: '送信' })", "screen.getByTestId('submit') を常に使う"], "answer": 1, "explain": "ユーザーやスクリーンリーダーと同じ手がかり（役割と名前）で探すと、見た目の実装を変えても壊れない。data-testid は他で探せないときの最後の手段。", "ref": "#tools"}
+]
+</script>
+</body>
+</html>

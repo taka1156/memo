@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JS のモジュールと依存管理</title>
+<meta name="description" content="ESM と CommonJS の違い、package.json の exports と条件による解決（動くデモつき）、import maps、npm・pnpm・Bun のインストール方式とロックファイル、モノレポのワークスペースを図解。">
+<meta name="memo:tags" content="JavaScript, 開発ツール">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-warn: #b45309;
+  --c-a: #7c3aed;
+  --c-b: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-warn: #fbbf24;
+    --c-a: #c4b5fd;
+    --c-b: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.list, ol.list { margin: 6px 0 6px 1.3em; }
+ul.list li, ol.list li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* ステップ */
+ol.steps { list-style: none; counter-reset: st; }
+ol.steps > li {
+  counter-increment: st;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 12px; top: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps b { display: block; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.fig .sub { fill: var(--fg-2); font-family: 'Noto Sans JP', sans-serif; }
+.fig .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+details.card summary { cursor: pointer; font-weight: 700; }
+details.card[open] summary { margin-bottom: 8px; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.hdr { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); padding: 8px 12px; border-radius: 8px; word-break: break-all; margin: 6px 0; }
+.lane { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .lane { grid-template-columns: 1fr; } }
+.lane .flow { flex-direction: column; align-items: stretch; }
+.lane .arrow { text-align: center; font-size: 0.75rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; }
+.svgwrap { overflow-x: auto; }
+.lane > *, .grid2 > *, .grid3 > * { min-width: 0; }
+.svgwrap > svg { min-width: 560px; }
+@media (max-width: 560px) {
+  .flow { flex-direction: column; align-items: stretch; }
+  .flow .arrow { align-self: center; transform: rotate(90deg); line-height: 1; }
+}
+:is(.grid2, .grid3, .lane, .life, .vit, .who, .cmp, .shape) > .card + .card { margin-top: 0; }
+
+/* ---- このページ専用 ---- */
+.cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .cmp { grid-template-columns: 1fr; } }
+.cmp > * { min-width: 0; }
+.res { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+@media (max-width: 640px) { .res { grid-template-columns: minmax(0, 1fr); } }
+.envs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.envs button { border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 999px; padding: 4px 12px; font: 600 0.75rem 'JetBrains Mono', ui-monospace, monospace; cursor: pointer; }
+.envs button[aria-pressed="true"] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.pj { font: 0.78rem/1.7 'JetBrains Mono', ui-monospace, monospace; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; white-space: pre; overflow-x: auto; }
+.pj .k { display: inline-block; border-radius: 4px; padding: 0 3px; }
+.pj .k.hit { background: var(--c-ok); color: var(--bg); }
+.pj .k.skip { opacity: .45; text-decoration: line-through; }
+.why { font-size: 0.85rem; }
+.why ol { margin-left: 1.3em; }
+.tree2 { font: 0.78rem/1.6 'JetBrains Mono', ui-monospace, monospace; white-space: pre; overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.tree2 .ln { color: var(--c-a); }
+.tree2 .cm2 { color: var(--fg-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>JS のモジュールと依存管理</h1>
+  <p class="subtitle">「どのファイルが読み込まれるか」は、書き方・実行環境・package.json の 3 つで決まる</p>
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>JS のモジュールは 2 種類。標準の <b>ESM</b>（<code>import</code> / <code>export</code>）と、Node.js 由来の <b>CommonJS</b>（<code>require</code> / <code>module.exports</code>）。新しく書くなら ESM。</li>
+      <li>パッケージのどのファイルが使われるかは、package.json の <b><code>exports</code></b> に書いた条件（<code>import</code>・<code>require</code>・<code>browser</code>・<code>types</code> など）を<b>上から順に</b>見て、最初に合ったもので決まる。</li>
+      <li>npm・pnpm・Bun は「<code>node_modules</code> をどう作るか」が違う。どれを使っても<b>ロックファイルをコミット</b>し、CI では <code>ci</code> / <code>--frozen-lockfile</code> で入れる。</li>
+    </ul>
+  </div>
+
+  <h2 id="esm-cjs">ESM と CommonJS</h2>
+  <div class="cmp">
+    <div class="card">
+      <span class="label">ESM（標準）</span>
+<pre>import { readFile } from 'node:fs/promises';
+export function load(p) { … }
+export default load;</pre>
+      <ul style="margin-left:1.2em;font-size:.88rem">
+        <li><b>静的</b>：import はファイルの先頭で決まり、実行前に依存関係がわかる → 未使用コードを削れる（tree shaking）</li>
+        <li>読み込みは<b>非同期</b>。トップレベル <code>await</code> が使える</li>
+        <li>ブラウザ・Node.js・Deno・Bun・Workers の<b>どこでも動く</b></li>
+        <li>import は<b>生きた参照</b>（元のモジュールで値が変わると見える）</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="label">CommonJS（Node.js 由来）</span>
+<pre>const { readFile } = require('node:fs/promises');
+module.exports = { load };</pre>
+      <ul style="margin-left:1.2em;font-size:.88rem">
+        <li><b>動的</b>：require はただの関数呼び出し。条件分岐の中でも呼べる</li>
+        <li>読み込みは<b>同期</b>。トップレベル await は使えない</li>
+        <li>ブラウザではそのまま動かない（バンドラーが変換する）</li>
+        <li>require した時点の値の<b>コピー</b>（オブジェクトなら同じ参照）</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card table-wrap" style="margin-top:12px" id="which-mode">
+    <table>
+      <tr><th>Node.js がどちらとして読むか</th><th>判定</th></tr>
+      <tr><td><code>.mjs</code> / <code>.cjs</code></td><td>拡張子で決まる（ESM / CommonJS）。package.json より優先</td></tr>
+      <tr><td><code>.js</code></td><td>いちばん近い package.json の <code>"type"</code>。<code>"module"</code> なら ESM、<code>"commonjs"</code> なら CommonJS。<code>"type"</code> がないときは CommonJS として読み、ESM の構文で失敗したら ESM として読み直す（Node.js 22.7 以降の自動判定。判定のコストを避けるため <code>"type"</code> は明示する）</td></tr>
+      <tr><td>ESM から CommonJS を import</td><td>できる。<code>module.exports</code> が default として見える</td></tr>
+      <tr><td>CommonJS から ESM を require</td><td>Node.js 22.12 以降（20 系は 20.19 以降）では、トップレベル await を使っていない ESM なら require できる。それより古い版では <code>await import()</code> が必要</td></tr>
+    </table>
+  </div>
+  <p class="note">ESM では <code>__dirname</code> や <code>require</code> がない。代わりに <code>import.meta.dirname</code>・<code>import.meta.url</code>、JSON は <code>import data from './a.json' with { type: 'json' }</code>。相対パスは<b>拡張子まで書く</b>（<code>'./util.js'</code>）のが Node.js の ESM の決まり。TypeScript でも出力後の <code>.js</code> を書く。</p>
+
+  <h2 id="exports">package.json の exports：どのファイルが選ばれるか</h2>
+  <div class="card">
+    <p>同じ <code>import 'my-lib'</code> でも、実行環境によって読まれるファイルが変わる。環境を選ぶと、どの条件に合ったかが色で出る。</p>
+    <div class="envs" id="envs">
+      <button data-env="node-import" aria-pressed="true">Node.js で import</button>
+      <button data-env="node-require">Node.js で require</button>
+      <button data-env="bundler-browser">Vite（ブラウザ向け）</button>
+      <button data-env="ts">TypeScript の型チェック</button>
+      <button data-env="worker">Cloudflare Workers</button>
+    </div>
+    <div class="res">
+      <div class="pj" id="pj"></div>
+      <div class="why" id="why" aria-live="polite"></div>
+    </div>
+    <p class="note"><b>順番が意味を持つ</b>。上から見て最初に合った条件が使われるので、<code>types</code> は先頭、<code>default</code> は最後に置く。<code>exports</code> を書くと、そこに<b>書いていないパスは外から import できなくなる</b>（<code>my-lib/src/internal.js</code> などを隠せる）。</p>
+  </div>
+<pre><span class="cm">// サブパスも公開するときの書き方</span>
+"exports": {
+  ".":         { "types": "./dist/index.d.ts", "import": "./dist/index.js", "require": "./dist/index.cjs" },
+  "./react":   { "types": "./dist/react.d.ts", "import": "./dist/react.js" },
+  "./package.json": "./package.json"
+}</pre>
+  <p class="note">同じパッケージを ESM 版と CJS 版の 2 つで配ると、両方が読み込まれて<b>状態が 2 つできる</b>（シングルトンが 2 個になる、<code>instanceof</code> が外れる）事故が起きうる（デュアルパッケージハザード）。新しく作るライブラリは ESM だけにし、require(esm) に任せる選択肢も増えている。</p>
+
+  <h2 id="import-maps">import maps：ブラウザで「名前だけ」の import を解決する</h2>
+  <div class="card">
+    <p>ブラウザは <code>import { h } from 'preact'</code> のような<b>パッケージ名だけの指定（ベア指定子）を解決できない</b>。バンドラーがない環境では、import map で名前と URL の対応を教える。</p>
+<pre>&lt;script type="importmap"&gt;
+{
+  "imports": {
+    "preact": "https://esm.sh/preact@10",
+    "app/": "/js/"
+  }
+}
+&lt;/script&gt;
+&lt;script type="module"&gt;
+  import { h } from 'preact';        <span class="cm">// → https://esm.sh/preact@10</span>
+  import { route } from 'app/router.js';  <span class="cm">// → /js/router.js</span>
+&lt;/script&gt;</pre>
+    <p class="note">主要ブラウザで使える。小さなサイトやプロトタイプではバンドラーなしで済む。ただし依存が多いと import の往復が段々に重なる（ウォーターフォール）ので、本番の大きなアプリはバンドルするのが今も基本。</p>
+  </div>
+
+  <h2 id="pm">パッケージマネージャーの違い</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="pm-npm">npm</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="pm-pnpm">pnpm</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="pm-bun">Bun</button>
+  </div>
+  <div class="panel card" id="pm-npm">
+    <div class="tree2">node_modules/
+├── my-app が使う express/
+├── <span class="cm2">express が使う</span> body-parser/   <span class="cm2">← 依存の依存も「平らに」並ぶ</span>
+└── …</div>
+    <p>依存の依存までなるべく<b>平らに</b>（hoisting）並べる。そのため package.json に書いていないパッケージも import できてしまう（<b>幽霊依存</b>）。ある日、間接依存が外れて壊れる原因になる。ロックファイルは <code>package-lock.json</code>。</p>
+  </div>
+  <div class="panel card" id="pm-pnpm" hidden>
+    <div class="tree2">node_modules/
+├── <span class="ln">react → .pnpm/react@19…/node_modules/react</span>   <span class="cm2">← 直接の依存だけ見える</span>
+└── .pnpm/                       <span class="cm2">← 実体。ストアからハードリンク</span>
+~/.local/share/pnpm/store         <span class="cm2">← 全プロジェクト共通の置き場</span></div>
+    <p>ファイルの実体は PC に 1 つだけ置き（内容で管理するストア）、各プロジェクトにはハードリンクとシンボリックリンクで見せる。<b>ディスクと時間を節約</b>でき、<b>package.json に書いたものしか import できない</b>ので幽霊依存が起きない。ロックファイルは <code>pnpm-lock.yaml</code>。</p>
+  </div>
+  <div class="panel card" id="pm-bun" hidden>
+    <p>Bun のランタイムに付いてくるパッケージマネージャー。npm と互換の <code>node_modules</code> を作り、インストールが速い。ロックファイルは現在テキスト形式の <code>bun.lock</code>（以前はバイナリの <code>bun.lockb</code>）。Bun で実行しないプロジェクトでも、インストーラーとしてだけ使える。</p>
+  </div>
+  <div class="card" style="margin-top:12px" id="lock">
+    <span class="label">ロックファイルの扱い</span>
+    <ul style="margin-left:1.2em">
+      <li>package.json の <code>"^1.2.0"</code> は「1.x の最新」なので、日によって入るものが変わる。<b>ロックファイルが実際の版を固定</b>する。だから<b>必ずコミット</b>する。</li>
+      <li>CI や本番では <code>npm ci</code> / <code>pnpm install --frozen-lockfile</code> / <code>bun install --frozen-lockfile</code>。ロックファイルと package.json が食い違っていたら<b>失敗させる</b>。</li>
+      <li>1 つのリポジトリでマネージャーを混ぜない。<code>package.json</code> の <code>"packageManager"</code> に版を書き、Corepack などで揃える（Node.js 25 以降は Corepack が同梱されないので <code>npm i -g corepack</code> で入れる）。</li>
+      <li>インストール時に依存のスクリプト（<code>postinstall</code>）が走る。乗っ取られたパッケージの攻撃経路になるので、pnpm や Bun のように<b>許可したものだけ実行する</b>設定も検討する。</li>
+    </ul>
+  </div>
+
+  <h2 id="monorepo">モノレポ：ワークスペース</h2>
+  <div class="card">
+    <div class="tree2">my-repo/
+├── package.json            <span class="cm2">← "workspaces": ["apps/*", "packages/*"]（pnpm は pnpm-workspace.yaml）</span>
+├── apps/
+│   ├── web/                <span class="cm2">← "dependencies": { "@acme/ui": "workspace:*" }（pnpm・Bun）</span>
+│   └── api/
+└── packages/
+    ├── ui/                 <span class="cm2">← name: "@acme/ui"</span>
+    └── config/</div>
+    <p>ワークスペースにすると、<b>同じリポジトリ内のパッケージがリンクされ</b>、公開しなくても <code>import '@acme/ui'</code> で使える。依存のインストールは 1 回で済み、ロックファイルも 1 つ。<code>workspace:*</code> は pnpm・Bun（・Yarn）の書き方で「リポジトリ内のものを使う」という指定。公開時に実際の版番号へ置き換わる。<b>npm はこの書き方に対応していない</b>（install がエラーになる）ので、<code>"^1.0.0"</code> のような普通の版指定を書く。ワークスペース内にあればリンクされる。</p>
+    <p class="note">パッケージが増えたら、変更のあったものだけをビルド・テストするタスクランナー（Turborepo・Nx など）を足す。内部パッケージは<b>ビルドせずにソースの TypeScript を直接 exports する</b>（アプリ側のバンドラーに任せる）と設定が軽くなる。</p>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="card myth"><summary>「"type": "module" にすれば全部 ESM になる」</summary><p>そのパッケージ内の <code>.js</code> が ESM として読まれるだけ。<code>.cjs</code> は CommonJS のまま、依存パッケージはそれぞれの package.json に従う。設定ファイル（<code>eslint.config.cjs</code> など）が壊れることがあるので拡張子で明示する。</p></details>
+  <details class="card myth"><summary>「main を書いておけば exports はいらない」</summary><p><code>main</code> は 1 つの入口しか表せず、条件分岐もサブパスの公開・非公開もできない。新しいパッケージは <code>exports</code> を書き、古いツール向けに <code>main</code> も残す。</p></details>
+  <details class="card myth"><summary>「ロックファイルは衝突が面倒だから .gitignore」</summary><p>入れないと、開発者・CI・本番で違う版が入り、「手元では動く」が起きる。衝突したら手で直さず、マネージャーにもう一度 install させて作り直す。</p></details>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="vite-toolchain.html">Vite ツールチェーン</a><a href="js-runtimes.html">JS ランタイム比較</a><a href="typescript.html">TypeScript</a><a href="js-web-standards.html">JS と Web 標準の決まり方</a><a href="testing-strategy.html">テスト戦略</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://nodejs.org/api/esm.html">Node.js: ECMAScript modules</a></li>
+    <li><a href="https://nodejs.org/api/packages.html">Node.js: Packages（type・exports・条件）</a></li>
+    <li><a href="https://nodejs.org/api/modules.html#loading-ecmascript-modules-using-require">Node.js: require で ESM を読み込む</a></li>
+    <li><a href="https://developer.mozilla.org/ja/docs/Web/HTML/Element/script/type/importmap">MDN: import map</a></li>
+    <li><a href="https://pnpm.io/motivation">pnpm: Motivation</a></li>
+    <li><a href="https://bun.sh/docs/install/lockfile">Bun: Lockfile</a></li>
+    <li><a href="https://www.typescriptlang.org/docs/handbook/modules/reference.html">TypeScript: Modules Reference</a></li>
+  </ul>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+<script>
+(() => {
+  const PKG = [
+    ['types', './dist/index.d.ts'],
+    ['workerd', './dist/worker.js'],
+    ['browser', './dist/browser.js'],
+    ['import', './dist/index.js'],
+    ['require', './dist/index.cjs'],
+    ['default', './dist/index.js']
+  ];
+  const ENV = {
+    'node-import': { conds: ['node', 'import', 'default'], why: 'Node.js が import で読むときの条件は <code>node</code>・<code>import</code>・<code>default</code>。上から見て <code>types</code>・<code>workerd</code>・<code>browser</code> は合わず、<code>import</code> で決まる。' },
+    'node-require': { conds: ['node', 'require', 'default'], why: 'require のときは <code>import</code> の代わりに <code>require</code> が有効になる。<code>.cjs</code> の CommonJS 版が選ばれる。' },
+    'bundler-browser': { conds: ['browser', 'import', 'default', 'module'], why: 'ブラウザ向けにビルドするバンドラーは <code>browser</code> を有効にする。<code>import</code> より上にあるので、ブラウザ専用の実装が選ばれる。順番を逆にすると Node.js 用が入ってしまう。' },
+    'ts': { conds: ['types', 'import', 'node', 'default'], why: 'TypeScript は型を探すときに <code>types</code> を見る。先頭に置かないと、<code>import</code> が先に合って <code>.js</code> から型を探しに行き、見つからないことがある。' },
+    'worker': { conds: ['workerd', 'worker', 'browser', 'import', 'default'], why: 'Cloudflare Workers 向けのビルドは <code>workerd</code> などの条件を有効にする。ランタイム専用の実装を分けたいときに使う。' }
+  };
+  const pj = document.getElementById('pj'), why = document.getElementById('why');
+  function show(env) {
+    const conds = ENV[env].conds;
+    let hit = -1;
+    PKG.forEach(([k], i) => { if (hit < 0 && conds.includes(k)) hit = i; });
+    const lines = PKG.map(([k, v], i) => {
+      const cls = i === hit ? 'hit' : (i < hit ? 'skip' : '');
+      return '    <span class="k ' + cls + '">"' + k + '": "' + v + '"</span>' + (i < PKG.length - 1 ? ',' : '');
+    });
+    pj.innerHTML = '"exports": {\n  ".": {\n' + lines.join('\n') + '\n  }\n}';
+    why.innerHTML = '<p><b>有効な条件：</b>' + conds.map(c => '<code>' + c + '</code>').join(' ') + '</p><p><b>選ばれる：</b><code>' + PKG[hit][1] + '</code></p><p>' + ENV[env].why + '</p><p class="note">取り消し線は「見たが合わなかった」条件。下の条件はもう見ない。</p>';
+  }
+  document.querySelectorAll('#envs button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#envs button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    show(b.dataset.env);
+  }));
+  show('node-import');
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {"q": "package.json に \"type\": \"module\" を付けたら、CommonJS で書かれた設定ファイル config.js が読み込めなくなった。一番手早い直し方は？", "choices": ["config.js を config.cjs にリネームする", "\"type\" を外して全部 CommonJS に戻す", "config.js の先頭に \"use strict\" を書く"], "answer": 0, "explain": "拡張子 .cjs は package.json の type より優先され、常に CommonJS として読まれる。", "ref": "#which-mode"},
+  {"q": "ライブラリの exports に import・require・types を書いたが、TypeScript が型を見つけられない。types は一番下に書いてある。原因は？", "choices": ["types 条件は exports では使えない", "条件は上から順に見るので、先に import が合って types まで届いていない", "TypeScript は exports を読まない"], "answer": 1, "explain": "最初に合った条件で決まる。types は先頭、default は最後に置く。", "ref": "#exports"},
+  {"q": "npm で入れたプロジェクトで、package.json に書いていない lodash を import しても動いていたが、別の依存を更新したら急に見つからなくなった。何が起きた？", "choices": ["lodash が npm から削除された", "間接依存として平らに置かれていた lodash が、依存の更新で外れた（幽霊依存）", "ロックファイルが壊れた"], "answer": 1, "explain": "npm は依存の依存も node_modules 直下に並べるので、書いていないものも import できてしまう。pnpm は直接の依存しか見せないので、この問題が最初から表に出る。", "ref": "#pm"},
+  {"q": "CI で毎回 npm install していたら、手元と違う版の依存が入ってテストが落ちた。正しい対策は？", "choices": ["package.json の版指定を全部 \"*\" にする", "ロックファイルをコミットし、CI では npm ci を使う", "CI で node_modules をキャッシュしない"], "answer": 1, "explain": "ロックファイルが実際の版を固定する。npm ci はロックファイルどおりに入れ、食い違えば失敗する。", "ref": "#lock"},
+  {"q": "バンドラーを使わない小さなサイトで、ブラウザから import { h } from 'preact' と書きたい。必要なものは？", "choices": ["import map で preact と URL の対応を書く", "package.json に preact を追加する", "type=\"module\" を外す"], "answer": 0, "explain": "ブラウザはパッケージ名だけの指定を解決できない。import map が名前と URL の対応を教える。", "ref": "#import-maps"}
+]
+</script>
+</body>
+</html>

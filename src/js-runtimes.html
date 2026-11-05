@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JS ランタイム比較</title>
+<meta name="description" content="Node.js・Bun・Cloudflare Workers の内部構造、プロセス型と isolate 型の違い、API・互換性・制限を比較。">
+<meta name="memo:tags" content="JavaScript">
+<meta name="memo:date" content="2026-11-02">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-front: #c2410c;
+  --c-back: #15803d;
+  --c-ng: #b91c1c;
+  --c-ok: #15803d;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-front: #fb923c;
+    --c-back: #4ade80;
+    --c-ng: #f87171;
+    --c-ok: #4ade80;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.big { font-size: 1.05rem; font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* トークン表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+.myth .ng { color: var(--c-ng); font-weight: 700; }
+.myth .ok { color: var(--c-ok); font-weight: 700; }
+
+.related a { display: inline-block; margin: 4px 8px 4px 0; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.stacks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 640px) { .stacks { grid-template-columns: 1fr; } }
+.stack { display: flex; flex-direction: column; gap: 4px; }
+.stack .name { font: 700 1rem 'JetBrains Mono', monospace; text-align: center; color: var(--k); margin-bottom: 2px; }
+.stack .ly {
+  border-radius: 6px;
+  padding: 7px 8px;
+  text-align: center;
+  font-size: 0.8rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.stack .ly small { display: block; color: var(--fg-2); font-size: 0.7rem; }
+.stack .ly.api { border-color: var(--k); }
+.stack .ly.eng { background: var(--k); color: #fff; border-color: var(--k); font-weight: 700; }
+.stack .ly.eng small { color: rgba(255,255,255,.85); }
+.stack .ly.app { background: var(--chip); }
+.k-node { --k: #15803d; }
+.k-bun { --k: #a16207; }
+.k-cf { --k: #c2410c; }
+@media (prefers-color-scheme: dark) { .k-node { --k: #16a34a; } .k-bun { --k: #ca8a04; } .k-cf { --k: #ea580c; } }
+.layer-labels { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.78rem; color: var(--fg-2); margin-top: 10px; }
+
+.model { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.machine { border: 2px solid var(--line); border-radius: 10px; padding: 10px; }
+.machine .ttl { font: 700 0.72rem 'JetBrains Mono', monospace; color: var(--fg-2); margin-bottom: 6px; }
+.procs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.proc { border: 2px solid var(--k); border-radius: 8px; padding: 8px; font-size: 0.78rem; }
+.proc b { display: block; font-size: 0.8rem; }
+.proc .mini { display: block; margin-top: 4px; background: var(--k); color: #fff; border-radius: 4px; text-align: center; font: 700 0.68rem 'JetBrains Mono', monospace; padding: 2px; }
+.runtime { border: 2px solid var(--k); border-radius: 8px; padding: 8px; }
+.runtime > b { font-size: 0.8rem; }
+.isos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin: 6px 0; }
+.iso { border: 1.5px dashed var(--k); border-radius: 6px; padding: 5px 2px; text-align: center; font: 600 0.65rem 'JetBrains Mono', monospace; }
+.v8bar { background: var(--k); color: #fff; border-radius: 4px; text-align: center; font: 700 0.68rem 'JetBrains Mono', monospace; padding: 2px; }
+.model ul { margin: 8px 0 0 1.2em; font-size: 0.85rem; }
+
+.loop { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.loop .ph { background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font: 600 0.78rem 'JetBrains Mono', monospace; }
+.loop .ph.main { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+.pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.pick .card { border-top: 4px solid var(--k); padding: 12px 14px; }
+.pick .pk { font: 700 0.9rem 'JetBrains Mono', monospace; color: var(--k); margin-bottom: 4px; }
+.pick ul { margin-left: 1.2em; font-size: 0.85rem; }
+.pick li { margin: 2px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>JS ランタイム比較</h1>
+  <p class="subtitle">Node.js / Bun / Cloudflare Workers — 同じ JavaScript を、違う仕組みで動かす</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>3つとも JS を実行するが、<b>JS エンジン</b>と<b>周りを支える層</b>が違う。Node は V8 ＋ libuv、Bun は JavaScriptCore ＋ Rust 製の本体、Workers は V8 ＋ workerd</li>
+      <li>Node と Bun はサーバー上で<b>プロセスとして常駐</b>する。Workers は世界中のエッジで、1つのプロセスの中に<b>何千もの isolate（軽い隔離区画）</b>を並べて動かす</li>
+      <li>Workers は起動が数ミリ秒と速い代わりに、ファイルシステムがなく、CPU 時間やメモリに制限がある。用途で選ぶもので、上下関係ではない</li>
+    </ul>
+  </div>
+
+  <h2 id="layers">内部の層構造</h2>
+  <div class="stacks">
+    <div class="stack k-node">
+      <div class="name">Node.js</div>
+      <div class="ly app">あなたのコード</div>
+      <div class="ly api">Node API<small>fs、http、stream、Buffer ＋ fetch など Web 標準</small></div>
+      <div class="ly">C++ のバインディング</div>
+      <div class="ly">libuv<small>イベントループ・非同期 I/O・スレッドプール</small></div>
+      <div class="ly eng">V8<small>Chrome と同じエンジン</small></div>
+    </div>
+    <div class="stack k-bun">
+      <div class="name">Bun</div>
+      <div class="ly app">あなたのコード</div>
+      <div class="ly api">Bun API ＋ Node 互換 ＋ Web 標準<small>Bun.serve、Bun.file、node:fs など</small></div>
+      <div class="ly">Rust 製の本体<small>1.4 から。それ以前は Zig</small></div>
+      <div class="ly">独自のイベントループ<small>OS の epoll / kqueue を直接使う</small></div>
+      <div class="ly eng">JavaScriptCore<small>Safari と同じエンジン</small></div>
+    </div>
+    <div class="stack k-cf">
+      <div class="name">Workers</div>
+      <div class="ly app">あなたのコード</div>
+      <div class="ly api">Web 標準 ＋ バインディング<small>fetch、Request / Response、env.KV など。Node API は互換フラグで一部</small></div>
+      <div class="ly">workerd<small>C++ 製。オープンソース</small></div>
+      <div class="ly">isolate ごとのサンドボックス<small>1プロセスに多数のテナント</small></div>
+      <div class="ly eng">V8<small>Chrome と同じエンジン</small></div>
+    </div>
+  </div>
+  <p class="muted">JS エンジンは「JS を解析して機械語にする部分」だけを担う。ファイルを読む、ネットワークを待つといった機能は、その外側の層がランタイムごとに用意している。</p>
+
+  <h2 id="isolate">プロセス型と isolate 型</h2>
+  <div class="model">
+    <div class="card">
+      <span class="label">NODE / BUN：プロセス型</span>
+      <div class="machine">
+        <div class="ttl">サーバー（VM・コンテナ）</div>
+        <div class="procs">
+          <div class="proc k-node"><b>アプリ A</b>メモリ数十 MB〜<span class="mini">V8 一式</span></div>
+          <div class="proc k-bun"><b>アプリ B</b>メモリ数十 MB〜<span class="mini">JSC 一式</span></div>
+        </div>
+      </div>
+      <ul>
+        <li>アプリごとに OS のプロセスを立ち上げ、常駐させる</li>
+        <li>起動に数十〜数百ミリ秒。一度起動すれば状態をメモリに持ち続けられる</li>
+        <li>OS の機能（ファイル、子プロセス、任意のポート）を自由に使える</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="label">WORKERS：ISOLATE 型</span>
+      <div class="machine">
+        <div class="ttl">エッジのサーバー（世界中の拠点）</div>
+        <div class="runtime k-cf">
+          <b>workerd プロセス 1つ</b>
+          <div class="isos">
+            <div class="iso">A社</div><div class="iso">B社</div><div class="iso">C社</div><div class="iso">…</div>
+          </div>
+          <div class="v8bar">V8 を共有</div>
+        </div>
+      </div>
+      <ul>
+        <li>1つのプロセスの中で、テナントごとに <b>isolate</b>（メモリが完全に分かれた V8 の実行区画）を作る</li>
+        <li>エンジンの起動は済んでいるので、isolate の作成は数ミリ秒。コールドスタートがほぼない</li>
+        <li>OS の機能は使えず、外とのやり取りは fetch とバインディングだけ</li>
+      </ul>
+    </div>
+  </div>
+  <p class="muted">AWS Lambda などの多くのサーバーレスは「リクエストに応じてコンテナやマイクロ VM を起動する」方式で、Workers とは隔離の単位が違う。</p>
+
+  <h2 id="code">同じ HTTP サーバーを書くと</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="c1">Node.js</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="c2">Bun</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="c3">Workers</button>
+  </div>
+  <div class="panel card" id="c1">
+    <pre><code>import { createServer } from 'node:http';
+
+createServer((req, res) =&gt; {
+  res.writeHead(200, { 'content-type': 'text/plain' });
+  res.end('hello');
+}).listen(3000);</code></pre>
+    <p class="muted">Node 独自の <code>req</code> / <code>res</code> オブジェクト。<code>fetch</code> などの Web 標準も使えるが、サーバー側の標準 API は歴史的な独自形式のまま。</p>
+  </div>
+  <div class="panel card" id="c2" hidden>
+    <pre><code>Bun.serve({
+  port: 3000,
+  fetch(req) {
+    return new Response('hello');
+  },
+});</code></pre>
+    <p class="muted">Web 標準の <code>Request</code> を受けて <code>Response</code> を返す形。<code>node:http</code> の書き方もそのまま動く。</p>
+  </div>
+  <div class="panel card" id="c3" hidden>
+    <pre><code>export default {
+  async fetch(request, env, ctx) {
+    // env.MY_KV.get('key') のようにバインディングを使う
+    return new Response('hello');
+  },
+};</code></pre>
+    <p class="muted">ポートを listen しない。リクエストが来たら <code>fetch</code> が呼ばれるだけ。<code>env</code> から KV・R2・D1 などのリソースにアクセスする。</p>
+  </div>
+  <p>Bun と Workers は <b>Request → Response</b> という Web 標準の形に揃っている。Hono のようなフレームワークは、この共通の形の上に作られているので、同じコードがどのランタイムでも動く。</p>
+
+  <h2 id="compare">比較表</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>観点</th><th>Node.js</th><th>Bun</th><th>Workers</th></tr>
+      <tr><td>JS エンジン</td><td>V8</td><td>JavaScriptCore</td><td>V8</td></tr>
+      <tr><td>本体の言語</td><td>C++</td><td>Rust（1.3 までは Zig）</td><td>C++（workerd）</td></tr>
+      <tr><td>現行バージョン</td><td>26 が LTS（2026年10月〜）</td><td>1.4 系</td><td>互換性日付（compatibility date）で管理</td></tr>
+      <tr><td>TypeScript</td><td>型注釈を取り除いて直接実行（enum など一部の構文は不可）</td><td>そのまま実行</td><td>wrangler がビルド時に変換</td></tr>
+      <tr><td>パッケージ管理</td><td>npm（pnpm、yarn も）</td><td><code>bun install</code> を内蔵</td><td>npm などで入れて、ビルド時にバンドル</td></tr>
+      <tr><td>付属ツール</td><td>テストランナー、ウォッチモード</td><td>バンドラー、テストランナー、SQLite など全部入り</td><td>wrangler（開発・デプロイ CLI）</td></tr>
+      <tr><td>Node 互換性</td><td>本家</td><td>高い（大半の npm パッケージが動く）</td><td><code>nodejs_compat</code> フラグで主要モジュールに対応</td></tr>
+      <tr><td>ファイルシステム</td><td>あり</td><td>あり</td><td>なし（ストレージは R2・KV などを使う）</td></tr>
+      <tr><td>制限</td><td>サーバー次第</td><td>サーバー次第</td><td>メモリ 128 MB／リクエストあたり CPU 時間：無料 10 ms、有料は既定 30 秒（最大 5 分）</td></tr>
+      <tr><td>どこで動く</td><td>自分で用意したサーバー、コンテナ、Lambda など</td><td>同左</td><td>Cloudflare のエッジ（ローカルでは workerd で再現）</td></tr>
+    </table>
+  </div>
+  <p class="muted">Workers の CPU 時間は「計算している時間」だけを数え、fetch の応答待ちなどの待ち時間は含まない。</p>
+
+  <h2 id="features">それぞれの特徴</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="f1">Node.js</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="f2">Bun</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="f3">Workers</button>
+  </div>
+  <div class="panel card" id="f1">
+    <p><b>基準となる存在</b>。npm のエコシステムはすべて Node を前提に作られている。2026年10月に LTS になった 26 では、新しい日時 API の Temporal が標準で有効になった。</p>
+    <h3>イベントループ（簡略版）</h3>
+    <div class="loop">
+      <span class="ph main">同期コードを実行</span><span class="arrow">→</span>
+      <span class="ph">timers</span><span class="arrow">→</span>
+      <span class="ph">poll（I/O 待ち）</span><span class="arrow">→</span>
+      <span class="ph">check（setImmediate）</span><span class="arrow">→</span>
+      <span class="ph">close</span><span class="arrow">↺</span>
+    </div>
+    <p class="muted">JS を実行するのは1スレッドだが、ファイル I/O や DNS などは libuv のスレッドプールが裏で並列に処理する。各段階の間で Promise のコールバック（マイクロタスク）がまとめて実行される。</p>
+  </div>
+  <div class="panel card" id="f2" hidden>
+    <p><b>全部入りで速い</b>。ランタイム・パッケージマネージャー・バンドラー・テストランナーが1つのバイナリに入っている。<code>bun install</code> の速さから、パッケージマネージャーとしてだけ使う人も多い。</p>
+    <p>2025年12月に Anthropic が買収（MIT ライセンスのオープンソースのまま）。2026年5月に本体を Zig から Rust に書き直し、1.4 から Rust 版になった。</p>
+  </div>
+  <div class="panel card" id="f3" hidden>
+    <p><b>エッジで動く軽量ランタイム</b>。デプロイすると世界中の拠点に配られ、ユーザーに近い場所で応答する。</p>
+    <p>状態はバインディングで扱う：<b>KV</b>（読み込み中心のキーバリュー）、<b>R2</b>（オブジェクトストレージ）、<b>D1</b>（SQLite ベースの DB）、<b>Durable Objects</b>（1つの場所で状態を持ち続けるオブジェクト）。グローバル変数は同じ isolate が再利用されれば残るが、残る保証はない。</p>
+    <p class="muted"><a href="cloudflare-services.html">Cloudflare サービスのメモ</a>も参照。</p>
+  </div>
+
+  <h2 id="choose">どれを選ぶか</h2>
+  <div class="pick">
+    <div class="card k-node">
+      <div class="pk">Node.js</div>
+      <ul>
+        <li>既存の大きなアプリ</li>
+        <li>ネイティブアドオンや特殊なライブラリを使う</li>
+        <li>長く安定して運用したい</li>
+      </ul>
+    </div>
+    <div class="card k-bun">
+      <div class="pk">Bun</div>
+      <ul>
+        <li>開発体験と速度を重視</li>
+        <li>ツールを1つにまとめたい</li>
+        <li>新規の API サーバーや CLI</li>
+      </ul>
+    </div>
+    <div class="card k-cf">
+      <div class="pk">Workers</div>
+      <ul>
+        <li>世界中から低遅延で応答したい</li>
+        <li>サーバー管理をしたくない</li>
+        <li>短い処理の API、配信の前処理</li>
+      </ul>
+    </div>
+  </div>
+  <p class="muted">重い計算・長時間の処理・大きなファイル処理は Node.js か Bun 向き。Workers で扱うなら、キューや Containers と組み合わせる。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「Bun は Node の完全な代替。置き換えれば全部速くなる」</p>
+    <p><span class="ok">○</span> 互換性は高いが 100% ではなく、ネイティブアドオンや細かい挙動で差が出ることがある。速さもベンチマークほどの差が実アプリで出るとは限らない（DB やネットワークの待ちが支配的なことが多い）。</p>
+  </div>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「Workers でも npm のパッケージは何でも動く」</p>
+    <p><span class="ok">○</span> ファイルシステムや子プロセス、ネイティブアドオンに依存するものは動かない。<code>nodejs_compat</code> で動く範囲は広がったが、すべてではない。</p>
+  </div>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「Node はシングルスレッドだから CPU を1つしか使えない」</p>
+    <p><span class="ok">○</span> JS の実行スレッドは1つだが、I/O は裏のスレッドプールで並列に動く。CPU を使う処理は <code>worker_threads</code> や、プロセスを複数立てて分散できる。</p>
+  </div>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="cloudflare-services.html">Cloudflare サービス →</a> <a href="vite-toolchain.html">Vite ツールチェーン →</a></p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+</script>
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Cloudflare Workers で、アップロードされた画像をいったんディスクに保存してから処理しようとした。どうする？",
+    "choices": [
+      "nodejs_compat フラグを付ければディスクに書ける",
+      "node:fs で /tmp に書けば問題ない",
+      "ファイルシステムがないので、R2 などのストレージを使う"
+    ],
+    "answer": 2,
+    "explain": "Workers は isolate 型で OS の機能が使えない。外とのやり取りは fetch とバインディングだけ。",
+    "ref": "#compare"
+  },
+  {
+    "q": "Workers のグローバル変数にアクセス数のカウンターを持たせれば、全リクエストで正確に数えられる？",
+    "choices": [
+      "数えられる。全拠点のグローバル変数は自動で同期される",
+      "数えられない。グローバル変数は残る保証がない",
+      "数えられる。デプロイ中はずっと同じ変数が使われる"
+    ],
+    "answer": 1,
+    "explain": "グローバル変数は残る保証がない。1 か所で状態を持ち続けたいなら Durable Objects を使う。",
+    "ref": "#f3"
+  },
+  {
+    "q": "同じ API のコードを Node.js・Bun・Workers のどれでも動かせるようにしたい。どう書くのがよい？",
+    "choices": [
+      "Request を受けて Response を返す Web 標準の形で書く",
+      "Node の node:http の req / res の形で書く",
+      "Bun.serve など、一番速いランタイムの独自 API で書く"
+    ],
+    "answer": 0,
+    "explain": "Bun と Workers は Request → Response に揃っており、Hono のようなフレームワークはこの共通の形の上で動く。",
+    "ref": "#code"
+  },
+  {
+    "q": "1 件あたり数分かかる動画変換処理を API として提供したい。向いているランタイムは？",
+    "choices": [
+      "Node.js か Bun",
+      "Workers 単体",
+      "どれでも同じ"
+    ],
+    "answer": 0,
+    "explain": "Workers はメモリや CPU 時間に制限がある。重い計算や長時間の処理はプロセス型のランタイム向き。 Workers で扱うなら、キューや Containers と組み合わせる。",
+    "ref": "#choose"
+  },
+  {
+    "q": "Workers から外部 API を呼び、応答を 2 秒待つ。この 2 秒はリクエストあたりの CPU 時間の制限に数えられる？",
+    "choices": [
+      "数えられる。ただし有料プランだけ",
+      "数えられない。応答待ちの時間は含まない",
+      "数えられる。無料プランならすぐ制限を超える"
+    ],
+    "answer": 1,
+    "explain": "Workers の CPU 時間は実際に計算している時間だけを数える。",
+    "ref": "#compare"
+  }
+]
+</script>
+</body>
+</html>

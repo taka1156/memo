@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>リアルタイム通信</title>
+<meta name="description" content="ポーリング・ロングポーリング・SSE・WebSocket・WebTransport・WebRTC を、通信の向き・再接続・スケールのしかたで比較し、場面ごとの選び方と落とし穴を図解。">
+<meta name="memo:tags" content="ネットワーク, フロントエンド, インフラ">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-warn: #b45309;
+  --c-a: #7c3aed;
+  --c-b: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-warn: #fbbf24;
+    --c-a: #c4b5fd;
+    --c-b: #fb923c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.list, ol.list { margin: 6px 0 6px 1.3em; }
+ul.list li, ol.list li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* ステップ */
+ol.steps { list-style: none; counter-reset: st; }
+ol.steps > li {
+  counter-increment: st;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 12px; top: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+ol.steps b { display: block; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 図 */
+.fig { width: 100%; height: auto; display: block; }
+.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.fig .sub { fill: var(--fg-2); font-family: 'Noto Sans JP', sans-serif; }
+.fig .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+.fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+details.card summary { cursor: pointer; font-weight: 700; }
+details.card[open] summary { margin-bottom: 8px; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { color: var(--accent); word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.hdr { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); padding: 8px 12px; border-radius: 8px; word-break: break-all; margin: 6px 0; }
+.lane { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .lane { grid-template-columns: 1fr; } }
+.lane .flow { flex-direction: column; align-items: stretch; }
+.lane .arrow { text-align: center; font-size: 0.75rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; }
+.svgwrap { overflow-x: auto; }
+.lane > *, .grid2 > *, .grid3 > * { min-width: 0; }
+.svgwrap > svg { min-width: 560px; }
+@media (max-width: 560px) {
+  .flow { flex-direction: column; align-items: stretch; }
+  .flow .arrow { align-self: center; transform: rotate(90deg); line-height: 1; }
+}
+:is(.grid2, .grid3, .lane, .life, .vit, .who, .cmp, .shape) > .card + .card { margin-top: 0; }
+
+/* ---- このページ専用 ---- */
+.sq { width: 100%; height: auto; display: block; }
+.sq text { font-family: 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.sq .sub { fill: var(--fg-2); font-family: "Noto Sans JP", sans-serif; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+.sq .life { stroke: var(--line); stroke-width: 2; }
+.sq .up { stroke: var(--c-a); stroke-width: 2; fill: none; }
+.sq .dn { stroke: var(--c-b); stroke-width: 2; fill: none; }
+.sq .dash { stroke-dasharray: 5 4; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>リアルタイム通信</h1>
+  <p class="subtitle">「サーバーから押したい」を叶える 6 つの方法と、それぞれの向き不向き</p>
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>HTTP は本来「聞かれたら答える」だけ。サーバーから送るには、<b>聞き続ける（ポーリング）</b>・<b>開いたままにする（SSE）</b>・<b>別の双方向チャネルを張る（WebSocket など）</b>のどれか。</li>
+      <li>通知・進捗・AI の逐次出力のような<b>サーバー → クライアントだけ</b>なら SSE が手軽（自動再接続つき、普通の HTTP）。チャットや共同編集のような<b>双方向・高頻度</b>なら WebSocket。</li>
+      <li>接続を張りっぱなしにする方式は、<b>サーバーが接続を覚えている</b>ので、台数を増やすときに「別のサーバーにいる相手へどう届けるか」が課題になる。</li>
+    </ul>
+  </div>
+
+  <h2 id="methods">6 つの方式</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="m-poll">ポーリング</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-long">ロングポーリング</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-sse">SSE</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-ws">WebSocket</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-wt">WebTransport</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-rtc">WebRTC</button>
+  </div>
+  <div class="panel card" id="m-poll">
+    <div class="svgwrap"><svg class="sq" viewBox="0 0 600 150" role="img" aria-label="ポーリングのシーケンス">
+      <text x="40" y="16" font-size="12">Client</text><text x="520" y="16" font-size="12">Server</text>
+      <line class="life" x1="60" y1="24" x2="60" y2="146"/><line class="life" x1="540" y1="24" x2="540" y2="146"/>
+      <path class="up" d="M60 36 L540 46"/><path class="dn dash" d="M540 50 L60 60"/><text class="sub" x="250" y="40" font-size="10">新着ある？ → ない</text>
+      <path class="up" d="M60 80 L540 90"/><path class="dn dash" d="M540 94 L60 104"/><text class="sub" x="250" y="84" font-size="10">新着ある？ → ない</text>
+      <path class="up" d="M60 120 L540 128"/><path class="dn" d="M540 132 L60 142"/><text class="sub" x="250" y="122" font-size="10">新着ある？ → あった</text>
+    </svg></div>
+    <p>一定間隔でリクエストする。<b>一番単純で、どこでも動き、キャッシュや認証も普通の HTTP のまま</b>。ただし更新は最大で間隔ぶん遅れ、何もなくても通信が発生する。数十秒〜分単位で十分なダッシュボードならこれでよい。</p>
+<pre>setInterval(async () =&gt; render(await (await fetch('/api/status')).json()), 30_000);</pre>
+  </div>
+  <div class="panel card" id="m-long" hidden>
+    <div class="svgwrap"><svg class="sq" viewBox="0 0 600 130" role="img" aria-label="ロングポーリングのシーケンス">
+      <text x="40" y="16" font-size="12">Client</text><text x="520" y="16" font-size="12">Server</text>
+      <line class="life" x1="60" y1="24" x2="60" y2="126"/><line class="life" x1="540" y1="24" x2="540" y2="126"/>
+      <path class="up" d="M60 36 L540 44"/><text class="sub" x="250" y="34" font-size="10">新着が出るまで待たせて</text>
+      <rect x="532" y="46" width="16" height="38" rx="3" style="fill:var(--chip);stroke:var(--line)"/><text class="sub" x="440" y="70" font-size="10">保留…</text>
+      <path class="dn" d="M540 86 L60 96"/><text class="sub" x="250" y="86" font-size="10">来た！</text>
+      <path class="up" d="M60 104 L540 112"/><text class="sub" x="250" y="120" font-size="10">すぐ次の「待たせて」</text>
+    </svg></div>
+    <p>サーバーは新着が出るまでレスポンスを返さずに保留する。返ったらクライアントはすぐ次を投げる。遅延はほぼない一方、<b>保留中のリクエストがサーバーの接続とメモリを占有</b>し、プロキシのタイムアウトとの戦いになる。SSE と WebSocket が使える今は、古い環境向けのフォールバック。</p>
+  </div>
+  <div class="panel card" id="m-sse" hidden>
+    <div class="svgwrap"><svg class="sq" viewBox="0 0 600 140" role="img" aria-label="SSE のシーケンス">
+      <text x="40" y="16" font-size="12">Client</text><text x="520" y="16" font-size="12">Server</text>
+      <line class="life" x1="60" y1="24" x2="60" y2="136"/><line class="life" x1="540" y1="24" x2="540" y2="136"/>
+      <path class="up" d="M60 36 L540 44"/><text class="sub" x="200" y="34" font-size="10">GET /events (Accept: text/event-stream)</text>
+      <path class="dn" d="M540 60 L60 68"/><text class="sub" x="250" y="58" font-size="10">data: 1件目</text>
+      <path class="dn" d="M540 88 L60 96"/><text class="sub" x="250" y="86" font-size="10">data: 2件目</text>
+      <path class="dn" d="M540 116 L60 124"/><text class="sub" x="230" y="114" font-size="10">…レスポンスが終わらない</text>
+    </svg></div>
+    <p><b>Server-Sent Events</b>。1 つの HTTP レスポンスを閉じずに、テキストの行を流し続ける。ブラウザの <code>EventSource</code> は切れたら<b>自動で再接続</b>し、最後に受け取った <code>id</code> を <code>Last-Event-ID</code> ヘッダーで送ってくれるので、取りこぼしの再送も作りやすい。</p>
+<pre><span class="cm">// クライアント</span>
+const es = new EventSource('/events');
+es.addEventListener('progress', e =&gt; update(JSON.parse(e.data)));
+
+<span class="cm">// サーバーが流すテキスト（空行が 1 件の区切り）</span>
+id: 42
+event: progress
+data: {"done": 3, "total": 10}
+</pre>
+    <p class="note">送れるのはテキストだけで、サーバー → クライアントの片方向。<code>EventSource</code> はカスタムヘッダーを付けられないので、認証は Cookie で行う（ヘッダーが必要なら <code>fetch</code> でストリームを読む）。HTTP/1.1 では同じオリジンへの接続が 6 本程度に制限され、タブをたくさん開くと詰まる。HTTP/2 以降なら多重化されるので問題になりにくい。LLM の逐次出力（ストリーミング応答）もこの形式が多い。</p>
+  </div>
+  <div class="panel card" id="m-ws" hidden>
+    <div class="svgwrap"><svg class="sq" viewBox="0 0 600 150" role="img" aria-label="WebSocket のシーケンス">
+      <text x="40" y="16" font-size="12">Client</text><text x="520" y="16" font-size="12">Server</text>
+      <line class="life" x1="60" y1="24" x2="60" y2="146"/><line class="life" x1="540" y1="24" x2="540" y2="146"/>
+      <path class="up" d="M60 36 L540 44"/><text class="sub" x="210" y="34" font-size="10">GET + Upgrade: websocket</text>
+      <path class="dn" d="M540 50 L60 58"/><text class="sub" x="210" y="66" font-size="10">101 Switching Protocols</text>
+      <text class="sub" x="230" y="86" font-size="10">ここから HTTP ではなくフレーム</text>
+      <path class="up" d="M60 96 L540 102"/><path class="dn" d="M540 108 L60 114"/><path class="dn" d="M540 124 L60 130"/><path class="up" d="M60 134 L540 140"/>
+    </svg></div>
+    <p>HTTP で始めて <code>101</code> で別プロトコルに切り替え、<b>1 本の TCP の上で双方向にメッセージ（テキスト／バイナリ）を送り合う</b>。ヘッダーのやり取りがない分、小さいメッセージを高頻度に送るのに向く。</p>
+<pre>const ws = new WebSocket('wss://example.com/chat');
+ws.onmessage = e =&gt; append(JSON.parse(e.data));
+ws.onclose = () =&gt; setTimeout(connect, backoff());   <span class="cm">// 再接続は自分で書く</span>
+ws.send(JSON.stringify({ type: 'say', text: 'hi' }));</pre>
+    <p class="note"><b>自動再接続も、届いたかの確認も、取りこぼしの再送もない</b>ので、アプリ側で作る（Socket.IO などのライブラリはここを埋める）。送信側が速すぎるとバッファが膨らむ（<code>bufferedAmount</code> を見る）。Cookie で認証する場合はハンドシェイクの <code>Origin</code> を必ず検証する（他サイトからつながれる CSWSH 攻撃）。</p>
+  </div>
+  <div class="panel card" id="m-wt" hidden>
+    <p><b>WebTransport</b> は HTTP/3（QUIC）の上で、<b>複数の独立したストリーム</b>と、<b>届かなくてもよいデータグラム</b>（UDP のような送りっぱなし）を使える。1 つのメッセージが詰まっても他が待たされず、ゲームの位置情報やライブ配信のように「古いデータは要らない」用途に向く。</p>
+<pre>const wt = new WebTransport('https://example.com:4433/game');
+await wt.ready;
+const writable = typeof wt.datagrams.createWritable === 'function'
+  ? wt.datagrams.createWritable()   <span class="cm">// 新しい API（writable は非推奨）</span>
+  : wt.datagrams.writable;          <span class="cm">// 未対応のブラウザ（Chrome など）は旧 API</span>
+const w = writable.getWriter();
+w.write(new Uint8Array([x, y]));   <span class="cm">// 落ちても再送しない</span></pre>
+    <p class="note">サーバー側は HTTP/3 対応が必要。ブラウザは 2026 年 3 月の Safari 26.4 で主要ブラウザがすべて対応した（Baseline 新規）が、古い OS やブラウザの利用者がいるなら WebSocket へのフォールバックを用意する。社内ネットワークなどで UDP が塞がれている場合も同じ。</p>
+  </div>
+  <div class="panel card" id="m-rtc" hidden>
+    <p><b>WebRTC</b> はブラウザ同士を<b>直接（P2P）</b>つなぐ。映像・音声の通話と、任意のデータを送る DataChannel がある。NAT を越えるために STUN（自分の外向きアドレスを知る）と TURN（直結できないときの中継）を使い、接続の準備（シグナリング）には別途 WebSocket などが要る。</p>
+    <p class="note">参加者が多い会議では全員が全員に送ると回線が持たないので、SFU という中継サーバーで束ねる。サーバーとクライアントのやり取りだけなら WebSocket か WebTransport のほうが単純。</p>
+  </div>
+
+  <h2 id="compare">比較</h2>
+  <div class="card table-wrap">
+    <table>
+      <tr><th>方式</th><th>向き</th><th>データ</th><th>再接続</th><th>土台</th><th>向いている</th></tr>
+      <tr><td>ポーリング</td><td>C→S（応答で受信）</td><td>何でも</td><td>不要</td><td>HTTP</td><td>分単位の更新で十分なもの</td></tr>
+      <tr><td>ロングポーリング</td><td>同上</td><td>何でも</td><td>自前</td><td>HTTP</td><td>古い環境のフォールバック</td></tr>
+      <tr><td>SSE</td><td>S→C</td><td>テキスト</td><td><b>自動</b></td><td>HTTP</td><td>通知・進捗・AI の逐次出力</td></tr>
+      <tr><td>WebSocket</td><td>双方向</td><td>テキスト／バイナリ</td><td>自前</td><td>TCP</td><td>チャット・共同編集・ゲームのロビー</td></tr>
+      <tr><td>WebTransport</td><td>双方向・複数ストリーム</td><td>バイナリ＋データグラム</td><td>自前</td><td>QUIC</td><td>ゲーム・低遅延配信</td></tr>
+      <tr><td>WebRTC</td><td>ピア同士</td><td>映像・音声・データ</td><td>自前</td><td>UDP（ICE）</td><td>通話・画面共有</td></tr>
+    </table>
+  </div>
+
+  <h2 id="scale">台数を増やすときの問題</h2>
+  <div class="card">
+    <div class="svgwrap"><svg class="fig" viewBox="0 0 640 200" role="img" aria-label="複数サーバーで接続を持つときの pub/sub">
+      <defs><marker id="ar5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:var(--fg-2)"/></marker></defs>
+      <rect class="nd" x="10" y="20" width="90" height="34" rx="6"/><text x="55" y="42" text-anchor="middle" font-size="12">Alice</text>
+      <rect class="nd" x="10" y="140" width="90" height="34" rx="6"/><text x="55" y="162" text-anchor="middle" font-size="12">Bob</text>
+      <rect class="nd" x="190" y="20" width="120" height="34" rx="6"/><text x="250" y="42" text-anchor="middle" font-size="12">Server 1</text>
+      <rect class="nd" x="190" y="140" width="120" height="34" rx="6"/><text x="250" y="162" text-anchor="middle" font-size="12">Server 2</text>
+      <rect class="nd" x="420" y="80" width="150" height="40" rx="6" style="stroke:var(--accent)"/><text x="495" y="98" text-anchor="middle" font-size="12">Pub/Sub</text><text class="sub" x="495" y="113" text-anchor="middle" font-size="10">Redis / NATS など</text>
+      <path class="edge" d="M100 37 H188"/><path class="edge" d="M100 157 H188"/>
+      <path class="edge" d="M310 37 L418 92" marker-end="url(#ar5)"/><path class="edge" d="M418 108 L310 157" marker-end="url(#ar5)"/>
+      <text class="sub" x="320" y="58" font-size="10">① publish</text><text class="sub" x="320" y="150" font-size="10">② 購読中の全員へ</text>
+    </svg></div>
+    <p>Alice と Bob が別のサーバーにつながっていると、Server 1 は Bob に直接送れない。<b>全サーバーが共通のメッセージ基盤を購読</b>して中継するか、同じ部屋の人を同じサーバーに集める（スティッキーセッション、Cloudflare の Durable Objects のように「部屋＝1 つのオブジェクト」にする）。</p>
+    <p class="note">デプロイで全接続が一斉に切れると、全員が同時に再接続してサーバーを叩く。再接続の待ち時間に<b>ランダムな揺らぎ（ジッター）付きの指数バックオフ</b>を入れる。</p>
+  </div>
+
+  <h2 id="choose">選び方</h2>
+  <ol class="steps">
+    <li><b>数十秒遅れても困らない？</b>はい → ポーリング。インフラもキャッシュもそのまま使える。</li>
+    <li><b>サーバーから送るだけ？</b>はい → SSE。自動再接続が標準でついてくる。再接続時に最後のイベント ID が届くので、サーバー側で差分を送れば取りこぼしも防げる。</li>
+    <li><b>クライアントからも高頻度に送る？</b>はい → WebSocket。</li>
+    <li><b>古いデータを捨ててでも遅延を減らしたい／ブラウザ同士でつなぎたい</b>WebTransport ／ WebRTC。</li>
+  </ol>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a><a href="redis-valkey.html">Redis と Valkey</a><a href="distributed-basics.html">分散システムの基本</a><a href="cloudflare-services.html">Cloudflare サービス</a><a href="web-vulnerabilities.html">実装起因の脆弱性</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://html.spec.whatwg.org/multipage/server-sent-events.html">HTML Standard: Server-sent events</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc6455">RFC 6455: The WebSocket Protocol</a></li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/WebTransport_API">MDN: WebTransport API</a></li>
+    <li><a href="https://developer.mozilla.org/ja/docs/Web/API/WebRTC_API">MDN: WebRTC API</a></li>
+  </ul>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {"q": "AI の回答を 1 文字ずつ画面に流したい。クライアントから送るのは最初の質問だけ。一番手軽な方式は？", "choices": ["WebSocket", "SSE（または fetch でストリームを読む）", "1 秒ごとのポーリング"], "answer": 1, "explain": "サーバー → クライアントの片方向で、普通の HTTP のまま流せる。WebSocket は双方向が必要なときに使う。", "ref": "#m-sse"},
+  {"q": "WebSocket のチャットで、回線が切れて戻ったあとに一部のメッセージが表示されていなかった。なぜ？", "choices": ["WebSocket は届かなかったメッセージを自動で再送しないから", "WebSocket は UDP なので順序が入れ替わるから", "ブラウザが古いメッセージをキャッシュから消したから"], "answer": 0, "explain": "WebSocket には再接続も取りこぼしの再送もない。最後に受け取った ID を覚えて、再接続時に差分を取る仕組みを自分で作る。", "ref": "#m-ws"},
+  {"q": "WebSocket サーバーを 2 台に増やしたら、同じチャットルームなのに一部の人にメッセージが届かなくなった。対策は？", "choices": ["クライアントの再接続間隔を短くする", "全サーバーで Pub/Sub を購読して中継するか、同じルームを同じサーバーに集める", "WebSocket を SSE に置き換える"], "answer": 1, "explain": "接続は各サーバーが持っているので、別サーバーの相手には直接送れない。共通のメッセージ基盤か、ルーム単位の振り分けが必要。", "ref": "#scale"},
+  {"q": "Cookie で認証している WebSocket エンドポイントで、ハンドシェイク時に必ず確認すべきヘッダーは？", "choices": ["Origin", "Accept-Language", "Cache-Control"], "answer": 0, "explain": "WebSocket には CORS がかからず Cookie も送られるので、Origin を見ないと他サイトのページから勝手につながれる。", "ref": "#m-ws"}
+]
+</script>
+</body>
+</html>

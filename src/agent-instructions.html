@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLAUDE.md / AGENTS.md / Skills</title>
+<meta name="description" content="AI コーディングエージェントへの指示ファイルと Skills の違いを、コンテキストに載るタイミングと置き場所から図解。">
+<meta name="memo:tags" content="AI">
+<meta name="memo:date" content="2026-11-02">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-front: #c2410c;
+  --c-back: #15803d;
+  --c-ng: #b91c1c;
+  --c-ok: #15803d;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-front: #fb923c;
+    --c-back: #4ade80;
+    --c-ng: #f87171;
+    --c-ok: #4ade80;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.big { font-size: 1.05rem; font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* フロー */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.box {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.arrow { color: var(--fg-2); font-weight: 700; }
+
+/* トークン表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+.myth .ng { color: var(--c-ng); font-weight: 700; }
+.myth .ok { color: var(--c-ok); font-weight: 700; }
+
+.related a { display: inline-block; margin: 4px 8px 4px 0; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.ctx { margin: 10px 0 4px; }
+.ctx-bar {
+  display: flex;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.ctx-bar > div {
+  display: flex; align-items: center; justify-content: center;
+  font: 700 0.68rem 'JetBrains Mono', monospace;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: flex-basis .4s, opacity .4s;
+}
+.ctx-bar .off { flex-basis: 0 !important; opacity: 0; }
+.seg-sys { background: #64748b; }
+.seg-md { background: var(--c-md); }
+.seg-desc { background: var(--c-sk); opacity: .7; }
+.seg-tool { background: var(--c-mcp); }
+.seg-body { background: var(--c-sk); }
+.seg-file { background: var(--c-sk); filter: brightness(.8); }
+.seg-chat { background: var(--chip); color: var(--fg-2) !important; }
+@media (max-width: 560px) { .ctx-bar > div { font-size: 0; } }
+.ctx-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.78rem; color: var(--fg-2); margin-top: 8px; }
+.ctx-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.ctx-note { min-height: 3.4em; margin-top: 8px; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.btns button {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font: 600 0.75rem 'JetBrains Mono', monospace;
+  cursor: pointer;
+}
+.btns button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+.three { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.three .card { border-top: 4px solid var(--k); }
+.three h3 { margin-top: 0; color: var(--k); }
+.k-md { --k: var(--c-md); }
+.k-sk { --k: var(--c-sk); }
+.k-mcp { --k: var(--c-mcp); }
+
+.tree {
+  font: 500 0.8rem/1.7 'JetBrains Mono', monospace;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  white-space: pre;
+  overflow-x: auto;
+}
+.tree .c { color: var(--fg-2); }
+.tree .h { color: var(--accent); font-weight: 700; }
+
+.layers { display: flex; flex-direction: column; gap: 6px; }
+.layers > div {
+  display: grid;
+  grid-template-columns: 9.5em 1fr;
+  gap: 10px;
+  align-items: start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.layers code { white-space: nowrap; }
+.layers .sc { font-weight: 700; }
+@media (max-width: 520px) { .layers > div { grid-template-columns: 1fr; gap: 2px; } }
+
+.lv { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.lv .card { position: relative; }
+.lv .n { font: 700 1.6rem 'JetBrains Mono', monospace; color: var(--c-sk); line-height: 1; }
+
+.decide td:first-child { font-weight: 500; white-space: normal; }
+.decide td:last-child { font-weight: 700; white-space: nowrap; }
+
+:root { --c-md: #0e7490; --c-sk: #7c3aed; --c-mcp: #c2410c; }
+@media (prefers-color-scheme: dark) { :root { --c-md: #22d3ee; --c-sk: #a78bfa; --c-mcp: #fb923c; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>CLAUDE.md / AGENTS.md / Skills</h1>
+  <p class="subtitle">AI エージェントに「何を・いつ」読ませるかの設計</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>エージェントへの追加情報は「<b>常に読む指示</b>」「<b>必要なときだけ読む手順</b>」「<b>外部とつなぐ道具</b>」の3種類</li>
+      <li>それぞれ <b>CLAUDE.md・AGENTS.md</b>、<b>Skills</b>、<b>MCP</b> が担当する</li>
+      <li>違いの本質は、限られたコンテキスト（作業記憶）に<b>いつ・どれだけ載るか</b>。常に載るものほど短くする</li>
+    </ul>
+  </div>
+
+  <h2 id="roles">3つの役割</h2>
+  <div class="three">
+    <div class="card k-md">
+      <h3>CLAUDE.md / AGENTS.md</h3>
+      <p><b>常に読む指示</b></p>
+      <p class="muted">セッション開始時に毎回読み込まれる「このプロジェクトの決まりごと」。ビルド方法、規約、やってはいけないこと。</p>
+    </div>
+    <div class="card k-sk">
+      <h3>Skills</h3>
+      <p><b>必要なときだけ読む手順書</b></p>
+      <p class="muted">普段は名前と説明だけが見えていて、該当する作業になったときに本文や同梱スクリプトを読む。</p>
+    </div>
+    <div class="card k-mcp">
+      <h3>MCP</h3>
+      <p><b>外部とつなぐ道具</b></p>
+      <p class="muted">GitHub、Slack、DB など外部システムを操作するツール群。<a href="mcp.html">MCP のメモ</a>で詳しく扱う。</p>
+    </div>
+  </div>
+
+  <h2 id="context">コンテキストに載るタイミング</h2>
+  <p>ボタンで場面を切り替えると、コンテキストの中身がどう変わるかがわかる（幅は大まかなイメージ）。</p>
+  <div class="card ctx">
+    <div class="ctx-bar" id="bar">
+      <div class="seg-sys" data-k="sys" style="flex-basis:12%">システム</div>
+      <div class="seg-md" data-k="md" style="flex-basis:10%">CLAUDE.md</div>
+      <div class="seg-desc" data-k="desc" style="flex-basis:5%">説明</div>
+      <div class="seg-tool" data-k="tool" style="flex-basis:14%">MCP ツール定義</div>
+      <div class="seg-body" data-k="body" style="flex-basis:14%">SKILL.md 本文</div>
+      <div class="seg-file" data-k="file" style="flex-basis:10%">同梱ファイル</div>
+      <div class="seg-chat" data-k="chat" style="flex-basis:35%">会話・作業</div>
+    </div>
+    <div class="ctx-legend">
+      <span><i class="seg-sys"></i>システムプロンプト</span>
+      <span><i class="seg-md"></i>指示ファイル（常駐）</span>
+      <span><i class="seg-desc"></i>Skill の name / description（常駐・小さい）</span>
+      <span><i class="seg-tool"></i>MCP のツール定義（常駐）</span>
+      <span><i class="seg-body"></i>Skill 本文・同梱ファイル（必要時のみ）</span>
+      <span><i class="seg-chat" style="border:1px solid var(--line)"></i>会話・作業に使える残り</span>
+    </div>
+    <div class="btns" role="group" aria-label="場面">
+      <button type="button" data-scene="0" aria-pressed="true">① 会話開始</button>
+      <button type="button" data-scene="1" aria-pressed="false">② スキルが該当</button>
+      <button type="button" data-scene="2" aria-pressed="false">③ 同梱ファイルも読む</button>
+    </div>
+    <p class="ctx-note" id="note"></p>
+  </div>
+  <p class="muted">CLAUDE.md と MCP のツール定義は<b>毎回</b>場所を取る。CLAUDE.md を長くしたり MCP サーバーを入れすぎたりすると、肝心の作業に使える領域が減り、指示も埋もれる。</p>
+
+  <h2 id="claude-md">CLAUDE.md</h2>
+  <div class="grid2">
+    <div class="card">
+      <span class="label">書くもの</span>
+      <ul style="margin-left:1.2em">
+        <li>ビルド・テスト・lint のコマンド</li>
+        <li>コードを読んでもわからない規約や判断基準</li>
+        <li>ハマりどころ（「この API は v1 を使う」など）</li>
+        <li>やってはいけないこと</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="label">書かないもの</span>
+      <ul style="margin-left:1.2em">
+        <li>コードを読めばわかること（ディレクトリ構成の丸写しなど）</li>
+        <li>linter やフォーマッターが強制できること</li>
+        <li>特定の作業でしか要らない長い手順（→ Skill へ）</li>
+        <li>秘密情報（リポジトリにコミットされる）</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>置き場所と読み込まれ方（Claude Code）</h3>
+  <div class="layers">
+    <div><span class="sc">ユーザー全体</span><span><code>~/.claude/CLAUDE.md</code> — 全プロジェクト共通の個人の好み</span></div>
+    <div><span class="sc">プロジェクト</span><span><code>./CLAUDE.md</code> — リポジトリにコミットしてチームで共有。起動したフォルダから上にたどって読む</span></div>
+    <div><span class="sc">サブフォルダ</span><span><code>packages/api/CLAUDE.md</code> など — そのフォルダのファイルを扱うときに追加で読まれる</span></div>
+    <div><span class="sc">取り込み</span><span>本文中の <code>@docs/style.md</code> のような記述で、別ファイルを読み込める</span></div>
+  </div>
+  <p class="muted"><code>/init</code> でリポジトリを解析して雛形を作れる。生成されたものは長くなりがちなので、削る前提で使う。</p>
+
+  <h2 id="agents-md">AGENTS.md</h2>
+  <div class="card">
+    <p>特定のツールに依存しない、<b>エージェント向け README</b> の共通フォーマット。中身はただの Markdown で、決まった項目はない。OpenAI の Codex から広まり、今は Linux Foundation 傘下の Agentic AI Foundation が管理している。Cursor、GitHub Copilot など多くのツールが読む。</p>
+    <p><b>Claude Code の扱い</b>：バージョン 2.1.277（2026年9月）から、フォルダに <b>CLAUDE.md がないときに限り AGENTS.md を読む</b>ようになった。どちらを読むかは <code>/config</code> で変えられる。</p>
+  </div>
+  <h3>両方使うときの3パターン</h3>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="a1">AGENTS.md だけ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="a2">CLAUDE.md から取り込む</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="a3">シンボリックリンク</button>
+  </div>
+  <div class="panel card" id="a1">
+    <p>CLAUDE.md を置かず、AGENTS.md に一本化する。Claude Code はフォールバックで読む。</p>
+    <p class="muted">一番シンプル。ただし、フォールバックは機能フラグ経由で有効になるため、Bedrock / Vertex 経由やテレメトリ無効の環境では効かないことがある。</p>
+  </div>
+  <div class="panel card" id="a2" hidden>
+    <pre><code># CLAUDE.md
+@AGENTS.md
+
+## Claude Code 固有
+- サブエージェントで探索してから編集する</code></pre>
+    <p class="muted">共通部分は AGENTS.md、Claude 固有の追記だけ CLAUDE.md に書く。どの環境でも確実に読まれる。</p>
+  </div>
+  <div class="panel card" id="a3" hidden>
+    <pre><code>ln -s AGENTS.md CLAUDE.md</code></pre>
+    <p class="muted">中身は完全に同じになる。Windows では扱いに注意。</p>
+  </div>
+
+  <h3>ツールごとの指示ファイル</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>ツール</th><th>主な指示ファイル</th></tr>
+      <tr><td>Claude Code</td><td><code>CLAUDE.md</code>（なければ <code>AGENTS.md</code>）</td></tr>
+      <tr><td>OpenAI Codex</td><td><code>AGENTS.md</code></td></tr>
+      <tr><td>GitHub Copilot</td><td><code>.github/copilot-instructions.md</code>、<code>AGENTS.md</code></td></tr>
+      <tr><td>Cursor</td><td><code>.cursor/rules/</code>、<code>AGENTS.md</code></td></tr>
+      <tr><td>Gemini CLI</td><td><code>GEMINI.md</code></td></tr>
+    </table>
+  </div>
+
+  <h2 id="skills">Skills</h2>
+  <p>フォルダ1つが1スキル。中心の <code>SKILL.md</code> に、YAML のフロントマター（名前と説明）と本文（手順）を書く。2025年12月に <b>Agent Skills</b> としてオープン標準化され（agentskills.io）、Claude Code 以外に Codex、Copilot、Cursor、Gemini CLI なども対応している。</p>
+  <div class="tree"><span class="h">memo-style/</span>
+├── <span class="h">SKILL.md</span>        <span class="c"># 必須。フロントマター＋手順</span>
+├── template.html   <span class="c"># 同梱ファイル。本文から参照されたときだけ読む</span>
+└── scripts/
+    └── check.py    <span class="c"># 実行するだけなら中身はコンテキストに載らない</span></div>
+  <pre><code>---
+name: memo-style
+description: MEMO リポジトリ用の解説ページを新しく作るときのデザイン規約。
+  「〜の図解ページを作って」と言われたときに必ず読む。
+---
+
+# memo-style
+1. テンプレートから作る: python3 scripts/memo.py new NAME
+2. ...</code></pre>
+
+  <h3>段階的な読み込み（progressive disclosure）</h3>
+  <div class="lv">
+    <div class="card"><div class="n">1</div><b>name と description</b><p class="muted">起動時に全スキル分が常駐。数行なので、何十個あっても軽い。</p></div>
+    <div class="card"><div class="n">2</div><b>SKILL.md 本文</b><p class="muted">description から「今の作業に該当する」と判断されたときに読む。</p></div>
+    <div class="card"><div class="n">3</div><b>同梱ファイル</b><p class="muted">本文の指示で必要になったものだけ読む・実行する。</p></div>
+  </div>
+  <p><b>description がスイッチ</b>になっている。「何をするか」だけでなく「<b>どんな頼まれ方をしたときに使うか</b>」まで書かないと、呼ばれるべき場面で呼ばれない。</p>
+
+  <h3>置き場所</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>場所</th><th>範囲</th></tr>
+      <tr><td><code>.claude/skills/</code></td><td>プロジェクト（コミットして共有）</td></tr>
+      <tr><td><code>~/.claude/skills/</code></td><td>個人（全プロジェクト）</td></tr>
+      <tr><td>プラグイン</td><td>配布用。組織でまとめて配れる</td></tr>
+      <tr><td><code>.agents/skills/</code></td><td>ツール横断で使われ始めている共通の置き場所</td></tr>
+    </table>
+  </div>
+
+  <h3>実例：この MEMO</h3>
+  <div class="card">
+    <p>このサイト自体がスキルで運用されている。リポジトリの <code>.claude/skills/</code> に <b>memo-style</b>（デザイン規約とテンプレート）、<b>memo-publish</b>（登録手順）、<b>memo-from-chat</b>（会話をページ化）の3つがあり、claude.ai 側の入口スキルが毎回リポジトリから最新の規約を取りに行く。規約を1か所で管理し、どこから頼んでも同じ見た目になる。</p>
+  </div>
+
+  <h2 id="which">どれを使うか</h2>
+  <div class="table-wrap">
+    <table class="decide">
+      <tr><th>やりたいこと</th><th>使うもの</th></tr>
+      <tr><td>どの作業でも毎回守ってほしい決まり</td><td>CLAUDE.md / AGENTS.md</td></tr>
+      <tr><td>特定の作業のときだけ要る手順・テンプレート・スクリプト</td><td>Skill</td></tr>
+      <tr><td>外部システムを読み書きしたい</td><td>MCP</td></tr>
+      <tr><td>「編集後は必ず formatter」のように、AI の判断に任せず確実に実行したい</td><td>Hooks</td></tr>
+      <tr><td>調査などを本筋のコンテキストから切り離して任せたい</td><td>サブエージェント</td></tr>
+    </table>
+  </div>
+  <p class="muted">指示ファイルや Skill は「お願い」なので、守られないこともある。絶対に実行させたいことは Hooks のような仕組み側で強制する。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「CLAUDE.md に全部書いておけば安心」</p>
+    <p><span class="ok">○</span> 長いほど毎回のコンテキストを圧迫し、大事な指示が埋もれる。特定作業の手順は Skill に逃がし、CLAUDE.md は短く保つ。</p>
+  </div>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「Skill と MCP は同じようなもの」</p>
+    <p><span class="ok">○</span> Skill は<b>知識と手順</b>、MCP は<b>外部への接続</b>。「Slack のツールを使って、チームの週報フォーマットで投稿する」なら、両方を組み合わせる。</p>
+  </div>
+  <div class="card myth">
+    <p><span class="ng">✕</span> 「AGENTS.md は OpenAI 製品専用」</p>
+    <p><span class="ok">○</span> ツール中立の共通フォーマットで、Claude Code も CLAUDE.md がなければ読む。</p>
+  </div>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="mcp.html">← MCP の仕組み</a></p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+const SCENES = [
+  { on: ['sys', 'md', 'desc', 'tool', 'chat'], note: '会話の開始時：システムプロンプト、CLAUDE.md、全スキルの説明文、MCP のツール定義が読み込まれる。Skill の本文はまだ載っていない。' },
+  { on: ['sys', 'md', 'desc', 'tool', 'body', 'chat'], note: '「図解ページを作って」と頼まれた：description が一致したスキルの SKILL.md 本文だけが追加で読み込まれる。ほかのスキルの本文は載らない。' },
+  { on: ['sys', 'md', 'desc', 'tool', 'body', 'file', 'chat'], note: '本文に「template.html をベースにする」とあった：参照された同梱ファイルだけを読む。スクリプトは実行するだけなら中身を読まずに済む。' }
+];
+const segs = document.querySelectorAll('#bar > div');
+const btns = document.querySelectorAll('[data-scene]');
+function scene(i) {
+  const s = SCENES[i];
+  segs.forEach(d => d.classList.toggle('off', !s.on.includes(d.dataset.k)));
+  btns.forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.scene) === i)));
+  document.getElementById('note').textContent = s.note;
+}
+btns.forEach(b => b.addEventListener('click', () => scene(Number(b.dataset.scene))));
+scene(0);
+</script>
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "「ファイルを編集したら必ずフォーマッターを実行する」を確実に守らせたい。どれを使う？",
+    "choices": [
+      "Hooks",
+      "Skill にする",
+      "CLAUDE.md に書いておく"
+    ],
+    "answer": 0,
+    "explain": "指示ファイルや Skill は「お願い」なので守られないことがある。必ず実行したいことは Hooks のような仕組み側で強制する。",
+    "ref": "#which"
+  },
+  {
+    "q": "リリース作業のときだけ使う長い手順書とスクリプトがある。どこに置くのがよい？",
+    "choices": [
+      "CLAUDE.md（毎回読まれる）",
+      "Skill（必要なときだけ本文を読む）",
+      "MCP サーバー"
+    ],
+    "answer": 1,
+    "explain": "特定の作業でしか要らない手順を CLAUDE.md に書くと毎回コンテキストを圧迫する。Skill なら普段は名前と説明だけが載る。",
+    "ref": "#which"
+  },
+  {
+    "q": "CLAUDE.md が長くなり、MCP サーバーもたくさん入れた。起きやすい問題は？",
+    "choices": [
+      "MCP のツール定義は使うときしか読まれないので影響はない",
+      "作業に使えるコンテキストが減り、大事な指示が埋もれる",
+      "長いほど指示がよく守られるので問題はない"
+    ],
+    "answer": 1,
+    "explain": "CLAUDE.md と MCP のツール定義はどちらも常にコンテキストに載る。常に載るものほど短く保つ。",
+    "ref": "#context"
+  },
+  {
+    "q": "作った Skill が、使ってほしい場面で呼ばれない。まず見直すべきところは？",
+    "choices": [
+      "同梱スクリプトを増やして機能を充実させる",
+      "SKILL.md の本文に手順をもっと詳しく書き足す",
+      "description に「どんな頼まれ方をしたときに使うか」まで書く"
+    ],
+    "answer": 2,
+    "explain": "最初に常駐するのは name と description だけで、それを見て本文を読むか判断される。description がスイッチになる。",
+    "ref": "#skills"
+  },
+  {
+    "q": "チームで Claude Code と Cursor を併用している。共通の決まりは 1 か所にまとめつつ、Claude Code 固有の指示も確実に読ませたい。よい構成は？",
+    "choices": [
+      "共通は AGENTS.md に書き、CLAUDE.md で @AGENTS.md を取り込んで固有分を追記する",
+      "CLAUDE.md と AGENTS.md の両方に、共通部分も固有分も同じ内容を書いておく",
+      "AGENTS.md だけを置き、Claude Code 固有の指示は毎回の会話で伝える"
+    ],
+    "answer": 0,
+    "explain": "取り込み方式ならどの環境でも確実に読まれ、共通部分の二重管理も避けられる。",
+    "ref": "#agents-md"
+  }
+]
+</script>
+</body>
+</html>

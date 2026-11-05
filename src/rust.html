@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rust 学習フローと仕組み</title>
+<meta name="description" content="Rust の学習ロードマップと、所有権・借用・ライフタイムなどコンパイラが安全性を保証する仕組みを図解。">
+<meta name="memo:tags" content="言語">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #c4314b;
+  --c-heap: #8250df;
+  --c-p1: #0077b6;
+  --c-p2: #b35900;
+  --c-p3: #1a7f37;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #ff6b81;
+    --c-heap: #c297ff;
+    --c-p1: #00d4ff;
+    --c-p2: #ffa657;
+    --c-p3: #3fb950;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 14px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.ok { color: var(--c-ok); }
+.ng { color: var(--c-ng); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note { color: var(--fg-2); font-size: 0.82rem; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* ロードマップ */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 0.8rem; color: var(--fg-2); margin-bottom: 12px; }
+.legend span::before {
+  content: "";
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  background: var(--dot);
+}
+.road { list-style: none; position: relative; padding-left: 34px; }
+.road::before {
+  content: "";
+  position: absolute;
+  left: 13px; top: 8px; bottom: 8px;
+  width: 2px;
+  background: var(--line);
+}
+.road li { position: relative; margin-bottom: 10px; }
+.road li::before {
+  content: attr(data-n);
+  position: absolute;
+  left: -34px; top: 10px;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--ph);
+  color: var(--ph);
+  font: 700 0.75rem/24px 'JetBrains Mono', ui-monospace, monospace;
+  text-align: center;
+}
+.p1 { --ph: var(--c-p1); }
+.p2 { --ph: var(--c-p2); }
+.p3 { --ph: var(--c-p3); }
+.road details {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ph);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.road summary {
+  cursor: pointer;
+  font-weight: 700;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+.road summary::-webkit-details-marker { display: none; }
+.road summary::after { content: "+"; font-family: 'JetBrains Mono', monospace; color: var(--fg-2); }
+.road details[open] summary::after { content: "−"; }
+.road .kw { display: block; font-weight: 400; font-size: 0.8rem; color: var(--fg-2); }
+.road details > div { margin-top: 8px; font-size: 0.88rem; }
+.road details ul { margin-left: 1.2em; }
+.goal { margin-top: 6px; font-size: 0.82rem; }
+.goal b { color: var(--ph); }
+
+/* コンパイルの流れ */
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; }
+.flow .st {
+  flex: 1 1 0;
+  min-width: 120px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+  font-size: 0.8rem;
+}
+.flow .st b { display: block; font-family: 'JetBrains Mono', monospace; color: var(--fg); font-size: 0.85rem; }
+.flow .st span { color: var(--fg-2); }
+.flow .st.hot { border: 2px solid var(--accent); }
+.flow .st.hot b { color: var(--accent); }
+.flow .ar { align-self: center; color: var(--fg-2); padding: 0 4px; font-family: 'JetBrains Mono', monospace; }
+@media (max-width: 640px) {
+  .flow { flex-direction: column; }
+  .flow .st { min-width: 0; }
+  .flow .ar { transform: rotate(90deg); text-align: center; padding: 2px 0; }
+}
+
+/* SVG 図 */
+svg.fig { width: 100%; max-width: 460px; height: auto; display: block; margin: 4px auto 8px; }
+svg.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; fill: var(--fg); }
+svg.fig .lbl { font-size: 11px; fill: var(--fg-2); }
+svg.fig .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+svg.fig .area { fill: var(--chip); stroke: none; }
+svg.fig .var { fill: var(--surface); stroke: var(--accent); stroke-width: 1.5; }
+svg.fig .dead { fill: var(--surface); stroke: var(--c-ng); stroke-width: 1.5; stroke-dasharray: 4 3; }
+svg.fig .heap { fill: var(--surface); stroke: var(--c-heap); stroke-width: 1.5; }
+svg.fig .arr { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+svg.fig .arr-ref { stroke: var(--c-ok); stroke-width: 1.5; fill: none; stroke-dasharray: 5 3; }
+svg.fig .mk { fill: var(--fg-2); }
+svg.fig .mk-ok { fill: var(--c-ok); }
+svg.fig .t-ng { fill: var(--c-ng); font-size: 11px; }
+svg.fig .t-ok { fill: var(--c-ok); font-size: 11px; }
+svg.fig .t-heap { fill: var(--c-heap); }
+
+/* 借用ルール */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+.rule h3 { margin-top: 0; font-family: 'JetBrains Mono', monospace; }
+.rule .big { font-size: 0.9rem; }
+.pill {
+  display: inline-block;
+  font: 600 0.72rem 'JetBrains Mono', monospace;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  margin: 2px 4px 2px 0;
+}
+.refs { display: flex; gap: 6px; margin: 10px 0 4px; flex-wrap: wrap; }
+.refs i {
+  font-style: normal;
+  font: 600 0.75rem 'JetBrains Mono', monospace;
+  border: 1.5px solid var(--c-ok);
+  color: var(--c-ok);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+.refs i.x { border-color: var(--c-ng); color: var(--c-ng); text-decoration: line-through; }
+
+/* 表 */
+.tbl { width: 100%; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.83rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 700; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+.myth p:first-child { font-weight: 700; }
+.myth p:first-child::before { content: "✕ "; color: var(--c-ng); }
+.myth p + p::before { content: "→ "; color: var(--c-ok); font-weight: 700; }
+
+.res li { margin: 4px 0 4px 1.2em; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Rust 学習フローと仕組み</h1>
+  <p class="subtitle">どの順で学ぶか ＋ コンパイラが何を保証しているか</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>Rust は GC（ガベージコレクタ）なしでメモリ安全を実現する言語。その鍵が <b>所有権 (ownership)・借用 (borrowing)・ライフタイム (lifetime)</b>。</li>
+      <li>安全性のチェックは<b>実行時ではなくコンパイル時</b>に行われる。だから「コンパイルが通れば、メモリ破壊やデータ競争は起きにくい」。</li>
+      <li>学習は「基本文法 → 所有権 → 型（enum / トレイト）→ エラー処理 → 実践」の順が王道。所有権で一度つまずくのは全員通る道。</li>
+    </ul>
+  </div>
+
+  <h2 id="roadmap">学習ロードマップ</h2>
+  <div class="legend">
+    <span style="--dot: var(--c-p1)">フェーズ1: 入門</span>
+    <span style="--dot: var(--c-p2)">フェーズ2: Rust らしさの中核</span>
+    <span style="--dot: var(--c-p3)">フェーズ3: 実践</span>
+  </div>
+  <p class="note">各ステップをタップすると、やることとゴールが開きます。</p>
+
+  <ol class="road">
+    <li class="p1" data-n="0"><details>
+      <summary><span>環境構築<span class="kw">rustup / cargo / rust-analyzer</span></span></summary>
+      <div>
+        <ul>
+          <li><code>rustup</code> でツールチェーンを入れる（<code>rustc</code> コンパイラと <code>cargo</code> が付いてくる）</li>
+          <li>エディタに rust-analyzer（補完・型表示・エラー表示）を入れる</li>
+          <li><code>cargo new hello</code> → <code>cargo run</code> で動かす</li>
+        </ul>
+        <p class="goal"><b>ゴール:</b> cargo でプロジェクトを作って実行できる</p>
+      </div>
+    </details></li>
+
+    <li class="p1" data-n="1"><details>
+      <summary><span>基本文法<span class="kw">変数・型・関数・制御フロー</span></span></summary>
+      <div>
+        <ul>
+          <li><code>let</code> は既定で不変 (immutable)。変えたいときだけ <code>let mut</code></li>
+          <li>スカラー型（<code>i32</code>, <code>f64</code>, <code>bool</code>, <code>char</code>）と複合型（タプル・配列）</li>
+          <li><code>if</code> / <code>loop</code> / <code>while</code> / <code>for</code>。<code>if</code> も<b>式</b>なので値を返せる</li>
+        </ul>
+        <p class="goal"><b>ゴール:</b> FizzBuzz や数当てゲームを書ける</p>
+      </div>
+    </details></li>
+
+    <li class="p2" data-n="2"><details>
+      <summary><span>所有権と借用 ★最重要<span class="kw">ownership / move / &amp;T / &amp;mut T</span></span></summary>
+      <div>
+        <ul>
+          <li>値には持ち主（所有者）が 1 人だけ。代入や関数渡しで<b>ムーブ</b>する</li>
+          <li>所有権を渡さずに使わせるのが<b>借用</b>（参照 <code>&amp;</code>）</li>
+          <li><code>String</code> と <code>&amp;str</code> の違いもここで理解する</li>
+        </ul>
+        <p class="goal"><b>ゴール:</b> 「borrow of moved value」エラーの理由を説明できる（↓ 下の図解を参照）</p>
+      </div>
+    </details></li>
+
+    <li class="p2" data-n="3"><details>
+      <summary><span>構造体・enum・パターンマッチ<span class="kw">struct / enum / match / impl</span></span></summary>
+      <div>
+        <ul>
+          <li><code>struct</code> でデータをまとめ、<code>impl</code> でメソッドを生やす</li>
+          <li><code>enum</code> は値を持てる「どれか 1 つ」型。<code>match</code> は<b>全パターン網羅</b>をコンパイラが強制</li>
+          <li><code>Option&lt;T&gt;</code>（値がある / ない）で null の代わりにする</li>
+        </ul>
+        <p class="goal"><b>ゴール:</b> 状態を enum で表し、match で分岐できる</p>
+      </div>
+    </details></li>
+
+    <li class="p2" data-n="4"><details>
+      <summary><span>エラー処理<span class="kw">Result / ? 演算子 / panic!</span></span></summary>
+      <div>
+        <ul>
+          <li>回復できる失敗は <code>Result&lt;T, E&gt;</code>、回復不能なバグは <code>panic!</code></li>
+          <li><code>?</code> でエラーを呼び出し元へ早期リターン</li>
+          <li><code>unwrap()</code> は試作用。本番コードでは減らしていく</li>
+        </ul>
+        <p class="goal"><b>ゴール:</b> ファイル読み込みなど失敗し得る処理を Result で書ける</p>
+      </div>
+    </details></li>
+
+    <li class="p2" data-n="5"><details>
+      <summary><span>ジェネリクス・トレイト・ライフタイム<span class="kw">&lt;T&gt; / trait / impl Trait / 'a</span></span></summary>
+      <div>
+        <ul>
+          <li>トレイト = 「この型はこういう振る舞いができる」という約束（他言語のインターフェースに近い）</li>
+          <li>トレイト境界 <code>T: Display</code> で、ジェネリクスに条件を付ける</li>
+          <li>ライフタイム <code>'a</code> は「参照がどれだけ長く有効か」の注釈。多くは省略可能</li>
+        </ul>
+        <p class="goal"><b>ゴール:</b> 自作トレイトを定義・実装し、ジェネリック関数を書ける</p>
+      </div>
+    </details></li>
+
+    <li class="p2" data-n="6"><details>
+      <summary><span>コレクション・イテレータ・クロージャ<span class="kw">Vec / HashMap / iter().map().filter() / |x|</span></span></summary>
+      <div>
+        <ul>
+          <li><code>Vec</code>, <code>HashMap</code>, <code>String</code> の基本操作</li>
+          <li>イテレータアダプタを連鎖させる書き方は Rust の日常。<b>ゼロコスト抽象化</b>で for ループと同等の速さ</li>
+          <li>クロージャの捕捉方法（<code>Fn</code> / <code>FnMut</code> / <code>FnOnce</code>）</li>
+        </ul>
+        <p class="goal"><b>ゴール:</b> データ変換をイテレータチェーンで書ける</p>
+      </div>
+    </details></li>
+
+    <li class="p3" data-n="7"><details>
+      <summary><span>スマートポインタ<span class="kw">Box / Rc / RefCell / Arc</span></span></summary>
+      <div>
+        <ul>
+          <li><code>Box&lt;T&gt;</code>: ヒープに置く。再帰的なデータ構造に</li>
+          <li><code>Rc&lt;T&gt;</code>: 所有者を複数にしたいとき（参照カウント）</li>
+          <li><code>RefCell&lt;T&gt;</code>: 借用チェックを実行時に回す（内部可変性）</li>
+        </ul>
+        <p class="goal"><b>ゴール:</b> 「所有者 1 人」ルールの逃げ道を、必要なときだけ選べる</p>
+      </div>
+    </details></li>
+
+    <li class="p3" data-n="8"><details>
+      <summary><span>並行処理と async<span class="kw">thread / Arc&lt;Mutex&gt; / Send・Sync / async・await / tokio</span></span></summary>
+      <div>
+        <ul>
+          <li>スレッド間共有は <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>。<code>Send</code> / <code>Sync</code> トレイトでデータ競争をコンパイル時に防ぐ</li>
+          <li>非同期 I/O は <code>async</code>/<code>await</code> ＋ ランタイム（tokio など）</li>
+        </ul>
+        <p class="goal"><b>ゴール:</b> 複数スレッドで安全にカウンタを更新できる</p>
+      </div>
+    </details></li>
+
+    <li class="p3" data-n="9"><details>
+      <summary><span>実践・エコシステム<span class="kw">クレート / テスト / clippy / CLI・Web</span></span></summary>
+      <div>
+        <ul>
+          <li>crates.io のクレートを使う（serde, clap, reqwest, axum など）</li>
+          <li><code>cargo test</code> でテスト、<code>cargo clippy</code> で指摘を受けて直す</li>
+          <li>小さな CLI ツール → Web API → 好きな分野（組込み、WASM、ゲームなど）へ</li>
+        </ul>
+        <p class="goal"><b>ゴール:</b> 自分用ツールを 1 本作って公開できる</p>
+      </div>
+    </details></li>
+  </ol>
+
+  <h2 id="compile">仕組み 1: コンパイル時に何をしているか</h2>
+  <p>Rust のコンパイラ <code>rustc</code> は、ソースコードを段階的に変換しながらチェックする。安全性の要となる<b>借用チェッカ (borrow checker)</b> は、中間表現 MIR の上で動く。</p>
+  <div class="flow">
+    <div class="st"><b>ソース</b><span>.rs ファイル</span></div>
+    <div class="ar">→</div>
+    <div class="st"><b>AST / HIR</b><span>構文解析<br>マクロ展開</span></div>
+    <div class="ar">→</div>
+    <div class="st hot"><b>型チェック</b><span>型推論<br>トレイト解決</span></div>
+    <div class="ar">→</div>
+    <div class="st hot"><b>MIR</b><span>借用チェック<br>ライフタイム検証</span></div>
+    <div class="ar">→</div>
+    <div class="st"><b>LLVM IR</b><span>最適化</span></div>
+    <div class="ar">→</div>
+    <div class="st"><b>機械語</b><span>実行ファイル</span></div>
+  </div>
+  <p class="note">太枠が「Rust らしい安全性」を保証する段階。ここで弾かれたコードは実行ファイルにならないので、実行時のコスト（GC やチェック処理）がかからない。</p>
+
+  <h2 id="ownership">仕組み 2: 所有権 — スタックとヒープで見る</h2>
+  <p><code>String</code> の中身（文字列データ）はヒープ、変数はスタックにある「ポインタ・長さ・容量」の組。代入したときに何が起きるかを比べる。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="own-move">ムーブ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="own-clone">clone</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="own-borrow">借用 &amp;</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="own-copy">Copy 型</button>
+  </div>
+
+  <div class="panel card" id="own-move">
+    <svg class="fig" viewBox="0 0 360 190" role="img" aria-label="ムーブ: s1 は無効になり、s2 だけがヒープの hello を指す">
+      <defs>
+        <marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+      <rect class="area" x="8" y="22" width="130" height="160" rx="8"/>
+      <rect class="area" x="200" y="22" width="152" height="160" rx="8"/>
+      <text class="lbl" x="18" y="16">スタック</text>
+      <text class="lbl" x="210" y="16">ヒープ</text>
+      <rect class="dead" x="22" y="40" width="102" height="44" rx="6"/>
+      <text x="34" y="60">s1</text>
+      <text class="t-ng" x="34" y="76">無効（ムーブ済）</text>
+      <rect class="var" x="22" y="112" width="102" height="44" rx="6"/>
+      <text x="34" y="132">s2</text>
+      <text class="lbl" x="34" y="148">ptr/len/cap</text>
+      <rect class="heap" x="216" y="96" width="120" height="40" rx="6"/>
+      <text class="t-heap" x="240" y="121">"hello"</text>
+      <path class="arr" d="M124,134 C165,134 175,116 214,116" marker-end="url(#m1)"/>
+    </svg>
+<pre><code>let s1 = String::from("hello");
+let s2 = s1;           <span class="cm">// 所有権が s2 へ移動（ムーブ）</span>
+<span class="ng">// println!("{s1}");  // ✕ コンパイルエラー: borrow of moved value</span>
+println!("{s2}");      <span class="ok">// ○</span></code></pre>
+    <p>ヒープのデータはコピーされず、<b>持ち主の名札だけが付け替わる</b>。もし s1 も有効なままだと、スコープを抜けたとき同じメモリを 2 回解放してしまう（二重解放）。Rust はそれをコンパイル時に禁止する。</p>
+  </div>
+
+  <div class="panel card" id="own-clone" hidden>
+    <svg class="fig" viewBox="0 0 360 190" role="img" aria-label="clone: s1 と s2 がそれぞれ別のヒープデータを指す">
+      <defs>
+        <marker id="m2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+      <rect class="area" x="8" y="22" width="130" height="160" rx="8"/>
+      <rect class="area" x="200" y="22" width="152" height="160" rx="8"/>
+      <text class="lbl" x="18" y="16">スタック</text>
+      <text class="lbl" x="210" y="16">ヒープ</text>
+      <rect class="var" x="22" y="40" width="102" height="44" rx="6"/>
+      <text x="34" y="60">s1</text>
+      <text class="t-ok" x="34" y="76">有効</text>
+      <rect class="var" x="22" y="112" width="102" height="44" rx="6"/>
+      <text x="34" y="132">s2</text>
+      <text class="t-ok" x="34" y="148">有効</text>
+      <rect class="heap" x="216" y="42" width="120" height="40" rx="6"/>
+      <text class="t-heap" x="240" y="67">"hello"</text>
+      <rect class="heap" x="216" y="114" width="120" height="40" rx="6"/>
+      <text class="t-heap" x="240" y="139">"hello"</text>
+      <path class="arr" d="M124,62 L214,62" marker-end="url(#m2)"/>
+      <path class="arr" d="M124,134 L214,134" marker-end="url(#m2)"/>
+      <text class="lbl" x="232" y="102">↑ 複製</text>
+    </svg>
+<pre><code>let s1 = String::from("hello");
+let s2 = s1.clone();   <span class="cm">// ヒープのデータごと複製</span>
+println!("{s1} {s2}"); <span class="ok">// ○ 両方使える</span></code></pre>
+    <p>持ち主が 2 人になる代わりに、<b>データも 2 つ</b>になる。コストがあるので明示的に <code>.clone()</code> と書かせる設計。</p>
+  </div>
+
+  <div class="panel card" id="own-borrow" hidden>
+    <svg class="fig" viewBox="0 0 360 190" role="img" aria-label="借用: 参照 r は s1 を指し、s1 がヒープの hello を所有したまま">
+      <defs>
+        <marker id="m3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="m3ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-ok" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+      <rect class="area" x="8" y="22" width="130" height="160" rx="8"/>
+      <rect class="area" x="200" y="22" width="152" height="160" rx="8"/>
+      <text class="lbl" x="18" y="16">スタック</text>
+      <text class="lbl" x="210" y="16">ヒープ</text>
+      <rect class="var" x="22" y="40" width="102" height="44" rx="6"/>
+      <text x="34" y="60">s1</text>
+      <text class="lbl" x="34" y="76">所有者</text>
+      <rect class="box" x="22" y="112" width="102" height="44" rx="6"/>
+      <text x="34" y="132">&amp;s1</text>
+      <text class="t-ok" x="34" y="148">借用（参照）</text>
+      <rect class="heap" x="216" y="42" width="120" height="40" rx="6"/>
+      <text class="t-heap" x="240" y="67">"hello"</text>
+      <path class="arr" d="M124,62 L214,62" marker-end="url(#m3)"/>
+      <path class="arr-ref" d="M124,128 C150,128 150,74 127,70" marker-end="url(#m3ok)"/>
+    </svg>
+<pre><code>fn len(s: &amp;String) -&gt; usize { s.len() }
+
+let s1 = String::from("hello");
+let n = len(&amp;s1);      <span class="cm">// 貸すだけ。所有権は s1 のまま</span>
+println!("{s1} {n}");  <span class="ok">// ○ s1 はまだ使える</span></code></pre>
+    <p>参照は「<b>持ち主を指す矢印</b>」。借りた側がスコープを抜けても、データは解放されない。</p>
+  </div>
+
+  <div class="panel card" id="own-copy" hidden>
+<pre><code>let a: i32 = 5;
+let b = a;             <span class="cm">// i32 は Copy 型 → ビットごと複製</span>
+println!("{a} {b}");   <span class="ok">// ○ 両方使える</span></code></pre>
+    <p>整数・浮動小数点・<code>bool</code>・<code>char</code>・それらだけのタプルなど、<b>スタックだけで完結する小さな型</b>は <code>Copy</code> トレイトを持ち、代入してもムーブではなくコピーになる。ヒープを持つ <code>String</code> や <code>Vec</code> は Copy にならない。</p>
+    <p class="note">スコープを抜けた値は、所有者が自動で <code>drop</code> して解放する（RAII）。手動の <code>free</code> は不要。</p>
+  </div>
+
+  <h2 id="borrow">仕組み 3: 借用ルール</h2>
+  <p>同じ値に対して、ある時点で持てる参照は<b>次のどちらか一方だけ</b>。</p>
+  <div class="grid2">
+    <div class="card rule">
+      <h3>&amp;T 共有参照</h3>
+      <p class="big">何個でも OK。ただし<b>読み取り専用</b>。</p>
+      <div class="refs"><i>&amp;s</i><i>&amp;s</i><i>&amp;s</i></div>
+      <span class="pill">読む人は大勢いてもいい</span>
+    </div>
+    <div class="card rule">
+      <h3>&amp;mut T 可変参照</h3>
+      <p class="big">同時に<b>1 つだけ</b>。他の参照と共存できない。</p>
+      <div class="refs"><i>&amp;mut s</i><i class="x">&amp;s</i><i class="x">&amp;mut s</i></div>
+      <span class="pill">書く人がいる間は誰も見られない</span>
+    </div>
+  </div>
+<pre><code>let mut v = vec![1, 2, 3];
+let first = &amp;v[0];     <span class="cm">// 共有参照</span>
+<span class="ng">// v.push(4);          // ✕ 可変借用と共有参照が同時に存在</span>
+println!("{first}");   <span class="cm">// ← first の最後の使用。ここで共有参照は終わる</span>
+v.push(4);             <span class="ok">// ○ もう共有参照がないので OK</span></code></pre>
+  <p class="note">なぜ禁止？ <code>push</code> で Vec が再確保されると、<code>first</code> は解放済みメモリを指す「ダングリング参照」になる。このルールはその事故とデータ競争を同時に防いでいる。参照の有効範囲は「最後に使われた場所まで」で判定される（NLL: Non-Lexical Lifetimes）。</p>
+
+  <h2 id="lifetime-error">仕組み 4: ライフタイムとエラー処理</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="lt">ライフタイム</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="err">Result と ?</button>
+  </div>
+  <div class="panel card" id="lt">
+<pre><code><span class="cm">// 戻り値の参照は、x と y の「短い方」と同じだけ生きる</span>
+fn longest&lt;'a&gt;(x: &amp;'a str, y: &amp;'a str) -&gt; &amp;'a str {
+    if x.len() &gt; y.len() { x } else { y }
+}</code></pre>
+    <p>ライフタイムは「寿命を延ばす」ものではなく、<b>参照同士の寿命の関係をコンパイラに伝える注釈</b>。これがあるから「関数が返した参照が、元データより長生きしていないか」を検査できる。</p>
+    <p>引数が 1 つ、または <code>&amp;self</code> メソッドなどは<b>省略規則 (lifetime elision)</b> で自動推論されるので、普段書く場面は限られる。</p>
+  </div>
+  <div class="panel card" id="err" hidden>
+<pre><code>use std::{fs, io};
+
+fn read_config() -&gt; Result&lt;String, io::Error&gt; {
+    let text = fs::read_to_string("config.toml")?; <span class="cm">// 失敗なら即 Err を返す</span>
+    Ok(text)
+}
+
+match read_config() {
+    Ok(t)  =&gt; println!("{t}"),
+    Err(e) =&gt; eprintln!("読めなかった: {e}"),
+}</code></pre>
+    <p>例外 (exception) はない。失敗の可能性は<b>戻り値の型に現れる</b>ので、呼び出し側は無視できない（match しないと値を取り出せない）。</p>
+  </div>
+
+  <h2 id="memory">メモリ管理の比較</h2>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>方式</th><th>代表言語</th><th>解放のタイミング</th><th>安全性</th><th>実行時コスト</th></tr></thead>
+      <tbody>
+        <tr><td>手動管理</td><td>C</td><td>プログラマが <code>free</code></td><td>解放忘れ・二重解放が起き得る</td><td>なし</td></tr>
+        <tr><td>GC</td><td>Java, Go, Python</td><td>GC が不要と判断したとき</td><td>高い</td><td>GC の停止・メモリ余分</td></tr>
+        <tr><td>所有権 + 借用</td><td>Rust</td><td>所有者がスコープを抜けたとき（コンパイル時に決定）</td><td>高い（safe Rust の範囲で）</td><td>ほぼなし</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth">
+    <p>clone() を使うのは負け</p>
+    <p>学習初期は clone で回避して動かすのが正解。動いてから、借用に置き換えて最適化すればいい。</p>
+  </div>
+  <div class="card myth">
+    <p>ライフタイムを毎回書く必要がある</p>
+    <p>省略規則で大半は不要。コンパイラに求められたときに書けば足りる。</p>
+  </div>
+  <div class="card myth">
+    <p>GC がない ＝ 手動でメモリを解放する</p>
+    <p>所有者がスコープを抜けると自動で <code>drop</code> される（RAII）。free を書くことはない。</p>
+  </div>
+  <div class="card myth">
+    <p>unsafe はバグだらけの危険なコード</p>
+    <p>「借用チェッカが証明できない部分を、人間が責任を持って保証する」という印。範囲を小さく閉じ込め、safe な API で包むのが作法。</p>
+  </div>
+  <div class="card myth">
+    <p>コンパイルエラーが多い ＝ 書きにくい言語</p>
+    <p>実行時に出るはずだったバグを前倒しで見せている。エラーメッセージには直し方の提案（help:）まで付くので、読むこと自体が学習になる。</p>
+  </div>
+
+  <h2 id="commands">よく使うコマンド</h2>
+<pre><code>cargo new myapp       <span class="cm"># プロジェクト作成</span>
+cargo run             <span class="cm"># ビルドして実行</span>
+cargo check           <span class="cm"># 型・借用チェックだけ（速い。書きながら回す）</span>
+cargo build --release <span class="cm"># 最適化ビルド</span>
+cargo test            <span class="cm"># テスト実行</span>
+cargo fmt             <span class="cm"># コード整形</span>
+cargo clippy          <span class="cm"># Lint（より Rust らしい書き方を提案）</span>
+cargo add serde       <span class="cm"># 依存クレートを追加</span></code></pre>
+
+  <h2 id="resources">学習リソース</h2>
+  <div class="card">
+    <ul class="res">
+      <li><a href="https://doc.rust-lang.org/book/">The Rust Programming Language</a>（通称 The Book。<a href="https://doc.rust-jp.rs/book-ja/">日本語版</a>あり）— ロードマップ 1〜8 の主教材</li>
+      <li><a href="https://github.com/rust-lang/rustlings">Rustlings</a> — 小さなコンパイルエラーを直していく演習。The Book と並行で</li>
+      <li><a href="https://doc.rust-lang.org/rust-by-example/">Rust by Example</a> — 動くコード例で逆引き</li>
+      <li><a href="https://exercism.org/tracks/rust">Exercism Rust トラック</a> — 問題を解いてメンターのレビューを受けられる</li>
+    </ul>
+    <p class="note">おすすめの進め方: The Book を 1 章読む → Rustlings の該当問題を解く、を繰り返し、所有権の章（第 4 章）だけは 2 周する。</p>
+  </div>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "String を関数に渡したあと、元の変数をもう一度使ったら borrow of moved value になった。所有権を手放さずに関数に使わせるには？",
+    "choices": [
+      "関数の中で drop を呼ばないようにする",
+      "変数を let mut にする",
+      "&s のように参照（借用）で渡す"
+    ],
+    "answer": 2,
+    "explain": "値を渡すと所有権がムーブする。借用なら所有権は元の変数に残る。とりあえず動かすなら clone() でもよい。",
+    "ref": "#ownership"
+  },
+  {
+    "q": "let first = &v[0]; のあとに v.push(4); を書き、その後で first を使うとコンパイルエラーになる。なぜ禁止されている？",
+    "choices": [
+      "push で再確保されると、first が解放済みのメモリを指すから",
+      "first を let mut で宣言していないから",
+      "let で作った Vec には、後から要素を追加できないから"
+    ],
+    "answer": 0,
+    "explain": "共有参照がある間は可変借用できない。first を最後に使った後なら push できる（NLL）。",
+    "ref": "#borrow"
+  },
+  {
+    "q": "let b = a; のあと、a が i32 なら両方使えるのに、String だと a が使えなくなる。違いは？",
+    "choices": [
+      "String は不変なので、別の変数に代入できないから",
+      "i32 は Copy 型で複製され、String はムーブになるから",
+      "i32 は参照で、String は値だから"
+    ],
+    "answer": 1,
+    "explain": "ヒープを持つ型までコピーすると二重解放の危険があるので、明示的な clone() を求める設計。",
+    "ref": "#own-copy"
+  },
+  {
+    "q": "設定ファイルの読み込みが失敗しうる関数で、失敗を呼び出し元に返したい。どう書く？",
+    "choices": [
+      "失敗したら panic! でメッセージを出して終了する",
+      "戻り値を Result<T, E> にして、? でエラーを早期リターンする",
+      "unwrap() で値を取り出し、失敗したらその場で止める"
+    ],
+    "answer": 1,
+    "explain": "回復できる失敗は Result、回復不能なバグは panic!。unwrap() は試作用。",
+    "ref": "#err"
+  },
+  {
+    "q": "コードを書きながら、型や借用のエラーだけを素早く確認したい。どのコマンドを使う？",
+    "choices": [
+      "cargo check",
+      "cargo clippy",
+      "cargo build --release"
+    ],
+    "answer": 0,
+    "explain": "cargo check は実行ファイルを作らずにチェックだけ行うので速い。clippy はより Rust らしい書き方の提案。",
+    "ref": "#commands"
+  }
+]
+</script>
+</body>
+</html>

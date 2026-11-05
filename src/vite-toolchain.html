@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vite ツールチェーン図解</title>
+<meta name="description" content="Vite 8 を支える Rolldown・Oxc・Lightning CSS と、Vitest・Oxlint・Oxfmt を束ねる Vite+ の構成を図解。">
+<meta name="memo:tags" content="JavaScript, 開発ツール">
+<meta name="memo:date" content="2026-11-01">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-vite: #7c3aed;
+  --c-rolldown: #e8590c;
+  --c-oxc: #0b8a6a;
+  --c-lcss: #c2255c;
+  --c-old: #8a93a5;
+  --c-test: #9a7400;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-vite: #b197fc;
+    --c-rolldown: #ffa94d;
+    --c-oxc: #38d9a9;
+    --c-lcss: #f783ac;
+    --c-old: #6b7789;
+    --c-test: #ffd43b;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 14px 0 6px; }
+p { margin: 8px 0; }
+.note { color: var(--fg-2); font-size: 0.82rem; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* スタック図 */
+.stack { display: grid; gap: 10px; }
+.layer {
+  border: 2px solid var(--c);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--c) 8%, var(--surface));
+}
+.layer .name {
+  font: 700 0.95rem 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--c);
+}
+.layer .role { font-size: 0.8rem; color: var(--fg-2); margin-left: 6px; }
+.layer .does { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.layer .does span {
+  font-size: 0.75rem;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--c) 40%, var(--line));
+  border-radius: 6px;
+  padding: 1px 8px;
+}
+.l-vite { --c: var(--c-vite); }
+.l-rolldown { --c: var(--c-rolldown); }
+.l-oxc { --c: var(--c-oxc); }
+.l-lcss { --c: var(--c-lcss); }
+.l-old { --c: var(--c-old); }
+.l-test { --c: var(--c-test); }
+.steps { list-style: none; display: grid; gap: 8px; }
+.steps li { display: grid; grid-template-columns: 7.5em 1fr; gap: 10px; align-items: baseline; font-size: 0.85rem; }
+.steps li code { justify-self: start; }
+@media (max-width: 480px) { .steps li { grid-template-columns: 1fr; gap: 2px; } }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.arrow-down { text-align: center; color: var(--fg-2); font-size: 0.75rem; line-height: 1.2; }
+@media (max-width: 560px) { .row2 { grid-template-columns: 1fr; } }
+
+/* 比較 Vite7 vs 8 */
+.vs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .vs { grid-template-columns: 1fr; } }
+.mini { display: grid; gap: 6px; font-size: 0.8rem; }
+.mini .layer { padding: 8px 10px; }
+.mini .layer .name { font-size: 0.82rem; }
+.tag {
+  display: inline-block; font: 700 0.68rem 'JetBrains Mono', monospace;
+  padding: 0 6px; border-radius: 4px; background: var(--chip); color: var(--fg-2); margin-left: 4px;
+}
+
+/* SVG */
+svg { width: 100%; height: auto; display: block; }
+svg text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); }
+svg .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+svg .sub { fill: var(--fg-2); font-size: 11px; }
+
+/* 表 */
+.tbl { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.75rem; }
+td:first-child { font-family: 'JetBrains Mono', monospace; font-weight: 700; white-space: nowrap; }
+
+.myth { display: grid; gap: 10px; }
+.myth .card strong { display: block; margin-bottom: 2px; }
+.myth .x { color: var(--c-lcss); font-weight: 700; margin-right: 4px; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Vite / Rolldown / Oxc / Lightning CSS</h1>
+  <p class="subtitle">Vite 8 を支える Rust 製ツールチェーンの役割分担と、Vitest・Oxlint・Oxfmt まで束ねる Vite+</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>Vite</b> は司令塔（開発サーバー・HMR・プラグイン・設定）。実作業は下の層に任せる。</li>
+      <li><b>Rolldown</b> がバンドラー、<b>Oxc</b> が JS/TS の解析・変換・圧縮、<b>Lightning CSS</b> が CSS の変換・圧縮。どれも Rust 製。</li>
+      <li>Vite 8（2026-03）で、従来の「開発は esbuild／本番は Rollup」の二本立てが Rolldown に一本化された。さらに <b>Vite+</b>（1.0）が Vitest・Oxlint・Oxfmt まで <code>vp</code> コマンドと <code>vite.config.ts</code> 1 枚に統合している。</li>
+    </ul>
+  </div>
+
+  <h2 id="overview">全体像：誰が何をしているか</h2>
+  <div class="card">
+    <div class="stack">
+      <div class="layer l-vite">
+        <span class="name">Vite</span><span class="role">ビルドツール（司令塔）</span>
+        <div class="does"><span>dev サーバー</span><span>HMR</span><span>プラグイン API</span><span>vite.config</span><span>フレームワーク連携</span></div>
+      </div>
+      <div class="arrow-down">▼ 呼び出す</div>
+      <div class="row2">
+        <div class="layer l-rolldown">
+          <span class="name">Rolldown</span><span class="role">バンドラー</span>
+          <div class="does"><span>依存グラフ構築</span><span>Tree shaking</span><span>チャンク分割</span><span>Rollup 互換プラグイン</span></div>
+        </div>
+        <div class="layer l-lcss">
+          <span class="name">Lightning CSS</span><span class="role">CSS 処理系</span>
+          <div class="does"><span>CSS 解析</span><span>圧縮 (minify)</span><span>ベンダープレフィックス</span><span>ネスト等の下位変換</span><span>CSS Modules</span></div>
+        </div>
+      </div>
+      <div class="arrow-down">▼ Rolldown が言語処理を委託</div>
+      <div class="layer l-oxc">
+        <span class="name">Oxc</span><span class="role">JavaScript Oxidation Compiler（部品集）</span>
+        <div class="does"><span>Parser</span><span>Resolver</span><span>Transformer（TS/JSX 除去・構文変換）</span><span>Minifier</span><span>Oxlint</span><span>Oxfmt</span></div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:10px">開発元：Vite・Rolldown・Oxc は VoidZero（Evan You の会社）が中心。Lightning CSS は Parcel チームの Devon Govett 作で、別プロジェクト。</p>
+  </div>
+
+  <h2 id="build-flow">ビルドの流れ（<code>vite build</code>）</h2>
+  <div class="card">
+    <svg viewBox="0 0 640 300" role="img" aria-label="vite build のパイプライン図">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--fg-2)"/>
+        </marker>
+      </defs>
+      <!-- 入力 -->
+      <rect x="10" y="40" width="110" height="56" rx="8" fill="var(--chip)" stroke="var(--line)"/>
+      <text x="65" y="64" text-anchor="middle" class="mono" font-size="13">.ts .tsx</text>
+      <text x="65" y="82" text-anchor="middle" class="sub">.js .vue …</text>
+
+      <rect x="10" y="200" width="110" height="56" rx="8" fill="var(--chip)" stroke="var(--line)"/>
+      <text x="65" y="224" text-anchor="middle" class="mono" font-size="13">.css</text>
+      <text x="65" y="242" text-anchor="middle" class="sub">import された CSS</text>
+
+      <!-- Rolldown 枠 -->
+      <rect x="150" y="14" width="370" height="112" rx="10" fill="none" stroke="var(--c-rolldown)" stroke-width="2" stroke-dasharray="5 4"/>
+      <text x="160" y="32" class="mono" font-size="12" style="fill:var(--c-rolldown)" font-weight="700">Rolldown</text>
+
+      <rect x="165" y="44" width="100" height="64" rx="8" fill="var(--surface)" stroke="var(--c-oxc)" stroke-width="2"/>
+      <text x="215" y="70" text-anchor="middle" font-size="12">解析・解決</text>
+      <text x="215" y="88" text-anchor="middle" class="sub mono">Oxc parser</text>
+      <text x="215" y="101" text-anchor="middle" class="sub mono">+ resolver</text>
+
+      <rect x="285" y="44" width="100" height="64" rx="8" fill="var(--surface)" stroke="var(--c-oxc)" stroke-width="2"/>
+      <text x="335" y="70" text-anchor="middle" font-size="12">変換</text>
+      <text x="335" y="88" text-anchor="middle" class="sub mono">Oxc</text>
+      <text x="335" y="101" text-anchor="middle" class="sub mono">transformer</text>
+
+      <rect x="405" y="44" width="100" height="64" rx="8" fill="var(--surface)" stroke="var(--c-rolldown)" stroke-width="2"/>
+      <text x="455" y="70" text-anchor="middle" font-size="12">結合・分割</text>
+      <text x="455" y="88" text-anchor="middle" class="sub">tree shaking</text>
+      <text x="455" y="101" text-anchor="middle" class="sub">chunking</text>
+
+      <!-- minify -->
+      <rect x="540" y="44" width="90" height="64" rx="8" fill="var(--surface)" stroke="var(--c-oxc)" stroke-width="2"/>
+      <text x="585" y="70" text-anchor="middle" font-size="12">圧縮</text>
+      <text x="585" y="88" text-anchor="middle" class="sub mono">Oxc</text>
+      <text x="585" y="101" text-anchor="middle" class="sub mono">minifier</text>
+
+      <!-- CSS line -->
+      <rect x="165" y="200" width="160" height="56" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+      <text x="245" y="224" text-anchor="middle" font-size="12">前処理（任意）</text>
+      <text x="245" y="242" text-anchor="middle" class="sub mono">PostCSS / Sass</text>
+
+      <rect x="365" y="200" width="160" height="56" rx="8" fill="var(--surface)" stroke="var(--c-lcss)" stroke-width="2"/>
+      <text x="445" y="224" text-anchor="middle" font-size="12">変換・圧縮</text>
+      <text x="445" y="242" text-anchor="middle" class="sub mono">Lightning CSS</text>
+
+      <!-- output -->
+      <rect x="540" y="150" width="90" height="56" rx="8" fill="var(--chip)" stroke="var(--line)"/>
+      <text x="585" y="174" text-anchor="middle" class="mono" font-size="13">dist/</text>
+      <text x="585" y="192" text-anchor="middle" class="sub">.js .css</text>
+
+      <!-- arrows -->
+      <g stroke="var(--fg-2)" stroke-width="1.5" fill="none" marker-end="url(#ah)">
+        <path d="M120 68 H162"/>
+        <path d="M265 76 H282"/>
+        <path d="M385 76 H402"/>
+        <path d="M505 76 H537"/>
+        <path d="M585 108 V147"/>
+        <path d="M120 228 H162"/>
+        <path d="M325 228 H362"/>
+        <path d="M525 228 H555 V209"/>
+      </g>
+      <text x="320" y="285" text-anchor="middle" class="sub">緑枠 = Oxc の部品 ／ 橙枠 = Rolldown 本体 ／ 桃枠 = Lightning CSS</text>
+    </svg>
+    <p class="note">dev サーバーでも同じ部品が使われる（ファイルを個別に変換して配信）。将来の「Full Bundle Mode」では dev でも Rolldown でバンドルする方向で、Vite 8 時点では実験的機能。</p>
+  </div>
+
+  <h2 id="v8">Vite 7 → Vite 8 で何が変わったか</h2>
+  <div class="vs">
+    <div class="card">
+      <h3>Vite 7 まで <span class="tag">二本立て</span></h3>
+      <div class="mini">
+        <div class="layer l-vite"><span class="name">Vite</span></div>
+        <div class="row2">
+          <div class="layer l-old"><span class="name">esbuild</span><div class="note">dev の変換・依存事前バンドル（Go 製）</div></div>
+          <div class="layer l-old"><span class="name">Rollup</span><div class="note">本番バンドル（JS 製）</div></div>
+        </div>
+        <div class="layer l-old"><span class="name">CSS 圧縮</span><div class="note">esbuild（Lightning CSS は任意の追加依存）</div></div>
+      </div>
+      <p class="note">dev と本番で処理系が違うため、挙動のズレや二重の設定が起きやすかった。</p>
+    </div>
+    <div class="card">
+      <h3>Vite 8 <span class="tag">一本化</span></h3>
+      <div class="mini">
+        <div class="layer l-vite"><span class="name">Vite</span></div>
+        <div class="layer l-rolldown"><span class="name">Rolldown</span><div class="note">dev の依存事前バンドルも本番ビルドも</div></div>
+        <div class="row2">
+          <div class="layer l-oxc"><span class="name">Oxc</span><div class="note">TS/JSX 変換・JS 圧縮</div></div>
+          <div class="layer l-lcss"><span class="name">Lightning CSS</span><div class="note">通常依存に昇格、CSS 圧縮を担当</div></div>
+        </div>
+      </div>
+      <p class="note">既存の <code>esbuild</code> / <code>rollupOptions</code> 設定は互換レイヤーで自動変換される。</p>
+    </div>
+  </div>
+
+  <h2 id="vite-plus">Vite+：テスト・リント・整形まで統合</h2>
+  <p>同じ土台（Vite のパイプライン、Rolldown、Oxc）の上に <b>Vitest</b>・<b>Oxlint</b>・<b>Oxfmt</b> が載っている。これを 1 つの CLI <code>vp</code> と 1 つの設定ファイルにまとめたのが <b>Vite+</b>（MIT、2026-09 時点で 1.0）。</p>
+  <div class="card">
+    <svg viewBox="0 0 520 400" role="img" aria-label="Vite+ の構成図：vp コマンドの下に Vite・Vitest・tsdown・Oxlint・Oxfmt があり、その下に Rolldown と Oxc が共通の土台としてある">
+      <defs>
+        <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--fg-2)"/>
+        </marker>
+      </defs>
+      <!-- Row A: vp CLI -->
+      <rect x="8" y="8" width="504" height="70" rx="10" fill="color-mix(in srgb, var(--accent) 7%, var(--surface))" stroke="var(--accent)" stroke-width="2"/>
+      <text x="18" y="29" class="mono" font-size="13" font-weight="700" style="fill:var(--accent)">Vite+ （vp）</text>
+      <text x="502" y="29" text-anchor="end" class="sub">vp check = lint + fmt + 型チェック</text>
+      <g class="mono" font-size="11.5">
+        <rect x="8"   y="40" width="96" height="28" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+        <text x="56"  y="58" text-anchor="middle">vp dev/build</text>
+        <rect x="111" y="40" width="96" height="28" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+        <text x="159" y="58" text-anchor="middle">vp test</text>
+        <rect x="214" y="40" width="96" height="28" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+        <text x="262" y="58" text-anchor="middle">vp pack</text>
+        <rect x="317" y="40" width="96" height="28" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+        <text x="365" y="58" text-anchor="middle">vp lint</text>
+        <rect x="420" y="40" width="92" height="28" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+        <text x="466" y="58" text-anchor="middle">vp fmt</text>
+      </g>
+
+      <!-- Row B: tools -->
+      <rect x="8" y="94" width="96" height="62" rx="8" fill="var(--surface)" stroke="var(--c-vite)" stroke-width="2"/>
+      <text x="56" y="116" text-anchor="middle" class="mono" font-size="13" font-weight="700" style="fill:var(--c-vite)">Vite</text>
+      <text x="56" y="134" text-anchor="middle" class="sub">dev サーバー</text>
+      <text x="56" y="148" text-anchor="middle" class="sub">本番ビルド</text>
+
+      <rect x="111" y="94" width="96" height="62" rx="8" fill="var(--surface)" stroke="var(--c-test)" stroke-width="2"/>
+      <text x="159" y="116" text-anchor="middle" class="mono" font-size="13" font-weight="700" style="fill:var(--c-test)">Vitest</text>
+      <text x="159" y="134" text-anchor="middle" class="sub">テスト</text>
+      <text x="159" y="148" text-anchor="middle" class="sub">Jest 互換 API</text>
+
+      <rect x="214" y="94" width="96" height="62" rx="8" fill="var(--surface)" stroke="var(--c-rolldown)" stroke-width="2" stroke-dasharray="5 3"/>
+      <text x="262" y="116" text-anchor="middle" class="mono" font-size="13" font-weight="700" style="fill:var(--c-rolldown)">tsdown</text>
+      <text x="262" y="134" text-anchor="middle" class="sub">ライブラリ用</text>
+      <text x="262" y="148" text-anchor="middle" class="sub">ビルド</text>
+
+      <rect x="317" y="94" width="96" height="62" rx="8" fill="var(--surface)" stroke="var(--c-oxc)" stroke-width="2"/>
+      <text x="365" y="116" text-anchor="middle" class="mono" font-size="13" font-weight="700" style="fill:var(--c-oxc)">Oxlint</text>
+      <text x="365" y="134" text-anchor="middle" class="sub">リンター</text>
+      <text x="365" y="148" text-anchor="middle" class="sub">型: tsgolint</text>
+
+      <rect x="420" y="94" width="92" height="62" rx="8" fill="var(--surface)" stroke="var(--c-oxc)" stroke-width="2"/>
+      <text x="466" y="116" text-anchor="middle" class="mono" font-size="13" font-weight="700" style="fill:var(--c-oxc)">Oxfmt</text>
+      <text x="466" y="134" text-anchor="middle" class="sub">フォーマッター</text>
+      <text x="466" y="148" text-anchor="middle" class="sub">Prettier 互換</text>
+
+      <!-- Row C: Vite pipeline -->
+      <rect x="8" y="176" width="199" height="36" rx="8" fill="color-mix(in srgb, var(--c-vite) 10%, var(--surface))" stroke="var(--c-vite)" stroke-width="1.5"/>
+      <text x="107" y="198" text-anchor="middle" font-size="11.5">Vite のプラグイン・変換処理</text>
+
+      <!-- Row D: Rolldown -->
+      <rect x="8" y="230" width="302" height="36" rx="8" fill="color-mix(in srgb, var(--c-rolldown) 10%, var(--surface))" stroke="var(--c-rolldown)" stroke-width="1.5"/>
+      <text x="159" y="253" text-anchor="middle" class="mono" font-size="12.5" font-weight="700" style="fill:var(--c-rolldown)">Rolldown</text>
+
+      <!-- Row E: Oxc -->
+      <rect x="8" y="284" width="504" height="40" rx="8" fill="color-mix(in srgb, var(--c-oxc) 10%, var(--surface))" stroke="var(--c-oxc)" stroke-width="1.5"/>
+      <text x="18" y="309" class="mono" font-size="12.5" font-weight="700" style="fill:var(--c-oxc)">Oxc</text>
+      <text x="60" y="309" class="sub">parser · transformer · minifier · resolver（全員の共通部品）</text>
+
+      <!-- Row F: config -->
+      <rect x="8" y="340" width="504" height="52" rx="8" fill="var(--chip)" stroke="var(--fg-2)" stroke-dasharray="4 3"/>
+      <text x="260" y="361" text-anchor="middle" class="mono" font-size="12" font-weight="700">vite.config.ts 1 枚に設定を集約</text>
+      <text x="260" y="380" text-anchor="middle" class="sub mono">server · build · test · pack · lint · fmt · run · staged</text>
+
+      <!-- arrows -->
+      <g stroke="var(--fg-2)" stroke-width="1.4" fill="none" marker-end="url(#ah2)">
+        <path d="M56 68 V91"/><path d="M159 68 V91"/><path d="M262 68 V91"/><path d="M365 68 V91"/><path d="M466 68 V91"/>
+        <path d="M56 156 V173"/><path d="M159 156 V173"/>
+        <path d="M107 212 V227"/>
+        <path d="M262 156 V227"/>
+        <path d="M159 266 V281"/>
+        <path d="M365 156 V281"/><path d="M466 156 V281"/>
+      </g>
+      <text x="416" y="214" text-anchor="middle" class="sub" font-size="10.5">Oxc の</text>
+      <text x="416" y="229" text-anchor="middle" class="sub" font-size="10.5">パーサーを</text>
+      <text x="416" y="244" text-anchor="middle" class="sub" font-size="10.5">直接使う</text>
+    </svg>
+    <p class="note">ほかに <code>vp create</code>（雛形作成）、<code>vp run</code>（モノレポのタスク実行＋キャッシュ）、Node.js とパッケージマネージャーの管理も担う。</p>
+  </div>
+
+  <h3>それぞれ Vite とどうつながっているか</h3>
+  <ul class="steps card">
+    <li><code style="color:var(--c-test)">Vitest</code><span>Vite の <b>設定・プラグイン・変換処理をそのまま再利用</b>してテストを実行する。<code>vite.config.ts</code> の <code>resolve.alias</code> や React／Vue プラグインがテストにも効くので、二重設定がいらない。Vite+ なしでも単体で使える。</span></li>
+    <li><code style="color:var(--c-oxc)">Oxlint</code><span>ESLint の代替。Oxc のパーサーで動くので高速。型を使うルールは tsgolint（TypeScript の Go 移植版を利用）が担当。単体なら <code>.oxlintrc.json</code>、Vite+ では <code>vite.config.ts</code> の <code>lint</code> に書く。</span></li>
+    <li><code style="color:var(--c-oxc)">Oxfmt</code><span>Prettier 互換のフォーマッター。JS/TS に加え CSS・JSON・YAML なども整形。単体なら独自の設定ファイル、Vite+ では <code>fmt</code> に書く。</span></li>
+    <li><code style="color:var(--c-rolldown)">tsdown</code><span>Rolldown ベースのライブラリ向けビルドツール（型定義 .d.ts も出力）。アプリは <code>vp build</code>、npm に公開するパッケージは <code>vp pack</code>。</span></li>
+  </ul>
+
+  <div class="tabs" role="tablist" style="margin-top:16px">
+    <button class="tab" role="tab" aria-selected="true" data-panel="p-solo">個別に使う</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-plus">Vite+ で使う</button>
+  </div>
+  <div class="panel card" id="p-solo">
+<pre># それぞれインストールして、それぞれ設定
+npm i -D vite vitest oxlint oxfmt
+
+vite            # dev サーバー   … vite.config.ts
+vitest          # テスト         … vite.config.ts を共有
+oxlint          # リント         … .oxlintrc.json
+oxfmt           # 整形           … 独自の設定ファイル</pre>
+    <p class="note">Vite と Vitest はもともと設定を共有できる。Oxlint／Oxfmt は Vite と無関係に、どんなプロジェクトでも使える。</p>
+  </div>
+  <div class="panel card" id="p-plus" hidden>
+<pre>// vite.config.ts
+import { defineConfig } from 'vite-plus'
+
+export default defineConfig({
+  server: { port: 5173 },          // Vite
+  test:   { environment: 'jsdom' }, // Vitest
+  lint:   { options: { typeAware: true, typeCheck: true } }, // Oxlint + tsgolint
+  fmt:    {},                       // Oxfmt
+})</pre>
+<pre>vp dev      vp build     vp test
+vp check    # Oxfmt → Oxlint → 型チェック をまとめて実行</pre>
+  </div>
+
+  <h2 id="tools">ツール比較</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="p-table">一覧表</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-speed">速さの目安</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-config">設定例</button>
+  </div>
+  <div class="panel card" id="p-table">
+    <div class="tbl">
+      <table>
+        <thead><tr><th>ツール</th><th>種類</th><th>担当</th><th>置き換えた／比べられる相手</th><th>単体で使える？</th></tr></thead>
+        <tbody>
+          <tr><td style="color:var(--c-vite)">Vite</td><td>ビルドツール</td><td>dev サーバー・HMR・プラグイン・全体の段取り</td><td>webpack, Parcel</td><td>—</td></tr>
+          <tr><td style="color:var(--c-rolldown)">Rolldown</td><td>バンドラー</td><td>モジュールを束ねてチャンクを出力</td><td>Rollup, esbuild</td><td>使える（1.0：2026-05）</td></tr>
+          <tr><td style="color:var(--c-oxc)">Oxc</td><td>JS/TS ツール群</td><td>パース・解決・変換・圧縮、リンター・フォーマッター</td><td>Babel, SWC, Terser, ESLint, Prettier</td><td>使える（Oxlint など）</td></tr>
+          <tr><td style="color:var(--c-lcss)">Lightning CSS</td><td>CSS 処理系</td><td>CSS のパース・変換・圧縮・プレフィックス</td><td>cssnano, Autoprefixer, postcss-preset-env</td><td>使える</td></tr>
+          <tr><td style="color:var(--c-test)">Vitest</td><td>テストランナー</td><td>Vite のパイプラインでテスト実行</td><td>Jest</td><td>使える（5：2026-09）</td></tr>
+          <tr><td style="color:var(--c-oxc)">Oxlint</td><td>リンター</td><td>静的解析（型対応ルールは tsgolint）</td><td>ESLint, typescript-eslint</td><td>使える</td></tr>
+          <tr><td style="color:var(--c-oxc)">Oxfmt</td><td>フォーマッター</td><td>コード整形</td><td>Prettier</td><td>使える</td></tr>
+          <tr><td style="color:var(--accent)">Vite+</td><td>統合 CLI</td><td>上の全部を <code>vp</code> と設定 1 枚に束ねる</td><td>個別ツールの寄せ集め</td><td>—（1.0：2026-09 時点）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="panel card" id="p-speed" hidden>
+    <p>公式発表の数字（環境で変わるので目安として）：</p>
+    <ul style="margin-left:1.2em">
+      <li>Rolldown は Rollup より <b>10〜30 倍</b>速く、esbuild と同程度。</li>
+      <li>導入事例：Linear の本番ビルド 46 秒 → 6 秒、Ramp で 57%短縮、Beehiiv で 64%短縮。</li>
+      <li>代わりに Vite 8 のインストールサイズは約 15MB 増（Lightning CSS 分が約 10MB）。</li>
+    </ul>
+  </div>
+  <div class="panel card" id="p-config" hidden>
+    <p>Vite 8 では基本的に設定不要。意図的に切り替える場合の例：</p>
+<pre>// vite.config.ts
+export default defineConfig({
+  css: {
+    // CSS の変換を PostCSS ではなく Lightning CSS に任せる（任意）
+    transformer: 'lightningcss',
+  },
+  build: {
+    cssMinify: 'lightningcss',
+    // rollupOptions は互換のため残っているが、Rolldown 向けの設定に移行していく
+  },
+})</pre>
+    <p class="note">Oxc は Vite／Rolldown の内部部品として動くので、普段は直接設定しない。リンターとして使うなら <code>npx oxlint</code> で単体実行できる。</p>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="myth">
+    <div class="card"><strong><span class="x">✕</span>Rolldown は Vite の新しい名前</strong>Vite はそのまま。中で使うバンドラーが Rollup／esbuild から Rolldown に入れ替わっただけ。</div>
+    <div class="card"><strong><span class="x">✕</span>Oxc はリンター（Oxlint）のこと</strong>Oxlint は Oxc の一部。本体はパーサー・変換器・圧縮器などの部品集で、Rolldown の言語処理を支えている。</div>
+    <div class="card"><strong><span class="x">✕</span>Lightning CSS が入ったので PostCSS は不要</strong>Vite 8 で Lightning CSS が担当するのは主に CSS 圧縮。<code>css.transformer</code> の既定は PostCSS のままで、Tailwind などの PostCSS プラグインもそのまま動く。</div>
+    <div class="card"><strong><span class="x">✕</span>Oxlint・Oxfmt・Vitest を使うには Vite+ が必須</strong>どれも単体で使える。Vite+ は「まとめて入れて、設定を 1 枚にする」ための選択肢。Oxlint／Oxfmt は Vite を使っていないプロジェクトでも動く。</div>
+    <div class="card"><strong><span class="x">✕</span>Oxlint が入れば ESLint のプラグインは全部捨てる</strong>ネイティブルールに加えて ESLint 互換の JS プラグイン機構がある。ただし Vue／Svelte テンプレートのような独自パーサーが必要なプラグインは対応が後回しになっていたので、移行前に対応状況を確認する。</div>
+    <div class="card"><strong><span class="x">✕</span>Rollup プラグインはもう使えない</strong>Rolldown は Rollup 互換のプラグイン API を持つので、多くの Vite／Rollup プラグインはそのまま動く。</div>
+  </div>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Tailwind など PostCSS プラグインを使っているプロジェクトを Vite 8 に上げる。CSS の処理はどうなる？",
+    "choices": [
+      "Vite 8 では CSS も Oxc が処理するので設定し直す",
+      "変換は既定で PostCSS のままなので、プラグインはそのまま動く",
+      "Lightning CSS に置き換わるので PostCSS プラグインは動かなくなる"
+    ],
+    "answer": 1,
+    "explain": "css.transformer の既定は PostCSS。Lightning CSS に変換まで任せたいときだけ明示的に切り替える。",
+    "ref": "#myths"
+  },
+  {
+    "q": "自作の Rollup プラグインを使っている。Vite 8（Rolldown）に上げたらどうなる？",
+    "choices": [
+      "Rollup プラグインはすべて書き直しが必要",
+      "互換 API があるので、多くはそのまま動く",
+      "esbuild プラグインに変換しないと動かない"
+    ],
+    "answer": 1,
+    "explain": "既存の rollupOptions などの設定も互換レイヤーで変換される。",
+    "ref": "#myths"
+  },
+  {
+    "q": "vite.config.ts に書いた resolve.alias や Vue プラグインを、テストでもそのまま効かせたい。どうする？",
+    "choices": [
+      "Vitest を使う（Vite の設定・プラグイン・変換処理を再利用する）",
+      "Jest の設定に alias とトランスフォーマーを書き直す",
+      "Vite+ を入れないと共有できない"
+    ],
+    "answer": 0,
+    "explain": "Vitest は Vite のパイプラインでテストを実行するので二重設定がいらない。Vite+ なしでも単体で使える。",
+    "ref": "#vite-plus"
+  },
+  {
+    "q": "Vite を使っていない Node.js のプロジェクトで、ESLint をもっと速いリンターに替えたい。Oxlint は使える？",
+    "choices": [
+      "使えない。Vite のプロジェクト専用",
+      "使えない。Vite+ の一部としてしか動かない",
+      "使える。Oxlint は単体で動く"
+    ],
+    "answer": 2,
+    "explain": "Oxlint と Oxfmt は Vite と無関係にどんなプロジェクトでも使える。Vite+ は設定を 1 枚にまとめる選択肢。 Vue / Svelte テンプレート用など、独自パーサーが必要なプラグインは移行前に対応状況を確認する。",
+    "ref": "#myths"
+  },
+  {
+    "q": "npm に公開するライブラリを、型定義（.d.ts）付きでビルドしたい。Vite+ ならどれを使う？",
+    "choices": [
+      "vp pack",
+      "vp build",
+      "vp check"
+    ],
+    "answer": 0,
+    "explain": "アプリは vp build、公開するパッケージは Rolldown ベースの tsdown を使う vp pack。",
+    "ref": "#vite-plus"
+  }
+]
+</script>
+</body>
+</html>

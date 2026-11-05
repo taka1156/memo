@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux プロセスの仕組み</title>
+<meta name="description" content="プロセスが持つ情報、fork → exec → wait による生成と回収、ゾンビと孤児、状態、ファイルディスクリプタとパイプを図とステップで追う。">
+<meta name="memo:tags" content="インフラ">
+<meta name="memo:date" content="2026-11-06">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-user: #1f8a50;
+  --c-kernel: #c2410c;
+  --c-hw: #6b7280;
+  --c-sig: #b45309;
+  --c-dead: #9aa3b2;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-user: #4ade80;
+    --c-kernel: #fb923c;
+    --c-hw: #94a3b8;
+    --c-sig: #fbbf24;
+    --c-dead: #4b5869;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 40px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.98rem; margin: 22px 0 8px; }
+p { margin: 8px 0; }
+ul.dots { margin: 8px 0 8px 1.3em; }
+ul.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  line-height: 1.6;
+}
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.table-wrap { overflow-x: auto; margin: 10px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--surface); }
+th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 700; white-space: nowrap; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* ボタン */
+.btn {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn.on { border-color: var(--accent); color: var(--accent); }
+.ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
+.stepmsg {
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+  min-height: 4.6em;
+  font-size: 0.9rem;
+}
+.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); display: block; }
+
+a { color: var(--accent); }
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: -12px 0 24px; }
+.series a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font: 600 0.75rem 'Noto Sans JP', system-ui, sans-serif; }
+.series a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.series a:hover:not([aria-current]) { color: var(--accent); }
+.map { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.map a { text-decoration: none; color: var(--fg); display: block; }
+.map a:hover .card { border-color: var(--accent); }
+.map .card { height: 100%; }
+.map b { color: var(--accent); font-size: 0.95rem; }
+.map p { font-size: 0.8rem; color: var(--fg-2); }
+.map ul { margin: 6px 0 0 1.1em; font-size: 0.78rem; }
+/* プロセスの中身 */
+.anat { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.anat .card { padding: 10px 14px; }
+.anat b { font-size: 0.85rem; color: var(--accent); }
+.anat p { font-size: 0.8rem; margin: 2px 0 0; color: var(--fg-2); }
+
+/* fork/exec ステージ */
+.stage { display: flex; flex-wrap: wrap; gap: 10px; min-height: 120px; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; align-items: flex-start; }
+.pbox {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-width: 150px;
+  font-size: 0.8rem;
+  animation: pop .25s ease-out;
+}
+.pbox .nm { font: 700 0.95rem 'JetBrains Mono', ui-monospace, monospace; }
+.pbox .meta { font: 500 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.pbox .nt { font-size: 0.75rem; margin-top: 4px; }
+.pbox.hl { border-color: var(--accent); }
+.pbox.zombie { border-style: dashed; border-color: var(--c-dead); color: var(--fg-2); }
+.pbox.wait { opacity: .7; }
+@keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* プロセスツリー */
+.tree { font: 500 0.8rem/1.75 'JetBrains Mono', ui-monospace, monospace; white-space: pre; overflow-x: auto; }
+.tree .p { color: var(--accent); }
+
+/* パイプ */
+.pipefig { display: grid; grid-template-columns: 1fr 120px 1fr; gap: 8px; align-items: center; }
+.fdbox { background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 0.8rem; }
+.fdbox .nm { font: 700 0.9rem 'JetBrains Mono', ui-monospace, monospace; margin-bottom: 4px; }
+.fd { display: flex; gap: 6px; align-items: baseline; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.75rem; }
+.fd i { font-style: normal; background: var(--chip); border-radius: 4px; padding: 0 5px; min-width: 2.2em; text-align: center; }
+.fd.p em { color: var(--accent); font-style: normal; font-weight: 700; }
+.pipebuf { text-align: center; border: 1.5px solid var(--c-kernel); border-radius: 8px; padding: 10px 6px; font-size: 0.75rem; background: color-mix(in srgb, var(--c-kernel) 7%, var(--surface)); }
+.pipebuf b { display: block; font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--c-kernel); }
+
+/* 誤解 */
+details.myth { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
+details.myth summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
+details.myth summary::before { content: '✗ '; color: var(--c-sig); }
+details.myth p { font-size: 0.86rem; }
+
+@media (max-width: 640px) {
+  .kgrid { grid-template-columns: 1fr; }
+  .row2 { grid-template-columns: 1fr; }
+  .pipefig { grid-template-columns: 1fr; }
+  .pgs { grid-template-columns: 1fr; }
+  .life { grid-template-columns: 1fr 1fr; }
+  .simrow, .simhead { grid-template-columns: 74px 1fr 56px 56px; gap: 6px; }
+  .sigcard dl { grid-template-columns: 6em 1fr; }
+}
+@media (max-width: 420px) {
+  .life { grid-template-columns: 1fr; }
+}
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Linux プロセスの仕組み</h1>
+  <p class="subtitle">プロセスの中身 / fork → exec → wait / 状態 / ゾンビと孤児 / fd とパイプ</p>
+  <nav class="series" aria-label="このシリーズのページ"><a href="linux-process-signal.html">全体像</a><a href="linux-terminal.html">端末とシェル</a><a href="linux-process.html" aria-current="page">プロセス</a><a href="linux-signal.html">シグナルとジョブ制御</a></nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>プロセスは実行中のプログラムに、PID・メモリ空間・fd テーブル・シグナル情報などをカーネルがくっつけたもの。</li>
+      <li><code>fork</code> で自分を複製し、子が <code>exec</code> で中身だけ入れ替え、親が <code>wait</code> で終了を回収する。回収されないとゾンビ、親が先に死ぬと孤児になる。</li>
+      <li>パイプやリダイレクトは、exec の前に fd を付け替えて作る。コマンドは 0 番から読んで 1 番に書くだけで、相手を知らない。</li>
+    </ul>
+  </div>
+
+  <!-- ===================== プロセス ===================== -->
+  <h2 id="process">プロセスの中身</h2>
+  <p>プロセスは「実行中のプログラム」に、カーネルが管理する情報一式をくっつけたもの。カーネル内では <code>task_struct</code> という構造体で表され、<code>/proc/&lt;PID&gt;/</code> から中身を覗ける。</p>
+  <div class="anat">
+    <div class="card"><b>PID / PPID</b><p>自分の番号と親の番号。親子で木構造になる</p></div>
+    <div class="card"><b>仮想メモリ空間</b><p>コード・データ・ヒープ・スタック。他のプロセスからは見えない</p></div>
+    <div class="card"><b>fd テーブル</b><p>0=stdin 1=stdout 2=stderr …。開いているファイル・パイプ・ソケット・端末への番号</p></div>
+    <div class="card"><b>資格情報</b><p>UID / GID。何にアクセスでき、誰にシグナルを送れるかが決まる</p></div>
+    <div class="card"><b>シグナル情報</b><p>シグナルごとの処理方法、シグナルマスク（ブロック中）、処理待ちの印</p></div>
+    <div class="card"><b>PGID / SID / 制御端末</b><p>所属するプロセスグループ・セッションと、つながっている端末</p></div>
+    <div class="card"><b>状態</b><p>R・S・D・T・Z（下の表）</p></div>
+    <div class="card"><b>カレントディレクトリ・環境変数</b><p>子へコピーされるが、子で変えても親には戻らない（スクリプトの設定を今のシェルに反映するには <code>source</code> で同じプロセス内で読む）</p></div>
+  </div>
+
+  <h3 id="forkexec">fork → exec → wait（シェルが ls を起動するまで）</h3>
+  <div class="stage" id="fe-stage"></div>
+  <div class="ctrl">
+    <button class="btn" id="fe-prev">← 前へ</button>
+    <button class="btn primary" id="fe-next">次へ →</button>
+    <button class="btn" id="fe-reset">最初から</button>
+  </div>
+  <div class="stepmsg" id="fe-msg"></div>
+
+  <h3>fork と exec で何が引き継がれるか</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>項目</th><th>fork 直後の子</th><th>exec の後</th></tr>
+      <tr><td>PID</td><td>新しい番号</td><td><b>変わらない</b>（中身だけ入れ替わる）</td></tr>
+      <tr><td>メモリ</td><td>親のコピー（実際は書き込むまで共有: Copy-on-Write）</td><td>新しいプログラムで丸ごと置き換え</td></tr>
+      <tr><td>fd テーブル</td><td>コピー（同じファイルを指し、読み書き位置も共有）</td><td>そのまま（<code>O_CLOEXEC</code> 付きだけ閉じる）</td></tr>
+      <tr><td>シグナルの処理方法</td><td>引き継ぐ</td><td>ハンドラは<b>既定に戻る</b>。「無視」は無視のまま</td></tr>
+      <tr><td>シグナルマスク（ブロック中のシグナル）</td><td>引き継ぐ</td><td>そのまま</td></tr>
+      <tr><td>処理待ちのシグナル</td><td>空になる</td><td>そのまま</td></tr>
+      <tr><td>PGID / SID / 制御端末</td><td>引き継ぐ</td><td>そのまま</td></tr>
+    </table>
+  </div>
+  <p class="muted"><code>nohup cmd</code> が効くのはこの性質のおかげ。nohup は SIGHUP を「無視」に設定してから <code>exec</code> するので、無視が新しいプログラムにも残る。</p>
+
+  <h3 id="states">プロセスの状態（ps の STAT 列）</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>記号</th><th>状態</th><th>例と、シグナルとの関係</th></tr>
+      <tr><td class="mono">R</td><td>実行中 / 実行可能</td><td>CPU で動いている、または順番待ち</td></tr>
+      <tr><td class="mono">S</td><td>割り込み可能な待機</td><td>キー入力や <code>sleep</code> を待つ。<b>シグナルが来ると起こされる</b></td></tr>
+      <tr><td class="mono">D</td><td>割り込み不可の待機</td><td>ディスクや NFS の I/O 待ち。<b>ふつうはシグナルで起こされない</b>（ただし Linux 2.6.25 以降の TASK_KILLABLE による待機は、表示は D でも SIGKILL では終わる。NFS の待ちの多くはこちら）</td></tr>
+      <tr><td class="mono">T</td><td>停止</td><td>SIGSTOP・SIGTSTP（Ctrl+Z）で止まった。SIGCONT で再開（デバッガでの停止は <code>t</code>）</td></tr>
+      <tr><td class="mono">Z</td><td>ゾンビ</td><td>終了済みだが、親が <code>wait</code> するまで終了ステータスだけが残っている</td></tr>
+    </table>
+  </div>
+
+  <h3 id="tree">プロセスツリーと孤児</h3>
+  <div class="card tree">systemd <span class="p">(1)</span>
+├─ sshd <span class="p">(812)</span>
+│   └─ sshd（接続ごと）<span class="p">(2301)</span>
+│       └─ bash <span class="p">(2302)</span>
+│           └─ vim <span class="p">(2410)</span>
+└─ gnome-terminal-server <span class="p">(1950)</span>
+    └─ bash <span class="p">(1960)</span>
+        ├─ sleep <span class="p">(1999)</span>
+        └─ ps <span class="p">(2000)</span></div>
+  <ul class="dots">
+    <li>すべてのユーザープロセスは PID 1（多くは systemd）の子孫。デスクトップでは間に <code>systemd --user</code> などが入る。カーネルスレッドは kthreadd (PID 2) の子。</li>
+    <li>親が先に死ぬと、子は<b>孤児</b>になり PID 1（またはサブリーパーに指定されたプロセス）の子に付け替えられる。PID 1 は孤児を <code>wait</code> して回収する。</li>
+    <li>親が生きているのに <code>wait</code> しないと、子は<b>ゾンビ</b>のまま残る。</li>
+  </ul>
+
+  <h3 id="fd">ファイルディスクリプタとパイプ: <code>ls | grep txt &gt; out.txt</code></h3>
+  <div class="pipefig">
+    <div class="fdbox">
+      <div class="nm">ls</div>
+      <div class="fd"><i>0</i>→ /dev/pts/3</div>
+      <div class="fd p"><i>1</i>→ <em>パイプ（書き口）</em></div>
+      <div class="fd"><i>2</i>→ /dev/pts/3</div>
+    </div>
+    <div class="pipebuf"><b>pipe</b>カーネル内のバッファ<br>（既定 64 KiB）</div>
+    <div class="fdbox">
+      <div class="nm">grep txt</div>
+      <div class="fd p"><i>0</i>→ <em>パイプ（読み口）</em></div>
+      <div class="fd p"><i>1</i>→ <em>out.txt</em></div>
+      <div class="fd"><i>2</i>→ /dev/pts/3</div>
+    </div>
+  </div>
+  <p>シェルは <code>pipe()</code> で読み口・書き口の fd を作り、2 回 <code>fork</code> し、それぞれの子で <code>dup2</code> を使って 0 番・1 番に付け替えてから <code>exec</code> する。コマンド側は「0 番から読んで 1 番に書く」だけで、相手がパイプか端末かファイルかを知らない。エラー (fd 2) は端末のままなので、パイプやリダイレクトの後でも画面に出る。</p>
+  <p class="muted">読み手（grep）が先に終わると、書き手（ls）の次の write は SIGPIPE を受けて終了する。<code>yes | head -1</code> がすぐ終わるのはこのため（<a href="linux-signal.html#sigdict">SIGPIPE</a>）。</p>
+
+
+  <h2 id="misc">よくある誤解</h2>
+  <details class="myth"><summary>ゾンビプロセスは kill -9 で消せる</summary>
+    <p>ゾンビはすでに終了していて、残っているのは終了ステータスだけ。消すには<b>親が <code>wait</code> する</b>必要がある。親を直すか親を終了させれば、ゾンビは PID 1 に引き取られて回収される。</p>
+  </details>
+  <details class="myth"><summary>スクリプトの中で cd や export すれば、終わった後のシェルにも反映される</summary>
+    <p><code>./script.sh</code> は子プロセスとして動くので、カレントディレクトリや環境変数の変更は子の中だけで終わり、親のシェルには戻らない。今のシェルに反映したいときは <code>source script.sh</code>（または <code>. script.sh</code>）で、同じプロセスの中で読み込む。</p>
+  </details>
+  <details class="myth"><summary>パイプの先に渡せば、エラーメッセージも絞り込める</summary>
+    <p>パイプでつながるのは fd 1（stdout）だけで、fd 2（stderr）は端末のまま。エラーもまとめて渡すには <code>cmd 2&gt;&amp;1 | grep x</code>（bash なら <code>|&amp;</code>）のように fd 2 を fd 1 と同じ先に付け替える。</p>
+  </details>
+
+  <h2 id="cmd">コマンド例</h2>
+<pre>echo $$                                   <span class="cm"># 今のシェルの PID</span>
+ps -eo pid,ppid,stat,cmd --forest         <span class="cm"># 親子関係と状態</span>
+pstree -p $$                              <span class="cm"># 自分から下のツリー</span>
+ps -eo pid,ppid,stat,cmd | awk '$3 ~ /^Z/'    <span class="cm"># ゾンビを探す（PPID が犯人の親）</span>
+ls -l /proc/$$/fd                         <span class="cm"># 開いている fd の行き先</span>
+cat /proc/$$/status                       <span class="cm"># 状態・親・資格情報など</span>
+strace -f -e trace=process bash -c 'ls | wc -l'   <span class="cm"># fork(clone)/execve/wait4 を追う</span></pre>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+/* ---------- fork / exec / wait ---------- */
+(() => {
+  const steps = [
+    { boxes: [{ nm: 'bash', pid: 100, ppid: 1, st: 'S', nt: 'プロンプトを出して read() で入力待ち', hl: 1 }],
+      t: '"ls -l" と入力されて Enter。bash（PID 100）が行を受け取る。' },
+    { boxes: [{ nm: 'bash', pid: 100, ppid: 1, st: 'R', nt: 'fork() を呼んだ' }, { nm: 'bash', pid: 101, ppid: 100, st: 'R', nt: '親の複製。メモリは Copy-on-Write で共有', hl: 1 }],
+      t: 'fork()。子（PID 101）は親の完全なコピーで、fork() の戻り値だけが違う（親には 101、子には 0）。この時点では子も「bash」。' },
+    { boxes: [{ nm: 'bash', pid: 100, ppid: 1, st: 'R', nt: 'tcsetpgrp で端末を子のグループに渡す' }, { nm: 'bash', pid: 101, ppid: 100, st: 'R', nt: 'setpgid で新グループ 101 を作る・シグナル設定を戻す・リダイレクトがあれば dup2', hl: 1 }],
+      t: 'exec の前の下ごしらえ。子は自分のプロセスグループを作り、対話 bash が無視していたシグナル（SIGTSTP・SIGQUIT・SIGTERM など）を既定に戻し、必要なら fd を付け替える。' },
+    { boxes: [{ nm: 'bash', pid: 100, ppid: 1, st: 'S', nt: 'waitpid(101) で待機', cls: 'wait' }, { nm: 'ls', pid: 101, ppid: 100, st: 'R', nt: 'execve("/usr/bin/ls") で中身が入れ替わった', hl: 1 }],
+      t: 'execve()。PID 101 のまま、メモリが ls のプログラムで置き換わる。fd（端末）や PGID はそのまま。親は waitpid で寝て待つ。' },
+    { boxes: [{ nm: 'bash', pid: 100, ppid: 1, st: 'S→R', nt: 'SIGCHLD で起こされる', hl: 1 }, { nm: 'ls', pid: 101, ppid: 100, st: 'Z', nt: '終了済み。終了ステータス 0 だけ残っている', cls: 'zombie' }],
+      t: 'ls が exit(0)。メモリなどは解放されるが、親が結果を受け取るまでプロセス表の項目が残る＝ゾンビ。カーネルは親に SIGCHLD を送る。' },
+    { boxes: [{ nm: 'bash', pid: 100, ppid: 1, st: 'S', nt: '$? = 0。端末を取り戻して次のプロンプト', hl: 1 }],
+      t: 'bash の waitpid が終了ステータスを回収し（reap）、ゾンビは消える。bash は端末のフォアグラウンドを自分に戻し、次の入力を待つ。' }
+  ];
+  const stage = document.getElementById('fe-stage');
+  const msg = document.getElementById('fe-msg');
+  const prev = document.getElementById('fe-prev');
+  const next = document.getElementById('fe-next');
+  let i = 0;
+  function render() {
+    const s = steps[i];
+    stage.innerHTML = s.boxes.map(b =>
+      '<div class="pbox ' + (b.hl ? 'hl ' : '') + (b.cls || '') + '"><div class="nm">' + b.nm + '</div>' +
+      '<div class="meta">PID ' + b.pid + ' · PPID ' + b.ppid + ' · STAT ' + b.st + '</div>' +
+      '<div class="nt">' + b.nt + '</div></div>').join('');
+    msg.innerHTML = '<span class="n">STEP ' + (i + 1) + ' / ' + steps.length + '</span>' + s.t;
+    prev.disabled = i === 0;
+    next.disabled = i === steps.length - 1;
+  }
+  next.onclick = () => { i++; render(); };
+  prev.onclick = () => { i--; render(); };
+  document.getElementById('fe-reset').onclick = () => { i = 0; render(); };
+  render();
+})();
+
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "ps の STAT が Z のプロセスが大量に残っていて PID が枯渇しそう。まず直すべきところは？",
+    "choices": [
+      "親プロセスが子の終了を wait で回収していないこと",
+      "Z のプロセスに kill -9 を送っていないこと",
+      "Z のプロセスのメモリリーク",
+      "カーネルのスケジューラ設定"
+    ],
+    "answer": 0,
+    "explain": "ゾンビは終了済みで、終了ステータスを親が回収するのを待っているだけ。親を直すか親を終了させれば PID 1 に引き取られて回収される。",
+    "ref": "#forkexec"
+  },
+  {
+    "q": "対話 bash は自分が Ctrl+Z で止まらないよう SIGTSTP を「無視」にしている。fork した子で exec する前に、それを既定に戻す必要があるのはなぜ？",
+    "choices": [
+      "exec するとすべてのシグナルが無視に変わるため",
+      "exec をまたいでも「無視」の設定はそのまま残るため、戻さないと起動したコマンドが Ctrl+Z で止まらなくなる",
+      "fork した子はシグナルを受け取れないため",
+      "戻さないと exec が失敗するため"
+    ],
+    "answer": 1,
+    "explain": "exec でハンドラは既定に戻るが、「無視」は引き継がれる。nohup が SIGHUP を無視してから exec するのもこの性質を利用している。",
+    "ref": "#forkexec"
+  },
+  {
+    "q": "`./setenv.sh` の中で `export API_URL=...` したのに、実行後の自分のシェルで `echo $API_URL` が空になる。どうすればいい？",
+    "choices": [
+      "スクリプトの最後で exit 0 する",
+      "スクリプトに実行権限を付け直す",
+      "`source setenv.sh` で今のシェルの中で読み込む",
+      "export の代わりに readonly を使う"
+    ],
+    "answer": 2,
+    "explain": "./setenv.sh は子プロセスで動き、子での環境変数の変更は親に戻らない。source なら同じプロセスで実行される。",
+    "ref": "#process"
+  },
+  {
+    "q": "`find / -name '*.log' | grep app` を実行すると、Permission denied のエラーが grep で絞られずに画面に出る。なぜ？",
+    "choices": [
+      "grep が日本語以外の行を無視するから",
+      "パイプでつながるのは fd 1（stdout）だけで、エラーを出す fd 2 は端末のままだから",
+      "find がエラーを直接ターミナルアプリに送っているから",
+      "Permission denied はカーネルが直接画面に書くから"
+    ],
+    "answer": 1,
+    "explain": "シェルがパイプにつなぐのは stdout だけ。エラーも渡すなら 2>&1 で fd 2 を fd 1 と同じ先に付け替える。",
+    "ref": "#fd"
+  },
+  {
+    "q": "`yes | head -1` は yes が無限に出力し続けるプログラムなのに、すぐ終わる。なぜ？",
+    "choices": [
+      "head が yes に SIGKILL を送るから",
+      "パイプのバッファが一杯になると yes が自分で終了するから",
+      "シェルが 1 行出たところでパイプライン全体を止めるから",
+      "head が終わった後に yes が書き込むと SIGPIPE を受けて終了するから"
+    ],
+    "answer": 3,
+    "explain": "読み手のいないパイプへの write は SIGPIPE を生み、その既定動作で yes が終わる。",
+    "ref": "#fd"
+  }
+]
+</script>
+</body>
+</html>

@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JS と Web 標準の決まり方</title>
+<meta name="description" content="JavaScript の言語は TC39、ブラウザ API は WHATWG と W3C、サーバー側ランタイムの共通 API は TC55（WinterTC）。4 つの団体の分担と、仕様が決まるまでの流れを図解。">
+<meta name="memo:tags" content="JavaScript, フロントエンド">
+<meta name="memo:date" content="2026-11-03">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-tc39: #a16207;
+  --c-whatwg: #15803d;
+  --c-w3c: #1d4ed8;
+  --c-tc55: #7c3aed;
+  --c-host: #6b7280;
+  --c-ng: #b91c1c;
+  --c-ok: #15803d;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-tc39: #facc15;
+    --c-whatwg: #4ade80;
+    --c-w3c: #60a5fa;
+    --c-tc55: #c084fc;
+    --c-host: #9ca3af;
+    --c-ng: #f87171;
+    --c-ok: #4ade80;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.dots { margin: 6px 0 6px 1.2em; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+
+/* 団体の色 */
+.k-tc39 { --k: var(--c-tc39); }
+.k-whatwg { --k: var(--c-whatwg); }
+.k-w3c { --k: var(--c-w3c); }
+.k-tc55 { --k: var(--c-tc55); }
+.k-host { --k: var(--c-host); }
+.org {
+  display: inline-block;
+  border: 1.5px solid var(--k);
+  color: var(--k);
+  border-radius: 999px;
+  padding: 0 8px;
+  font: 700 0.72rem/1.6 'JetBrains Mono', ui-monospace, monospace;
+  white-space: nowrap;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* コードの行と担当 */
+.who { display: flex; flex-direction: column; gap: 6px; }
+.who-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--k);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+  transition: opacity .2s;
+}
+.who-row code { background: none; padding: 0; font-size: 0.8rem; }
+.who-row .spec { font-size: 0.75rem; color: var(--fg-2); text-align: right; }
+.who-row .spec .org { margin-left: 4px; }
+.who-row.dim { opacity: .25; }
+@media (max-width: 520px) {
+  .who-row { grid-template-columns: 1fr; }
+  .who-row .spec { text-align: left; }
+}
+
+/* 4 団体カード */
+.orgs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.orgcard { border-top: 4px solid var(--k); }
+.orgcard .nm { font: 700 1.05rem 'JetBrains Mono', ui-monospace, monospace; color: var(--k); }
+.orgcard .sub { font-size: 0.75rem; color: var(--fg-2); margin-bottom: 6px; }
+.orgcard dl { font-size: 0.82rem; }
+.orgcard dt { color: var(--fg-2); font-size: 0.72rem; margin-top: 6px; }
+.orgcard dd { margin: 0; }
+
+/* 層の図 */
+.stacks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .stacks { grid-template-columns: 1fr; } }
+.stack { display: flex; flex-direction: column; gap: 5px; }
+.stack .ttl { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; text-align: center; margin-bottom: auto; padding-bottom: 4px; }
+.ly {
+  border: 1.5px solid var(--k);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+  background: var(--surface);
+}
+.ly b { color: var(--k); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.75rem; }
+.ly small { display: block; color: var(--fg-2); font-size: 0.72rem; }
+.ly.base { border-width: 2.5px; }
+.ly.own { border-style: dashed; }
+
+/* ステージ */
+.stages { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 10px; }
+.stage {
+  border: 1.5px solid var(--c-tc39);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+  min-width: 52px;
+}
+.stage small { display: block; font: 400 0.65rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.stage[aria-pressed="true"] { background: var(--c-tc39); color: var(--bg); }
+.stage[aria-pressed="true"] small { color: var(--bg); }
+.arrow { color: var(--fg-2); font-weight: 700; font-size: 0.8rem; }
+#stage-detail h3 { margin-top: 0; }
+#stage-detail .need { margin-top: 6px; font-size: 0.85rem; }
+#stage-detail .you { margin-top: 8px; padding: 6px 10px; background: var(--chip); border-radius: 6px; font-size: 0.85rem; }
+
+/* 流れ */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0; }
+.box {
+  background: var(--surface);
+  border: 1.5px solid var(--k, var(--line));
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+
+/* 表 */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.84rem; min-width: 480px; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.76rem; white-space: nowrap; }
+
+/* API チップ */
+.apis { display: flex; flex-direction: column; gap: 8px; }
+.apigrp { border-left: 4px solid var(--k); padding: 4px 0 4px 10px; }
+.apigrp .h { font-size: 0.78rem; color: var(--fg-2); margin-bottom: 4px; }
+.apigrp .h .org { margin-right: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chips code { font-size: 0.75rem; }
+.chips.out code { text-decoration: line-through; color: var(--fg-2); }
+
+/* 誤解 */
+.myth { margin-bottom: 10px; }
+.myth .ng { color: var(--c-ng); font-weight: 700; }
+.myth .ok { color: var(--c-ok); font-weight: 700; }
+
+.related a { display: inline-block; margin: 4px 8px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); margin-top: 20px; }
+.sources a { word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>JS と Web 標準の決まり方</h1>
+  <p class="subtitle">TC39・WHATWG・W3C・TC55（WinterTC）は、それぞれ何を決めているのか</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>言語そのもの</b>（構文・<code>Promise</code>・<code>Array</code>）は Ecma の <b>TC39</b> が決める。</li>
+      <li><b>ブラウザの API</b> は <b>WHATWG</b>（HTML・DOM・Fetch など）と <b>W3C</b>（CSS・Web Crypto など）が分担。<code>setTimeout</code> も言語ではなく HTML の仕様。</li>
+      <li><b>サーバー側ランタイム</b>（Node.js・Cloudflare Workers など）で共通に使える Web API の範囲は、Ecma の <b>TC55（WinterTC）</b> が決める。</li>
+    </ul>
+  </div>
+
+  <h2 id="who">このコード、どこが決めている？</h2>
+  <p>ふだん書くコードを 1 行ずつ見ると、決めている団体がばらばらです。ボタンで絞り込めます。</p>
+  <div class="tabs" role="toolbar" aria-label="団体で絞り込む" id="who-filter">
+    <button class="tab" aria-selected="true" data-k="all">全部</button>
+    <button class="tab" aria-selected="false" data-k="tc39">TC39</button>
+    <button class="tab" aria-selected="false" data-k="whatwg">WHATWG</button>
+    <button class="tab" aria-selected="false" data-k="w3c">W3C</button>
+    <button class="tab" aria-selected="false" data-k="tc55">TC55</button>
+  </div>
+  <div class="who" id="who-list">
+    <div class="who-row k-tc39" data-k="tc39"><code>class Cart { #items = []; }</code><span class="spec">言語の構文（ECMA-262）<span class="org">TC39</span></span></div>
+    <div class="who-row k-tc39" data-k="tc39"><code>const data = JSON.parse(text);</code><span class="spec">組み込みオブジェクト（ECMA-262）<span class="org">TC39</span></span></div>
+    <div class="who-row k-tc39" data-k="tc39"><code>new Intl.DateTimeFormat('ja-JP')</code><span class="spec">国際化 API（ECMA-402）<span class="org">TC39</span></span></div>
+    <div class="who-row k-whatwg" data-k="whatwg"><code>const res = await fetch('/api/items');</code><span class="spec">Fetch Standard<span class="org">WHATWG</span></span></div>
+    <div class="who-row k-whatwg" data-k="whatwg"><code>new URL('./img.png', import.meta.url)</code><span class="spec">URL Standard<span class="org">WHATWG</span></span></div>
+    <div class="who-row k-whatwg" data-k="whatwg"><code>document.querySelector('#out')</code><span class="spec">DOM Standard<span class="org">WHATWG</span></span></div>
+    <div class="who-row k-whatwg" data-k="whatwg"><code>setTimeout(tick, 1000);</code><span class="spec">HTML Standard（タイマー・イベントループ）<span class="org">WHATWG</span></span></div>
+    <div class="who-row k-w3c" data-k="w3c"><code>await crypto.subtle.digest('SHA-256', buf)</code><span class="spec">Web Cryptography API<span class="org">W3C</span></span></div>
+    <div class="who-row k-w3c" data-k="w3c"><code>const t0 = performance.now();</code><span class="spec">High Resolution Time<span class="org">W3C</span></span></div>
+    <div class="who-row k-w3c" data-k="w3c"><code>.list { display: grid; }</code><span class="spec">CSS<span class="org">W3C</span></span></div>
+    <div class="who-row k-tc55" data-k="tc55"><code>export default { fetch: (req) =&gt; new Response('ok') }</code><span class="spec">サーバーで <code>Request</code> / <code>Response</code> が使えること（ECMA-429）<span class="org">TC55</span></span></div>
+  </div>
+  <p class="muted">TC55 の行に注目。<code>Response</code> そのものの仕様は WHATWG の Fetch ですが、「サーバー側のランタイムでもこれを用意する」と決めているのが TC55 です。</p>
+
+  <h2 id="bodies">4 つの団体</h2>
+  <div class="orgs">
+    <div class="card orgcard k-tc39">
+      <div class="nm">TC39</div>
+      <div class="sub">Ecma International の技術委員会</div>
+      <dl>
+        <dt>決めるもの</dt><dd>言語仕様 ECMAScript（ECMA-262）、国際化 API（ECMA-402）</dd>
+        <dt>成果物の形</dt><dd>毎年の版（ES2025、ES2026…）</dd>
+        <dt>決め方</dt><dd>提案ごとにステージを進める。会議での合意（consensus）で決定</dd>
+      </dl>
+    </div>
+    <div class="card orgcard k-whatwg">
+      <div class="nm">WHATWG</div>
+      <div class="sub">ブラウザ開発企業が運営するコミュニティ</div>
+      <dl>
+        <dt>決めるもの</dt><dd>HTML、DOM、Fetch、URL、Streams、Encoding、Console など</dd>
+        <dt>成果物の形</dt><dd>Living Standard（版番号なしで随時更新）</dd>
+        <dt>決め方</dt><dd>複数のブラウザ実装者が支持した変更を取り込む</dd>
+      </dl>
+    </div>
+    <div class="card orgcard k-w3c">
+      <div class="nm">W3C</div>
+      <div class="sub">会員制の Web 標準化団体</div>
+      <dl>
+        <dt>決めるもの</dt><dd>CSS、Web Crypto、File API、WebAuthn、WebAssembly、WCAG など</dd>
+        <dt>成果物の形</dt><dd>勧告（Recommendation）。草案から段階を踏んで確定</dd>
+        <dt>HTML / DOM</dt><dd>WHATWG の版を勧告として承認する役</dd>
+      </dl>
+    </div>
+    <div class="card orgcard k-tc55">
+      <div class="nm">TC55</div>
+      <div class="sub">Ecma の技術委員会。通称 WinterTC</div>
+      <dl>
+        <dt>決めるもの</dt><dd>サーバー側ランタイムが共通で持つ Web API の範囲</dd>
+        <dt>成果物の形</dt><dd>ECMA-429 Minimum Common Web API（毎年のスナップショット）</dd>
+        <dt>やり方</dt><dd>API を新しく作るより、既存の Web API から選ぶのが中心</dd>
+      </dl>
+    </div>
+  </div>
+
+  <h2 id="layers">ブラウザとサーバーで比べると</h2>
+  <p>どちらも土台は同じ ECMAScript。その上に載る API の範囲が違います。</p>
+  <div class="stacks">
+    <div class="card stack">
+      <div class="ttl">ブラウザ</div>
+      <div class="ly k-w3c"><b>W3C</b> CSS・Web Crypto・File API・WebAuthn など</div>
+      <div class="ly k-whatwg"><b>WHATWG</b> HTML・DOM・Fetch・URL・Streams<small>setTimeout、イベントループ、document、localStorage も</small></div>
+      <div class="ly base k-tc39"><b>TC39</b> ECMAScript<small>構文・Promise・Array・JSON・Intl</small></div>
+    </div>
+    <div class="card stack">
+      <div class="ttl">サーバー（Node.js・Workers など）</div>
+      <div class="ly own k-host"><b>各ランタイム独自</b> node:fs、Workers のバインディング<small>標準の外。ランタイムを変えると書き直しになる部分</small></div>
+      <div class="ly k-tc55"><b>TC55</b> Minimum Common API<small>WHATWG と W3C の API から、サーバーでも使えるものを選んだ共通セット（fetch・URL・Streams・crypto など）</small></div>
+      <div class="ly base k-tc39"><b>TC39</b> ECMAScript<small>ブラウザと同じ</small></div>
+    </div>
+  </div>
+  <p class="muted">ECMAScript には「いつ非同期処理を実行するか」の仕組みは書かれていません。それを用意するのは実行環境（ホスト）の役目で、ブラウザでは HTML 仕様のイベントループ、Node は libuv を使った自前の実装です。<code>setTimeout</code> の細かい挙動がブラウザと Node で違うことがあるのはこのためです。</p>
+
+  <h2 id="tc39">TC39：提案が仕様になるまで</h2>
+  <p>新しい機能は「提案（proposal）」として出され、ステージを 1 つずつ進みます。ステージを押すと条件が出ます。</p>
+  <p class="muted">Strawperson・Candidate・Finished などの英語の呼び名は旧版のもので、今の公式プロセス文書は番号と目的で説明しています。</p>
+  <div class="stages" id="stages"></div>
+  <div class="card" id="stage-detail" aria-live="polite"></div>
+
+  <h3>年 1 回の版</h3>
+  <div class="flow">
+    <div class="box k-tc39">Stage 4 の提案<small>3 月の会議までに揃ったもの</small></div>
+    <span class="arrow">→</span>
+    <div class="box k-tc39">候補ドラフト<small>2〜3 月に確定作業</small></div>
+    <span class="arrow">→</span>
+    <div class="box k-tc39">Ecma 総会で承認<small>夏</small></div>
+    <span class="arrow">→</span>
+    <div class="box k-tc39">ES20XX<small>その年の版</small></div>
+  </div>
+  <p class="muted">「ES2026 の新機能」は、その年の版に入った Stage 4 の提案のこと。ブラウザは版の発行を待たず、Stage 3 の段階から順に実装していきます。</p>
+
+  <h2 id="whatwg-w3c">WHATWG と W3C の関係</h2>
+  <p>HTML と DOM は、2019 年の合意から <b>WHATWG の Living Standard が唯一の本体</b>です。W3C は別の HTML を書くのではなく、その一時点のコピーに「勧告」という承認を付けます。</p>
+  <div class="flow">
+    <div class="box k-whatwg">Living Standard<small>WHATWG が随時更新</small></div>
+    <span class="arrow">→ 約半年ごと →</span>
+    <div class="box k-whatwg">Review Draft<small>その時点のスナップショット</small></div>
+    <span class="arrow">→</span>
+    <div class="box k-w3c">W3C の勧告<small>同じ文書に承認を付ける</small></div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>見たいもの</th><th>どこを見る</th></tr></thead>
+      <tbody>
+        <tr><td>HTML・DOM・Fetch の最新の仕様</td><td>WHATWG の Living Standard（<code>*.spec.whatwg.org</code>）</td></tr>
+        <tr><td>CSS・Web Crypto・WCAG の仕様</td><td>W3C の仕様（<code>w3.org/TR/</code>）</td></tr>
+        <tr><td>実際にどのブラウザで動くか</td><td>MDN の互換性表、Can I use、web-platform-tests の結果（wpt.fyi）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="muted">web-platform-tests（WPT）は両団体とブラウザが共有するテスト集。仕様どおりに実装されているかはここで確かめます。</p>
+
+  <h2 id="tc55">TC55（WinterTC）：サーバー側の共通 API</h2>
+  <div class="flow">
+    <div class="box k-tc55">WinterCG<small>2022 年。W3C のコミュニティグループ</small></div>
+    <span class="arrow">→</span>
+    <div class="box k-tc55">Ecma TC55（WinterTC）<small>2025 年 1 月に移行</small></div>
+    <span class="arrow">→</span>
+    <div class="box k-tc55">ECMA-429 第 1 版<small>2025 年 12 月採択</small></div>
+  </div>
+  <p>W3C のコミュニティグループは正式な標準を発行できないため、標準を出せる Ecma に移りました。W3C とは引き続き連携しています。</p>
+
+  <h3 id="mca">Minimum Common API に入っている主な API</h3>
+  <p>準拠するランタイムはこれらをすべて実装する決まりです。出どころの団体ごとに分けると、ほとんどが WHATWG と W3C の API だとわかります。</p>
+  <div class="apis">
+    <div class="apigrp k-whatwg">
+      <div class="h"><span class="org">WHATWG</span>Fetch・URL・Streams・Encoding・DOM・HTML・Console</div>
+      <div class="chips"><code>fetch</code><code>Request</code><code>Response</code><code>Headers</code><code>FormData</code><code>URL</code><code>URLSearchParams</code><code>URLPattern</code><code>ReadableStream</code><code>TransformStream</code><code>TextEncoder</code><code>TextDecoder</code><code>CompressionStream</code><code>AbortController</code><code>EventTarget</code><code>setTimeout</code><code>queueMicrotask</code><code>structuredClone</code><code>atob</code><code>console</code></div>
+    </div>
+    <div class="apigrp k-w3c">
+      <div class="h"><span class="org">W3C</span>Web Crypto・File API・High Resolution Time・WebAssembly</div>
+      <div class="chips"><code>crypto.subtle</code><code>CryptoKey</code><code>Blob</code><code>File</code><code>performance</code><code>WebAssembly</code></div>
+    </div>
+    <div class="apigrp k-host">
+      <div class="h">入っていない（画面やブラウザ前提のもの）</div>
+      <div class="chips out"><code>document</code><code>window</code><code>localStorage</code><code>alert</code><code>XMLHttpRequest</code></div>
+    </div>
+  </div>
+
+  <h3>サーバーでは仕様どおりにいかない部分</h3>
+  <p>サーバーには「今開いているページ」がありません。そのため Fetch の一部はブラウザと違う動きになり、ECMA-429 でも違いを文書化することを求めています。</p>
+  <ul class="dots">
+    <li>ページのオリジンがないので、ブラウザのように <code>Origin</code> ヘッダーを自動では付けない</li>
+    <li>Cookie の保存場所（cookie jar）がないので、Cookie は自動で送られない</li>
+    <li>CORS のようなブラウザ向けの保護も、サーバー同士の通信では前提にならない</li>
+  </ul>
+  <p>TC55 はこうした違いを Fetch の仕様側（WHATWG）に反映してもらう方向で調整しています。ほかに、TCP/TLS ソケット、環境変数や引数を読む CLI 向け API、HTTP サーバーの API なども検討中です。</p>
+
+  <h3>実際のコードでの意味</h3>
+  <p>複数のランタイムで動かしたいライブラリは、<b>Minimum Common API の範囲で書く</b>のが目安になります。Hono のように <code>Request</code> を受けて <code>Response</code> を返す形のフレームワークが Node.js でも Workers でも動くのは、この共通部分の上に乗っているからです。</p>
+  <p class="muted">TC55 に参加しているのは Cloudflare・Node.js・Bloomberg・Igalia などです。Bun は正式なメンバーではありません。Bun にも <code>fetch</code> や <code>Response</code> はありますが、ECMA-429 に沿うことを約束しているわけではないので、Bun でも動くかは個別に確かめます。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><span class="ng">✗</span> <code>setTimeout</code> や <code>console</code> は JavaScript の言語機能<br><span class="ok">○</span> HTML Standard と Console Standard（WHATWG）で決まっている。ECMAScript には入っていない</div>
+  <div class="card myth"><span class="ng">✗</span> HTML の仕様は W3C が作っている<br><span class="ok">○</span> 本体は WHATWG の Living Standard。W3C はそのスナップショットを勧告として承認する</div>
+  <div class="card myth"><span class="ng">✗</span> Stage 3 になった機能はどのブラウザでも使える<br><span class="ok">○</span> Stage 3 は「実装を始めてよい」段階。使えるかどうかは各ブラウザの実装状況で確かめる</div>
+  <div class="card myth"><span class="ng">✗</span> TC55 はサーバー専用の新しい API を作る団体<br><span class="ok">○</span> 中心は既存の Web API から共通セットを選ぶこと。サーバーで違う動きが必要な点は WHATWG や W3C の仕様に戻して直す</div>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="js-runtimes.html">JS ランタイム比較 →</a> <a href="cors-sop.html">CORS と同一オリジンポリシー →</a> <a href="typescript.html">TypeScript 学習フローと仕組み →</a></p>
+
+  <p class="sources">出典: <a href="https://tc39.es/process-document/">The TC39 Process</a> ／ <a href="https://www.w3.org/2019/04/WHATWG-W3C-MOU.html">W3C と WHATWG の覚書（2019）</a> ／ <a href="https://www.w3.org/blog/2025/collaborating-across-w3c-and-ecma-for-web-interoperable-server-runtimes-through-wintertc/">W3C ブログ：WinterTC について（2025）</a> ／ <a href="https://ecma-international.org/publications-and-standards/standards/ecma-429/">ECMA-429</a> ／ <a href="https://min-common-api.proposal.wintertc.org/">Minimum common web API</a> ／ <a href="https://people.igalia.com/abotella/pub/TPAC-2025-WinterTC/">WinterTC の TPAC 2025 発表資料</a>（2026 年 11 月 3 日時点）</p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+// コードの行を団体で絞り込む
+(function () {
+  var bar = document.getElementById('who-filter');
+  var rows = document.querySelectorAll('#who-list .who-row');
+  bar.addEventListener('click', function (e) {
+    var b = e.target.closest('.tab');
+    if (!b) return;
+    bar.querySelectorAll('.tab').forEach(function (t) { t.setAttribute('aria-selected', String(t === b)); });
+    var k = b.dataset.k;
+    rows.forEach(function (r) { r.classList.toggle('dim', k !== 'all' && r.dataset.k !== k); });
+  });
+})();
+
+// TC39 のステージ
+(function () {
+  var S = [
+    { id: '0', name: 'アイデア出し', ja: 'アイデア', mean: 'まだ委員会では検討していない思いつきの段階。',
+      need: '条件なし。',
+      you: 'ブログや SNS で見かけても、仕様になるかはまったくわからない。' },
+    { id: '1', name: '解き方を設計する', ja: '設計', mean: '「この問題を解く価値がある」と委員会が認めた段階。解き方はまだ探している。',
+      need: '担当者（チャンピオン）、問題と解決の方向性の説明、公開リポジトリ。',
+      you: '形は大きく変わりうる。試すとしても遊びの範囲で。' },
+    { id: '2', name: '解き方を詰める', ja: '詰める', mean: '解き方が 1 つに決まり、仕様の文章を書き始めた段階。細部はまだ変わる。',
+      need: '主な構文と意味をカバーする仕様の草稿と、使い方の例。レビュー担当者はこの段階の間に決まる。',
+      you: 'Babel などで試せることがあるが、構文や名前が変わる可能性がある。' },
+    { id: '2.7', name: 'テストと検証', ja: '検証', mean: '設計は完成。テストや試作の結果でしか変えない段階。',
+      need: '完成した仕様文と、レビュー担当者・エディターの承認。test262（公式テスト集）のテストを書く。',
+      you: '設計はほぼ固まったが、まだ本番で頼れる段階ではない。' },
+    { id: '3', name: '実装経験を積む', ja: '実装', mean: '実装を推奨する段階。ブラウザやランタイムが実装を進める。',
+      need: '十分なテストと、実装に向けた事前の経験。',
+      you: 'ブラウザに順次入り始める。TypeScript も基本はこの段階から対応する。使うときは実装状況を確認。' },
+    { id: '4', name: '仕様に取り込む', ja: '取り込み', mean: '完成。次の年の版（ES20XX）に入る。',
+      need: 'test262 に通る互換な実装が 2 つ以上、実際に出荷された実績、仕様への取り込み PR とエディターの承認。',
+      you: '主要ブラウザではすでに動いていることが多い。' }
+  ];
+  var box = document.getElementById('stages');
+  var out = document.getElementById('stage-detail');
+  function show(i) {
+    box.querySelectorAll('.stage').forEach(function (b, j) { b.setAttribute('aria-pressed', String(i === j)); });
+    var s = S[i];
+    out.innerHTML = '';
+    var h = document.createElement('h3');
+    h.textContent = 'Stage ' + s.id + '：' + s.name;
+    var p = document.createElement('p'); p.textContent = s.mean;
+    var n = document.createElement('p'); n.className = 'need';
+    var nb = document.createElement('b'); nb.textContent = '進むための条件：'; n.appendChild(nb); n.appendChild(document.createTextNode(s.need));
+    var y = document.createElement('p'); y.className = 'you';
+    var yb = document.createElement('b'); yb.textContent = '使う側から見ると：'; y.appendChild(yb); y.appendChild(document.createTextNode(s.you));
+    out.appendChild(h); out.appendChild(p); out.appendChild(n); out.appendChild(y);
+  }
+  S.forEach(function (s, i) {
+    if (i) { var a = document.createElement('span'); a.className = 'arrow'; a.textContent = '→'; box.appendChild(a); }
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'stage';
+    b.innerHTML = s.id + '<small>' + s.ja + '</small>';
+    b.addEventListener('click', function () { show(i); });
+    box.appendChild(b);
+  });
+  show(4);
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "ブラウザでも Node.js・Cloudflare Workers でも動くライブラリを作りたい。依存してよい API の目安は？",
+    "choices": [
+      "TC55 の Minimum Common API（ECMA-429）に入っている API",
+      "ブラウザで動く API なら何でもよい（document や localStorage も含む）",
+      "Node.js の node: モジュールなら、他のランタイムでも必ず動く"
+    ],
+    "answer": 0,
+    "explain": "Minimum Common API は、サーバー側ランタイムが共通で実装する Web API の範囲。document や localStorage は入っておらず、node: モジュールは標準の外。",
+    "ref": "#mca"
+  },
+  {
+    "q": "ブラウザでの setTimeout の正確な挙動（遅延の扱いなど）を仕様で確かめたい。どこを見る？",
+    "choices": [
+      "ECMAScript の仕様（ECMA-262）",
+      "WHATWG の HTML Standard",
+      "W3C の CSS の仕様"
+    ],
+    "answer": 1,
+    "explain": "タイマーとイベントループは言語ではなく HTML Standard で決まっている。Node.js は自前で実装しているので、挙動が違うことがある。",
+    "ref": "#layers"
+  },
+  {
+    "q": "気になっていた JavaScript の提案が Stage 2.7 になった。本番のコードで使い始めてよい？",
+    "choices": [
+      "使ってよい。設計が完成したので全ブラウザに入っている",
+      "使ってよい。Stage 2.7 からは名前や構文が変わらないことが保証されている",
+      "まだ待つ。テストと試作で検証中で、ブラウザの実装が本格化するのは Stage 3 から"
+    ],
+    "answer": 2,
+    "explain": "Stage 2.7 は検証の段階で、テストや試作の結果によっては変わりうる。Stage 3 以降で、実装状況を確かめてから使う。",
+    "ref": "#tc39"
+  },
+  {
+    "q": "HTML の仕様の最新の内容を確認したい。どれを見るのがよい？",
+    "choices": [
+      "WHATWG の HTML Living Standard",
+      "W3C の HTML の勧告。WHATWG 版とは内容が別物",
+      "W3C の勧告と WHATWG 版の両方を読み比べて、新しい方を採用する"
+    ],
+    "answer": 0,
+    "explain": "HTML と DOM の本体は WHATWG の Living Standard。W3C の勧告はそのスナップショットに承認を付けたもので、内容は同じ。",
+    "ref": "#whatwg-w3c"
+  },
+  {
+    "q": "Workers から外部 API に fetch したら、ブラウザでは付いていた Origin ヘッダーや Cookie が送られていなかった。どう考える？",
+    "choices": [
+      "ランタイムのバグなので、修正を待つ",
+      "サーバーにはページのオリジンや Cookie の保存場所がないので、付かないのが前提。必要なら自分でヘッダーを付ける",
+      "CORS の設定を有効にすれば自動で付くようになる"
+    ],
+    "answer": 1,
+    "explain": "サーバー側の fetch には「今開いているページ」がない。Origin や Cookie が必要な API には、自分でヘッダーを組み立てて送る。",
+    "ref": "#tc55"
+  }
+]
+</script>
+</body>
+</html>
