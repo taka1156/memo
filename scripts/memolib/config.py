@@ -1,7 +1,7 @@
 """置き場所・公開 URL・日付など、リポジトリ全体で共有する設定。
 
-置き場所（docs/ やテンプレートの場所）を知っているのはこのモジュールだけ。
-docs/ は原本（手で書く HTML と共通ファイル）だけを置く場所で、build は docs/ を読むだけで書き換えない。
+置き場所（src/ やテンプレートの場所）を知っているのはこのモジュールだけ。
+src/ は原本（手で書く HTML と共通ファイル）だけを置く場所で、build は src/ を読むだけで書き換えない。
 build の出力（公開するサイト一式）は dist/ に書き出す（.gitignore 済み。Actions が dist ブランチにデプロイする）。
 サイトごとに変わる値（サイト名・リポジトリ・ブランチ・タイムゾーンなど）は
 リポジトリ直下の memo.config.json に書き、ここで読み込む。コードやスキルに直接書かない。
@@ -16,11 +16,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent  # scripts/memolib/ の 2 つ上
 CONFIG_FILE = ROOT / "memo.config.json"
-DOCS = ROOT / "docs"  # 原本の置き場所（build は読むだけ）
+SRC = ROOT / "src"  # 原本の置き場所（build は読むだけ。単体で開いて見るものではない）
 DIST = ROOT / "dist"  # build の出力。公開するサイト一式（GitHub Pages は dist ブランチから公開）
-INDEX = DOCS / "index.html"
-QUIZ_PAGE = DOCS / "quiz.html"  # 全メモの問題から 10 問解くページ
-SETTINGS_PAGE = DOCS / "settings.html"  # 管理者がアクセント色を試して、固定する手順へ進むページ
+INDEX = SRC / "index.html"
+QUIZ_PAGE = SRC / "quiz.html"  # 全メモの問題から 10 問解くページ
+SETTINGS_PAGE = SRC / "settings.html"  # 管理者がアクセント色を試して、固定する手順へ進むページ
 # メモではない特別なページ（一覧に載せない・メモ名に使えない）。一覧データは memos.json などから読み込む
 SPECIAL_PAGES = (INDEX, QUIZ_PAGE, SETTINGS_PAGE)
 SPECIAL_NAMES = {p.name for p in SPECIAL_PAGES}
@@ -208,8 +208,8 @@ def pages_url(repository: str) -> str:
 
 
 def site_url() -> str:
-    """公開 URL（末尾 /）。docs/CNAME があればその独自ドメイン、なければ GitHub Pages の URL。"""
-    cname = DOCS / "CNAME"
+    """公開 URL（末尾 /）。src/CNAME があればその独自ドメイン、なければ GitHub Pages の URL。"""
+    cname = SRC / "CNAME"
     if cname.is_file():
         lines = cname.read_text(encoding="utf-8").strip().splitlines()
         if lines and lines[0].strip():
@@ -274,7 +274,7 @@ def branding(cfg: dict | None = None, url: str | None = None) -> dict:
 def asset_version(name: str) -> str:
     """画像の中身から短いハッシュを作る。画像を差し替えると URL が変わり、
     Discord などの画像キャッシュが古いまま残るのを防ぐ。"""
-    f = DOCS / "assets" / name
+    f = SRC / "assets" / name
     return hashlib.sha256(f.read_bytes()).hexdigest()[:8] if f.is_file() else ""
 
 
@@ -285,6 +285,6 @@ HEAD_RE = re.compile(r"<!-- memo:head.*?<!-- /memo:head -->\n?", re.S)
 TEMPLATE = ROOT / ".claude" / "skills" / "memo-style" / "template.html"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
-ASSETS = DOCS / "assets"
+ASSETS = SRC / "assets"
 # claude.ai のアプリ側に置く入口スキル（build が memo.config.json から dist/ に生成する）
 ENTRY_SKILL = DIST / "entry-skill" / "SKILL.md"

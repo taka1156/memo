@@ -1,6 +1,6 @@
 name: Set accent color
 
-# 設定ページ（docs/settings.html）で選んだアクセント色をサイト全体に固定する。
+# 設定ページ（src/settings.html）で選んだアクセント色をサイト全体に固定する。
 # Actions の画面の「Run workflow」から色を入れて実行すると、memo.config.json の branding.accent・accent_light を
 # 書き換えてコミット・push し、続けて Deploy MEMO を呼んで全ページを作り直して公開する（サーバーなしで「設定を保存する」代わり）。
 # 実行できるのはリポジトリに書き込み権限がある人だけ。
@@ -72,11 +72,11 @@ jobs:
             if [ "$IMAGES" = "true" ]; then
               python3 branding/render.py   # og.png が変わると、デプロイの build が og:image の ?v= を更新する
             fi
-            if [ -z "$(git status --porcelain -- memo.config.json docs/assets)" ]; then
+            if [ -z "$(git status --porcelain -- memo.config.json src/assets)" ]; then
               echo "すでにこの色です（デプロイだけやり直す）"
               exit 0
             fi
-            git add memo.config.json docs/assets
+            git add memo.config.json src/assets
             git commit -q -m "Set accent color: ${ACCENT}${ACCENT_LIGHT:+ / ${ACCENT_LIGHT}}"
             if git push origin "HEAD:${branch}"; then
               echo "### アクセント色を変更しました" >> "$GITHUB_STEP_SUMMARY"

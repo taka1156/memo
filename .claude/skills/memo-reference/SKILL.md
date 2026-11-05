@@ -28,7 +28,7 @@ description: MEMO の既存メモを参照・検索・部分修正するとき�
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
-python3 scripts/memo.py build       # dist/ に Markdown 版を作る（docs/ は書き換えない）
+python3 scripts/memo.py build       # dist/ に Markdown 版を作る（src/ は書き換えない）
 ```
 
 - まず `dist/llms.txt` を読む（全体で十数 KB）。タイトル・説明・タグで当たりをつける。

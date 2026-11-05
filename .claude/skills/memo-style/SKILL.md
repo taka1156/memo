@@ -135,7 +135,7 @@ python3 scripts/memo.py new NAME   # NAME は英小文字・ハイフン（例: 
 
 ## 会話内でプレビューするとき
 
-クイズの表示（CSS / JS）は `docs/assets/memo-quiz.*` を参照する形なので、HTML をそのまま送るとクイズが動かない。
+クイズの表示（CSS / JS）は `src/assets/memo-quiz.*` を参照する形なので、HTML をそのまま送るとクイズが動かない。
 `preview` で中身を埋め込んだ 1 枚を作って送る（同じファイルから埋め込むだけなので、公開版と見た目・動きは変わらない）。下書きのファイルパスにも使える。
 
 ```bash

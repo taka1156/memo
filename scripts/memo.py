@@ -2,25 +2,25 @@
 """MEMO リポジトリ用ツール（標準ライブラリのみ）。仕組みの解説はリポジトリ直下の memo-detail.md
 
 使い方（どのディレクトリから実行してもよい）:
-  python3 scripts/memo.py new   NAME                  テンプレートから docs/NAME.html を作る
-  python3 scripts/memo.py add   SRC NAME [--force]    外部の HTML を docs/NAME.html として取り込む
-  python3 scripts/memo.py path  NAME [--md]           docs/NAME.html（--md なら dist/md/NAME.md）の絶対パスを表示
-  python3 scripts/memo.py url   [NAME]                公開 URL を表示（docs/CNAME、なければ GitHub Pages の URL）
+  python3 scripts/memo.py new   NAME                  テンプレートから src/NAME.html を作る
+  python3 scripts/memo.py add   SRC NAME [--force]    外部の HTML を src/NAME.html として取り込む
+  python3 scripts/memo.py path  NAME [--md]           src/NAME.html（--md なら dist/md/NAME.md）の絶対パスを表示
+  python3 scripts/memo.py url   [NAME]                公開 URL を表示（src/CNAME、なければ GitHub Pages の URL）
   python3 scripts/memo.py lint  MEMO... [--fix] [--backlink]
   python3 scripts/memo.py meta  MEMO [--title T] [--desc D] [--tags a,b] [--date YYYY-MM-DD]
-  python3 scripts/memo.py build [--check]             docs/ から公開用のサイト一式を dist/ に書き出す（--check は古いかだけ見る）
+  python3 scripts/memo.py build [--check]             src/ から公開用のサイト一式を dist/ に書き出す（--check は古いかだけ見る）
   python3 scripts/memo.py list
   python3 scripts/memo.py config [KEY]                memo.config.json の設定を表示（例: config branch）
   python3 scripts/memo.py accent COLOR [LIGHT]        アクセント色を memo.config.json に書く（LIGHT を省くと自動。続けて build）
   python3 scripts/memo.py preview MEMO|index|quiz|settings|FILE [-o OUT]   会話内プレビュー用に 1 枚へ埋め込んだ HTML を作る
 
-MEMO / NAME は「docker」「docker.html」「docs/docker.html」のどれでもよい
+MEMO / NAME は「docker」「docker.html」「src/docker.html」のどれでもよい
 （既存のファイルパスを渡した場合はそのファイルを対象にする）。
-置き場所（docs/）やテンプレートの場所はこのスクリプトだけが知っている。
+置き場所（src/）やテンプレートの場所はこのスクリプトだけが知っている。
 サイト名・リポジトリ・ブランチ・タイムゾーンなど、サイトごとの値はリポジトリ直下の memo.config.json に書く。
 
-メモ = docs/ 直下の *.html（index.html・quiz.html・settings.html 以外）。docs/ は原本だけを置く場所で、
-build は docs/ を読むだけで書き換えない。公開するのは build が書き出す dist/（Actions が dist ブランチにデプロイする）。
+メモ = src/ 直下の *.html（index.html・quiz.html・settings.html 以外）。src/ は原本だけを置く場所で、
+build は src/ を読むだけで書き換えない。公開するのは build が書き出す dist/（Actions が dist ブランチにデプロイする）。
 一覧情報は各メモの <head> 内の次のタグから読み取る:
   <title>                         タイトル（memo:title があればそちら優先）
   <meta name="description">       説明
@@ -28,7 +28,7 @@ build は docs/ を読むだけで書き換えない。公開するのは build 
   <meta name="memo:date">         YYYY-MM-DD
 
 確認クイズ（任意）は <script type="application/json" id="memo-quiz"> に問題データだけを書く。
-表示用の UI は build が dist/ のページの末尾に入れる（CSS / JS 本体は docs/assets/memo-quiz.*）。
+表示用の UI は build が dist/ のページの末尾に入れる（CSS / JS 本体は src/assets/memo-quiz.*）。
 build は一覧を dist/memos.json、全問題を dist/quizzes.json、Markdown 版を dist/md/ と dist/llms.txt に書き出し、
 トップページと quiz.html はそれらを読み込んで表示する。
 あわせて、アプリ（claude.ai）に置く入口スキル dist/entry-skill/SKILL.md も memo.config.json から生成する。
@@ -46,7 +46,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from memolib.config import (CONFIG, CONFIG_FILE, DOCS, ROOT, SITE_URL, SPECIAL_NAMES, TEMPLATE, accents,
+from memolib.config import (CONFIG, CONFIG_FILE, SRC, ROOT, SITE_URL, SPECIAL_NAMES, TEMPLATE, accents,
                             read_text, repository_warning, set_accent, today)
 from memolib.dist import dist_outputs, sync_dist
 from memolib.lint import lint_text
@@ -108,7 +108,7 @@ def cmd_meta(args) -> int:
 
 
 def cmd_build(args) -> int:
-    """docs/（原本）を読んで、公開するサイト一式を dist/ に書き出す。docs/ は書き換えない。"""
+    """src/（原本）を読んで、公開するサイト一式を dist/ に書き出す。src/ は書き換えない。"""
     warning = repository_warning()
     if warning:
         print(warning, file=sys.stderr)
@@ -202,7 +202,7 @@ def cmd_preview(args) -> int:
     if p.is_file():
         src = p.resolve()
     elif p.name.removesuffix(".html") + ".html" in SPECIAL_NAMES:
-        src = DOCS / (p.name.removesuffix(".html") + ".html")
+        src = SRC / (p.name.removesuffix(".html") + ".html")
     else:
         src = memo_path(args.src)
     out = Path(args.out) if args.out else Path(tempfile.gettempdir()) / "memo-preview" / src.name
@@ -224,7 +224,7 @@ def main() -> int:
     p.add_argument("name")
     p.set_defaults(func=cmd_new)
 
-    p = sub.add_parser("add", help="外部の HTML を docs/ に取り込む")
+    p = sub.add_parser("add", help="外部の HTML を src/ に取り込む")
     p.add_argument("src")
     p.add_argument("name")
     p.add_argument("--force", action="store_true")
@@ -235,7 +235,7 @@ def main() -> int:
     p.add_argument("--md", action="store_true", help="Markdown 版（dist/md/NAME.md。build で作られる）のパス")
     p.set_defaults(func=cmd_path)
 
-    p = sub.add_parser("url", help="公開 URL を表示（docs/CNAME から決まる）")
+    p = sub.add_parser("url", help="公開 URL を表示（src/CNAME から決まる）")
     p.add_argument("name", nargs="?")
     p.set_defaults(func=cmd_url)
 
@@ -253,7 +253,7 @@ def main() -> int:
     p.add_argument("--date", nargs="?", const="", help="YYYY-MM-DD（値なしで今日。タイムゾーンは memo.config.json）")
     p.set_defaults(func=cmd_meta)
 
-    p = sub.add_parser("build", help="docs/ から公開用のサイト一式（ページ・一覧データ・Markdown 版・入口スキル）を dist/ に書き出す")
+    p = sub.add_parser("build", help="src/ から公開用のサイト一式（ページ・一覧データ・Markdown 版・入口スキル）を dist/ に書き出す")
     p.add_argument("--check", action="store_true", help="書き出さずに、dist/ が最新かだけを見る")
     p.set_defaults(func=cmd_build)
 

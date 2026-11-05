@@ -94,7 +94,7 @@ QUIZ_RE = re.compile(r"<!-- memo:quiz.*?<!-- /memo:quiz -->\n?", re.S)
 QUIZ_DATA_RE = re.compile(
     r"<script\b[^>]*\bid=[\"']memo-quiz[\"'][^>]*>(.*?)</script>", re.S | re.I)
 
-# 表示の CSS / JS は docs/assets/memo-quiz.css・memo-quiz.js に 1 つだけ置き、各メモからは参照する。
+# 表示の CSS / JS は src/assets/memo-quiz.css・memo-quiz.js に 1 つだけ置き、各メモからは参照する。
 # 会話内プレビューのように HTML 1 枚しか渡せない場面では、preview コマンドが中身を埋め込む。
 QUIZ_CSS = ASSETS / "memo-quiz.css"
 QUIZ_JS = ASSETS / "memo-quiz.js"
@@ -219,7 +219,7 @@ def apply_site(text: str) -> str:
 
 
 def strip_generated(text: str) -> str:
-    """自動生成ブロック（head・クイズ）を取り除く。原本（docs/）には置かず、build が dist/ のページにだけ入れる。"""
+    """自動生成ブロック（head・クイズ）を取り除く。原本（src/）には置かず、build が dist/ のページにだけ入れる。"""
     return QUIZ_RE.sub("", HEAD_RE.sub("", text))
 
 

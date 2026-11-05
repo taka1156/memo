@@ -28,17 +28,17 @@ class RepositoryTest(unittest.TestCase):
     """このリポジトリにコミットされている中身のテスト。"""
 
     def test_sources_have_no_generated_outputs(self):
-        """docs/ は原本だけ: 自動生成ブロックも生成物も入っていないこと。"""
+        """src/ は原本だけ: 自動生成ブロックも生成物も入っていないこと。"""
         with Workspace(real=True) as ws:
-            for page in sorted(ws.docs.glob("*.html")):
+            for page in sorted(ws.src.glob("*.html")):
                 text = page.read_text(encoding="utf-8")
                 for pat in GENERATED_BLOCKS:
                     self.assertIsNone(re.search(pat, text, re.S), f"{page.name} に自動生成ブロックがある")
             for name in GENERATED_IN_DOCS:
-                self.assertFalse((ws.docs / name).exists(), f"docs/{name} は build が dist/ に作る")
+                self.assertFalse((ws.src / name).exists(), f"src/{name} は build が dist/ に作る")
 
     def test_build_writes_only_dist(self):
-        """本物のメモで build しても docs/ は 1 バイトも変わらず、dist/ に全ページができること。"""
+        """本物のメモで build しても src/ は 1 バイトも変わらず、dist/ に全ページができること。"""
         with Workspace(real=True) as ws:
             before = ws.snapshot()
             ws.run("build")
@@ -79,9 +79,9 @@ class BuildTest(unittest.TestCase):
                         "llms.txt", "md/sample.md", str(ENTRY_REL)):
                 self.assertTrue((ws.dist / rel).is_file(), rel)
             self.assertEqual((ws.dist / "assets" / "memo-quiz.js").read_bytes(),
-                             (ws.docs / "assets" / "memo-quiz.js").read_bytes())
+                             (ws.src / "assets" / "memo-quiz.js").read_bytes())
             self.assertIn("<!-- memo:head", ws.read("sample.html"))
-            self.assertNotIn("<!-- memo:head", (ws.docs / "sample.html").read_text(encoding="utf-8"))
+            self.assertNotIn("<!-- memo:head", (ws.src / "sample.html").read_text(encoding="utf-8"))
 
     def test_build_is_idempotent(self):
         with Workspace() as ws:
@@ -122,7 +122,7 @@ class BuildTest(unittest.TestCase):
     def test_removed_memo_disappears_from_outputs(self):
         with Workspace() as ws:
             self.assertTrue((ws.dist / "md" / "sample.md").exists())
-            (ws.docs / "sample.html").unlink()
+            (ws.src / "sample.html").unlink()
             p = ws.run("build")
             self.assertIn("削除", p.stdout)
             self.assertFalse((ws.dist / "sample.html").exists())
@@ -134,10 +134,10 @@ class BuildTest(unittest.TestCase):
 
     def test_removed_asset_disappears_from_dist(self):
         with Workspace() as ws:
-            (ws.docs / "assets" / "zz.txt").write_text("x", encoding="utf-8")
+            (ws.src / "assets" / "zz.txt").write_text("x", encoding="utf-8")
             ws.run("build")
             self.assertTrue((ws.dist / "assets" / "zz.txt").is_file())
-            (ws.docs / "assets" / "zz.txt").unlink()
+            (ws.src / "assets" / "zz.txt").unlink()
             ws.run("build")
             self.assertFalse((ws.dist / "assets" / "zz.txt").exists())
 
@@ -155,7 +155,7 @@ class NewAddMetaTest(unittest.TestCase):
     def test_new_copies_template_and_refuses_existing(self):
         with Workspace() as ws:
             ws.run("new", "zz-sample")
-            self.assertEqual((ws.docs / "zz-sample.html").read_text(encoding="utf-8"),
+            self.assertEqual((ws.src / "zz-sample.html").read_text(encoding="utf-8"),
                              (REPO / ".claude/skills/memo-style/template.html").read_text(encoding="utf-8"))
             self.assertNotEqual(ws.run("new", "zz-sample", check=False).returncode, 0)
 
@@ -173,19 +173,19 @@ class NewAddMetaTest(unittest.TestCase):
             src = ws.root / "pasted.md"
             src.write_text("```html\n<!DOCTYPE html>\n<html><body>x</body></html>\n```\n", encoding="utf-8")
             ws.run("add", str(src), "zz-pasted")
-            self.assertEqual((ws.docs / "zz-pasted.html").read_text(encoding="utf-8"),
+            self.assertEqual((ws.src / "zz-pasted.html").read_text(encoding="utf-8"),
                              "<!DOCTYPE html>\n<html><body>x</body></html>")
             self.assertNotEqual(ws.run("add", str(src), "zz-pasted", check=False).returncode, 0)
             ws.run("add", str(src), "zz-pasted", "--force")
 
     def test_meta_sets_fields_escapes_and_normalizes_tags(self):
         with Workspace() as ws:
-            ws.run("add", str(ws.docs / "sample.html"), "zz-meta")
+            ws.run("add", str(ws.src / "sample.html"), "zz-meta")
             out = json.loads(ws.run("meta", "zz-meta", "--title", "T <x>", "--desc", 'D "q"',
                                     "--tags", " a, b ,,", "--date", "2026-01-02").stdout)
             self.assertEqual(out, {"file": "zz-meta.html", "title": "T <x>", "desc": 'D "q"',
                                    "tags": ["a", "b"], "date": "2026-01-02"})
-            text = (ws.docs / "zz-meta.html").read_text(encoding="utf-8")
+            text = (ws.src / "zz-meta.html").read_text(encoding="utf-8")
             self.assertIn("<title>T &lt;x&gt;</title>", text)
             self.assertIn('<meta name="description" content="D &quot;q&quot;">', text)
             self.assertNotIn("<!-- memo:head", text)  # 原本には自動生成ブロックを入れない
@@ -208,9 +208,9 @@ class NewAddMetaTest(unittest.TestCase):
             p = ws.run("add", str(src), "sj", check=False)
             self.assertNotEqual(p.returncode, 0)
             self.assertIn("sjis.html: UTF-8 で読めません", p.stderr)
-            (ws.docs / "broken.html").write_bytes(b"\xff\xfe<html>")
+            (ws.src / "broken.html").write_bytes(b"\xff\xfe<html>")
             p = ws.run("build", check=False)
-            self.assertIn("docs/broken.html: UTF-8 で読めません", p.stderr)
+            self.assertIn("src/broken.html: UTF-8 で読めません", p.stderr)
             self.assertNotIn("Traceback", p.stderr)
 
 
@@ -254,8 +254,8 @@ class LintTest(unittest.TestCase):
             self.assertEqual(p.returncode, 1)
             self.assertIn("自動生成ブロック", p.stdout)
             ws.run("lint", "zz-copied", "--fix")
-            self.assertEqual((ws.docs / "zz-copied.html").read_text(encoding="utf-8"),
-                             (ws.docs / "sample.html").read_text(encoding="utf-8"))
+            self.assertEqual((ws.src / "zz-copied.html").read_text(encoding="utf-8"),
+                             (ws.src / "sample.html").read_text(encoding="utf-8"))
 
     def test_lint_reports_quiz_problems(self):
         with Workspace() as ws:
@@ -275,7 +275,7 @@ class LintTest(unittest.TestCase):
 class PreviewTest(unittest.TestCase):
     def test_memo_preview_inlines_quiz_assets(self):
         with Workspace() as ws:
-            src_before = (ws.docs / "sample.html").read_bytes()
+            src_before = (ws.src / "sample.html").read_bytes()
             out = ws.root / "out" / "sample.html"
             ws.run("preview", "sample", "-o", str(out))
             text = out.read_text(encoding="utf-8")
@@ -283,7 +283,7 @@ class PreviewTest(unittest.TestCase):
             self.assertNotIn("assets/memo-quiz.js", text)
             self.assertIn("#memo-quiz-ui", text)  # CSS の中身
             self.assertIn("function refLink", text)  # JS の中身
-            self.assertEqual((ws.docs / "sample.html").read_bytes(), src_before)
+            self.assertEqual((ws.src / "sample.html").read_bytes(), src_before)
 
     def test_index_and_quiz_preview_embed_data(self):
         with Workspace() as ws:
@@ -301,16 +301,16 @@ class PreviewTest(unittest.TestCase):
 
     def test_preview_refuses_to_overwrite_source(self):
         with Workspace() as ws:
-            p = ws.run("preview", "sample", "-o", str(ws.docs / "sample.html"), check=False)
+            p = ws.run("preview", "sample", "-o", str(ws.src / "sample.html"), check=False)
             self.assertNotEqual(p.returncode, 0)
 
 
 class PathUrlTest(unittest.TestCase):
     def test_path_and_url(self):
         with Workspace() as ws:
-            self.assertEqual(ws.run("path", "sample").stdout.strip(), str(ws.docs / "sample.html"))
+            self.assertEqual(ws.run("path", "sample").stdout.strip(), str(ws.src / "sample.html"))
             self.assertEqual(ws.run("path", "sample", "--md").stdout.strip(), str(ws.dist / "md" / "sample.md"))
-            cname = (ws.docs / "CNAME").read_text(encoding="utf-8").strip()
+            cname = (ws.src / "CNAME").read_text(encoding="utf-8").strip()
             self.assertEqual(ws.run("url", "sample").stdout.strip(), f"https://{cname}/sample.html")
             self.assertEqual(ws.run("url").stdout.strip(), f"https://{cname}/")
 
@@ -348,7 +348,7 @@ class SiteConfigTest(unittest.TestCase):
             cfg = {**self.config(ws), "site_name": "NOTES", "repository": "alice/notes", "branch": "trunk",
                    "branding": {"accent": "#ff5500", "accent_light": "#aa3300"}}
             (ws.root / "memo.config.json").write_text(json.dumps(cfg), encoding="utf-8")
-            (ws.docs / "CNAME").unlink()
+            (ws.src / "CNAME").unlink()
             p = ws.run("build", "--check", check=False)
             self.assertEqual(p.returncode, 1)
             self.assertIn("entry-skill/SKILL.md", p.stdout)

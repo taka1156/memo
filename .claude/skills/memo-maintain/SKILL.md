@@ -15,7 +15,7 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 - **置き場所を知っているのは `memolib/config.py` だけ。** 他のモジュールやスキルでパスを組み立てない。
 - **サイトごとの値は `memo.config.json` だけ。** サイト名・リポジトリ・ブランチ・タイムゾーン・ドメイン・アクセント色を、コード・スキル・ワークフロー・`index.html`／`quiz.html`／`settings.html` に直接書かない（ページには `data-memo-site` の目印を付けて `build` に入れさせる。スキルは `memo.py config KEY` で読む）。仕組みだけを別のリポジトリに持っていけるようにするため。
 - **テストは本物のメモに頼らない。** 新しいテストは `tests/fixtures/` のサンプル（`Workspace()`）で書く。本物のメモを確かめるものだけ `RepositoryTest` に置く（メモがないと飛ばされる）。
-- **原本は 1 か所、それ以外は生成する。** `docs/` は原本だけ。build は `docs/` を読むだけで書き換えず、生成物（自動生成ブロックを入れたページ・`memos.json`・`quizzes.json`・`md/`・`llms.txt`・`entry-skill/SKILL.md`）はすべて `dist/`（`.gitignore` 済み）に書き出す。生成物を手で直さず、生成する側を直して `build` する。build 以外のコマンド（lint・meta・new・add）も `docs/` に自動生成ブロックを入れない（lint --fix は見つけたら取り除く）。
+- **原本は 1 か所、それ以外は生成する。** `src/` は原本だけ。build は `src/` を読むだけで書き換えず、生成物（自動生成ブロックを入れたページ・`memos.json`・`quizzes.json`・`md/`・`llms.txt`・`entry-skill/SKILL.md`）はすべて `dist/`（`.gitignore` 済み）に書き出す。生成物を手で直さず、生成する側を直して `build` する。build 以外のコマンド（lint・meta・new・add）も `src/` に自動生成ブロックを入れない（lint --fix は見つけたら取り除く）。
 - **何度実行しても同じ結果になる。** lint・build・meta を 2 回続けて実行しても 2 回目は何も変わらないこと。`dist/` を消して build し直しても同じ中身になること（テストで確かめている）。
 - **自動生成ブロックの目印（`<!-- memo:head` など）と `data-memo-site` の書き方は変えない。** 既存のページがその目印で見つけられている。
 
@@ -25,15 +25,15 @@ MEMO の仕組みそのもの（スクリプト・共通ファイル・ワーク
 | --- | --- |
 | `scripts/memo.py` | コマンドの受け付け（`cmd_*` と `main`）だけ |
 | `memo.config.json` | サイトごとの値（サイト名・説明・リポジトリ・ブランチ・タイムゾーン） |
-| `memolib/config.py` | 置き場所（原本の `docs/`・出力の `dist/`）・`memo.config.json` の読み込みとアクセント色の書き換え（`set_accent`）・公開 URL・日付・アクセント色の計算・自動生成ブロックの目印 |
+| `memolib/config.py` | 置き場所（原本の `src/`・出力の `dist/`）・`memo.config.json` の読み込みとアクセント色の書き換え（`set_accent`）・公開 URL・日付・アクセント色の計算・自動生成ブロックの目印 |
 | `memolib/meta.py` | `<head>` のメタ情報の読み書き、名前からパスへの解決 |
 | `memolib/blocks.py` | 自動生成ブロック（memo:head・memo:quiz）、サイト設定の差し込み（`apply_site`）、フッター、クイズの問題データの検証 |
 | `memolib/entry.py` | アプリ側の入口スキル（`dist/entry-skill/SKILL.md`）の中身 |
-| `docs/settings.html` の JS | アクセント色の候補（`PRESETS`）と、ライト用の自動計算（`config.light_accent` と同じ式。変えたら両方を直す） |
+| `src/settings.html` の JS | アクセント色の候補（`PRESETS`）と、ライト用の自動計算（`config.light_accent` と同じ式。変えたら両方を直す） |
 | `memolib/lint.py` | 崩れのチェックと自動修正 |
 | `memolib/markdown.py` | AI 向けの Markdown 版 |
 | `memolib/site.py` | memos.json・quizzes.json、会話内プレビュー用の 1 枚の HTML |
-| `memolib/dist.py` | `dist/` に置く全ファイルを組み立てて書き出す（`docs/` のコピー＋生成物。消えたファイルは `dist/` からも消す） |
+| `memolib/dist.py` | `dist/` に置く全ファイルを組み立てて書き出す（`src/` のコピー＋生成物。消えたファイルは `dist/` からも消す） |
 | `tests/test_cli.py` | コマンドを外から動かす結合テスト（作りを変えても通るもの）。`RepositoryTest` だけ本物のメモを見る |
 | `tests/test_units.py` | 関数ごとの単体テスト |
 | `tests/snapshot.py` | 全コマンドの出力をフォルダに保存する（前後比較用。本物のメモがなければサンプルで） |
@@ -78,7 +78,7 @@ diff -r <スクラッチパッド>/before <スクラッチパッド>/after   # �
 
 ```bash
 python3 -B -m unittest discover -s tests          # 全部通る
-python3 -B scripts/memo.py build && git status --short   # dist/ を作り直しても docs/ に差分が出ない
+python3 -B scripts/memo.py build && git status --short   # dist/ を作り直しても src/ に差分が出ない
 python3 -B -m py_compile scripts/memo.py scripts/memolib/*.py tests/*.py
 ```
 
@@ -110,5 +110,5 @@ GitHub Actions は Python 3.12 で動く。手元に `python3.12` があれば�
 
 - **日付**: 実行環境の時計は UTC のことがある。「今日」は `config.today()`（`memo.config.json` のタイムゾーン）を使う（`date.today()` を使わない）。
 - **埋め込みの閉じタグ**: JS や JSON を `<script>` に埋め込むときは `</script` をエスケープする（`site._inline_tag`・`window.MEMO_DATA`）。
-- **共通ファイルとプレビュー**: 公開ページは `docs/assets/memo-quiz.*` や JSON を読み込む。HTML 1 枚だけを渡す場面では動かないので、会話に見せるときは `memo.py preview` を通す。
+- **共通ファイルとプレビュー**: 公開ページは `src/assets/memo-quiz.*` や JSON を読み込む。HTML 1 枚だけを渡す場面では動かないので、会話に見せるときは `memo.py preview` を通す。
 - **Actions の差分検出**: `git diff` は新しく生成された（未追跡の）ファイルを見ない。`git status --porcelain` を使う。

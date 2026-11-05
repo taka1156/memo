@@ -1,6 +1,6 @@
 name: Deploy MEMO
 
-# 原本（docs/・scripts/・memo.config.json）が push されたら、build で公開用のサイト一式を dist/ に書き出し、
+# 原本（src/・scripts/・memo.config.json）が push されたら、build で公開用のサイト一式を dist/ に書き出し、
 # その中身をそのまま dist ブランチ（memo.config.json の deploy_branch）にコミットする。GitHub Pages はそのブランチから公開する。
 # 原本のブランチ（main など）には何もコミットしない（自動生成ブロックや一覧データは原本に入らない）。
 # GitHub の画面から HTML を直接アップロードしても、ここで一覧に載って公開される。
@@ -8,7 +8,7 @@ name: Deploy MEMO
 on:
   push:
     paths:
-      - "docs/**" # メモ・トップ・共通ファイル・画像・CNAME
+      - "src/**" # メモ・トップ・共通ファイル・画像・CNAME
       - "scripts/**" # memo.py と memolib/
       - "memo.config.json" # サイト名・リポジトリ・ブランチ・アクセント色
       - ".github/workflows/deploy.yml"
@@ -40,7 +40,7 @@ jobs:
 
       - name: Lint memos (report only)
         run: |
-          memos=$(ls docs/*.html | grep -v -e '/index.html$' -e '/quiz.html$' -e '/settings.html$' || true)
+          memos=$(ls src/*.html | grep -v -e '/index.html$' -e '/quiz.html$' -e '/settings.html$' || true)
           if [ -z "$memos" ]; then
             echo "メモがまだないので lint は省略"
           else

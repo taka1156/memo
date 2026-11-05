@@ -67,9 +67,9 @@ def main(out: Path, fixtures: bool) -> None:
         run("preview", str(draft), "-o", str(out / "draft-preview.html"))
 
         run("new", "zz-new")
-        run("add", str(ws.docs / f"{first}.html"), "zz-add")
+        run("add", str(ws.src / f"{first}.html"), "zz-add")
         run("meta", "zz-add", "--title", "T <x>", "--desc", 'D "q"', "--tags", " a, b ,,", "--date", "2026-01-02")
-        shutil.copy(ws.docs / "zz-add.html", out / "meta.html")
+        shutil.copy(ws.src / "zz-add.html", out / "meta.html")
         run("lint", "zz-new")
         for args in (("path", first), ("path", first, "--md"), ("url", first), ("url",),
                      ("new", "index"), ("new", "Bad_Name"), ("config",)):

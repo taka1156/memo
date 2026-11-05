@@ -3,11 +3,11 @@
 Claude に作ってもらった解説ページ (HTML) を貯めておくリポジトリ。
 仕組み（`scripts/`・スキル・ワークフロー・テスト・`branding/` など）は [memo-kit](https://github.com/taka1156/memo-kit) と同じ構成で、このリポジトリはその実運用（ドッグフーディング）を兼ねています。
 
-- トップページ: `docs/index.html`（メモ一覧・検索・タグ絞り込み・ランダムクイズ）
-- クイズページ: `docs/quiz.html`（ランダム 10 問・カテゴリ別 10 問。最後にスコアと正答一覧、本文へのリンク）
+- トップページ: `src/index.html`（メモ一覧・検索・タグ絞り込み・ランダムクイズ）
+- クイズページ: `src/quiz.html`（ランダム 10 問・カテゴリ別 10 問。最後にスコアと正答一覧、本文へのリンク）
 - 設定ページ: https://memo.taka1156.site/settings.html  （トップページのいちばん下の「設定」から開ける。アクセント色を試して、Actions の `Set accent color` で全ページに固定する。手順は memo-kit の README の「アクセント色を変える」）
 - 公開 URL: https://memo.taka1156.site/  
-  （`docs/CNAME` の独自ドメイン。OGP の URL もここから自動で決まります）
+  （`src/CNAME` の独自ドメイン。OGP の URL もここから自動で決まります）
 - 公開のしくみ: `main` には原本（HTML・スクリプト）だけを置き、push すると GitHub Actions（Deploy MEMO）が `memo.py build` で `dist/` に公開用のサイト一式を作って **dist ブランチ**にコミットします。GitHub Pages の公開元は dist ブランチです（生成物が `main` に混ざらない）
 - 設定: `memo.config.json`（サイト名・説明・リポジトリ・ブランチ・タイムゾーン・アクセント色とアイコン/OGP 画像の文字。コードやスキルには直接書かない）
 - アイコン・OGP 画像: `memo.config.json` の `branding`（`icon: "lines"` で今の横線のアイコン）から `branding/render.py` で作る。設定ページから色を固定すると、Actions が画像も同じ色で作り直す
@@ -60,9 +60,9 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 
 | ファイル | 内容 |
 | --- | --- |
-| `docs/` 直下のメモ | メモ本体（原本。生成物は build が `dist/` に作り、dist ブランチで公開する） |
-| `docs/CNAME` | 独自ドメイン（memo.taka1156.site） |
-| `docs/assets/` の画像 | このサイトのアイコン・OGP 画像 |
+| `src/` 直下のメモ | メモ本体（原本。生成物は build が `dist/` に作り、dist ブランチで公開する） |
+| `src/CNAME` | 独自ドメイン（memo.taka1156.site） |
+| `src/assets/` の画像 | このサイトのアイコン・OGP 画像 |
 | `branding/source.png` | アイコンの元画像 |
 | `memo.config.json` の値 | このサイトの設定 |
 | `README.md` | この説明 |

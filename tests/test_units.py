@@ -32,7 +32,7 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(config.today(), dt.datetime.now(tz).date().isoformat())
 
     def test_site_url_comes_from_cname_or_repository(self):
-        cname = config.DOCS / "CNAME"
+        cname = config.SRC / "CNAME"
         if cname.is_file():
             self.assertEqual(config.SITE_URL, f"https://{cname.read_text(encoding='utf-8').strip()}/")
         else:
@@ -205,8 +205,8 @@ class MetaTest(unittest.TestCase):
         self.assertLess(text.index('name="description"'), text.index("</head>"))
 
     def test_memo_path_resolves_names(self):
-        target = config.DOCS / "sample.html"
-        for arg in ("sample", "sample.html", "docs/sample.html"):
+        target = config.SRC / "sample.html"
+        for arg in ("sample", "sample.html", "src/sample.html"):
             self.assertEqual(meta.memo_path(arg, must_exist=False), target)
 
     def test_memo_path_rejects_reserved_and_bad_names(self):

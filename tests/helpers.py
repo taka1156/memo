@@ -2,17 +2,17 @@
 
 テストは本物のリポジトリを書き換えないよう、一時フォルダに作った「作業用リポジトリ」で memo.py を動かす。
 memo.py は自分の置き場所からリポジトリの場所を決めるので、コピーした scripts/memo.py はコピー先の
-docs/ と memo.config.json を対象にする。
+src/ と memo.config.json を対象にする。
 
 作業用リポジトリは 2 種類:
 
-- Workspace()          仕組みのテスト用。仕組みのファイル（scripts/、テンプレート、docs/ の index.html・
+- Workspace()          仕組みのテスト用。仕組みのファイル（scripts/、テンプレート、src/ の index.html・
                        quiz.html・assets/）に、tests/fixtures/ のサンプルのメモと設定を組み合わせて build したもの。
                        本物のメモが 1 本もなくても（仕組みだけを取り出したリポジトリでも）動く。
-- Workspace(real=True) このリポジトリの docs/ と設定をそのままコピーしたもの。原本がきれいか（自動生成ブロックが
+- Workspace(real=True) このリポジトリの src/ と設定をそのままコピーしたもの。原本がきれいか（自動生成ブロックが
                        混ざっていないか）など、本物の中身を確かめるテストと tests/snapshot.py が使う。
 
-どちらも build の出力は作業用リポジトリの dist/ にできる（docs/ は原本のまま）。
+どちらも build の出力は作業用リポジトリの dist/ にできる（src/ は原本のまま）。
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ FIXTURES = REPO / "tests" / "fixtures"
 TEMPLATE_REL = Path(".claude/skills/memo-style/template.html")
 CONFIG_NAME = "memo.config.json"
 ENTRY_REL = Path("entry-skill/SKILL.md")  # dist/ からの相対パス
-# docs/ のうち、メモではなく仕組みの一部として持っていくもの
+# src/ のうち、メモではなく仕組みの一部として持っていくもの
 MECHANISM_DOCS = ("index.html", "quiz.html", "settings.html", "assets")
 GIT_ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com",
            "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com"}
@@ -40,7 +40,7 @@ if str(SCRIPTS) not in sys.path:
 
 def repo_has_memos() -> bool:
     """このリポジトリに本物のメモがあるか（仕組みだけのリポジトリなら False）。"""
-    return any(p.name not in MECHANISM_DOCS for p in (REPO / "docs").glob("*.html"))
+    return any(p.name not in MECHANISM_DOCS for p in (REPO / "src").glob("*.html"))
 
 
 class Workspace:
@@ -54,18 +54,18 @@ class Workspace:
         (self.root / TEMPLATE_REL).parent.mkdir(parents=True)
         shutil.copy(REPO / TEMPLATE_REL, self.root / TEMPLATE_REL)
         if real:
-            shutil.copytree(REPO / "docs", self.docs)
+            shutil.copytree(REPO / "src", self.src)
             if (REPO / CONFIG_NAME).is_file():
                 shutil.copy(REPO / CONFIG_NAME, self.root / CONFIG_NAME)
         else:
-            self.docs.mkdir()
+            self.src.mkdir()
             for name in MECHANISM_DOCS:
-                src = REPO / "docs" / name
+                src = REPO / "src" / name
                 if src.is_dir():
-                    shutil.copytree(src, self.docs / name)
+                    shutil.copytree(src, self.src / name)
                 elif src.is_file():
-                    shutil.copy(src, self.docs / name)
-            shutil.copytree(FIXTURES / "docs", self.docs, dirs_exist_ok=True)
+                    shutil.copy(src, self.src / name)
+            shutil.copytree(FIXTURES / "src", self.src, dirs_exist_ok=True)
             shutil.copy(FIXTURES / CONFIG_NAME, self.root / CONFIG_NAME)
             self.run("build")  # サンプルのメモから dist/ を作っておく
         # memo:date が無いメモは git の履歴から日付を取るので、git リポジトリにしておく
@@ -81,15 +81,15 @@ class Workspace:
         self._tmp.cleanup()
 
     @property
-    def docs(self) -> Path:
-        return self.root / "docs"
+    def src(self) -> Path:
+        return self.root / "src"
 
     @property
     def dist(self) -> Path:
         return self.root / "dist"
 
     def memo_names(self) -> list[str]:
-        return sorted(p.stem for p in self.docs.glob("*.html") if p.name not in MECHANISM_DOCS)
+        return sorted(p.stem for p in self.src.glob("*.html") if p.name not in MECHANISM_DOCS)
 
     def run(self, *args: str, check: bool = True) -> subprocess.CompletedProcess:
         """コピー先の memo.py を実行する。"""
@@ -101,8 +101,8 @@ class Workspace:
             raise AssertionError(f"memo.py {' '.join(args)} が失敗 ({p.returncode}):\n{p.stdout}\n{p.stderr}")
         return p
 
-    def snapshot(self, folder: str = "docs") -> dict[str, bytes]:
-        """docs/（または dist/）以下の全ファイルの中身（比較用）。"""
+    def snapshot(self, folder: str = "src") -> dict[str, bytes]:
+        """src/（または dist/）以下の全ファイルの中身（比較用）。"""
         base = self.root / folder
         return {str(p.relative_to(base)): p.read_bytes()
                 for p in sorted(base.rglob("*")) if p.is_file()}

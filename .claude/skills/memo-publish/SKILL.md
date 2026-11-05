@@ -87,11 +87,11 @@ python3 scripts/memo.py meta NAME \
 
 ```bash
 python3 scripts/memo.py lint NAME   # OK になること
-python3 scripts/memo.py build       # 公開用のサイト一式を dist/ に書き出す（docs/ は書き換えない）
+python3 scripts/memo.py build       # 公開用のサイト一式を dist/ に書き出す（src/ は書き換えない）
 python3 scripts/memo.py list
 ```
 
-一覧・問題データ（`memos.json`・`quizzes.json`）、Markdown 版、各ページの自動生成ブロック（`<!-- memo:head -->`・`<!-- memo:quiz -->`）は build が `dist/` にだけ作る。`docs/` には入らないし、入れない（`dist/` は `.gitignore` 済みでコミットされない）。公開は push 後に GitHub Actions（Deploy MEMO）が `dist/` の中身を dist ブランチにコミットして行う。
+一覧・問題データ（`memos.json`・`quizzes.json`）、Markdown 版、各ページの自動生成ブロック（`<!-- memo:head -->`・`<!-- memo:quiz -->`）は build が `dist/` にだけ作る。`src/` には入らないし、入れない（`dist/` は `.gitignore` 済みでコミットされない）。公開は push 後に GitHub Actions（Deploy MEMO）が `dist/` の中身を dist ブランチにコミットして行う。
 
 登録したページを会話内で見せるときは、ファイルをそのまま送らず `python3 scripts/memo.py preview NAME -o <スクラッチパッド>/NAME.html` で作った 1 枚版を送る（そのままだとクイズの JS/CSS が届かず動かない）。
 
@@ -108,7 +108,7 @@ commit / push の前に、memo-factcheck スキルを最後まで読み、その
 ```bash
 BRANCH="$(python3 scripts/memo.py config branch)"   # push 先（memo.config.json）
 git fetch origin "$BRANCH"          # 遅れていれば rebase
-git add -A "$(dirname "$(python3 scripts/memo.py path NAME)")"   # docs/（原本）だけ。dist/ はコミットしない
+git add -A "$(dirname "$(python3 scripts/memo.py path NAME)")"   # src/（原本）だけ。dist/ はコミットしない
 git commit -m "Add memo: <タイトル>"
 git push origin HEAD:"$BRANCH"
 ```
@@ -122,4 +122,4 @@ push すると GitHub Actions（Deploy MEMO）が build して公開する（数
 - lint で直した点（あれば 1 行で）
 - 付けたクイズの問題数
 - ファクトチェックの結果（確認件数と、直した・直さなかった指摘）
-- 公開 URL: `python3 scripts/memo.py url NAME` の出力（独自ドメインは `docs/CNAME` から決まる。URL を手で組み立てない）
+- 公開 URL: `python3 scripts/memo.py url NAME` の出力（独自ドメインは `src/CNAME` から決まる。URL を手で組み立てない）

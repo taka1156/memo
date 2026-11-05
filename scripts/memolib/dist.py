@@ -1,7 +1,7 @@
 """build の出力（dist/）の中身を組み立てて、dist/ に書き出す。
 
-原本（docs/）は読むだけで書き換えない。dist/ は公開するサイト一式で、
-docs/ のファイルのコピーに、次の生成物を加えたものになる。
+原本（src/）は読むだけで書き換えない。dist/ は公開するサイト一式で、
+src/ のファイルのコピーに、次の生成物を加えたものになる。
 
 - 各ページ（メモ・トップ・クイズ・設定）: 自動生成ブロック（memo:head・memo:quiz）とサイト設定を差し込んだもの
 - memos.json・quizzes.json（一覧と全問題）
@@ -16,24 +16,24 @@ from __future__ import annotations
 from pathlib import Path
 
 from .blocks import apply_generated
-from .config import DIST, DOCS, ENTRY_SKILL, SPECIAL_NAMES, read_text
+from .config import DIST, SRC, ENTRY_SKILL, SPECIAL_NAMES, read_text
 from .entry import entry_skill
 from .markdown import LLMS_TXT, MD_DIR, markdown_outputs
 from .meta import memo_files
 from .site import MEMOS_JSON, QUIZZES_JSON, memos_json, quizzes_json, site_data
 
-# docs/ にあってもコピーしないもの（どれも build が作る。昔のリポジトリの生成物が残っていても公開しない）
+# src/ にあってもコピーしないもの（どれも build が作る。昔のリポジトリの生成物が残っていても公開しない）
 _GENERATED_NAMES = {MEMOS_JSON.name, QUIZZES_JSON.name, LLMS_TXT.name}
 _GENERATED_DIRS = {MD_DIR.name}
 
 
 def _copied_files() -> list[Path]:
-    """docs/ のうち、そのままコピーするファイル（ページと生成物以外）。"""
+    """src/ のうち、そのままコピーするファイル（ページと生成物以外）。"""
     out = []
-    for p in sorted(DOCS.rglob("*")):
+    for p in sorted(SRC.rglob("*")):
         if not p.is_file() or "__pycache__" in p.parts:
             continue
-        rel = p.relative_to(DOCS)
+        rel = p.relative_to(SRC)
         if len(rel.parts) == 1 and (rel.suffix == ".html" or rel.name in _GENERATED_NAMES):
             continue  # ページは自動生成ブロックを入れて書き出す
         if rel.parts[0] in _GENERATED_DIRS:
@@ -46,8 +46,8 @@ def dist_outputs() -> tuple[dict[Path, bytes], int, int]:
     """dist/ に置くべき全ファイル（{dist/ 内のパス: 中身}）と、メモの件数・問題の数。"""
     want: dict[Path, bytes] = {}
     for p in _copied_files():
-        want[DIST / p.relative_to(DOCS)] = p.read_bytes()
-    pages = memo_files() + sorted(DOCS / n for n in SPECIAL_NAMES if (DOCS / n).is_file())
+        want[DIST / p.relative_to(SRC)] = p.read_bytes()
+    pages = memo_files() + sorted(SRC / n for n in SPECIAL_NAMES if (SRC / n).is_file())
     for p in pages:
         want[DIST / p.name] = apply_generated(read_text(p), p.name).encode("utf-8")
     memos, quizzes = site_data()
