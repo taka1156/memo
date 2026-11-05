@@ -216,23 +216,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .struct .t { font: 700 0.75rem 'JetBrains Mono', monospace; }
 .risk td:first-child { white-space: normal; min-width: 9em; }
 </style>
-<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
-<link rel="icon" href="assets/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-title" content="MEMO">
-<meta property="og:type" content="article">
-<meta property="og:site_name" content="MEMO">
-<meta property="og:title" content="CI/CD と GitHub Actions">
-<meta property="og:description" content="CI と CD の役割、パイプラインの組み方、GitHub Actions のワークフロー・ジョブ・ステップの構造、速くする工夫、シークレットと権限の安全な扱い、デプロイ戦略までを図解。">
-<meta property="og:url" content="https://memo.taka1156.site/ci-cd.html">
-<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
-<!-- /memo:head -->
 </head>
 <body>
 <div class="wrap">
@@ -348,17 +331,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <div class="card myth"><p><span class="ng">✗</span> <code>actions/xxx@v5</code> のようにタグを書けば、中身は固定されている</p><p><span class="ok">✓</span> タグは後から別のコミットに付け替えられる。固定したいならコミット SHA を書く。推移的な依存まで固定できる workflow lockfile（<code>.github/workflows/actions.lock</code>、2026 年 10 月からプレビュー）も使える。</p></div>
   <div class="card myth"><p><span class="ng">✗</span> Secrets に入れれば、ワークフローのどこからでも安全に使える</p><p><span class="ok">✓</span> そのステップで動くコード（依存パッケージや外部 Action も含む）からは読める。渡すジョブとステップを絞る。</p></div>
 
-  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
-<link rel="stylesheet" href="assets/memo-quiz.css">
-<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
-<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
-<div class="mq-list"></div>
-<div class="mq-result" hidden aria-live="polite"></div>
-<button type="button" class="mq-reset">やり直す</button>
-</section>
-<script src="assets/memo-quiz.js" defer></script>
-<!-- /memo:quiz -->
-<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>
 
 <script>

@@ -265,23 +265,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .spectrum .card p { font-size: 0.8rem; color: var(--fg-2); margin: 4px 0 0; }
 .strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); letter-spacing: .1em; }
 </style>
-<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
-<link rel="icon" href="assets/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-title" content="MEMO">
-<meta property="og:type" content="article">
-<meta property="og:site_name" content="MEMO">
-<meta property="og:title" content="分散システムの基本">
-<meta property="og:description" content="CAP 定理・整合性モデル・冪等性・リトライを、ネットワークが切れる／遅れる前提で図解し、Cloudflare の KV・D1・Durable Objects がどこに当たるかも整理する">
-<meta property="og:url" content="https://memo.taka1156.site/distributed-basics.html">
-<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
-<!-- /memo:head -->
 </head>
 <body>
 <div class="wrap">
@@ -436,17 +419,7 @@ CREATE TABLE idempotency_keys (
   <details class="myth card"><summary>リトライは回数を増やすほど安全</summary><p>冪等でない操作では重複を増やし、障害中のサーバーには負荷を上乗せする。回数の上限・バックオフ・ジッター・リトライ対象の選別がセット。</p></details>
   <details class="myth card"><summary>キューを使えば exactly-once になる</summary><p>多くのキューは at-least-once。同じメッセージが 2 回届く前提で、受け手を冪等に書く。</p></details>
 
-  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
-<link rel="stylesheet" href="assets/memo-quiz.css">
-<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
-<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
-<div class="mq-list"></div>
-<div class="mq-result" hidden aria-live="polite"></div>
-<button type="button" class="mq-reset">やり直す</button>
-</section>
-<script src="assets/memo-quiz.js" defer></script>
-<!-- /memo:quiz -->
-<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>
 
 <script>

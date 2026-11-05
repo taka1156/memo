@@ -243,23 +243,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .map td:not(:first-child) { font-size: 0.82rem; }
 .map tr.hl td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 </style>
-<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
-<link rel="icon" href="assets/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-title" content="MEMO">
-<meta property="og:type" content="article">
-<meta property="og:site_name" content="MEMO">
-<meta property="og:title" content="アーキテクチャ比較">
-<meta property="og:description" content="レイヤード・ヘキサゴナル・オニオン・クリーンの 4 つを同じ例で図にし、何が同じで何が違うか・どう選ぶかを整理する">
-<meta property="og:url" content="https://memo.taka1156.site/architecture-compare.html">
-<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
-<!-- /memo:head -->
 </head>
 <body>
 <div class="wrap">
@@ -441,17 +424,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <details class="myth card"><summary>オニオンとクリーンは別物なので混ぜてはいけない</summary><p>どちらも依存性逆転でドメインを中心にする同じ系統。オニオンの層分けにクリーンのユースケースクラスを使う、のような組み合わせは普通に行われている。</p></details>
   <details class="myth card"><summary>レイヤードはもう古くて使うべきではない</summary><p>業務ルールが薄いアプリでは、最も少ないコードで済む合理的な選択。つらくなってから DIP を入れて内向きに変えればよい。</p></details>
 
-  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
-<link rel="stylesheet" href="assets/memo-quiz.css">
-<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
-<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
-<div class="mq-list"></div>
-<div class="mq-result" hidden aria-live="polite"></div>
-<button type="button" class="mq-reset">やり直す</button>
-</section>
-<script src="assets/memo-quiz.js" defer></script>
-<!-- /memo:quiz -->
-<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>
 
 <script>

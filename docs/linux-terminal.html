@@ -196,23 +196,6 @@ footer#memo-backlink a {
 }
 footer#memo-backlink a:hover { color: var(--accent); }
 </style>
-<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
-<link rel="icon" href="assets/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-title" content="MEMO">
-<meta property="og:type" content="article">
-<meta property="og:site_name" content="MEMO">
-<meta property="og:title" content="Linux 端末とシェル">
-<meta property="og:description" content="ターミナル・擬似端末・ラインディシプリン・シェルの役割分担と、特殊キー・エスケープシーケンス・端末がない場合の違いを図解。">
-<meta property="og:url" content="https://memo.taka1156.site/linux-terminal.html">
-<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
-<!-- /memo:head -->
 </head>
 <body>
 <div class="wrap">
@@ -321,17 +304,7 @@ stty sane               <span class="cm"># 設定をまともな既定値に戻�
 reset                   <span class="cm"># 表示が崩れたときに端末ごと初期化</span>
 [ -t 1 ] &amp;&amp; echo "stdout は端末"   <span class="cm"># シェルでの isatty()</span></pre>
 
-  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
-<link rel="stylesheet" href="assets/memo-quiz.css">
-<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
-<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
-<div class="mq-list"></div>
-<div class="mq-result" hidden aria-live="polite"></div>
-<button type="button" class="mq-reset">やり直す</button>
-</section>
-<script src="assets/memo-quiz.js" defer></script>
-<!-- /memo:quiz -->
-<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>
 
 <script>

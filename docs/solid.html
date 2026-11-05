@@ -242,23 +242,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .d-frame { fill: none; stroke: var(--c-ok); stroke-width: 1.4; stroke-dasharray: 5 4; }
 .d-frame-label { fill: var(--c-ok); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
 </style>
-<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
-<link rel="icon" href="assets/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-title" content="MEMO">
-<meta property="og:type" content="article">
-<meta property="og:site_name" content="MEMO">
-<meta property="og:title" content="SOLID と依存性逆転">
-<meta property="og:description" content="SOLID の 5 原則を「どんな症状を防ぐか」で整理し、オニオン／クリーンで内側に依存させる理由＝依存性逆転 (DIP) を図で説明する">
-<meta property="og:url" content="https://memo.taka1156.site/solid.html">
-<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
-<!-- /memo:head -->
 </head>
 <body>
 <div class="wrap">
@@ -485,17 +468,7 @@ const placeOrder = new PlaceOrder(new MySqlOrderRepository(pool));</code></pre>
   <details class="myth card"><summary>単一責任 ＝ メソッドが 1 つのクラス</summary><p>基準は「変更の理由が 1 つか」。同じ人・同じ理由で一緒に変わるものは、まとめておいたほうが変更が楽。</p></details>
   <details class="myth card"><summary>SOLID はオブジェクト指向（クラス）専用</summary><p>関数型でも「関数を引数で受け取る」「型で必要な形だけを要求する」ことで同じ効果が得られる。考え方は言語やパラダイムを選ばない。</p></details>
 
-  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
-<link rel="stylesheet" href="assets/memo-quiz.css">
-<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
-<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
-<div class="mq-list"></div>
-<div class="mq-result" hidden aria-live="polite"></div>
-<button type="button" class="mq-reset">やり直す</button>
-</section>
-<script src="assets/memo-quiz.js" defer></script>
-<!-- /memo:quiz -->
-<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>
 
 <script>

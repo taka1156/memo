@@ -228,23 +228,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .gen .old { background: color-mix(in srgb, var(--c-c) 14%, transparent); }
 @media (max-width: 520px) { .gen { grid-template-columns: 1fr; } }
 </style>
-<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
-<link rel="icon" href="assets/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-title" content="MEMO">
-<meta property="og:type" content="article">
-<meta property="og:site_name" content="MEMO">
-<meta property="og:title" content="メモリ管理">
-<meta property="og:description" content="スタックとヒープの違い、手動管理・ガベージコレクション・参照カウント・所有権という 4 つの解放方式、GC の到達可能性と世代別 GC、GC 言語でも起きるメモリリークの原因と調べ方までを図解。">
-<meta property="og:url" content="https://memo.taka1156.site/memory-management.html">
-<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
-<!-- /memo:head -->
 </head>
 <body>
 <div class="wrap">
@@ -382,17 +365,7 @@ fn print_len(s: &amp;String) { println!("{}", s.len()); }</code></pre>
   <div class="card myth"><p><span class="ng">✗</span> スタックが速いのは、速い種類のメモリだから</p><p><span class="ok">✓</span> どちらも同じ RAM。確保がポインタを動かすだけで済み、連続していてキャッシュに乗りやすいから速い。</p></div>
   <div class="card myth"><p><span class="ng">✗</span> 変数に null を入れれば、その場でメモリが解放される</p><p><span class="ok">✓</span> 参照が 1 つ減るだけ。他に参照がなければ回収の対象になり、その後 GC が動いたときに回収される（いつになるかはランタイム次第）。</p></div>
 
-  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
-<link rel="stylesheet" href="assets/memo-quiz.css">
-<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
-<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
-<div class="mq-list"></div>
-<div class="mq-result" hidden aria-live="polite"></div>
-<button type="button" class="mq-reset">やり直す</button>
-</section>
-<script src="assets/memo-quiz.js" defer></script>
-<!-- /memo:quiz -->
-<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>
 
 <script>
