@@ -4,6 +4,7 @@
   "llms_description": "Claude に作ってもらった技術解説ページ（図解つき HTML）の集まり。各リンク先は本文を Markdown にしたもので、元のページへの URL も含む。",
   "repository": "taka1156/memo",
   "branch": "master",
+  "deploy_branch": "dist",
   "utc_offset_hours": 9,
   "branding": {
     "tagline": "見てわかる、技術の解説ノート",

@@ -1,6 +1,8 @@
 """置き場所・公開 URL・日付など、リポジトリ全体で共有する設定。
 
 置き場所（docs/ やテンプレートの場所）を知っているのはこのモジュールだけ。
+docs/ は原本（手で書く HTML と共通ファイル）だけを置く場所で、build は docs/ を読むだけで書き換えない。
+build の出力（公開するサイト一式）は dist/ に書き出す（.gitignore 済み。Actions が dist ブランチにデプロイする）。
 サイトごとに変わる値（サイト名・リポジトリ・ブランチ・タイムゾーンなど）は
 リポジトリ直下の memo.config.json に書き、ここで読み込む。コードやスキルに直接書かない。
 """
@@ -14,7 +16,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent  # scripts/memolib/ の 2 つ上
 CONFIG_FILE = ROOT / "memo.config.json"
-DOCS = ROOT / "docs"  # GitHub Pages の公開元
+DOCS = ROOT / "docs"  # 原本の置き場所（build は読むだけ）
+DIST = ROOT / "dist"  # build の出力。公開するサイト一式（GitHub Pages は dist ブランチから公開）
 INDEX = DOCS / "index.html"
 QUIZ_PAGE = DOCS / "quiz.html"  # 全メモの問題から 10 問解くページ
 SETTINGS_PAGE = DOCS / "settings.html"  # 管理者がアクセント色を試して、固定する手順へ進むページ
@@ -29,6 +32,7 @@ DEFAULTS: dict = {
     "llms_description": "",       # llms.txt の冒頭の説明
     "repository": "",             # GitHub の owner/name。公開 URL の既定値とリンクに使う
     "branch": "main",             # push 先のブランチ（スキルは `memo.py config branch` で読む）
+    "deploy_branch": "dist",      # build の出力（dist/）をデプロイするブランチ。GitHub Pages の公開元にする
     "utc_offset_hours": 0,        # 「今日」を決めるタイムゾーン（日本なら 9）
     "branding": {},               # アクセント色と、アイコン・OGP 画像の文字・色。項目は BRANDING_DEFAULTS
 }
@@ -50,8 +54,8 @@ HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$")
 
 
 # 文字列の項目と、空を許さないもの
-STRING_KEYS = ("site_name", "description", "llms_description", "repository", "branch")
-REQUIRED_STRINGS = ("site_name", "branch")
+STRING_KEYS = ("site_name", "description", "llms_description", "repository", "branch", "deploy_branch")
+REQUIRED_STRINGS = ("site_name", "branch", "deploy_branch")
 BRANDING_STRING_KEYS = ("title", "tagline", "url", "mark", "icon", "accent", "accent_light", "theme")
 
 
@@ -88,8 +92,11 @@ def load_config(path: Path = CONFIG_FILE) -> dict:
     for key in REQUIRED_STRINGS:
         if key in data and not data[key].strip():
             fail(f"{key} を空にはできません（書かなければ既定値 {DEFAULTS[key]!r} になります）")
-    if "branch" in data and re.search(r"\s", data["branch"]):
-        fail(f"branch に空白は使えません: {data['branch']!r}")
+    for key in ("branch", "deploy_branch"):
+        if key in data and re.search(r"\s", data[key]):
+            fail(f"{key} に空白は使えません: {data[key]!r}")
+    if data.get("deploy_branch", DEFAULTS["deploy_branch"]) == data.get("branch", DEFAULTS["branch"]):
+        fail("deploy_branch は branch と別のブランチにしてください（原本と build の出力を分けるため）")
     if "utc_offset_hours" in data:
         tz = data["utc_offset_hours"]
         if isinstance(tz, bool) or not isinstance(tz, (int, float)):
@@ -279,5 +286,5 @@ TEMPLATE = ROOT / ".claude" / "skills" / "memo-style" / "template.html"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 ASSETS = DOCS / "assets"
-# claude.ai のアプリ側に置く入口スキル（build が memo.config.json から生成する）
-ENTRY_SKILL = ROOT / "entry-skill" / "SKILL.md"
+# claude.ai のアプリ側に置く入口スキル（build が memo.config.json から dist/ に生成する）
+ENTRY_SKILL = DIST / "entry-skill" / "SKILL.md"

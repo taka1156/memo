@@ -276,6 +276,14 @@ class QuizTest(unittest.TestCase):
 
         self.assertEqual(blocks.read_quiz(page(body="<p>なし</p>")), (None, []))
 
+    def test_strip_generated_undoes_apply_generated(self):
+        text = ("<!DOCTYPE html><html><head><title>T</title></head><body><h2 id=\"s\">S</h2>"
+                '<script type="application/json" id="memo-quiz">'
+                '[{"q":"Q","choices":["a","b"],"answer":1}]</script></body></html>')
+        done = blocks.apply_generated(text, "t.html")
+        self.assertIn(blocks.QUIZ_BEGIN, done)
+        self.assertEqual(blocks.strip_generated(done), text)
+
     def test_apply_quiz_inserts_before_footer_once_and_removes_when_no_data(self):
         text = page(body="<p>本文</p>\n" + blocks.BACKLINK + "\n" + quiz_script(QUIZ_OK))
         once = blocks.apply_quiz(text)

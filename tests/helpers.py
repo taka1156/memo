@@ -9,8 +9,10 @@ docs/ と memo.config.json を対象にする。
 - Workspace()          仕組みのテスト用。仕組みのファイル（scripts/、テンプレート、docs/ の index.html・
                        quiz.html・assets/）に、tests/fixtures/ のサンプルのメモと設定を組み合わせて build したもの。
                        本物のメモが 1 本もなくても（仕組みだけを取り出したリポジトリでも）動く。
-- Workspace(real=True) このリポジトリの docs/ と設定をそのままコピーしたもの。コミットされている生成物が
-                       最新かどうかなど、本物の中身を確かめるテストと tests/snapshot.py が使う。
+- Workspace(real=True) このリポジトリの docs/ と設定をそのままコピーしたもの。原本がきれいか（自動生成ブロックが
+                       混ざっていないか）など、本物の中身を確かめるテストと tests/snapshot.py が使う。
+
+どちらも build の出力は作業用リポジトリの dist/ にできる（docs/ は原本のまま）。
 """
 from __future__ import annotations
 
@@ -26,7 +28,7 @@ SCRIPTS = REPO / "scripts"
 FIXTURES = REPO / "tests" / "fixtures"
 TEMPLATE_REL = Path(".claude/skills/memo-style/template.html")
 CONFIG_NAME = "memo.config.json"
-ENTRY_REL = Path("entry-skill/SKILL.md")
+ENTRY_REL = Path("entry-skill/SKILL.md")  # dist/ からの相対パス
 # docs/ のうち、メモではなく仕組みの一部として持っていくもの
 MECHANISM_DOCS = ("index.html", "quiz.html", "settings.html", "assets")
 GIT_ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com",
@@ -53,10 +55,8 @@ class Workspace:
         shutil.copy(REPO / TEMPLATE_REL, self.root / TEMPLATE_REL)
         if real:
             shutil.copytree(REPO / "docs", self.docs)
-            for rel in (Path(CONFIG_NAME), ENTRY_REL):
-                if (REPO / rel).is_file():
-                    (self.root / rel).parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy(REPO / rel, self.root / rel)
+            if (REPO / CONFIG_NAME).is_file():
+                shutil.copy(REPO / CONFIG_NAME, self.root / CONFIG_NAME)
         else:
             self.docs.mkdir()
             for name in MECHANISM_DOCS:
@@ -67,9 +67,10 @@ class Workspace:
                     shutil.copy(src, self.docs / name)
             shutil.copytree(FIXTURES / "docs", self.docs, dirs_exist_ok=True)
             shutil.copy(FIXTURES / CONFIG_NAME, self.root / CONFIG_NAME)
-            self.run("build")  # サンプルのメモから生成物を作り、「コミット済みの状態」にする
+            self.run("build")  # サンプルのメモから dist/ を作っておく
         # memo:date が無いメモは git の履歴から日付を取るので、git リポジトリにしておく
         env = {**os.environ, **GIT_ENV}
+        (self.root / ".gitignore").write_text("/dist/\n", encoding="utf-8")
         for cmd in (["git", "init", "-q"], ["git", "add", "-A"], ["git", "commit", "-qm", "base"]):
             subprocess.run(cmd, cwd=self.root, check=True, env=env)
 
@@ -82,6 +83,10 @@ class Workspace:
     @property
     def docs(self) -> Path:
         return self.root / "docs"
+
+    @property
+    def dist(self) -> Path:
+        return self.root / "dist"
 
     def memo_names(self) -> list[str]:
         return sorted(p.stem for p in self.docs.glob("*.html") if p.name not in MECHANISM_DOCS)
@@ -96,16 +101,15 @@ class Workspace:
             raise AssertionError(f"memo.py {' '.join(args)} が失敗 ({p.returncode}):\n{p.stdout}\n{p.stderr}")
         return p
 
-    def snapshot(self) -> dict[str, bytes]:
-        """docs/ 以下の全ファイルの中身（比較用）。"""
-        return {str(p.relative_to(self.docs)): p.read_bytes()
-                for p in sorted(self.docs.rglob("*")) if p.is_file()}
+    def snapshot(self, folder: str = "docs") -> dict[str, bytes]:
+        """docs/（または dist/）以下の全ファイルの中身（比較用）。"""
+        base = self.root / folder
+        return {str(p.relative_to(base)): p.read_bytes()
+                for p in sorted(base.rglob("*")) if p.is_file()}
 
-
-def repo_snapshot() -> dict[str, bytes]:
-    docs = REPO / "docs"
-    return {str(p.relative_to(docs)): p.read_bytes()
-            for p in sorted(docs.rglob("*")) if p.is_file()}
+    def read(self, rel: str) -> str:
+        """dist/ のファイルを読む（build の出力の確認用）。"""
+        return (self.dist / rel).read_text(encoding="utf-8")
 
 
 def diff_names(a: dict[str, bytes], b: dict[str, bytes]) -> list[str]:

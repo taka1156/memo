@@ -6,11 +6,11 @@ import re
 import sys
 
 from .blocks import QUIZ_CSS, QUIZ_CSS_TAG, QUIZ_JS, QUIZ_JS_TAG, apply_generated, read_quiz, validate_quiz
-from .config import DOCS, SPECIAL_NAMES, read_text
+from .config import DIST, DOCS, SPECIAL_NAMES, read_text
 from .meta import memo_files, read_meta
 
-MEMOS_JSON = DOCS / "memos.json"      # 一覧（トップページと quiz.html が読む）
-QUIZZES_JSON = DOCS / "quizzes.json"  # 全メモの問題（ランダムクイズと quiz.html が読む）
+MEMOS_JSON = DIST / "memos.json"      # 一覧（トップページと quiz.html が読む）
+QUIZZES_JSON = DIST / "quizzes.json"  # 全メモの問題（ランダムクイズと quiz.html が読む）
 
 
 def memos_json(memos: list[dict], quizzes: list[dict]) -> str:
