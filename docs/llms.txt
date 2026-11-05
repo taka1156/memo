@@ -4,6 +4,7 @@
 
 ## Memos
 
+- [Linux プロセスとシグナル](https://memo.taka1156.site/md/linux-process-signal.md): ターミナル・PTY・シェル・カーネルの関係、fork/exec によるプロセスの生まれ方、セッションとジョブ制御、シグナルが届いて処理されるまでを図とシミュレーションで追う。（インフラ / 2026-11-06）
 - [TCP/IP とネットワーク基礎](https://memo.taka1156.site/md/tcp-ip.md): 階層とカプセル化、IP アドレスと CIDR の計算、ルーティングとデフォルトゲートウェイ、NAT、ポート、TCP と UDP の違い、調査コマンドまでを図解。HTTP の一段下の層。（ネットワーク, インフラ / 2026-11-04）
 - [メモリ管理](https://memo.taka1156.site/md/memory-management.md): スタックとヒープの違い、手動管理・ガベージコレクション・参照カウント・所有権という 4 つの解放方式、GC の到達可能性と世代別 GC、GC 言語でも起きるメモリリークの原因と調べ方までを図解。（言語, JavaScript / 2026-11-04）
 - [LLM の仕組み](https://memo.taka1156.site/md/llm-basics.md): トークン、次のトークンの予測と temperature、コンテキストウィンドウ、学習の段階、埋め込みと RAG、ツール呼び出しとエージェントのループまで、LLM を使う側が知っておきたい仕組みを図解。（AI / 2026-11-04）
