@@ -76,7 +76,7 @@ TTY / PTY
 | stop / start | Ctrl+S / Ctrl+Q | 出力の一時停止・再開（フロー制御、 `ixon` ）。画面が固まったように見えたら Ctrl+Q |
 | lnext | Ctrl+V | 次の 1 キーを特別扱いせず、そのまま文字として渡す |
 
-対話 bash のプロンプトでは readline が端末を非カノニカルにしているので、Ctrl+U や Ctrl+W などの行編集は readline が同じキーを自前で解釈している。Ctrl+C・Ctrl+Z のシグナル化は、コマンドの実行中（bash が設定を元に戻した後）にラインディシプリンが行う。
+対話 bash のプロンプトでは readline が端末を非カノニカルにしているので、Ctrl+U や Ctrl+W などの行編集は readline が同じキーを自前で解釈している。ただし `isig` は有効のままなので、プロンプトでも Ctrl+C・Ctrl+Z をシグナルに変えるのはラインディシプリンで、readline と bash はそのシグナルを受けて入力行を捨てるなどの処理をしている。
 
 ## 画面を動かすエスケープシーケンス
 
@@ -84,7 +84,7 @@ TTY / PTY
 
 ```
 printf '\e[31m赤い文字\e[0m\n'     # 31 = 文字を赤に、0 = 元に戻す
-printf '\e[2J\e[H'               # 画面を消してカーソルを左上へ（clear と同じ）
+printf '\e[2J\e[H'               # 画面を消してカーソルを左上へ（clear -x とほぼ同じ。clear はスクロールバックも消す）
 echo $TERM                       # 端末の種類（xterm-256color など）
 infocmp | head                   # その種類で使えるシーケンスの一覧（terminfo）
 ```

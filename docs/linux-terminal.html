@@ -288,12 +288,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <tr><td class="mono">lnext</td><td class="mono">Ctrl+V</td><td>次の 1 キーを特別扱いせず、そのまま文字として渡す</td></tr>
     </table>
   </div>
-  <p class="muted">対話 bash のプロンプトでは readline が端末を非カノニカルにしているので、Ctrl+U や Ctrl+W などの行編集は readline が同じキーを自前で解釈している。Ctrl+C・Ctrl+Z のシグナル化は、コマンドの実行中（bash が設定を元に戻した後）にラインディシプリンが行う。</p>
+  <p class="muted">対話 bash のプロンプトでは readline が端末を非カノニカルにしているので、Ctrl+U や Ctrl+W などの行編集は readline が同じキーを自前で解釈している。ただし <code>isig</code> は有効のままなので、プロンプトでも Ctrl+C・Ctrl+Z をシグナルに変えるのはラインディシプリンで、readline と bash はそのシグナルを受けて入力行を捨てるなどの処理をしている。</p>
 
   <h2 id="escape">画面を動かすエスケープシーケンス</h2>
   <p>プログラムが色を付けたりカーソルを動かしたりするときは、普通の文字に混ぜて <b>ESC（0x1b）で始まる制御用のバイト列</b>を出力する。ターミナルエミュレータがそれを解釈して描画を変える。</p>
 <pre>printf '\e[31m赤い文字\e[0m\n'     <span class="cm"># 31 = 文字を赤に、0 = 元に戻す</span>
-printf '\e[2J\e[H'               <span class="cm"># 画面を消してカーソルを左上へ（clear と同じ）</span>
+printf '\e[2J\e[H'               <span class="cm"># 画面を消してカーソルを左上へ（clear -x とほぼ同じ。clear はスクロールバックも消す）</span>
 echo $TERM                       <span class="cm"># 端末の種類（xterm-256color など）</span>
 infocmp | head                   <span class="cm"># その種類で使えるシーケンスの一覧（terminfo）</span></pre>
   <p>同じ処理でも端末の種類によってシーケンスが違うことがあるので、プログラムは環境変数 <code>TERM</code> と terminfo データベースを見て出し分ける。表示が崩れたときに <code>reset</code> で戻るのは、端末の状態とラインディシプリンの設定を初期化し直すから。</p>
