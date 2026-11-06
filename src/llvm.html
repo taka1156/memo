@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLVM の構成と仕組み</title>
+<meta name="description" content="LLVM がフロントエンド・LLVM IR・最適化パス・バックエンドの 3 段でどう機械語を作るかを、実際の IR とアセンブリの出力で図解する">
+<meta name="memo:tags" content="言語, 開発ツール">
+<meta name="memo:date" content="2026-11-06">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-fe: #2a9d8f;
+  --c-mid: #8a5cf6;
+  --c-be: #e07a1f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-fe: #4fd1c5;
+    --c-mid: #b195ff;
+    --c-be: #ffa65c;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+:not(pre) > code { white-space: nowrap; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.series { font-size: 0.8rem; color: var(--fg-2); margin: -16px 0 22px; }
+.series a, .series b { display: inline-block; margin-right: 10px; }
+.series b { color: var(--fg); }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.grid2 > *, .grid3 > * { min-width: 0; }
+:is(.grid2, .grid3) > .card + .card { margin-top: 0; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  margin-bottom: 4px;
+}
+.fe { color: var(--c-fe); } .mid { color: var(--c-mid); } .be { color: var(--c-be); }
+
+/* M×N 図 */
+.mn svg { width: 100%; height: auto; display: block; }
+.mn .count { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; }
+.mn line { stroke-width: 1.5; transition: opacity .3s; }
+
+/* パイプライン */
+.pipe { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; margin: 10px 0; }
+.stage {
+  flex: 1 1 110px;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--k);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--fg);
+  font: inherit;
+}
+.stage b { display: block; font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace; }
+.stage span { font-size: 0.7rem; color: var(--fg-2); }
+.stage[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+.stage.fe { --k: var(--c-fe); } .stage.mid { --k: var(--c-mid); } .stage.be { --k: var(--c-be); }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+
+/* IR 構造 */
+.nest { border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 6px; }
+.nest > .t { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+.nest .d { font-size: 0.72rem; color: var(--fg-2); margin-left: 6px; }
+.n1 { border-color: var(--c-mid); }
+.n2 { border-color: color-mix(in srgb, var(--c-mid) 70%, var(--line)); }
+.n3 { border-color: color-mix(in srgb, var(--c-mid) 45%, var(--line)); }
+.n4 { border-style: dashed; }
+
+/* パスのステッパー */
+.stepper .ctrl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.btn {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.btn:disabled { opacity: .4; cursor: default; }
+.dots { display: flex; gap: 4px; }
+.dots span { width: 22px; height: 6px; border-radius: 3px; background: var(--line); }
+.dots span.on { background: var(--c-mid); }
+.stepper .what { font-size: 0.85rem; margin: 6px 0; min-height: 3.4em; }
+.stepper .what b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--c-mid); }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 600; font-size: 0.75rem; }
+.tblwrap { overflow-x: auto; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; }
+
+details { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px 14px; }
+details + details { margin-top: 8px; }
+summary { cursor: pointer; font-weight: 600; }
+details p { font-size: 0.88rem; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>LLVM の構成と仕組み</h1>
+  <p class="subtitle">ソースコードが「共通の中間表現」を通って機械語になるまで</p>
+  <p class="series">シリーズ: <b>LLVM の構成と仕組み</b><a href="gcc-vs-clang.html">GCC と Clang の構成比較 →</a></p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>LLVM は 1 つのコンパイラではなく、コンパイラを作るための<b>部品（ライブラリ）の集まり</b>。C/C++ 用の Clang、Rust、Swift などが土台に使う。</li>
+      <li>真ん中に <b>LLVM IR</b> という共通の中間表現があり、「言語ごとのフロントエンド」と「CPU ごとのバックエンド」を切り離している。</li>
+      <li>最適化は LLVM IR に対する<b>パス (pass)</b> の積み重ね。どの言語から来ても同じ最適化がかかる。</li>
+    </ul>
+  </div>
+
+  <h2 id="three-phase">3 段構成: なぜ真ん中に IR を置くのか</h2>
+  <p>言語が M 個、CPU が N 種類あるとき、それぞれを直接つなぐと M×N 個の変換器が要る。間に共通の IR を挟めば、フロントエンド M 個とバックエンド N 個、合わせて M+N 個で済む。最適化も IR の上に 1 回書けば全言語・全 CPU で効く。</p>
+  <div class="card mn">
+    <div class="tabs" role="tablist" id="mn-tabs">
+      <button class="tab" role="tab" aria-selected="false" data-mode="direct">共通 IR なし</button>
+      <button class="tab" role="tab" aria-selected="true" data-mode="ir">LLVM IR あり</button>
+    </div>
+    <svg viewBox="0 0 560 250" role="img" aria-label="言語とCPUのつなぎ方の比較図" id="mn-svg"></svg>
+    <p class="count" id="mn-count"></p>
+    <p class="note">線 1 本が「誰かが作って保守する変換器」。言語や CPU を 1 つ足したときに増える線の数を比べるとわかりやすい。</p>
+  </div>
+
+  <h2 id="pipeline">clang で C をコンパイルしたときの流れ</h2>
+  <p>各段をクリック（タップ）すると、何をしているかと、その段の出力を見るコマンドが出る。</p>
+  <div class="legend"><span><i style="background:var(--c-fe)"></i>フロントエンド（Clang）</span><span><i style="background:var(--c-mid)"></i>ミドルエンド（LLVM IR の最適化）</span><span><i style="background:var(--c-be)"></i>バックエンド（コード生成）</span></div>
+  <div class="pipe" id="pipe">
+    <button class="stage fe" data-i="0" aria-pressed="true"><b>前処理</b><span>#include・マクロ</span></button>
+    <button class="stage fe" data-i="1" aria-pressed="false"><b>構文解析</b><span>字句 → AST</span></button>
+    <button class="stage fe" data-i="2" aria-pressed="false"><b>意味解析</b><span>型チェック (Sema)</span></button>
+    <button class="stage fe" data-i="3" aria-pressed="false"><b>IR 生成</b><span>AST → LLVM IR</span></button>
+    <button class="stage mid" data-i="4" aria-pressed="false"><b>最適化</b><span>パスの列</span></button>
+    <button class="stage be" data-i="5" aria-pressed="false"><b>命令選択</b><span>IR → 機械命令</span></button>
+    <button class="stage be" data-i="6" aria-pressed="false"><b>レジスタ割付</b><span>仮想 → 物理</span></button>
+    <button class="stage be" data-i="7" aria-pressed="false"><b>MC</b><span>.s / .o を出力</span></button>
+    <button class="stage be" data-i="8" aria-pressed="false"><b>リンク</b><span>ld / lld</span></button>
+  </div>
+  <div class="card" id="pipe-detail" aria-live="polite"></div>
+
+  <h2 id="ir">LLVM IR の中身</h2>
+  <p>LLVM IR は「型付きで、レジスタを無限に使えるアセンブリ」のような言語。テキスト形式 (<code>.ll</code>)、バイナリ形式のビットコード (<code>.bc</code>)、メモリ上のデータ構造の 3 つの姿があり、相互に変換できる。</p>
+  <div class="grid2">
+    <div class="card">
+      <span class="label mid">入れ子の構造</span>
+      <div class="nest n1"><span class="t">Module</span><span class="d">1 ファイル分。target triple・datalayout</span>
+        <div class="nest n2"><span class="t">Function</span><span class="d">@add など。引数と戻り値の型</span>
+          <div class="nest n3"><span class="t">BasicBlock</span><span class="d">entry: など。途中で分岐しない命令の列</span>
+            <div class="nest n4"><span class="t">Instruction</span><span class="d">add・load・br…。最後は必ず終端命令（ret・br・switch・unreachable など）</span></div>
+          </div>
+        </div>
+        <div class="nest n2"><span class="t">GlobalVariable</span><span class="d">@g など</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <span class="label mid">読むときの 4 つのルール</span>
+      <ul style="margin-left:1.2em;font-size:0.88rem">
+        <li><code>@</code> はグローバル（関数・大域変数）、<code>%</code> はローカルの値。</li>
+        <li>値には必ず型がつく: <code>i32</code>（32bit 整数）、<code>i1</code>（真偽）、<code>ptr</code>（ポインタ）。</li>
+        <li><b>SSA</b> (静的単一代入): 各 <code>%値</code> は 1 回だけ代入される。再代入したいときは新しい名前を作る。</li>
+        <li>合流点で「どこから来たか」で値を選ぶのが <code>phi</code> 命令。</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 id="ssa">SSA と phi: 変数 r が 2 か所で代入されるとき</h3>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="ssa-c">C のソース</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="ssa-o0">-O0 の IR</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="ssa-m2r">mem2reg 後</button>
+  </div>
+  <div class="panel" id="ssa-c"><pre><code>int max(int a, int b) {
+  int r;
+  if (a > b) r = a;
+  else       r = b;
+  return r;
+}</code></pre></div>
+  <div class="panel" id="ssa-o0" hidden><pre><code>define dso_local i32 @max(i32 noundef %a, i32 noundef %b) {
+entry:
+  %a.addr = alloca i32, align 4      ; 変数はまずスタック上の箱 (alloca)
+  %b.addr = alloca i32, align 4
+  %r = alloca i32, align 4
+  store i32 %a, ptr %a.addr, align 4
+  store i32 %b, ptr %b.addr, align 4
+  %0 = load i32, ptr %a.addr, align 4
+  %1 = load i32, ptr %b.addr, align 4
+  %cmp = icmp sgt i32 %0, %1         ; signed greater than
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:
+  %2 = load i32, ptr %a.addr, align 4
+  store i32 %2, ptr %r, align 4
+  br label %if.end
+
+if.else:
+  %3 = load i32, ptr %b.addr, align 4
+  store i32 %3, ptr %r, align 4
+  br label %if.end
+
+if.end:
+  %4 = load i32, ptr %r, align 4
+  ret i32 %4
+}</code></pre>
+  <p class="note">フロントエンドは「変数 = メモリの箱」として素直に出す。SSA を守るために変数を 1 回代入に直す仕事は、最適化側 (mem2reg) に任せている。</p></div>
+  <div class="panel" id="ssa-m2r" hidden><pre><code>define dso_local i32 @max(i32 noundef %a, i32 noundef %b) {
+entry:
+  %cmp = icmp sgt i32 %a, %b
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:
+  br label %if.end
+
+if.else:
+  br label %if.end
+
+if.end:
+  %r.0 = phi i32 [ %a, %if.then ], [ %b, %if.else ]
+  ret i32 %r.0
+}</code></pre>
+  <p class="note">alloca・load・store が消え、r は <code>phi</code> 1 つになった。「if.then から来たら %a、if.else から来たら %b」。</p></div>
+  <p class="note">clang 18 (x86-64 Linux) の実際の出力。読みやすさのため関数属性 (<code>#0</code>)・メタデータ・ <code>; preds</code> コメントは省いた。リリース版の clang は既定で値の名前を捨てる（<code>%0</code> などの番号になる）ので、名前を残すには <code>-fno-discard-value-names</code> をつける。</p>
+
+  <h2 id="passes">最適化 = パスを順に当てていく</h2>
+  <p>LLVM の最適化は、IR を受け取って IR を返す小さな変換（パス）の列。<code>-O2</code> はそのレシピ（パイプライン）に名前をつけたもの。<code>opt</code> コマンドでパスを 1 つずつ当てると、何が起きているかが見える。</p>
+  <div class="card stepper" id="stepper">
+    <div class="ctrl">
+      <button class="btn" id="st-prev">← 前</button>
+      <button class="btn" id="st-next">次のパス →</button>
+      <div class="dots" id="st-dots"></div>
+    </div>
+    <p class="what" id="st-what"></p>
+    <pre><code id="st-code"></code></pre>
+    <p class="note">元のソース: <code>static int sq(int x) { return x * x; }</code> と <code>int f(void) { int a = 3; return sq(a) + 1; }</code>。各段は opt 18 で実際に当てた結果（関数 f の部分だけ抜粋）。-O0 の IR には <code>noinline</code> が付くので、inline の段は <code>-force-remove-attribute=sq:noinline</code> と <code>forceattrs</code> パス のように noinline を外してから当てている。</p>
+  </div>
+
+  <h3>よく出てくるパス</h3>
+  <div class="tblwrap"><table>
+    <tr><th>パス</th><th>やること</th><th>効く場面</th></tr>
+    <tr><td><code>mem2reg</code> / <code>sroa</code></td><td>スタック上の変数を SSA の値に置き換える</td><td>ほぼすべての関数。以降のパスの前提を作る</td></tr>
+    <tr><td><code>inline</code></td><td>呼び出し先の本体を埋め込む</td><td>小さな関数・ゲッター。定数が伝わり、他の最適化の入口になる</td></tr>
+    <tr><td><code>instcombine</code></td><td>命令の組み合わせを簡単な形に書き換える（覗き穴最適化）</td><td><code>x*2</code> → <code>x&lt;&lt;1</code>、比較＋選択 → <code>smax</code> など</td></tr>
+    <tr><td><code>simplifycfg</code></td><td>空のブロックや不要な分岐をまとめる</td><td>if/else が単純なときは <code>select</code>（分岐なし）に変える</td></tr>
+    <tr><td><code>gvn</code></td><td>同じ計算を 2 回しない（共通部分式の除去）</td><td>同じ式・同じ load の繰り返し</td></tr>
+    <tr><td><code>licm</code></td><td>ループ内で変わらない計算をループの外に出す</td><td>ループ内の <code>strlen(s)</code> や配列の長さ</td></tr>
+    <tr><td><code>loop-vectorize</code> / <code>slp-vectorizer</code></td><td>SIMD 命令でまとめて計算する</td><td>配列の一括処理</td></tr>
+  </table></div>
+  <p class="note">パスには、IR を読んで情報を出すだけの<b>解析パス</b>（支配木、ループ情報、エイリアス解析など）と、IR を書き換える<b>変換パス</b>がある。今の LLVM は「新しいパスマネージャ (new pass manager)」が解析結果をキャッシュし、変換で壊れたものだけを計算し直す。</p>
+
+  <h2 id="backend">バックエンド: IR から CPU の命令へ</h2>
+  <p>同じ IR でも、どの CPU 向けかでここから先が分かれる。各 CPU の命令・レジスタ・呼び出し規約は <b>TableGen</b> という記述言語 (<code>.td</code> ファイル) で書かれ、そこから命令選択の表などが自動生成される。</p>
+  <div class="grid3">
+    <div class="card"><span class="label be">1. 命令選択</span><p style="font-size:0.85rem">IR の命令を、その CPU の命令に当てはめる。SelectionDAG（基本ブロックをグラフにして照合）、-O0 向けの高速な FastISel、GlobalISel（関数単位で段階的に変換）の 3 方式がある。</p></div>
+    <div class="card"><span class="label be">2. MIR とスケジューリング</span><p style="font-size:0.85rem">CPU 命令の形になったが、レジスタはまだ仮想 (Machine IR)。命令の並び順を CPU のパイプラインに合わせて調整する。</p></div>
+    <div class="card"><span class="label be">3. レジスタ割付</span><p style="font-size:0.85rem">無限にあった値を、実際のレジスタ（x86-64 なら汎用 16 本）に割り当てる。入りきらない値はスタックに退避 (spill)。</p></div>
+    <div class="card"><span class="label be">4. MC 層</span><p style="font-size:0.85rem">命令をアセンブリ文字列か機械語バイト列に変える。<b>アセンブラを内蔵</b>しているので、外部の <code>as</code> を呼ばずに直接 <code>.o</code> を書ける。</p></div>
+  </div>
+
+  <h3 id="targets">同じ IR、違う CPU</h3>
+  <p>上の <code>add</code> と <code>max</code> の IR（-O2 後）を、<code>--target</code> だけ変えて出力した結果。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="t-ir">LLVM IR (-O2)</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-x86">x86-64</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-arm">AArch64</button>
+  </div>
+  <div class="panel" id="t-ir"><pre><code>define dso_local i32 @add(i32 noundef %a, i32 noundef %b) {
+entry:
+  %add = add nsw i32 %b, %a
+  ret i32 %add
+}
+
+define dso_local noundef i32 @max(i32 noundef %a, i32 noundef %b) {
+entry:
+  %a.b = tail call i32 @llvm.smax.i32(i32 %a, i32 %b)   ; 組み込み関数 (intrinsic)
+  ret i32 %a.b
+}</code></pre></div>
+  <div class="panel" id="t-x86" hidden><pre><code>add:
+	leal	(%rdi,%rsi), %eax     # アドレス計算命令で足し算
+	retq
+
+max:
+	movl	%esi, %eax
+	cmpl	%esi, %edi
+	cmovgl	%edi, %eax        # 条件付き移動 (分岐なし)
+	retq</code></pre></div>
+  <div class="panel" id="t-arm" hidden><pre><code>add:
+	add	w0, w1, w0
+	ret
+
+max:
+	cmp	w0, w1
+	csel	w0, w0, w1, gt    // 条件付き選択 (分岐なし)
+	ret</code></pre></div>
+  <p class="note">clang 18 の出力から <code>.cfi_*</code> などのディレクティブを省いた。引数の入るレジスタ（x86-64 は <code>edi</code>/<code>esi</code>、AArch64 は <code>w0</code>/<code>w1</code>）は各 OS の呼び出し規約で決まっている。</p>
+
+  <h2 id="ecosystem">LLVM プロジェクトの部品と、使っている言語</h2>
+  <div class="grid2">
+    <div class="card">
+      <span class="label">llvm-project に入っている主な部品</span>
+      <div class="tblwrap"><table>
+        <tr><td><code>clang</code></td><td>C / C++ / Objective-C のフロントエンド。<code>clang-format</code> もここ。<code>clangd</code>・<code>clang-tidy</code> は隣の <code>clang-tools-extra</code> に入っている</td></tr>
+        <tr><td><code>lld</code></td><td>リンカ。GNU ld より速いことが多い</td></tr>
+        <tr><td><code>lldb</code></td><td>デバッガ</td></tr>
+        <tr><td><code>libc++</code></td><td>C++ 標準ライブラリ</td></tr>
+        <tr><td><code>compiler-rt</code></td><td>ランタイム補助と sanitizer（ASan・UBSan など）</td></tr>
+        <tr><td><code>MLIR</code></td><td>IR を何層も重ねるための枠組み。機械学習コンパイラ等が使う</td></tr>
+        <tr><td><code>flang</code></td><td>Fortran のフロントエンド</td></tr>
+      </table></div>
+    </div>
+    <div class="card">
+      <span class="label">LLVM をバックエンドに使う言語・ツール</span>
+      <div class="chips"><span class="chip">C / C++ (Clang)</span><span class="chip">Rust</span><span class="chip">Swift</span><span class="chip">Julia</span><span class="chip">Kotlin/Native</span><span class="chip">Zig（リリースビルド）</span><span class="chip">Emscripten (C→Wasm)</span><span class="chip">GPU シェーダ・CUDA 系</span></div>
+      <p style="font-size:0.85rem">どれも「自分の言語の解析と、言語固有の中間表現」までを自前で持ち、その先を LLVM IR にして渡す。Rust なら HIR・MIR で借用チェックを済ませてから LLVM IR にする（<a href="rust.html#compile">Rust のメモ</a>）。</p>
+      <p class="note">LLVM の最適化は強力な反面、コンパイルが遅くなりがち。Zig は x86-64 向けのデバッグビルドを自前のバックエンドに切り替え（0.15 以降。Windows などを除く）、Rust も Cranelift バックエンドを試験提供している。「速く出すのは自前、よく最適化するのは LLVM」という使い分け。</p>
+    </div>
+  </div>
+
+  <h2 id="lto">LTO と JIT: IR を「後で」使う</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="lto-p">LTO</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="thin-p">ThinLTO</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="jit-p">JIT</button>
+  </div>
+  <div class="panel card" id="lto-p"><p>普通は <code>.c</code> 1 つずつ最適化するので、別ファイルの関数はインライン化できない。<code>-flto</code> をつけると <code>.o</code> の中身が機械語ではなく<b>ビットコード</b>になり、リンク時に全ファイルの IR をまとめて最適化する。</p><p class="note">効果は大きいが、リンクが 1 か所に集中して遅く、メモリも食う。</p></div>
+  <div class="panel card" id="thin-p" hidden><p><code>-flto=thin</code>。各ファイルの要約（どの関数をどこから呼ぶか）だけを全体で見て、「このファイルにはあのファイルの関数を取り込む」と決めたら、最適化はファイルごとに並列で行う。フル LTO に近い効果で、並列化とインクリメンタルビルドが効く。</p></div>
+  <div class="panel card" id="jit-p" hidden><p>IR を実行時に機械語にしてすぐ動かす。LLVM には <b>ORC JIT</b> という JIT 用の API があり、Julia などが使う。コンパイル時間がそのまま待ち時間になるので、JavaScript エンジンのような「とにかく早く動かす」用途では、LLVM より軽い自前の JIT を使うことが多い。</p></div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details><summary>「LLVM は仮想マシン (VM) である」</summary><p>元は Low Level Virtual Machine の略だったが、今は正式に略語ではなく、JVM のような実行環境でもない。LLVM IR は「仮想的な命令セット」として設計されたが、普段は事前コンパイル (AOT) で機械語にしてから配る。</p></details>
+  <details><summary>「LLVM IR はどの CPU でも動く共通フォーマット」</summary><p>IR の命令自体は CPU に依存しないが、フロントエンドが出す IR には <code>target triple</code>・データレイアウト（ポインタの大きさ、アライメント）・呼び出し規約が埋め込まれ、<code>sizeof</code> などは IR 生成の時点で数値になっている。x86-64 向けに出した IR を AArch64 向けに使い回すことは基本的にできない。CPU に依存しない配布形式が欲しいなら <a href="webassembly.html">WebAssembly</a> のような、そのために設計された形式を使う。</p></details>
+  <details><summary>「Clang = LLVM」</summary><p>Clang は LLVM を使う C 系言語のフロントエンド（とドライバ）で、LLVM の利用者の 1 つ。<code>clang</code> コマンドが内部で LLVM のライブラリを呼んでいる。GCC と比べた構成の違いは <a href="gcc-vs-clang.html">GCC と Clang の構成比較</a>へ。</p></details>
+  <details><summary>「-O3 にすれば必ず速くなる」</summary><p>-O3 はより積極的なインライン化・ループ変換を足すが、コードが大きくなって命令キャッシュに乗らず、かえって遅くなることもある。速さを決めるのは計測。サイズ優先なら <code>-Os</code> / <code>-Oz</code>。</p></details>
+
+  <h2 id="commands">手元で各段を見るコマンド</h2>
+<pre><code># C → LLVM IR（テキスト）。名前を残し、-O0 でも後から opt を当てられるようにする
+# （ただし noinline は残るので、inline を試すときは下のように外す）
+clang -S -emit-llvm -O0 -Xclang -disable-O0-optnone -fno-discard-value-names x.c -o x.ll
+
+# パスを指定して当てる（new pass manager の書き方）
+opt -S -passes='mem2reg,instcombine' x.ll -o x2.ll
+opt -S -force-remove-attribute=sq:noinline -passes='forceattrs,function(mem2reg),cgscc(inline)' x.ll
+opt -S -passes='default&lt;O2&gt;' x.ll -o x-o2.ll     # -O2 と同じレシピ
+
+# IR → アセンブリ / オブジェクト
+llc x-o2.ll -o x.s
+llc -mtriple=aarch64-linux-gnu x-o2.ll -o x-arm.s
+
+# clang が裏で何を呼んでいるか（-cc1 と リンカ）
+clang -### x.c
+
+# 最適化で何が起きたか / 起きなかったかの報告
+clang -O2 -Rpass=inline -Rpass-missed=loop-vectorize -c x.c</code></pre>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="gcc-vs-clang.html">GCC と Clang の構成比較</a><a href="rust.html">Rust</a><a href="webassembly.html">WebAssembly</a><a href="memory-management.html">メモリ管理</a><a href="language-genealogy.html">プログラミング言語の系譜</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://llvm.org/">The LLVM Compiler Infrastructure</a></li>
+    <li><a href="https://llvm.org/docs/LangRef.html">LLVM Language Reference Manual</a></li>
+    <li><a href="https://llvm.org/docs/NewPassManager.html">Using the New Pass Manager</a></li>
+    <li><a href="https://llvm.org/docs/CodeGenerator.html">The LLVM Target-Independent Code Generator</a></li>
+    <li><a href="https://llvm.org/docs/TableGen/">TableGen Overview</a></li>
+    <li><a href="https://clang.llvm.org/docs/ThinLTO.html">Clang: ThinLTO</a></li>
+    <li><a href="https://aosabook.org/en/v1/llvm.html">The Architecture of Open Source Applications: LLVM (Chris Lattner)</a></li>
+  </ul>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+// タブ（data-panel 方式）
+document.querySelectorAll('.tabs').forEach(group => {
+  if (group.id === 'mn-tabs') return;
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+// M×N 図
+(() => {
+  const svg = document.getElementById('mn-svg');
+  const count = document.getElementById('mn-count');
+  const langs = ['C / C++', 'Rust', 'Swift', 'Julia'];
+  const cpus = ['x86-64', 'AArch64', 'RISC-V', 'Wasm'];
+  const NS = 'http://www.w3.org/2000/svg';
+  const ys = i => 40 + i * 56;
+  const el = (tag, attrs, text) => {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (text) n.textContent = text;
+    return n;
+  };
+  function draw(mode) {
+    svg.textContent = '';
+    const lines = el('g', {});
+    svg.appendChild(lines);
+    let n = 0;
+    if (mode === 'direct') {
+      langs.forEach((_, i) => cpus.forEach((_, j) => {
+        lines.appendChild(el('line', { x1: 130, y1: ys(i), x2: 430, y2: ys(j), stroke: 'var(--fg-2)', opacity: .55 }));
+        n++;
+      }));
+    } else {
+      langs.forEach((_, i) => { lines.appendChild(el('line', { x1: 130, y1: ys(i), x2: 222, y2: 124, stroke: 'var(--c-fe)' })); n++; });
+      cpus.forEach((_, j) => { lines.appendChild(el('line', { x1: 338, y1: 124, x2: 430, y2: ys(j), stroke: 'var(--c-be)' })); n++; });
+      svg.appendChild(el('rect', { x: 222, y: 96, width: 116, height: 56, rx: 10, fill: 'var(--surface)', stroke: 'var(--c-mid)', 'stroke-width': 2 }));
+      svg.appendChild(el('text', { x: 280, y: 120, 'text-anchor': 'middle', fill: 'var(--c-mid)', 'font-family': 'JetBrains Mono, monospace', 'font-size': 14, 'font-weight': 700 }, 'LLVM IR'));
+      svg.appendChild(el('text', { x: 280, y: 140, 'text-anchor': 'middle', fill: 'var(--fg-2)', 'font-size': 11 }, '最適化はここで 1 回'));
+    }
+    const box = (x, y, label, color) => {
+      svg.appendChild(el('rect', { x: x, y: y - 16, width: 110, height: 32, rx: 6, fill: 'var(--chip)', stroke: color, 'stroke-width': 1.5 }));
+      svg.appendChild(el('text', { x: x + 55, y: y + 5, 'text-anchor': 'middle', fill: 'var(--fg)', 'font-family': 'JetBrains Mono, monospace', 'font-size': 12 }, label));
+    };
+    langs.forEach((l, i) => box(20, ys(i), l, 'var(--c-fe)'));
+    cpus.forEach((c, j) => box(430, ys(j), c, 'var(--c-be)'));
+    svg.appendChild(el('text', { x: 75, y: 16, 'text-anchor': 'middle', fill: 'var(--fg-2)', 'font-size': 11 }, '言語 (M)'));
+    svg.appendChild(el('text', { x: 485, y: 16, 'text-anchor': 'middle', fill: 'var(--fg-2)', 'font-size': 11 }, 'CPU (N)'));
+    count.textContent = mode === 'direct'
+      ? `変換器の数: 4 × 4 = ${n} 個（最適化も言語×CPU ごとに書き直し）`
+      : `変換器の数: 4 + 4 = ${n} 個（フロントエンド 4 + バックエンド 4）`;
+  }
+  const tabs = document.getElementById('mn-tabs');
+  tabs.addEventListener('click', e => {
+    const t = e.target.closest('.tab');
+    if (!t) return;
+    tabs.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+    draw(t.dataset.mode);
+  });
+  draw('ir');
+})();
+
+// パイプラインの詳細
+(() => {
+  const D = [
+    ['前処理 (preprocess)', '#include の中身を貼り込み、#define のマクロを展開し、#if で不要な部分を消す。結果は「ただの C のテキスト」。', 'clang -E x.c'],
+    ['字句解析・構文解析 (lex / parse)', 'テキストをトークン（キーワード・識別子・記号）に切り、文法に沿って抽象構文木 (AST) を組み立てる。Clang は手書きの再帰下降パーサ。', 'clang -Xclang -ast-dump -fsyntax-only x.c'],
+    ['意味解析 (Sema)', '型が合っているか、名前が宣言されているか、暗黙の型変換はどう入るかを調べ、AST に型情報を書き込む。エラーや警告の大半はここで出る。', 'clang -fsyntax-only -Wall x.c'],
+    ['IR 生成 (CodeGen)', '型のついた AST を歩いて LLVM IR を出す。ここで target triple やデータレイアウトが決まり、sizeof は数値になる。ここまでが Clang の仕事。', 'clang -S -emit-llvm -O0 x.c -o x.ll'],
+    ['最適化 (middle end)', 'LLVM IR → LLVM IR の変換（パス）を、-O レベルに応じたレシピで何十回も当てる。言語にも CPU にも依存しない部分。下の「最適化 = パスを順に当てていく」を参照。', 'opt -S -passes=\'default<O2>\' x.ll'],
+    ['命令選択 (instruction selection)', 'IR の命令を、対象 CPU の命令に置き換える。CPU ごとの対応表は TableGen の記述から自動生成される。', 'llc -print-after-isel x.ll -o /dev/null'],
+    ['レジスタ割付 (register allocation)', '仮想レジスタを物理レジスタに割り当て、足りない分はスタックに退避する。命令の並べ替え（スケジューリング）もこの前後で行う。', 'llc -print-after=greedy x.ll -o /dev/null'],
+    ['MC 層 (machine code)', '機械命令をアセンブリのテキスト (.s) か、機械語のバイト列を入れたオブジェクトファイル (.o) にする。アセンブラを内蔵しているので外部の as は不要。', 'clang -c x.c && llvm-objdump -d x.o'],
+    ['リンク (link)', '複数の .o とライブラリをつなぎ、関数のアドレスを確定して実行ファイルにする。clang はドライバとしてシステムのリンカ（ld や lld）を呼ぶ。-fuse-ld=lld で lld を選べる。', 'clang -fuse-ld=lld x.o -o x'],
+  ];
+  const box = document.getElementById('pipe-detail');
+  const pipe = document.getElementById('pipe');
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  function show(i) {
+    pipe.querySelectorAll('.stage').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.i === i)));
+    const [t, d, c] = D[i];
+    box.innerHTML = `<strong>${t}</strong><p style="font-size:0.88rem">${d}</p><pre><code>$ ${esc(c)}</code></pre>`;
+  }
+  pipe.addEventListener('click', e => { const b = e.target.closest('.stage'); if (b) show(+b.dataset.i); });
+  show(0);
+})();
+
+// パスのステッパー
+(() => {
+  const S = [
+    ['-O0 の出力', 'Clang がそのまま出した IR。変数 a はスタックの箱、sq は普通の関数呼び出し。', `define dso_local i32 @f() {
+entry:
+  %a = alloca i32, align 4
+  store i32 3, ptr %a, align 4
+  %0 = load i32, ptr %a, align 4
+  %call = call i32 @sq(i32 noundef %0)
+  %add = add nsw i32 %call, 1
+  ret i32 %add
+}`],
+    ['mem2reg', '箱 (alloca) に入れて出すだけの変数を、SSA の値に置き換える。a は消えて、定数 3 が直接 sq に渡るようになった。', `define dso_local i32 @f() {
+entry:
+  %call = call i32 @sq(i32 noundef 3)
+  %add = add nsw i32 %call, 1
+  ret i32 %add
+}`],
+    ['inline', 'sq の本体 (x * x) を呼び出し元に埋め込む。引数が定数 3 なので、埋め込みと同時に 3 * 3 が 9 に畳み込まれた。', `define dso_local i32 @f() {
+entry:
+  %add = add nsw i32 9, 1
+  ret i32 %add
+}`],
+    ['instcombine', '定数同士の計算 9 + 1 を畳み込む。関数 f は「10 を返すだけ」になった。clang -O2 の出力もこれと同じ。', `define dso_local i32 @f() {
+entry:
+  ret i32 10
+}`],
+  ];
+  const what = document.getElementById('st-what');
+  const code = document.getElementById('st-code');
+  const dots = document.getElementById('st-dots');
+  const prev = document.getElementById('st-prev');
+  const next = document.getElementById('st-next');
+  S.forEach(() => dots.appendChild(document.createElement('span')));
+  let i = 0;
+  function render() {
+    what.innerHTML = `<b>${i}. ${S[i][0]}</b> — ${S[i][1]}`;
+    code.textContent = S[i][2];
+    [...dots.children].forEach((d, k) => d.classList.toggle('on', k <= i));
+    prev.disabled = i === 0;
+    next.disabled = i === S.length - 1;
+  }
+  prev.onclick = () => { if (i > 0) { i--; render(); } };
+  next.onclick = () => { if (i < S.length - 1) { i++; render(); } };
+  render();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "新しいプログラミング言語を作り、x86-64・AArch64・RISC-V の 3 つで動かしたい。LLVM を使うと、自分で書く必要があるのは主にどこ？",
+    "choices": ["3 つの CPU それぞれのバックエンド", "言語を解析して LLVM IR を出すフロントエンド", "LLVM IR 用の最適化パス一式", "フロントエンドと 3 つ分のバックエンドの両方"],
+    "answer": 1,
+    "explain": "LLVM IR を出せれば、最適化と各 CPU 向けのコード生成は LLVM の既存の部品が受け持つ。M+N 構成の利点がこれ。",
+    "ref": "#three-phase"
+  },
+  {
+    "q": "clang -O0 で出した LLVM IR に、ローカル変数ごとの alloca・load・store が大量にある。これらを SSA の値と phi に置き換えるのはどの段階？",
+    "choices": ["Clang の意味解析 (Sema)", "バックエンドのレジスタ割付", "最適化パスの mem2reg（や SROA）", "リンク時の LTO"],
+    "answer": 2,
+    "explain": "フロントエンドは変数をメモリの箱として素直に出し、SSA 化はミドルエンドの mem2reg / SROA に任せる分担になっている。",
+    "ref": "#ssa"
+  },
+  {
+    "q": "x86-64 Linux 向けに clang -emit-llvm で作った .ll ファイルを、そのまま AArch64 向けの llc に渡して使い回そうとしている。何が問題になりやすい？",
+    "choices": ["IR に target triple・データレイアウト・呼び出し規約が埋め込まれ、sizeof なども数値になっているので、そのままでは正しくない", "LLVM IR はテキスト形式だと別の CPU 向けに変換できず、必ずビットコードにする必要がある", "AArch64 のバックエンドは Clang が出した IR を受け付けない", "問題はない。LLVM IR はどの CPU でも動く共通フォーマット"],
+    "answer": 0,
+    "explain": "LLVM IR の命令は CPU 非依存だが、フロントエンドが出す IR はターゲットの ABI や型の大きさを前提にしている。",
+    "ref": "#myths"
+  },
+  {
+    "q": "別ファイル util.c にある小さな関数を main.c から何度も呼んでいて、インライン化されずに遅い。ビルドを大きく変えずに効く手は？",
+    "choices": ["-O3 にする", "-flto=thin（ThinLTO）でリンク時に IR を見てファイルをまたいで最適化する", "-fuse-ld=lld でリンカを変える", "-emit-llvm で IR を出してから同じ手順でビルドする"],
+    "answer": 1,
+    "explain": "ファイル単位のコンパイルでは他ファイルの関数本体が見えない。LTO / ThinLTO は .o にビットコードを入れ、リンク時にファイルをまたいだインライン化を可能にする。",
+    "ref": "#lto"
+  },
+  {
+    "q": "同じ int max(int a, int b) が、x86-64 では cmov、AArch64 では csel という別々の命令になった。この違いを生んでいるのは LLVM のどの部分？",
+    "choices": ["Clang のフロントエンドが CPU ごとに違う IR を出している", "instcombine などの最適化パスが CPU ごとに別のパスになっている", "リンカが CPU に合わせて命令を書き換えている", "バックエンドの命令選択が、TableGen で記述された CPU ごとの命令に当てはめている"],
+    "answer": 3,
+    "explain": "-O2 後の IR はどちらも同じ llvm.smax。そこから先、命令選択以降のバックエンドが CPU ごとに分かれている。",
+    "ref": "#targets"
+  }
+]
+</script>
+</body>
+</html>
