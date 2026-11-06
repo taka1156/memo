@@ -5,6 +5,7 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 
 - トップページ: `src/index.html`（メモ一覧・検索・タグ絞り込み・ランダムクイズ）
 - クイズページ: `src/quiz.html`（ランダム 10 問・カテゴリ別 10 問。最後にスコアと正答一覧、本文へのリンク）
+- ロードマップ: `src/roadmap.html`（トップページのいちばん下の「ロードマップ」から開ける。書いたメモとこれから書くテーマのチェックリストで、メモを公開すると自動でチェックが付く。項目はページ内の `ROADMAP` に書く）
 - 設定ページ: https://memo.taka1156.site/settings.html  （トップページのいちばん下の「設定」から開ける。アクセント色を試して、Actions の `Set accent color` で全ページに固定する。手順は memo-kit の README の「アクセント色を変える」）
 - 公開 URL: https://memo.taka1156.site/  
   （`src/CNAME` の独自ドメイン。OGP の URL もここから自動で決まります）
@@ -62,6 +63,7 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 | --- | --- |
 | `src/` 直下のメモ | メモ本体（原本。生成物は build が `dist/` に作り、dist ブランチで公開する） |
 | `src/CNAME` | 独自ドメイン（memo.taka1156.site） |
+| `src/roadmap.html` の `ROADMAP` の中身 | このサイトで書く予定のテーマ（ページの作りは仕組み側） |
 | `src/assets/` の画像 | このサイトのアイコン・OGP 画像 |
 | `branding/source.png` | アイコンの元画像 |
 | `memo.config.json` の値 | このサイトの設定 |

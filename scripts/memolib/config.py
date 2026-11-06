@@ -21,8 +21,9 @@ DIST = ROOT / "dist"  # build の出力。公開するサイト一式（GitHub P
 INDEX = SRC / "index.html"
 QUIZ_PAGE = SRC / "quiz.html"  # 全メモの問題から 10 問解くページ
 SETTINGS_PAGE = SRC / "settings.html"  # 管理者がアクセント色を試して、固定する手順へ進むページ
+ROADMAP_PAGE = SRC / "roadmap.html"  # 書いたメモ・これから書くテーマのチェックリスト（memos.json で自動でチェック）
 # メモではない特別なページ（一覧に載せない・メモ名に使えない）。一覧データは memos.json などから読み込む
-SPECIAL_PAGES = (INDEX, QUIZ_PAGE, SETTINGS_PAGE)
+SPECIAL_PAGES = (INDEX, QUIZ_PAGE, SETTINGS_PAGE, ROADMAP_PAGE)
 SPECIAL_NAMES = {p.name for p in SPECIAL_PAGES}
 
 # memo.config.json の項目と、書かれていないときの値

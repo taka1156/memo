@@ -74,7 +74,7 @@ class BuildTest(unittest.TestCase):
     def test_dist_is_a_complete_site(self):
         """dist/ だけで公開できること: 原本の共通ファイルのコピーと、生成物がそろっている。"""
         with Workspace() as ws:
-            for rel in ("index.html", "quiz.html", "settings.html", "sample.html", "sample-plain.html",
+            for rel in ("index.html", "quiz.html", "settings.html", "roadmap.html", "sample.html", "sample-plain.html",
                         "CNAME", "assets/memo-quiz.css", "assets/memo-quiz.js", "memos.json", "quizzes.json",
                         "llms.txt", "md/sample.md", str(ENTRY_REL)):
                 self.assertTrue((ws.dist / rel).is_file(), rel)
@@ -105,8 +105,11 @@ class BuildTest(unittest.TestCase):
             self.assertNotIn("index.html", files)
             self.assertNotIn("quiz.html", files)
             self.assertNotIn("settings.html", files)
+            self.assertNotIn("roadmap.html", files)
             self.assertFalse((ws.dist / "md" / "settings.md").exists())
+            self.assertFalse((ws.dist / "md" / "roadmap.md").exists())
             self.assertNotIn("settings", ws.read("llms.txt"))
+            self.assertNotIn("roadmap", ws.read("llms.txt"))
 
     def test_sample_quizzes_are_collected(self):
         with Workspace() as ws:
@@ -378,6 +381,21 @@ class SiteConfigTest(unittest.TestCase):
             index = ws.read("index.html")
             self.assertIn('<a href="settings.html">設定</a>', index)  # トップのフッターから開ける
 
+    def test_roadmap_page_is_special_and_linked_from_top(self):
+        """ロードマップは設定と同じ特別なページ: 一覧に載らず、クイズも付かず、トップのフッターから開ける。"""
+        with Workspace() as ws:
+            roadmap = ws.read("roadmap.html")
+            self.assertIn(">TEST MEMO ロードマップ</title>", roadmap)
+            self.assertIn('<meta name="robots" content="noindex">', roadmap)
+            self.assertIn("<!-- memo:head", roadmap)
+            self.assertNotIn("memo-quiz.js", roadmap)
+            self.assertIn("fetch('memos.json'", roadmap)  # チェックは一覧データから付ける
+            index = ws.read("index.html")
+            self.assertIn('<a href="roadmap.html">ロードマップ</a>', index)
+            out = ws.root / "pv.html"
+            ws.run("preview", "roadmap", "-o", str(out))
+            self.assertIn("window.MEMO_DATA", out.read_text(encoding="utf-8"))  # プレビューでも一覧データが入る
+
     def test_accent_command_then_build_changes_every_page(self):
         with Workspace() as ws:
             p = ws.run("accent", "#3ddc97", "#0f7a50")
@@ -387,7 +405,7 @@ class SiteConfigTest(unittest.TestCase):
             self.assertEqual(cfg["site_name"], "TEST MEMO")  # ほかの項目は残る
             self.assertEqual(ws.run("build", "--check", check=False).returncode, 1)
             ws.run("build")
-            for name in ("index.html", "quiz.html", "settings.html", "sample.html", "sample-plain.html"):
+            for name in ("index.html", "quiz.html", "settings.html", "roadmap.html", "sample.html", "sample-plain.html"):
                 text = ws.read(name)
                 self.assertIn("html:root{--accent:#0f7a50}", text, name)
                 self.assertIn("html:root{--accent:#3ddc97}}", text, name)
