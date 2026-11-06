@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>オブザーバビリティと OpenTelemetry</title>
+<meta name="description" content="ログ・メトリクス・トレースがそれぞれ何に答えるか、トレース ID でどうつなぐか、OpenTelemetry の SDK・Collector・OTLP の役割を図で整理する">
+<meta name="memo:tags" content="インフラ, バックエンド, 開発ツール">
+<meta name="memo:date" content="2026-11-06">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #cf222e;
+  --c-warn: #9a6700;
+  --c-a: #0077b6;
+  --c-b: #8250df;
+  --c-c: #1a7f37;
+  --c-d: #bc4c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-a: #00d4ff;
+    --c-b: #bc8cff;
+    --c-c: #3fb950;
+    --c-d: #f0883e;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.2em; }
+ul.plain li { margin: 2px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+  margin: 10px 0;
+}
+.en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* 図 */
+.diagram { margin: 8px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
+.d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
+.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--accent); }
+.d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
+.d-ng-head { fill: var(--c-ng); }
+
+/* ステップ・フロー */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.flow span {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+.tbl td:first-child { font-weight: 700; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+
+
+/* よくある誤解 */
+.myth { margin-bottom: 10px; }
+.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
+.myth summary::-webkit-details-marker { display: none; }
+.myth summary::before { content: '✕ '; color: var(--c-ng); }
+.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
+.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+/* OK / NG コード比較 */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.vs > div { min-width: 0; }
+.vs .lbl { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.sim-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.sim-btns button {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 6px 12px; font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer;
+}
+.sim-btns button:hover { border-color: var(--accent); }
+.sim-btns button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.sim-log { font-size: 0.85rem; background: var(--chip); border-radius: 8px; padding: 8px 12px; min-height: 3.4em; }
+.spectrum { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.spectrum .card { padding: 10px 12px; }
+.spectrum .card b { font-size: 0.88rem; }
+.spectrum .card p { font-size: 0.8rem; color: var(--fg-2); margin: 4px 0 0; }
+.strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); letter-spacing: .1em; }
+.badge {
+  display: inline-block;
+  font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  color: var(--fg-2);
+}
+.badge.a { color: var(--c-a); }
+.badge.b { color: var(--c-b); }
+.badge.c { color: var(--c-c); }
+.badge.d { color: var(--c-d); }
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: -16px 0 22px; font-size: 0.78rem; }
+.series a { background: var(--chip); border-radius: 999px; padding: 2px 10px; text-decoration: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.wf { display: grid; gap: 4px; }
+.wf-row { display: grid; grid-template-columns: minmax(110px, 34%) 1fr; gap: 8px; align-items: center; font-size: 0.75rem; cursor: pointer; border-radius: 4px; padding: 2px 4px; }
+.wf-row:hover, .wf-row.sel { background: var(--chip); }
+.wf-row span:first-child { font-family: 'JetBrains Mono', ui-monospace, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wf-track { position: relative; height: 14px; }
+.wf-bar { position: absolute; top: 2px; height: 10px; border-radius: 3px; background: var(--c-a); }
+.wf-bar.db { background: var(--c-b); }
+.wf-bar.ext { background: var(--c-d); }
+.wf-bar.slow { background: var(--c-ng); }
+.pipe { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; }
+.pipe > div { flex: 1 1 130px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.pipe > i { align-self: center; font-style: normal; color: var(--accent); font-weight: 700; }
+.pipe b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.pipe p { font-size: 0.8rem; color: var(--fg-2); margin: 2px 0 0; }
+.tp { font: 600 0.85rem 'JetBrains Mono', ui-monospace, monospace; word-break: break-all; }
+.tp span { padding: 0 2px; border-radius: 3px; }
+.tp .v { background: color-mix(in srgb, var(--c-c) 25%, transparent); }
+.tp .t { background: color-mix(in srgb, var(--c-a) 25%, transparent); }
+.tp .p { background: color-mix(in srgb, var(--c-b) 25%, transparent); }
+.tp .f { background: color-mix(in srgb, var(--c-d) 25%, transparent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>オブザーバビリティと OpenTelemetry</h1>
+  <p class="subtitle">ログ・メトリクス・トレース ——「何かおかしい」から「どこの何が原因か」までたどれるようにする</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>メトリクス</b>で「おかしい」に気づき、<b>トレース</b>で「どこが遅い・失敗している」を絞り、<b>ログ</b>で「なぜ」を読む。3 つは役割が違う。</li>
+      <li>3 つを<b>同じトレース ID でつなぐ</b>のが要。サービスをまたいでも ID を受け渡す（コンテキスト伝搬）ので、1 つのリクエストを端から端まで追える。</li>
+      <li><b>OpenTelemetry (OTel)</b> は計測の書き方と送り方（OTLP）の標準。アプリは OTel で計測し、どの監視サービスに送るかは後から差し替えられる。</li>
+    </ul>
+  </div>
+
+  <h2 id="why">監視とオブザーバビリティ</h2>
+  <div class="grid">
+    <div class="card"><b>監視 (monitoring)</b><p>「CPU 90% 超え」「エラー率 5% 超え」のように、<b>あらかじめ決めた問い</b>に答える。知っている壊れ方には強い。</p></div>
+    <div class="card"><b>オブザーバビリティ (observability)</b><p>「この顧客だけ昨日から遅い」のような<b>事前に想定していなかった問い</b>にも、出ているデータから答えられる状態。マイクロサービスで特に必要になる。</p></div>
+  </div>
+
+  <h2 id="signals">3 つのシグナル</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="s-metrics">メトリクス</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="s-traces">トレース</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="s-logs">ログ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="s-profiles">プロファイル</button>
+  </div>
+  <div class="panel card" id="s-metrics">
+    <p><b>数値の時系列。</b>「1 分あたりのリクエスト数」「p99 レイテンシ」など。集計済みなので軽く、長期間保存してグラフ・アラートに使う。</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <tr><th>種類</th><th>意味</th><th>例</th></tr>
+      <tr><td>Counter</td><td>増えるだけの累計</td><td>リクエスト総数・エラー総数</td></tr>
+      <tr><td>Gauge</td><td>今の値（上下する）</td><td>メモリ使用量・キューの長さ</td></tr>
+      <tr><td>Histogram</td><td>値の分布（バケットごとの件数）</td><td>レイテンシ → p50 / p95 / p99 を出せる</td></tr>
+    </table></div>
+    <p class="note"><b>カーディナリティに注意：</b>ラベル（属性）の組み合わせごとに別の時系列ができる。<code>user_id</code> や <code>request_id</code> をラベルにすると時系列が爆発し、保存コストが跳ね上がる。そういう値はトレースやログに入れる。</p>
+  </div>
+  <div class="panel card" id="s-traces" hidden>
+    <p><b>1 つのリクエストがどこを通り、各所で何ミリ秒かかったか。</b>トレースは<b>スパン</b>（1 つの処理区間）の木構造。各スパンはトレース ID・自分のスパン ID・親のスパン ID・開始時刻・長さ・属性を持つ。</p>
+    <p>下の例（行をクリックで詳細）では、合計 480ms のうち外部の決済 API が大半を占めているのが一目でわかります。</p>
+    <div class="card" style="padding:10px">
+      <div class="wf" id="wf"></div>
+      <div class="sim-log" id="wf-log" style="margin-top:8px">スパンをクリック</div>
+    </div>
+  </div>
+  <div class="panel card" id="s-logs" hidden>
+    <p><b>出来事 1 件ごとの記録。</b>情報量が一番多いが、量も一番多い。検索・集計しやすいよう<b>構造化ログ（JSON）</b>で出し、<b>トレース ID を必ず入れる</b>。</p>
+<pre><code>{"time":"2026-11-06T10:15:02.118Z","level":"error",
+ "msg":"payment declined","order_id":"o_8812","code":"card_expired",
+ "trace_id":"4bf92f3577b34da6a3ce929d0e0e4736","span_id":"00f067aa0ba902b7"}</code></pre>
+    <p class="note">トレース ID があれば、遅いトレースからそのリクエストのログだけに飛べる。ない場合は時刻で探すしかなく、同時刻の他のリクエストのログと混ざる。</p>
+  </div>
+  <div class="panel card" id="s-profiles" hidden>
+    <p><b>コードのどの関数が CPU・メモリを使っているか</b>を継続的に記録する（継続的プロファイリング）。トレースで「このスパンが遅い」とわかった後、「その中のどの関数か」まで掘れる。</p>
+    <p class="note">OpenTelemetry では 4 つ目のシグナルとして追加が進んでいる段階（2026 年時点でアルファ）。トレース・メトリクス・ログは仕様がおおむね安定版（言語ごとの SDK の状況は公式のステータス表で確認）。</p>
+  </div>
+
+  <h3 id="flow">3 つをどう使い分けるか</h3>
+  <div class="flow"><span>メトリクス：エラー率が上がった</span><i>→</i><span>トレース：失敗したリクエストを開くと決済 API が 5 秒でタイムアウト</span><i>→</i><span>ログ：同じトレース ID のログに「接続プール枯渇」</span></div>
+
+  <h2 id="propagation">コンテキスト伝搬：サービスをまたいで ID を渡す</h2>
+  <p>サービス A が B を呼ぶとき、HTTP ヘッダーにトレース ID と自分のスパン ID を入れて渡します。標準は W3C Trace Context の <code>traceparent</code> ヘッダー。</p>
+  <div class="card">
+    <div class="tp"><span class="v">00</span>-<span class="t">4bf92f3577b34da6a3ce929d0e0e4736</span>-<span class="p">00f067aa0ba902b7</span>-<span class="f">01</span></div>
+    <div class="legend" style="margin-top:8px">
+      <span><i style="background:var(--c-c)"></i>バージョン</span>
+      <span><i style="background:var(--c-a)"></i>トレース ID（リクエスト全体で同じ）</span>
+      <span><i style="background:var(--c-b)"></i>親スパン ID（呼び出し元）</span>
+      <span><i style="background:var(--c-d)"></i>フラグ（01 = サンプリング対象）</span>
+    </div>
+  </div>
+  <p>B はこのヘッダーを読んで、同じトレース ID で自分のスパンを作ります。キュー（<a href="message-queues.html">メッセージキュー</a>）経由でも、メッセージの属性に入れて渡せば非同期処理までつながります。</p>
+  <p class="note">伝搬が 1 か所でも切れると、トレースはそこで 2 つに分かれてしまう。OTel の自動計測ライブラリは主要な HTTP クライアント・フレームワークについてこれを自動でやる。</p>
+
+  <h2 id="otel">OpenTelemetry の構成</h2>
+  <div class="pipe">
+    <div><b>API</b><p>アプリが呼ぶ部分。スパンを作る・メトリクスを記録する。ライブラリはここだけに依存する。</p></div><i>→</i>
+    <div><b>SDK</b><p>サンプリング・バッチ化・リソース情報（サービス名など）の付与。</p></div><i>→</i>
+    <div><b>Exporter</b><p>OTLP（OTel の送信プロトコル。gRPC / HTTP）で送り出す。</p></div><i>→</i>
+    <div><b>Collector</b><p>受け取って加工（属性の削除・サンプリング）し、複数の送り先に振り分ける。任意だが置くと便利。</p></div><i>→</i>
+    <div><b>バックエンド</b><p>保存・検索・可視化。Prometheus・Jaeger・Grafana・各種 SaaS など。</p></div>
+  </div>
+  <p>ポイントは<b>計測（左側）と保存先（右端）が分離している</b>こと。SaaS を乗り換えても、アプリのコードは変えずに Collector の設定だけ替えればよい。</p>
+<pre><code><span class="cm">// Node.js：自動計測で HTTP・DB 呼び出しのスパンを自動で作る</span>
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+
+new NodeSDK({
+  serviceName: 'checkout',
+  traceExporter: new OTLPTraceExporter({ url: 'http://collector:4318/v1/traces' }),
+  instrumentations: [getNodeAutoInstrumentations()],
+}).start();</code></pre>
+
+  <h2 id="sampling">サンプリング</h2>
+  <p>全リクエストのトレースを保存すると高くつくので、一部だけ残します。</p>
+  <div class="grid">
+    <div class="card"><b>ヘッドサンプリング</b><p>リクエストの<b>最初</b>に残すかを決める（例：10%）。軽いが、「たまたま捨てた中にエラーがあった」が起こる。決定は <code>traceparent</code> のフラグで下流に伝わる。</p></div>
+    <div class="card"><b>テールサンプリング</b><p>トレースが<b>終わってから</b>決める。「エラーか、1 秒以上かかったものは全部残す」ができる。Collector で全スパンを一時的に溜める必要があり重い。</p></div>
+  </div>
+
+  <h2 id="slo">何をアラートにするか：SLI と SLO</h2>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>用語</th><th>意味</th><th>例</th></tr>
+    <tr><td>SLI</td><td>ユーザー体験を表す指標</td><td>成功したリクエストの割合・300ms 以内に返った割合</td></tr>
+    <tr><td>SLO</td><td>SLI の目標値</td><td>30 日間で 99.9% が成功</td></tr>
+    <tr><td>エラーバジェット</td><td>SLO から逆算した「失敗してよい量」</td><td>99.9% なら 30 日で約 43 分ぶんの失敗</td></tr>
+  </table></div>
+  <p class="note">「CPU 80%」のような原因側の指標でアラートを鳴らすと、ユーザーに影響がないのに夜中に起こされる。アラートはユーザーが困る症状（SLO を割りそう）に対して出し、原因の指標は調査に使う。デプロイ後の自動ロールバックの判定にも使える（<a href="ci-cd.html">CI/CD と GitHub Actions</a>）。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth card"><summary>ログを全部取っておけばオブザーバビリティは足りる</summary><p>ログだけでは、サービスをまたいだ 1 リクエストの流れや、どこで時間を使ったかが見えない。トレース ID でつながっていないと検索も難しい。</p></details>
+  <details class="myth card"><summary>OpenTelemetry は監視サービスの一種</summary><p>OTel は計測と送信の標準（API・SDK・Collector・OTLP）で、データを保存・表示する機能は持たない。保存先は別に用意する。</p></details>
+  <details class="myth card"><summary>平均レイテンシを見ていれば十分</summary><p>平均は一部の極端に遅いリクエストを隠す。p95・p99 のようなパーセンタイルをヒストグラムから見る。</p></details>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      const p = t.dataset.panel && document.getElementById(t.dataset.panel);
+      if (p) p.hidden = !on;
+    });
+  });
+});
+(() => {
+  const spans = [
+    ['GET /checkout', 0, 480, '', 'checkout サービス', 'ルートスパン。リクエスト全体の 480ms。'],
+    ['auth.verify', 5, 25, '', 'checkout', 'トークン検証 25ms。'],
+    ['SELECT cart', 32, 18, 'db', 'checkout → PostgreSQL', 'カート読み込み 18ms。db.statement 属性に SQL が入る。'],
+    ['POST /reserve', 55, 60, '', 'inventory サービス', '在庫サービスへの呼び出し。traceparent で同じトレース ID が渡っている。'],
+    ['UPDATE stock', 70, 30, 'db', 'inventory → PostgreSQL', '在庫サービス側のスパン。親は POST /reserve。'],
+    ['POST payments.api', 120, 340, 'ext slow', '外部決済 API', '340ms。全体の 7 割がここ。最初に見るべき箇所。'],
+    ['INSERT order', 465, 12, 'db', 'checkout → PostgreSQL', '注文の保存 12ms。']
+  ];
+  const wf = document.getElementById('wf'), log = document.getElementById('wf-log');
+  const depth = [0,1,1,1,2,1,1];
+  spans.forEach((s, i) => {
+    const row = document.createElement('div'); row.className = 'wf-row';
+    row.innerHTML = '<span style="padding-left:' + depth[i]*10 + 'px">' + s[0] + '</span><div class="wf-track"><div class="wf-bar ' + s[3] + '" style="left:' + (s[1]/480*100) + '%;width:' + Math.max(1, s[2]/480*100) + '%"></div></div>';
+    row.addEventListener('click', () => {
+      wf.querySelectorAll('.wf-row').forEach(r => r.classList.remove('sel')); row.classList.add('sel');
+      log.textContent = s[0] + '（' + s[4] + '）：開始 +' + s[1] + 'ms、' + s[5];
+    });
+    wf.appendChild(row);
+  });
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "API のレイテンシのメトリクスに、ラベルとして user_id を付けようとしている。何が問題？",
+    "choices": ["ユーザーごとに別の時系列ができて数が爆発し、保存コストと検索負荷が跳ね上がる", "メトリクスには文字列のラベルを付けられない", "特に問題はなく、ユーザー別のグラフが見られて便利"],
+    "answer": 0,
+    "explain": "メトリクスはラベルの組み合わせごとに時系列を持つ。値の種類が多い属性（高カーディナリティ）はトレースやログに入れる。",
+    "ref": "#s-metrics"
+  },
+  {
+    "q": "注文サービスから在庫サービスを HTTP で呼んでいるが、トレースが 2 つに分かれて表示される。まず疑うべきことは？",
+    "choices": ["サンプリング率が低すぎる", "在庫サービスのログが JSON になっていない", "呼び出し時に traceparent ヘッダーが渡っていない（コンテキスト伝搬が切れている）"],
+    "answer": 2,
+    "explain": "下流のサービスは受け取ったトレース ID を使って自分のスパンを作る。ヘッダーが渡らないと新しいトレースとして始まってしまう。",
+    "ref": "#propagation"
+  },
+  {
+    "q": "トレースを 5% だけ残すヘッドサンプリングにしたら、まれに起きるエラーのトレースがほとんど残らない。どうする？",
+    "choices": ["ログを消してトレースに予算を回す", "Collector でテールサンプリングにして、エラーや遅いトレースは必ず残す", "サンプリング率を 5% のまま、メトリクスの間隔を短くする"],
+    "answer": 1,
+    "explain": "ヘッドサンプリングは結果がわかる前に捨てるかを決める。テールサンプリングならトレース完了後に条件で選べる。",
+    "ref": "#sampling"
+  },
+  {
+    "q": "監視 SaaS を A 社から B 社に乗り換えたい。アプリを OpenTelemetry で計測している場合、主に変えるのはどこ？",
+    "choices": ["全サービスの計測コードを B 社の SDK に書き換える", "Collector（またはエクスポーター）の送り先の設定", "OTLP を B 社独自のプロトコルに変換するコードを各アプリに足す"],
+    "answer": 1,
+    "explain": "OTel は計測（API・SDK）と保存先を分けている。多くの SaaS は OTLP を受け付けるので、送り先の設定を変えればよい。",
+    "ref": "#otel"
+  },
+  {
+    "q": "夜中に「CPU 使用率 80% 超え」のアラートで起こされたが、ユーザーへの影響はなかった。アラートの改善として適切なのは？",
+    "choices": ["しきい値を 95% に上げる", "CPU 以外にメモリやディスクのアラートも増やす", "エラー率やレイテンシが SLO を割りそうなときに鳴らし、CPU は調査用に見る"],
+    "answer": 2,
+    "explain": "アラートはユーザーが困っている症状に対して出す。原因側の指標は、症状が出たときに原因を絞るために使う。",
+    "ref": "#slo"
+  }
+]
+</script>
+</body>
+</html>

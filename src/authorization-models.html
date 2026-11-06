@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>認可モデル（RBAC・ABAC・ReBAC）</title>
+<meta name="description" content="「この人はこれをしてよいか」を決める ACL・RBAC・ABAC・ReBAC の違いと、Zanzibar 型の関係タプル、どこでチェックするか（IDOR 対策・RLS）を図とシミュレーターで整理する">
+<meta name="memo:tags" content="セキュリティ, 設計, バックエンド">
+<meta name="memo:date" content="2026-11-06">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #cf222e;
+  --c-warn: #9a6700;
+  --c-a: #0077b6;
+  --c-b: #8250df;
+  --c-c: #1a7f37;
+  --c-d: #bc4c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-a: #00d4ff;
+    --c-b: #bc8cff;
+    --c-c: #3fb950;
+    --c-d: #f0883e;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.2em; }
+ul.plain li { margin: 2px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+  margin: 10px 0;
+}
+.en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* 図 */
+.diagram { margin: 8px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
+.d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
+.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--accent); }
+.d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
+.d-ng-head { fill: var(--c-ng); }
+
+/* ステップ・フロー */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.flow span {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+.tbl td:first-child { font-weight: 700; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+
+
+/* よくある誤解 */
+.myth { margin-bottom: 10px; }
+.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
+.myth summary::-webkit-details-marker { display: none; }
+.myth summary::before { content: '✕ '; color: var(--c-ng); }
+.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
+.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+/* OK / NG コード比較 */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.vs > div { min-width: 0; }
+.vs .lbl { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.sim-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.sim-btns button {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 6px 12px; font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer;
+}
+.sim-btns button:hover { border-color: var(--accent); }
+.sim-btns button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.sim-log { font-size: 0.85rem; background: var(--chip); border-radius: 8px; padding: 8px 12px; min-height: 3.4em; }
+.spectrum { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.spectrum .card { padding: 10px 12px; }
+.spectrum .card b { font-size: 0.88rem; }
+.spectrum .card p { font-size: 0.8rem; color: var(--fg-2); margin: 4px 0 0; }
+.strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); letter-spacing: .1em; }
+.badge {
+  display: inline-block;
+  font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  color: var(--fg-2);
+}
+.badge.a { color: var(--c-a); }
+.badge.b { color: var(--c-b); }
+.badge.c { color: var(--c-c); }
+.badge.d { color: var(--c-d); }
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: -16px 0 22px; font-size: 0.78rem; }
+.series a { background: var(--chip); border-radius: 999px; padding: 2px 10px; text-decoration: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.az { display: grid; gap: 10px; }
+.az-sel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.85rem; }
+.az-sel select { font: 600 0.85rem 'Noto Sans JP', system-ui, sans-serif; background: var(--chip); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.az-res { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.az-res .card { padding: 10px 12px; }
+.az-res .card b { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.85rem; }
+.az-res .card p { font-size: 0.8rem; color: var(--fg-2); margin: 4px 0 0; }
+.tuple { font: 600 0.82rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); border-radius: 6px; padding: 6px 10px; margin: 4px 0; overflow-x: auto; white-space: nowrap; }
+.tuple .o { color: var(--c-a); } .tuple .r { color: var(--c-d); } .tuple .s { color: var(--c-b); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>認可モデル（RBAC・ABAC・ReBAC）</h1>
+  <p class="subtitle">認証が「あなたは誰？」なら、認可は「あなたはこれをしてよい？」—— 権限の決め方 4 種と、どこで確かめるか</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>RBAC</b>（役割で決める）が基本。「編集者は記事を編集できる」。シンプルだが、「自分の部署の記事だけ」のような条件が増えると役割が爆発する。</li>
+      <li>条件で決めるのが <b>ABAC</b>（属性：部署・時刻・状態）、つながりで決めるのが <b>ReBAC</b>（関係：「このフォルダの共有相手は中のファイルも見られる」）。Google ドライブ型の共有は ReBAC が得意。</li>
+      <li>どのモデルでも、チェックは<b>サーバー側で、リソースごとに毎回</b>行う。画面でボタンを隠すだけ、ログイン済みかを見るだけ、は認可ではない。</li>
+    </ul>
+  </div>
+
+  <h2 id="authn-authz">認証と認可</h2>
+  <div class="grid">
+    <div class="card"><b>認証 (authentication)</b><p>相手が誰かを確かめる。パスワード・<a href="passkeys.html">パスキー</a>・<a href="oauth-oidc.html">OIDC</a>。結果は「ユーザー ID」。</p></div>
+    <div class="card"><b>認可 (authorization)</b><p>その ID に、その操作を許すかを決める。このページの話。結果は「許可 / 拒否」。</p></div>
+  </div>
+  <p class="note">OAuth 2.0 のスコープ（<code>read:repo</code> など）は「アプリにどこまで代理を任せるか」で、アプリ内の細かな権限（どのリポジトリを読めるか）は別に判定する必要がある。</p>
+
+  <h2 id="models">4 つのモデル</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="m-acl">ACL</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-rbac">RBAC</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-abac">ABAC</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-rebac">ReBAC</button>
+  </div>
+  <div class="panel card" id="m-acl">
+    <p><b>リソースごとに「誰が何をできるか」の一覧を持つ。</b>アクセス制御リスト (Access Control List)。Linux の POSIX ACL（<code>setfacl</code>）、S3 のバケット ACL（新しいバケットでは既定で無効。今はバケットポリシーが推奨）など。</p>
+    <div class="tuple">report.pdf: alice=読み書き, bob=読み</div>
+    <p><span class="ok">得意</span> 1 つ 1 つ確実に指定できる。<span class="ng">苦手</span> ユーザーやリソースが増えると管理しきれない。「営業部全員に」と言いたくなる。</p>
+  </div>
+  <div class="panel card" id="m-rbac" hidden>
+    <p><b>ユーザーに役割（ロール）を付け、役割に権限を付ける。</b>Role-Based Access Control。</p>
+    <div class="flow"><span>ユーザー bob</span><i>→</i><span>ロール editor</span><i>→</i><span>権限 article:edit</span></div>
+    <p><span class="ok">得意</span> 入退社・異動は「ロールを付け替える」だけ。監査で「誰が何をできるか」を説明しやすい。</p>
+    <p><span class="ng">苦手</span> 「自分の部署の記事だけ編集」「下書きの間だけ」のような条件。<code>editor_sales</code>・<code>editor_sales_draft</code>…とロールが増え続ける（ロール爆発）。</p>
+  </div>
+  <div class="panel card" id="m-abac" hidden>
+    <p><b>ユーザー・リソース・環境の属性を条件式で評価する。</b>Attribute-Based Access Control。</p>
+<pre><code>許可 if  user.department == resource.department
+     and resource.status == "draft"
+     and env.time in 09:00–18:00</code></pre>
+    <p><span class="ok">得意</span> 細かい条件をロールを増やさず書ける。<span class="ng">苦手</span> 「結局この人は何ができるのか」を一覧しにくい。条件が複雑になるとテストが必須。</p>
+  </div>
+  <div class="panel card" id="m-rebac" hidden>
+    <p><b>ユーザーとリソースの「関係」をたどって決める。</b>Relationship-Based Access Control。Google が Drive・YouTube など多くのサービスで共通に使う認可基盤として作った Zanzibar（論文で公開）が代表例。</p>
+    <div class="flow"><span>bob</span><i>member of</i><span>営業チーム</span><i>editor of</i><span>フォルダ Q4</span><i>parent of</i><span>見積.pdf</span></div>
+    <p>「見積.pdf を bob は見られる？」→ 関係をたどって<b>つながれば許可</b>。</p>
+    <p><span class="ok">得意</span> 共有・階層・チーム・組織の入れ子。<span class="ng">苦手</span> 関係データを専用のストアに持ち、アプリの DB と同期させる手間がかかる。</p>
+  </div>
+
+  <h2 id="sim">同じ質問を各モデルで判定する</h2>
+  <p>ドキュメント「見積.pdf」（営業部・下書き・フォルダ Q4 の中。フォルダ Q4 は営業チームに編集者として共有）に対する操作を、各モデルがどう判定するかを見てください。</p>
+  <div class="card az" id="az">
+    <div class="az-sel">
+      <label>ユーザー <select id="az-u">
+        <option value="alice">alice（admin・情シス）</option>
+        <option value="bob" selected>bob（editor・営業部・営業チーム）</option>
+        <option value="carol">carol（editor・開発部）</option>
+        <option value="dave">dave（viewer・社外・個別に共有）</option>
+      </select></label>
+      <label>操作 <select id="az-a"><option value="view">閲覧</option><option value="edit">編集</option></select></label>
+    </div>
+    <div class="az-res" id="az-res"></div>
+  </div>
+  <p class="note">同じ「carol は編集者」でも、RBAC だけなら他部署の下書きを編集できてしまう。条件や関係を足すと絞り込める。実際のシステムでは RBAC を土台に ABAC や ReBAC の条件を足す組み合わせが多い。</p>
+
+  <h2 id="zanzibar">Zanzibar 型：関係をタプルで持つ</h2>
+  <p>ReBAC の実装では、関係を<b>「オブジェクト#関係@主体」</b>というタプルで保存し、権限の定義（スキーマ）で「viewer には editor も含む」「親フォルダの viewer は子も見られる」と書きます。</p>
+  <div class="tuple"><span class="o">folder:q4</span>#<span class="r">editor</span>@<span class="s">team:sales#member</span></div>
+  <div class="tuple"><span class="o">doc:estimate</span>#<span class="r">parent</span>@<span class="s">folder:q4</span></div>
+  <div class="tuple"><span class="o">team:sales</span>#<span class="r">member</span>@<span class="s">user:bob</span></div>
+<pre><code><span class="cm"># OpenFGA 風のスキーマ</span>
+type doc
+  relations
+    define parent: [folder]
+    define editor: [user, team#member] or editor from parent
+    define viewer: [user] or editor or viewer from parent</code></pre>
+  <p>アプリは「<code>check(user:bob, viewer, doc:estimate)</code>」と聞くだけ。OpenFGA・SpiceDB などがこの形のオープンソース実装です。</p>
+
+  <h3 id="engines">ポリシーエンジン</h3>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>種類</th><th>例</th><th>中身</th></tr>
+    <tr><td>関係ベース</td><td>OpenFGA・SpiceDB</td><td>タプルを保存し、関係をたどって判定</td></tr>
+    <tr><td>ポリシー言語</td><td>OPA（Rego）・Cedar</td><td>属性を入力に、条件式で判定（ABAC 寄り）。データは主に呼び出し側が渡す（OPA はバンドルなどでデータを持たせることもできる）</td></tr>
+    <tr><td>ライブラリ</td><td>Casbin など</td><td>アプリに組み込み、RBAC / ABAC のモデルを設定ファイルで書く</td></tr>
+  </table></div>
+  <p class="note">判定ロジックをアプリのあちこちの if 文に散らさず 1 か所（ポリシー）にまとめると、テスト・監査・変更がしやすくなる。</p>
+
+  <h2 id="where">どこでチェックするか</h2>
+  <div class="grid">
+    <div class="card"><b class="ng">足りない</b>
+      <ul class="plain">
+        <li>画面で編集ボタンを隠す</li>
+        <li>「ログインしているか」だけ確認</li>
+        <li>一覧画面ではチェック、詳細 API ではしない</li>
+      </ul></div>
+    <div class="card"><b class="ok">必要</b>
+      <ul class="plain">
+        <li>サーバーの API ごとに、<b>そのリソースに対して</b>判定</li>
+        <li>何も当てはまらなければ拒否（デフォルト拒否）</li>
+        <li>一覧・検索の SQL にも権限条件を入れる</li>
+      </ul></div>
+  </div>
+<pre><code><span class="cm">// NG：ログイン済みなら ID さえ変えれば他人の請求書が見える（IDOR）</span>
+app.get('/invoices/:id', requireLogin, (req) =&gt; db.invoice.find(req.params.id));
+
+<span class="cm">// OK：リソースを取ってから、この人に許されているかを判定</span>
+app.get('/invoices/:id', requireLogin, async (req) =&gt; {
+  const inv = await db.invoice.find(req.params.id);
+  if (!inv || !(await can(req.user, 'view', inv))) return notFound();
+  return inv;
+});</code></pre>
+  <p>URL の ID を書き換えるだけで他人のデータが見える脆弱性は IDOR（API では BOLA）と呼ばれ、API の脆弱性で最も多いものの 1 つです（<a href="web-vulnerabilities.html">実装起因の脆弱性</a>）。存在を知られたくないリソースは 403 ではなく 404 を返すこともあります。</p>
+
+  <h3 id="tenant">マルチテナント：行レベルセキュリティ</h3>
+  <p>SaaS では「他社のデータが見えない」が最重要の認可です。全クエリに <code>WHERE tenant_id = ?</code> を書き忘れないよう、PostgreSQL の行レベルセキュリティ (RLS) で DB 側に強制する方法があります。ただしスーパーユーザーとテーブル所有者には通常ポリシーが効かないので、アプリは所有者でないロールで接続するか、<code>FORCE ROW LEVEL SECURITY</code> も設定します。</p>
+<pre><code>ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON invoices
+  USING (tenant_id = current_setting('app.tenant_id')::uuid);</code></pre>
+
+  <h3 id="jwt">トークンに権限を入れるときの注意</h3>
+  <p>JWT にロールを入れると DB を引かずに判定できて速い反面、<b>トークンの有効期限が切れるまで古い権限が残ります</b>。権限を剥奪したら即座に効かせたい操作（管理者権限・支払い）はサーバー側で都度確認します（<a href="jwt-vs-session.html">JWT とセッション</a>）。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth card"><summary>管理画面の URL を知られなければ安全</summary><p>URL は推測・漏洩する。権限のない人が叩いても拒否されるように、サーバーで判定する。</p></details>
+  <details class="myth card"><summary>RBAC と ABAC はどちらか一方を選ぶもの</summary><p>多くの実装はロールを土台に、「自分の部署だけ」のような属性条件を足す。ReBAC も「owner」「editor」のような関係名でロールを表せる。</p></details>
+  <details class="myth card"><summary>OAuth のスコープがあれば認可は済んでいる</summary><p>スコープはアプリに任せた範囲。「このユーザーがこのリソースに触れてよいか」はアプリ側で別に判定する。</p></details>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      const p = t.dataset.panel && document.getElementById(t.dataset.panel);
+      if (p) p.hidden = !on;
+    });
+  });
+});
+(() => {
+  const doc = { dept: 'sales', status: 'draft' };
+  const users = {
+    alice: { role: 'admin', dept: 'it', team: null, shared: null },
+    bob: { role: 'editor', dept: 'sales', team: 'sales', shared: null },
+    carol: { role: 'editor', dept: 'dev', team: null, shared: null },
+    dave: { role: 'viewer', dept: 'external', team: null, shared: 'viewer' }
+  };
+  const perms = { admin: ['view', 'edit'], editor: ['view', 'edit'], viewer: ['view'] };
+  const u = document.getElementById('az-u'), a = document.getElementById('az-a'), res = document.getElementById('az-res');
+  const card = (name, ok, why) => '<div class="card"><b>' + name + '</b> <span class="' + (ok ? 'ok">許可' : 'ng">拒否') + '</span><p>' + why + '</p></div>';
+  function run() {
+    const x = users[u.value], act = a.value, actJ = act === 'view' ? '閲覧' : '編集';
+    const rb = perms[x.role].includes(act);
+    let html = card('RBAC', rb, 'ロール ' + x.role + ' は ' + (rb ? actJ + 'の権限を持つ' : actJ + 'の権限を持たない') + '（どの文書かは見ない）');
+    let ab, abWhy;
+    if (x.role === 'admin') { ab = true; abWhy = 'admin は条件なしで許可するポリシー'; }
+    else if (!rb) { ab = false; abWhy = 'そもそもロールに権限がない'; }
+    else if (x.dept !== doc.dept) { ab = false; abWhy = '部署 ' + x.dept + ' ≠ 文書の部署 sales'; }
+    else { ab = true; abWhy = '部署が一致し、下書きは同じ部署なら' + actJ + '可'; }
+    html += card('RBAC＋ABAC', ab, abWhy);
+    let rr, rrWhy;
+    if (x.shared) { rr = act === 'view'; rrWhy = '見積.pdf に直接 viewer として共有 → 閲覧のみ'; }
+    else if (x.team === 'sales') { rr = true; rrWhy = 'bob → 営業チーム → フォルダ Q4 の editor → 子の見積.pdf'; }
+    else { rr = false; rrWhy = '見積.pdf までたどれる関係がない'; }
+    html += card('ReBAC', rr, rrWhy);
+    res.innerHTML = html;
+  }
+  u.addEventListener('change', run); a.addEventListener('change', run); run();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "社内 wiki で「編集者は自分の部署のページだけ編集できる」にしたい。RBAC だけで実現しようとすると起きがちな問題は？",
+    "choices": ["部署ごとに editor_sales・editor_dev…とロールが増え続ける", "RBAC では編集権限を表せない", "部署の情報がトークンに入らないので判定できない"],
+    "answer": 0,
+    "explain": "条件をロールで表すと組み合わせの数だけロールが要る（ロール爆発）。部署の一致は属性の条件（ABAC）として書くほうが素直。",
+    "ref": "#m-rbac"
+  },
+  {
+    "q": "「フォルダを共有された人は、中のファイルとサブフォルダもすべて見られる」という Google ドライブ型の共有を作りたい。一番合うモデルは？",
+    "choices": ["ACL", "ReBAC（関係ベース）", "RBAC"],
+    "answer": 1,
+    "explain": "親子関係や共有関係をたどって判定するのは ReBAC の得意分野。ACL で同じことをすると、共有のたびに全ファイルの一覧を更新することになる。",
+    "ref": "#zanzibar"
+  },
+  {
+    "q": "ログイン済みユーザーが /invoices/1002 の 1002 を 1003 に変えると、他社の請求書が表示された。必要な修正は？",
+    "choices": ["ID を推測しにくい UUID に変えれば十分", "請求書を取得したあと、そのユーザーに閲覧が許されているかをサーバーで判定する", "画面上のリンクを消す"],
+    "answer": 1,
+    "explain": "IDOR。ID を推測しにくくしても漏れれば同じ。リソースごとの認可チェックがないことが原因。",
+    "ref": "#where"
+  },
+  {
+    "q": "JWT に role: admin を入れて判定している。ある社員の管理者権限を外したが、しばらく管理操作ができてしまった。なぜ？",
+    "choices": ["JWT の署名が無効になったから", "ロールの名前が間違っていたから", "発行済みのトークンには有効期限まで古いロールが残るから"],
+    "answer": 2,
+    "explain": "JWT は自己完結しているので、発行後の変更は反映されない。重要な操作は都度サーバー側の最新の権限で確認する。",
+    "ref": "#jwt"
+  },
+  {
+    "q": "マルチテナントの SaaS で、開発者が SQL に tenant_id の条件を書き忘れても他社のデータが漏れないようにしたい。手段の 1 つは？",
+    "choices": ["PostgreSQL の行レベルセキュリティでテナント条件を DB 側に強制する", "テナントごとに別の API キーを発行する", "画面に他社のデータが出ないかテストで目視確認する"],
+    "answer": 0,
+    "explain": "RLS を使うと、アプリ用のロール（テーブル所有者でないもの）からは、セッションに設定したテナント ID に一致する行しか読めなくなる。アプリ側の書き忘れに対する最後の防波堤になる。",
+    "ref": "#tenant"
+  }
+]
+</script>
+</body>
+</html>
