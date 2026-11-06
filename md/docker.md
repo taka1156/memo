@@ -5,7 +5,7 @@
 > イメージのレイヤー構造、名前空間、cgroups などコンテナが動く仕組みを図解。
 
 - URL: https://memo.taka1156.site/docker.html
-- タグ: インフラ
+- タグ: インフラ, Linux
 - 日付: 2026-11-03
 
 ---

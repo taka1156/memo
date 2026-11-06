@@ -5,7 +5,7 @@
 > TypeScript のネイティブ実装 tsgo（Go）と tsrs（Rust）の仕組み・性能・使い分けを図で比較。
 
 - URL: https://memo.taka1156.site/tsrs-vs-tsgo.html
-- タグ: 言語
+- タグ: 言語, 開発ツール
 - 日付: 2026-11-02
 
 ---

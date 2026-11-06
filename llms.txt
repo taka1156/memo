@@ -5,10 +5,10 @@
 ## Memos
 
 - [LLVM の構成と仕組み](https://memo.taka1156.site/md/llvm.md): LLVM がフロントエンド・LLVM IR・最適化パス・バックエンドの 3 段でどう機械語を作るかを、実際の IR とアセンブリの出力で図解する（言語, 開発ツール / 2026-11-06）
-- [Linux 端末とシェル](https://memo.taka1156.site/md/linux-terminal.md): ターミナル・擬似端末・ラインディシプリン・シェルの役割分担と、特殊キー・エスケープシーケンス・端末がない場合の違いを図解。（インフラ / 2026-11-06）
-- [Linux シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md): シグナルが発生してから処理されるまで、ハンドラ、主なシグナル、セッションとプロセスグループによる Ctrl+C・Ctrl+Z・fg/bg の仕組みをシミュレーションで追う。（インフラ / 2026-11-06）
-- [Linux プロセスの仕組み](https://memo.taka1156.site/md/linux-process.md): プロセスが持つ情報、fork → exec → wait による生成と回収、ゾンビと孤児、状態、ファイルディスクリプタとパイプを図とステップで追う。（インフラ / 2026-11-06）
-- [Linux 端末・プロセス・シグナル 全体像](https://memo.taka1156.site/md/linux-process-signal.md): ターミナル・擬似端末・シェル・カーネルがどうつながり、キー入力や Ctrl+C がプロセスに届くまでを 1 枚でたどる入口ページ。（インフラ / 2026-11-06）
+- [Linux 端末とシェル](https://memo.taka1156.site/md/linux-terminal.md): ターミナル・擬似端末・ラインディシプリン・シェルの役割分担と、特殊キー・エスケープシーケンス・端末がない場合の違いを図解。（Linux / 2026-11-06）
+- [Linux シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md): シグナルが発生してから処理されるまで、ハンドラ、主なシグナル、セッションとプロセスグループによる Ctrl+C・Ctrl+Z・fg/bg の仕組みをシミュレーションで追う。（Linux / 2026-11-06）
+- [Linux プロセスの仕組み](https://memo.taka1156.site/md/linux-process.md): プロセスが持つ情報、fork → exec → wait による生成と回収、ゾンビと孤児、状態、ファイルディスクリプタとパイプを図とステップで追う。（Linux / 2026-11-06）
+- [Linux 端末・プロセス・シグナル 全体像](https://memo.taka1156.site/md/linux-process-signal.md): ターミナル・擬似端末・シェル・カーネルがどうつながり、キー入力や Ctrl+C がプロセスに届くまでを 1 枚でたどる入口ページ。（Linux / 2026-11-06）
 - [GCC と Clang の構成比較](https://memo.taka1156.site/md/gcc-vs-clang.md): GCC（GENERIC・GIMPLE・RTL の一体型）と Clang/LLVM（ライブラリ型・LLVM IR）の内部構成の違いを、同じ C コードのダンプを並べて比べる（言語, 開発ツール / 2026-11-06）
 - [TCP/IP とネットワーク基礎](https://memo.taka1156.site/md/tcp-ip.md): 階層とカプセル化、IP アドレスと CIDR の計算、ルーティングとデフォルトゲートウェイ、NAT、ポート、TCP と UDP の違い、調査コマンドまでを図解。HTTP の一段下の層。（ネットワーク, インフラ / 2026-11-04）
 - [メモリ管理](https://memo.taka1156.site/md/memory-management.md): スタックとヒープの違い、手動管理・ガベージコレクション・参照カウント・所有権という 4 つの解放方式、GC の到達可能性と世代別 GC、GC 言語でも起きるメモリリークの原因と調べ方までを図解。（言語, JavaScript / 2026-11-04）
@@ -16,7 +16,7 @@
 - [JS のイベントループと非同期](https://memo.taka1156.site/md/event-loop.md): コールスタック・タスクキュー・マイクロタスクキューの関係を、実行順をステップ実行で追いながら図解。await の正体、描画との関係、長いタスクの分け方、Node.js との違いまで。（JavaScript, フロントエンド / 2026-11-04）
 - [暗号の基礎](https://memo.taka1156.site/md/crypto-basics.md): ハッシュ・MAC・共通鍵・公開鍵（鍵交換と署名）・証明書チェーンを、何を守る道具なのかで整理し、TLS 1.3 でどう組み合わさるかまでを図解。（セキュリティ / 2026-11-04）
 - [CI/CD と GitHub Actions](https://memo.taka1156.site/md/ci-cd.md): CI と CD の役割、パイプラインの組み方、GitHub Actions のワークフロー・ジョブ・ステップの構造、速くする工夫、シークレットと権限の安全な扱い、デプロイ戦略までを図解。（開発ツール, インフラ / 2026-11-04）
-- [BigQuery と BI の SQL](https://memo.taka1156.site/md/bigquery-bi.md): BigQuery を BI でどう使うか、データの流れ・コスト・SQL・GA4 エクスポート・Looker を図解。（データベース, BI, SQL / 2026-11-04）
+- [BigQuery と BI の SQL](https://memo.taka1156.site/md/bigquery-bi.md): BigQuery を BI でどう使うか、データの流れ・コスト・SQL・GA4 エクスポート・Looker を図解。（データベース / 2026-11-04）
 - [WebAssembly](https://memo.taka1156.site/md/webassembly.md): Wasm が何で、どうやって JS から呼ばれ、なぜ速い場面と速くない場面があるのかを、線形メモリ・サンドボックス・境界のコストで図解。WasmGC、WASI とコンポーネントモデルによるブラウザ外での利用まで。（フロントエンド, 言語, JavaScript / 2026-11-03）
 - [実装起因の脆弱性](https://memo.taka1156.site/md/web-vulnerabilities.md): XSS・CSRF・SQL インジェクション・OS コマンドインジェクション・セッションハイジャック・ReDoS に、パストラバーサル・SSRF・オープンリダイレクト・認可不備を加えて、攻撃の流れと NG/OK コードで図解。（セキュリティ / 2026-11-03）
 - [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md): URL を入れてから最初のバイトが届くまでの DNS・TCP・TLS・HTTP の流れと、HTTP/1.1→2→3 で何が解決されたか（多重化・ヘッドオブライン・QUIC）を図解。（ネットワーク, インフラ, フロントエンド / 2026-11-03）
@@ -27,7 +27,7 @@
 - [TypeScript 学習フローと仕組み](https://memo.taka1156.site/md/typescript.md): TypeScript を学ぶ6ステップと、型チェック・型消去・コンパイルの流れを図で整理。（言語, JavaScript / 2026-11-03）
 - [テスト戦略](https://memo.taka1156.site/md/testing-strategy.md): 静的チェック・単体・結合・E2E の役割分担と、場面ごとにどの層で書くかを選べるデモ、Vitest・Testing Library・Playwright・MSW の使いどころ、モックの境界、E2E の不安定さ（flaky）対策、ビジュアルリグレッションを図解。（開発ツール, JavaScript, 設計 / 2026-11-03）
 - [SOLID と依存性逆転](https://memo.taka1156.site/md/solid.md): SOLID の 5 原則を「どんな症状を防ぐか」で整理し、オニオン／クリーンで内側に依存させる理由＝依存性逆転 (DIP) を図で説明する（設計 / 2026-11-03）
-- [セキュリティヘッダー](https://memo.taka1156.site/md/security-headers.md): CSP・HSTS・nosniff・frame-ancestors・Referrer-Policy・Permissions-Policy から COOP/CORP、Cookie 属性、使わなくなったヘッダーまで、何を防ぐか・推奨値・導入時の落とし穴を図解。（セキュリティ / 2026-11-03）
+- [セキュリティヘッダー](https://memo.taka1156.site/md/security-headers.md): CSP・HSTS・nosniff・frame-ancestors・Referrer-Policy・Permissions-Policy から COOP/CORP、Cookie 属性、使わなくなったヘッダーまで、何を防ぐか・推奨値・導入時の落とし穴を図解。（セキュリティ, フロントエンド / 2026-11-03）
 - [S3 互換ストレージの仕組み](https://memo.taka1156.site/md/s3-compatible.md): S3 API の仕組みと、互換ストレージの範囲・落とし穴・製品の違いを図解。（インフラ, データベース / 2026-11-03）
 - [Rust 学習フローと仕組み](https://memo.taka1156.site/md/rust.md): Rust の学習ロードマップと、所有権・借用・ライフタイムなどコンパイラが安全性を保証する仕組みを図解。（言語 / 2026-11-03）
 - [レンダリング戦略](https://memo.taka1156.site/md/rendering-strategies.md): CSR・SSR・SSG・ISR・ストリーミング・Server Components・アイランドを「HTML をいつ・どこで作るか」と「JS をどこまで送るか」で比較し、ハイドレーションの仕組みと選び方を図解。（フロントエンド, JavaScript, 設計 / 2026-11-03）
@@ -39,7 +39,7 @@
 - [JS のモジュールと依存管理](https://memo.taka1156.site/md/js-modules.md): ESM と CommonJS の違い、package.json の exports と条件による解決（動くデモつき）、import maps、npm・pnpm・Bun のインストール方式とロックファイル、モノレポのワークスペースを図解。（JavaScript, 開発ツール / 2026-11-03）
 - [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md): Cache-Control の読み方、鮮度と再検証（ETag・304）、ブラウザと CDN の二段構え、用途別のおすすめ設定までを図解。（インフラ, フロントエンド / 2026-11-03）
 - [Git の内部構造](https://memo.taka1156.site/md/git-internals.md): blob・tree・commit・ref の4つで Git を理解し、merge と rebase の違い、reset の3種類、reflog での復旧までを図解。（開発ツール / 2026-11-03）
-- [Docker 動作原理](https://memo.taka1156.site/md/docker.md): イメージのレイヤー構造、名前空間、cgroups などコンテナが動く仕組みを図解。（インフラ / 2026-11-03）
+- [Docker 動作原理](https://memo.taka1156.site/md/docker.md): イメージのレイヤー構造、名前空間、cgroups などコンテナが動く仕組みを図解。（インフラ, Linux / 2026-11-03）
 - [Dockerfile と Compose の書き方](https://memo.taka1156.site/md/docker-files.md): Dockerfile・マルチステージビルド・compose.yaml・devcontainer.json の書き方を、注釈付きの例と落とし穴で整理。（インフラ, 開発ツール / 2026-11-03）
 - [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md): CAP 定理・整合性モデル・冪等性・リトライを、ネットワークが切れる／遅れる前提で図解し、Cloudflare の KV・D1・Durable Objects がどこに当たるかも整理する（設計, インフラ / 2026-11-03）
 - [デザイントークン](https://memo.taka1156.site/md/design-tokens.md): 色・余白・文字サイズなどの決定を名前付きの変数（デザイントークン）で管理する考え方を、3 階層の構造・CSS 変数での実装・テーマ切り替えのデモで説明する（デザイン, フロントエンド / 2026-11-03）
@@ -56,7 +56,7 @@
 - [REST・GraphQL・gRPC・tRPC](https://memo.taka1156.site/md/api-styles.md): 同じ「ユーザーと最新の投稿を取る」API を REST・GraphQL・gRPC・tRPC で書き比べ、契約の持ち方・キャッシュ・型共有の違いと、REST 設計の基本（冪等性・ステータス・ページング・エラー形式）を図解。（設計, フロントエンド, インフラ / 2026-11-03）
 - [アクセシビリティ チェックリスト](https://memo.taka1156.site/md/a11y-checklist.md): WCAG 2.2 の AA 基準から Web 開発で押さえるべき項目を、キーボード・色・フォーム・ARIA などの分類ごとのチェックリストとコード例でまとめる（デザイン, フロントエンド / 2026-11-03）
 - [Vue と Svelte](https://memo.taka1156.site/md/vue-vs-svelte.md): Vue の Proxy リアクティブと仮想 DOM、Vapor Mode、Svelte のコンパイラと runes を、コンパイル結果と依存追跡のデモで比較。（JavaScript, フロントエンド / 2026-11-02）
-- [tsrs と tsgo の比較](https://memo.taka1156.site/md/tsrs-vs-tsgo.md): TypeScript のネイティブ実装 tsgo（Go）と tsrs（Rust）の仕組み・性能・使い分けを図で比較。（言語 / 2026-11-02）
+- [tsrs と tsgo の比較](https://memo.taka1156.site/md/tsrs-vs-tsgo.md): TypeScript のネイティブ実装 tsgo（Go）と tsrs（Rust）の仕組み・性能・使い分けを図で比較。（言語, 開発ツール / 2026-11-02）
 - [UI 更新の3つの方式](https://memo.taka1156.site/md/reactivity-models.md): 仮想 DOM・シグナル・コンパイラという UI フレームワークの更新方式を、同じ操作で何が再実行されるかで比較し、React・Vue・Solid・Svelte を地図に配置。（JavaScript, フロントエンド / 2026-11-02）
 - [React と Solid](https://memo.taka1156.site/md/react-vs-solid.md): 見た目はそっくりな JSX で、中身は正反対。React の再レンダーと Fiber、Solid のシグナルとコンパイル結果を、同じカウンターで比較。（JavaScript, フロントエンド / 2026-11-02）
 - [OAuth 2.0 / OIDC のフロー](https://memo.taka1156.site/md/oauth-oidc.md): 認証と認可の違いから、認可コードフロー＋PKCE の全手順、OIDC の ID トークンまでを図解。（セキュリティ / 2026-11-02）
@@ -64,7 +64,7 @@
 - [JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md): JWT の中身と署名、セッションとの違い、失効の難しさ、Cookie と localStorage のどちらに置くかまでを図解。（セキュリティ / 2026-11-02）
 - [JS ランタイム比較](https://memo.taka1156.site/md/js-runtimes.md): Node.js・Bun・Cloudflare Workers の内部構造、プロセス型と isolate 型の違い、API・互換性・制限を比較。（JavaScript / 2026-11-02）
 - [Docker イメージの種類](https://memo.taka1156.site/md/docker-images.md): slim・alpine・bookworm から distroless 等の本番向け最小イメージまで、分類と glibc・musl・ABI の違いを図解。（インフラ / 2026-11-02）
-- [CORS と同一オリジンポリシー](https://memo.taka1156.site/md/cors-sop.md): オリジンの判定、ブラウザが何を止めているのか、単純リクエストとプリフライト、Cookie 付きの制約までを図解。（セキュリティ / 2026-11-02）
+- [CORS と同一オリジンポリシー](https://memo.taka1156.site/md/cors-sop.md): オリジンの判定、ブラウザが何を止めているのか、単純リクエストとプリフライト、Cookie 付きの制約までを図解。（セキュリティ, フロントエンド / 2026-11-02）
 - [CLAUDE.md / AGENTS.md / Skills](https://memo.taka1156.site/md/agent-instructions.md): AI コーディングエージェントへの指示ファイルと Skills の違いを、コンテキストに載るタイミングと置き場所から図解。（AI / 2026-11-02）
 - [Vite ツールチェーン図解](https://memo.taka1156.site/md/vite-toolchain.md): Vite 8 を支える Rolldown・Oxc・Lightning CSS と、Vitest・Oxlint・Oxfmt を束ねる Vite+ の構成を図解。（JavaScript, 開発ツール / 2026-11-01）
 - [Spec Kit の流れと役割](https://memo.taka1156.site/md/spec-kit.md): Spec Kit の仕様駆動開発の流れ、各コマンドと人間・AI の役割、生成ファイルを図解。（AI / 2026-11-01）

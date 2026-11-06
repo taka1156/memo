@@ -5,7 +5,7 @@
 > ターミナル・擬似端末・シェル・カーネルがどうつながり、キー入力や Ctrl+C がプロセスに届くまでを 1 枚でたどる入口ページ。
 
 - URL: https://memo.taka1156.site/linux-process-signal.html
-- タグ: インフラ
+- タグ: Linux
 - 日付: 2026-11-06
 
 ---

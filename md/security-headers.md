@@ -5,7 +5,7 @@
 > CSP・HSTS・nosniff・frame-ancestors・Referrer-Policy・Permissions-Policy から COOP/CORP、Cookie 属性、使わなくなったヘッダーまで、何を防ぐか・推奨値・導入時の落とし穴を図解。
 
 - URL: https://memo.taka1156.site/security-headers.html
-- タグ: セキュリティ
+- タグ: セキュリティ, フロントエンド
 - 日付: 2026-11-03
 
 ---

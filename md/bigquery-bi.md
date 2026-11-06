@@ -5,7 +5,7 @@
 > BigQuery を BI でどう使うか、データの流れ・コスト・SQL・GA4 エクスポート・Looker を図解。
 
 - URL: https://memo.taka1156.site/bigquery-bi.html
-- タグ: データベース, BI, SQL
+- タグ: データベース
 - 日付: 2026-11-04
 
 ---

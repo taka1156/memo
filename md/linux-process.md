@@ -5,7 +5,7 @@
 > プロセスが持つ情報、fork → exec → wait による生成と回収、ゾンビと孤児、状態、ファイルディスクリプタとパイプを図とステップで追う。
 
 - URL: https://memo.taka1156.site/linux-process.html
-- タグ: インフラ
+- タグ: Linux
 - 日付: 2026-11-06
 
 ---
