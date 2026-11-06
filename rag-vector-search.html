@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG とベクトル検索</title>
+<meta name="description" content="埋め込みの類似度・チャンク分割・近似最近傍検索（HNSW・IVF）・ハイブリッド検索と RRF・再ランキング・権限フィルタ・評価のしかたまで、RAG の検索側を詳しく整理する">
+<meta name="memo:tags" content="AI, データベース">
+<meta name="memo:date" content="2026-11-06">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #cf222e;
+  --c-warn: #9a6700;
+  --c-a: #0077b6;
+  --c-b: #8250df;
+  --c-c: #1a7f37;
+  --c-d: #bc4c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-a: #00d4ff;
+    --c-b: #bc8cff;
+    --c-c: #3fb950;
+    --c-d: #f0883e;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.2em; }
+ul.plain li { margin: 2px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+  margin: 10px 0;
+}
+.en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* 図 */
+.diagram { margin: 8px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
+.d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
+.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--accent); }
+.d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
+.d-ng-head { fill: var(--c-ng); }
+
+/* ステップ・フロー */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.flow span {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+.tbl td:first-child { font-weight: 700; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+
+
+/* よくある誤解 */
+.myth { margin-bottom: 10px; }
+.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
+.myth summary::-webkit-details-marker { display: none; }
+.myth summary::before { content: '✕ '; color: var(--c-ng); }
+.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
+.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+/* OK / NG コード比較 */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.vs > div { min-width: 0; }
+.vs .lbl { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.sim-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.sim-btns button {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 6px 12px; font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer;
+}
+.sim-btns button:hover { border-color: var(--accent); }
+.sim-btns button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.sim-log { font-size: 0.85rem; background: var(--chip); border-radius: 8px; padding: 8px 12px; min-height: 3.4em; }
+.spectrum { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.spectrum .card { padding: 10px 12px; }
+.spectrum .card b { font-size: 0.88rem; }
+.spectrum .card p { font-size: 0.8rem; color: var(--fg-2); margin: 4px 0 0; }
+.strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); letter-spacing: .1em; }
+.badge {
+  display: inline-block;
+  font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  color: var(--fg-2);
+}
+.badge.a { color: var(--c-a); }
+.badge.b { color: var(--c-b); }
+.badge.c { color: var(--c-c); }
+.badge.d { color: var(--c-d); }
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: -16px 0 22px; font-size: 0.78rem; }
+.series a { background: var(--chip); border-radius: 999px; padding: 2px 10px; text-decoration: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.hy { display: grid; gap: 10px; }
+.hy-q { display: flex; flex-wrap: wrap; gap: 6px; }
+.hy-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.hy-cols .card { padding: 10px 12px; }
+.hy-cols ol { margin: 4px 0 0 1.3em; font-size: 0.8rem; }
+.hy-cols li { margin: 3px 0; }
+.hy-cols li.hit { color: var(--c-ok); font-weight: 700; }
+.hy-cols li small { color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ann { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.ann svg { width: 100%; height: auto; display: block; margin: 6px 0; }
+.ann circle { fill: var(--fg-2); }
+.ann circle.q { fill: var(--c-ng); }
+.ann circle.hit { fill: var(--accent); }
+.ann line { stroke: var(--line); stroke-width: 1.2; }
+.ann line.path { stroke: var(--accent); stroke-width: 2; }
+.ann ellipse { fill: none; stroke: var(--line); stroke-dasharray: 4 3; }
+.ann ellipse.on { stroke: var(--accent); stroke-dasharray: none; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="RAG とベクトル検索">
+<meta property="og:description" content="埋め込みの類似度・チャンク分割・近似最近傍検索（HNSW・IVF）・ハイブリッド検索と RRF・再ランキング・権限フィルタ・評価のしかたまで、RAG の検索側を詳しく整理する">
+<meta property="og:url" content="https://memo.taka1156.site/rag-vector-search.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>RAG とベクトル検索</h1>
+  <p class="subtitle">回答の質は検索の質で決まる —— 埋め込み・分割・索引・組み合わせ・評価</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>RAG は「質問に関係する資料を検索して、プロンプトに入れてから答えさせる」しくみ。<b>正しい資料を拾えなければ、どんなに賢いモデルでも正しく答えられない</b>。</li>
+      <li>ベクトル検索は意味の近さに強く、<b>型番・エラーコード・固有名詞の完全一致に弱い</b>。キーワード検索と組み合わせる（ハイブリッド検索）のが定番。</li>
+      <li>大量のベクトルから速く探すために<b>近似最近傍検索（HNSW など）</b>を使う。速さと取りこぼしはトレードオフ。検索だけを取り出して評価する。</li>
+    </ul>
+  </div>
+  <p class="note">埋め込みと RAG の基本の流れは <a href="llm-basics.html#rag">LLM の仕組み：埋め込みと RAG</a>。このページはその検索部分を掘り下げる。</p>
+
+  <h2 id="pipeline">全体の流れ</h2>
+  <div class="steps">
+    <div class="step"><b>1. 分割</b><p>資料をチャンク（数百トークン程度）に分ける。</p></div>
+    <div class="step"><b>2. 埋め込み</b><p>各チャンクをベクトルに変換して、本文・出典・権限情報と一緒に保存。</p></div>
+    <div class="step"><b>3. 検索</b><p>質問も同じモデルでベクトルにし、近い上位 k 件を取る（＋キーワード検索）。</p></div>
+    <div class="step"><b>4. 再ランキング</b><p>候補を精度の高いモデルで並べ直し、上位だけ残す。</p></div>
+    <div class="step"><b>5. 生成</b><p>選んだチャンクをプロンプトに入れ、出典付きで答えさせる。</p></div>
+  </div>
+
+  <h2 id="embedding">埋め込みと類似度</h2>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>尺度</th><th>計算</th><th>メモ</th></tr>
+    <tr><td>コサイン類似度</td><td>2 つのベクトルの向きの近さ（−1〜1）</td><td>最もよく使う。長さ（文章の長さの影響）を無視できる</td></tr>
+    <tr><td>内積 (dot product)</td><td>成分ごとの積の合計</td><td>ベクトルを長さ 1 に正規化していればコサインと同じ順位になり、計算が軽い</td></tr>
+    <tr><td>ユークリッド距離 (L2)</td><td>点と点の直線距離</td><td>正規化済みならコサインと順位は同じ</td></tr>
+  </table></div>
+  <ul class="plain">
+    <li><b>資料と質問は同じ埋め込みモデルで</b>変換する。別のモデルのベクトル同士は比べられない。</li>
+    <li>モデルを変えたら<b>全チャンクを埋め込み直す</b>。どのモデル・どのバージョンで作ったかを保存しておく。</li>
+    <li>次元数が大きいほど保存容量と検索コストが増える。モデルによっては次元を切り詰めて使える。</li>
+  </ul>
+
+  <h2 id="chunking">チャンク分割</h2>
+  <div class="grid">
+    <div class="card"><b>大きすぎると</b><p>関係ない話が混ざって類似度がぼやける。プロンプトにも余計な文章が入る。</p></div>
+    <div class="card"><b>小さすぎると</b><p>「それ」「この設定」が何を指すかわからない断片になり、答えに必要な文脈が欠ける。</p></div>
+  </div>
+  <ul class="plain">
+    <li>文字数で機械的に切るより、<b>見出し・段落・関数</b>などの構造の切れ目で切る</li>
+    <li>前後を少し重ねる（オーバーラップ）と、切れ目にまたがる情報を落としにくい</li>
+    <li>チャンクの先頭に<b>文書名・見出しの階層</b>を付けてから埋め込むと、「料金」だけのチャンクでも「どの製品の料金か」が伝わる</li>
+    <li>表やコードは崩さずに 1 まとまりで扱う</li>
+  </ul>
+
+  <h2 id="hybrid">ハイブリッド検索</h2>
+  <p>ベクトル検索とキーワード検索（BM25 など）は得意な質問が逆です。両方で検索して順位を合わせます。下で質問を切り替えて、<b class="ok">緑</b>の正解がどこに来るかを見てください（スコアは説明用の例）。</p>
+  <div class="card hy">
+    <div class="hy-q sim-btns" style="justify-content:flex-start" id="hy-q">
+      <button data-q="0" class="on">「E-1043 が出る」</button>
+      <button data-q="1">「パスワードを忘れた」</button>
+      <button data-q="2">「解約したら返金される？」</button>
+    </div>
+    <div class="hy-cols" id="hy-cols"></div>
+    <div class="sim-log" id="hy-log"></div>
+  </div>
+  <h3 id="rrf">順位の合わせ方：RRF</h3>
+  <p>ベクトルの類似度と BM25 のスコアは単位が違うので、そのまま足せません。<b>Reciprocal Rank Fusion</b> は順位だけを使います。</p>
+<pre><code>RRF(文書) = Σ  1 / (k + その検索での順位)     <span class="cm">// k は 60 がよく使われる</span>
+<span class="cm">// どちらかで 1 位なら大きく加点、両方で上位ならさらに上へ</span></code></pre>
+
+  <h2 id="rerank">再ランキング（リランキング）</h2>
+  <p>埋め込みの検索は「質問」と「文書」を<b>別々に</b>ベクトルにして比べるので速い反面、細かい関係を見落とします。再ランキング用のモデル（リランカー。クロスエンコーダーなど）は質問と文書を<b>一緒に</b>読んで関連度を出すので精度が高いが遅い。そこで次のように組み合わせます。</p>
+  <div class="flow"><span>ハイブリッド検索で上位 50 件</span><i>→</i><span>再ランキングで並べ直す</span><i>→</i><span>上位 5 件だけプロンプトへ</span></div>
+
+  <h2 id="ann">大量のベクトルから速く探す：近似最近傍検索</h2>
+  <p>全件と距離を計算すれば正確ですが、数百万件になると質問のたびに重すぎます。<b>多少取りこぼす代わりに速く探す</b>のが近似最近傍検索 (ANN) です。</p>
+  <div class="ann">
+    <div class="card"><b>HNSW（グラフ）</b>
+      <svg viewBox="0 0 220 120" aria-hidden="true">
+        <line x1="20" y1="90" x2="60" y2="40"/><line x1="60" y1="40" x2="110" y2="70"/><line x1="110" y1="70" x2="150" y2="30"/><line x1="150" y1="30" x2="195" y2="55"/><line x1="110" y1="70" x2="170" y2="100"/><line x1="60" y1="40" x2="40" y2="15"/><line x1="20" y1="90" x2="80" y2="105"/><line x1="80" y1="105" x2="110" y2="70"/>
+        <line class="path" x1="20" y1="90" x2="60" y2="40"/><line class="path" x1="60" y1="40" x2="110" y2="70"/><line class="path" x1="110" y1="70" x2="150" y2="30"/>
+        <circle cx="20" cy="90" r="5"/><circle cx="60" cy="40" r="5"/><circle cx="110" cy="70" r="5"/><circle class="hit" cx="150" cy="30" r="6"/><circle cx="195" cy="55" r="5"/><circle cx="170" cy="100" r="5"/><circle cx="40" cy="15" r="5"/><circle cx="80" cy="105" r="5"/><circle class="q" cx="160" cy="18" r="4"/>
+      </svg>
+      <p class="note" style="margin:0">近いもの同士をつないだグラフを、質問（赤）に近づく方向へたどる。速くて精度も高く、今いちばん使われる。メモリを多く使う。</p></div>
+    <div class="card"><b>IVF（クラスタ）</b>
+      <svg viewBox="0 0 220 120" aria-hidden="true">
+        <ellipse cx="55" cy="60" rx="45" ry="40"/><ellipse class="on" cx="160" cy="45" rx="50" ry="35"/><ellipse cx="140" cy="100" rx="40" ry="18"/>
+        <circle cx="40" cy="50" r="5"/><circle cx="65" cy="80" r="5"/><circle cx="50" cy="35" r="5"/><circle class="hit" cx="150" cy="35" r="6"/><circle cx="180" cy="55" r="5"/><circle cx="130" cy="50" r="5"/><circle cx="125" cy="100" r="5"/><circle cx="155" cy="102" r="5"/><circle class="q" cx="165" cy="30" r="4"/>
+      </svg>
+      <p class="note" style="margin:0">事前にベクトルをいくつかのグループに分け、質問に近いグループの中だけを探す。境界近くの正解を取りこぼすことがある。</p></div>
+  </div>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>調整</th><th>上げると</th></tr>
+    <tr><td>HNSW の探索幅（<code>ef_search</code> など）</td><td>取りこぼしが減る（再現率↑）が遅くなる</td></tr>
+    <tr><td>IVF で調べるグループ数（<code>nprobe</code> / <code>probes</code>）</td><td>同上</td></tr>
+    <tr><td>量子化（ベクトルを少ないビットに圧縮）</td><td>メモリが減るが精度が少し落ちる</td></tr>
+  </table></div>
+  <p class="note">数万件程度なら全件計算でも十分速いことが多い。索引は件数が増えてから考えてよい。</p>
+
+  <h2 id="stores">どこに保存するか</h2>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>種類</th><th>例</th><th>向いている</th></tr>
+    <tr><td>既存 DB の拡張</td><td>PostgreSQL ＋ pgvector（HNSW・IVFFlat）</td><td>本文・権限・メタデータと同じ DB で JOIN・トランザクションしたいとき</td></tr>
+    <tr><td>検索エンジン</td><td>Elasticsearch・OpenSearch</td><td>キーワード検索とベクトル検索を 1 つで（ハイブリッド）</td></tr>
+    <tr><td>ベクトル DB</td><td>Qdrant・Milvus・Weaviate・Pinecone など</td><td>件数が非常に多い・ベクトル検索の機能を細かく使いたい</td></tr>
+    <tr><td>エッジ</td><td>Cloudflare Vectorize</td><td>Workers から使う（<a href="cloudflare-services.html">Cloudflare サービス</a>）</td></tr>
+  </table></div>
+
+  <h3 id="filter">メタデータと権限のフィルタ</h3>
+  <p>社内文書の RAG では、<b>質問した人が読めない文書を検索結果に入れない</b>ことが必須です。LLM に「この部分は見せないで」と頼んでも漏れます（<a href="authorization-models.html">認可モデル</a>）。</p>
+  <div class="grid">
+    <div class="card"><b class="ok">検索の前（中）で絞る</b><p>「部署 = 営業 OR 公開」を検索条件に入れる。対応している DB なら、権限のある中から上位 k 件が返る。ただし pgvector の HNSW などは索引で探した後に条件で捨てるため、件数が k に届かないことがある（反復スキャンや <code>ef_search</code> の引き上げで補う）。</p></div>
+    <div class="card"><b class="warn">検索の後で絞る</b><p>上位 k 件を取ってから権限のないものを捨てる。全部捨てられて 0 件、になりやすい。漏れはしないが質が落ちる。</p></div>
+  </div>
+
+  <h2 id="eval">評価のしかた</h2>
+  <p>「答えがいまいち」のとき、原因が<b>検索</b>か<b>生成</b>かを分けて調べます。</p>
+  <div class="steps">
+    <div class="step"><b>1. 評価セット</b><p>実際の質問と「答えが書いてあるチャンク」の組を数十〜数百件作る。</p></div>
+    <div class="step"><b>2. 検索だけ測る</b><p>正解のチャンクが上位 k 件に入った割合（Recall@k）を測る。</p></div>
+    <div class="step"><b>3. 生成を測る</b><p>正しいチャンクを渡したときに、それに沿って答えているか・書いていないことを足していないか。</p></div>
+    <div class="step"><b>4. 変えて比べる</b><p>チャンクの切り方・ハイブリッドの有無・再ランキングを 1 つずつ変えて数値で比べる。</p></div>
+  </div>
+
+  <h3 id="alternatives">RAG を使わない選択肢</h3>
+  <ul class="plain">
+    <li>資料がコンテキストに収まる量なら、<b>全部入れる</b>ほうが簡単で取りこぼしもない</li>
+    <li>コードベースのように構造がはっきりしたものは、エージェントに <code>grep</code> やファイル読み込みのツールを渡して<b>自分で探させる</b>ほうがうまくいくことも多い</li>
+  </ul>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth card"><summary>ベクトル検索はキーワード検索の上位互換</summary><p>型番・エラーコード・人名など、文字が一致することが大事な検索はキーワード検索のほうが強い。組み合わせる。</p></details>
+  <details class="myth card"><summary>回答が間違っているのはモデルの性能が低いから</summary><p>多くは検索で正しいチャンクを拾えていない。まず検索結果を見て、Recall を測る。</p></details>
+  <details class="myth card"><summary>システムプロンプトで禁止すれば機密文書は漏れない</summary><p>プロンプトに入れた情報は出力されうる。読めない人には、そもそも検索でその文書を返さない。</p></details>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      const p = t.dataset.panel && document.getElementById(t.dataset.panel);
+      if (p) p.hidden = !on;
+    });
+  });
+});
+(() => {
+  const qs = [
+    { vec: [['エラーコード一覧の使い方', .82, 0], ['アプリが起動しないとき', .80, 0], ['E-1043：同期トークンの期限切れ', .74, 1], ['ネットワーク設定', .71, 0]],
+      kw: [['E-1043：同期トークンの期限切れ', 12.4, 1], ['リリースノート 4.3（E-1043 を修正）', 8.1, 0], ['トークンの更新方法', 2.0, 0]],
+      note: 'エラーコードはベクトル検索では「エラーっぽい文書」に埋もれる。キーワード検索は完全一致で 1 位に出す。' },
+    { vec: [['パスワードの再設定', .91, 1], ['ログインできないとき', .86, 0], ['2 段階認証の設定', .78, 0], ['アカウントの削除', .64, 0]],
+      kw: [['パスワードの強度について', 6.2, 0], ['ログインできないとき', 3.1, 0], ['パスワードの再設定', 2.9, 1]],
+      note: '「忘れた」はキーワードが一致しないが、意味の近い「再設定」をベクトル検索が 1 位で拾う。' },
+    { vec: [['返金ポリシー', .88, 1], ['プランの変更', .83, 0], ['解約の手順', .82, 0], ['請求書の発行', .70, 0]],
+      kw: [['解約の手順', 9.8, 0], ['返金ポリシー', 7.5, 1], ['お問い合わせ', 1.9, 0]],
+      note: 'どちらも 2 位以内に入れた文書が、RRF で一番上に来る。両方で上位なら確実に残る。' }
+  ];
+  const cols = document.getElementById('hy-cols'), log = document.getElementById('hy-log');
+  const li = (t, s, hit) => '<li class="' + (hit ? 'hit' : '') + '">' + t + ' <small>' + s + '</small></li>';
+  function run(i) {
+    const q = qs[i], rrf = {};
+    q.vec.forEach(([t, , h], r) => { rrf[t] = rrf[t] || { s: 0, h }; rrf[t].s += 1 / (60 + r + 1); });
+    q.kw.forEach(([t, , h], r) => { rrf[t] = rrf[t] || { s: 0, h }; rrf[t].s += 1 / (60 + r + 1); });
+    const fused = Object.entries(rrf).sort((a, b) => b[1].s - a[1].s).slice(0, 4);
+    cols.innerHTML = '<div class="card"><b>ベクトル検索</b><ol>' + q.vec.map(([t, s, h]) => li(t, s.toFixed(2), h)).join('') + '</ol></div>' +
+      '<div class="card"><b>キーワード（BM25）</b><ol>' + q.kw.map(([t, s, h]) => li(t, s.toFixed(1), h)).join('') + '</ol></div>' +
+      '<div class="card"><b>RRF で統合</b><ol>' + fused.map(([t, v]) => li(t, v.s.toFixed(4), v.h)).join('') + '</ol></div>';
+    log.textContent = q.note;
+  }
+  document.querySelectorAll('#hy-q button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#hy-q button').forEach(x => x.classList.toggle('on', x === b)); run(+b.dataset.q);
+  }));
+  run(0);
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "社内ヘルプの RAG で「E-1043 の対処法」と聞くと、エラーコード一覧の一般的な説明ばかりが返り、E-1043 の記事が出てこない。まず効く改善は？",
+    "choices": ["埋め込みの次元数を増やす", "キーワード検索（BM25）を併用し、RRF などで順位を統合する", "LLM の temperature を下げる"],
+    "answer": 1,
+    "explain": "ベクトル検索は意味の近さで探すため、コードや型番の完全一致に弱い。キーワード検索と組み合わせると拾える。",
+    "ref": "#hybrid"
+  },
+  {
+    "q": "埋め込みモデルを新しいものに変えたら、検索結果がめちゃくちゃになった。原因として最も考えられるのは？",
+    "choices": ["既存のチャンクは古いモデルのベクトルのままで、質問だけ新しいモデルで変換している", "新しいモデルのほうが性能が低い", "コサイン類似度の代わりに内積を使ったから"],
+    "answer": 0,
+    "explain": "違うモデルのベクトル同士は比べられない。モデルを変えたら全チャンクを埋め込み直す。",
+    "ref": "#embedding"
+  },
+  {
+    "q": "製品マニュアルを 200 文字ずつ機械的に切ってチャンクにしたら、「料金は月額 980 円です」だけのチャンクがどの製品の話か判別できず、別製品の質問に使われてしまう。改善策は？",
+    "choices": ["チャンクを 50 文字に小さくする", "上位 k を 100 件に増やす", "見出しの切れ目で分割し、チャンクの先頭に文書名・見出しを付けてから埋め込む"],
+    "answer": 2,
+    "explain": "断片だけでは文脈が失われる。構造の切れ目で切り、所属する文書や見出しの情報を付けると区別できる。",
+    "ref": "#chunking"
+  },
+  {
+    "q": "部署ごとに閲覧権限がある社内文書で RAG を作る。他部署の機密文書が回答に使われないようにする方法として正しいのは？",
+    "choices": ["システムプロンプトで「権限のない文書の内容は答えないこと」と指示する", "検索の条件に質問者の閲覧権限を入れ、読めない文書はそもそも候補に入れない", "回答を生成した後に機密語が含まれていないかチェックする"],
+    "answer": 1,
+    "explain": "プロンプトに入った情報はモデルが出力しうる。権限は検索の段階で絞る。",
+    "ref": "#filter"
+  },
+  {
+    "q": "RAG の回答精度が低い。チャンクの切り方を変えるべきか判断するために、最初に測るべきものは？",
+    "choices": ["回答の文章の長さ", "LLM の応答時間", "評価用の質問ごとに、正解のチャンクが検索の上位 k 件に入っているか（Recall@k）"],
+    "answer": 2,
+    "explain": "検索で正しいチャンクを拾えていなければ生成側を直しても改善しない。検索と生成を分けて測る。",
+    "ref": "#eval"
+  }
+]
+</script>
+</body>
+</html>

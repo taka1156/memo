@@ -1,5 +1,52 @@
 [
  {
+  "file": "unicode-text.html",
+  "title": "文字コードと Unicode",
+  "desc": "コードポイント・UTF-8・UTF-16 の関係、絵文字や結合文字で「1 文字」が数え方によって変わる理由、正規化（NFC / NFKC）と文字化け・utf8mb4 などの実務の落とし穴を、入力して確かめながら整理する",
+  "tags": [
+   "言語",
+   "フロントエンド",
+   "バックエンド"
+  ],
+  "date": "2026-11-06",
+  "quizzes": 5
+ },
+ {
+  "file": "rag-vector-search.html",
+  "title": "RAG とベクトル検索",
+  "desc": "埋め込みの類似度・チャンク分割・近似最近傍検索（HNSW・IVF）・ハイブリッド検索と RRF・再ランキング・権限フィルタ・評価のしかたまで、RAG の検索側を詳しく整理する",
+  "tags": [
+   "AI",
+   "データベース"
+  ],
+  "date": "2026-11-06",
+  "quizzes": 5
+ },
+ {
+  "file": "observability.html",
+  "title": "オブザーバビリティと OpenTelemetry",
+  "desc": "ログ・メトリクス・トレースがそれぞれ何に答えるか、トレース ID でどうつなぐか、OpenTelemetry の SDK・Collector・OTLP の役割を図で整理する",
+  "tags": [
+   "インフラ",
+   "バックエンド",
+   "開発ツール"
+  ],
+  "date": "2026-11-06",
+  "quizzes": 5
+ },
+ {
+  "file": "message-queues.html",
+  "title": "メッセージキューと Pub/Sub",
+  "desc": "キュー・Pub/Sub・ログ型（Kafka）の違い、ack と再配信・DLQ・順序・Outbox パターンを、SQS・Cloudflare Queues・Kafka の比較で整理する",
+  "tags": [
+   "設計",
+   "インフラ",
+   "バックエンド"
+  ],
+  "date": "2026-11-06",
+  "quizzes": 5
+ },
+ {
   "file": "llvm.html",
   "title": "LLVM の構成と仕組み",
   "desc": "LLVM がフロントエンド・LLVM IR・最適化パス・バックエンドの 3 段でどう機械語を作るかを、実際の IR とアセンブリの出力で図解する",
@@ -60,6 +107,53 @@
   ],
   "date": "2026-11-06",
   "quizzes": 4
+ },
+ {
+  "file": "floating-point.html",
+  "title": "浮動小数点と数値表現",
+  "desc": "0.1 + 0.2 が 0.3 にならない理由を IEEE 754 のビットから確かめ、安全な整数の上限・NaN・お金の扱い・丸め・整数オーバーフローまで実務で困る点を整理する",
+  "tags": [
+   "言語",
+   "JavaScript"
+  ],
+  "date": "2026-11-06",
+  "quizzes": 5
+ },
+ {
+  "file": "datetime-timezone.html",
+  "title": "日付・時刻・タイムゾーン",
+  "desc": "「瞬間」「壁時計の時刻」「日付だけ」を区別し、UTC で保存して表示時に変換する流れ、オフセットとタイムゾーンの違い、夏時間の落とし穴、Temporal API の型の使い分けを整理する",
+  "tags": [
+   "言語",
+   "JavaScript",
+   "バックエンド"
+  ],
+  "date": "2026-11-06",
+  "quizzes": 5
+ },
+ {
+  "file": "concurrency-models.html",
+  "title": "並行処理のモデル",
+  "desc": "スレッド＋ロック・イベントループ・goroutine・アクターの 4 方式を、状態の共有のしかたと切り替えの単位で比べ、Durable Objects がアクターであることまでつなげる",
+  "tags": [
+   "言語",
+   "設計",
+   "バックエンド"
+  ],
+  "date": "2026-11-06",
+  "quizzes": 5
+ },
+ {
+  "file": "authorization-models.html",
+  "title": "認可モデル（RBAC・ABAC・ReBAC）",
+  "desc": "「この人はこれをしてよいか」を決める ACL・RBAC・ABAC・ReBAC の違いと、Zanzibar 型の関係タプル、どこでチェックするか（IDOR 対策・RLS）を図とシミュレーターで整理する",
+  "tags": [
+   "セキュリティ",
+   "設計",
+   "バックエンド"
+  ],
+  "date": "2026-11-06",
+  "quizzes": 5
  },
  {
   "file": "tcp-ip.html",

@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>並行処理のモデル</title>
+<meta name="description" content="スレッド＋ロック・イベントループ・goroutine・アクターの 4 方式を、状態の共有のしかたと切り替えの単位で比べ、Durable Objects がアクターであることまでつなげる">
+<meta name="memo:tags" content="言語, 設計, バックエンド">
+<meta name="memo:date" content="2026-11-06">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #cf222e;
+  --c-warn: #9a6700;
+  --c-a: #0077b6;
+  --c-b: #8250df;
+  --c-c: #1a7f37;
+  --c-d: #bc4c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-a: #00d4ff;
+    --c-b: #bc8cff;
+    --c-c: #3fb950;
+    --c-d: #f0883e;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.2em; }
+ul.plain li { margin: 2px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+  margin: 10px 0;
+}
+.en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* 図 */
+.diagram { margin: 8px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
+.d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
+.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--accent); }
+.d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
+.d-ng-head { fill: var(--c-ng); }
+
+/* ステップ・フロー */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.flow span {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+.tbl td:first-child { font-weight: 700; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+
+
+/* よくある誤解 */
+.myth { margin-bottom: 10px; }
+.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
+.myth summary::-webkit-details-marker { display: none; }
+.myth summary::before { content: '✕ '; color: var(--c-ng); }
+.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
+.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+/* OK / NG コード比較 */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.vs > div { min-width: 0; }
+.vs .lbl { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.sim-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.sim-btns button {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 6px 12px; font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer;
+}
+.sim-btns button:hover { border-color: var(--accent); }
+.sim-btns button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.sim-log { font-size: 0.85rem; background: var(--chip); border-radius: 8px; padding: 8px 12px; min-height: 3.4em; }
+.spectrum { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.spectrum .card { padding: 10px 12px; }
+.spectrum .card b { font-size: 0.88rem; }
+.spectrum .card p { font-size: 0.8rem; color: var(--fg-2); margin: 4px 0 0; }
+.strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); letter-spacing: .1em; }
+.badge {
+  display: inline-block;
+  font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  color: var(--fg-2);
+}
+.badge.a { color: var(--c-a); }
+.badge.b { color: var(--c-b); }
+.badge.c { color: var(--c-c); }
+.badge.d { color: var(--c-d); }
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: -16px 0 22px; font-size: 0.78rem; }
+.series a { background: var(--chip); border-radius: 999px; padding: 2px 10px; text-decoration: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.race { display: grid; gap: 10px; }
+.lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lane { background: var(--chip); border-radius: 8px; padding: 8px 10px; min-height: 9.5em; font: 500 0.78rem/1.6 'JetBrains Mono', ui-monospace, monospace; }
+.lane b { display: block; color: var(--fg-2); font-size: 0.72rem; margin-bottom: 4px; }
+.lane div.on { color: var(--accent); font-weight: 700; }
+.mem { text-align: center; font: 700 0.95rem 'JetBrains Mono', ui-monospace, monospace; }
+.mem span { color: var(--accent); font-size: 1.3rem; }
+.mem.bad span { color: var(--c-ng); }
+.actor-fig { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.mailbox { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+.mailbox span { background: var(--chip); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; font: 600 0.72rem 'JetBrains Mono', ui-monospace, monospace; }
+.mailbox span.now { border-color: var(--accent); color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="並行処理のモデル">
+<meta property="og:description" content="スレッド＋ロック・イベントループ・goroutine・アクターの 4 方式を、状態の共有のしかたと切り替えの単位で比べ、Durable Objects がアクターであることまでつなげる">
+<meta property="og:url" content="https://memo.taka1156.site/concurrency-models.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>並行処理のモデル</h1>
+  <p class="subtitle">スレッド・async・goroutine・アクター ——「同時に動くもの同士で、状態をどう扱うか」の 4 つの答え</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>並行処理の難しさはほぼ<b>「共有している状態を、同時に書き換えてしまう」</b>ことから来る。4 つのモデルはその避け方が違う。</li>
+      <li><b>スレッド＋ロック</b>は共有してロックで守る／<b>イベントループ</b>は 1 本のスレッドで順番に回す／<b>goroutine</b>は軽いスレッドをチャネルでつなぐ／<b>アクター</b>は状態を共有せずメッセージだけ送る。</li>
+      <li>Cloudflare の <b>Durable Objects</b> はアクターそのもの。「1 つの ID には 1 つの実体、1 度に 1 つずつ処理」なので、在庫やチャットルームをロックなしで正しく扱える。</li>
+    </ul>
+  </div>
+
+  <h2 id="concurrency">並行と並列</h2>
+  <div class="grid">
+    <div class="card"><b>並行 (concurrency)</b><p>複数の仕事を<b>途中まで進めては切り替える</b>。CPU が 1 つでもできる。「待ち時間（I/O）の間に別の仕事をする」ための考え方。</p></div>
+    <div class="card"><b>並列 (parallelism)</b><p>複数の仕事を<b>物理的に同時に</b>実行する。CPU コアが複数必要。「計算を速く終わらせる」ための考え方。</p></div>
+  </div>
+  <p class="note">Web サーバーの多くは「待ち」が中心なので並行が効く。画像処理や圧縮のような計算中心の仕事は並列でないと速くならない。JS のイベントループは並行だが並列ではない（<a href="event-loop.html">JS のイベントループと非同期</a>）。</p>
+
+  <h2 id="race">何が問題になるのか：競合状態 (race condition)</h2>
+  <p><code>count = count + 1</code> は「読む → 足す → 書く」の 3 手。2 つの実行単位が同時にやると、途中に割り込まれて更新が 1 つ消えます。下で切り替えて試してください。</p>
+  <div class="card race" id="race">
+    <div class="sim-btns">
+      <button data-mode="none" class="on">ロックなし</button>
+      <button data-mode="lock">ロックあり</button>
+      <button data-mode="actor">アクター（メッセージ）</button>
+    </div>
+    <div class="lanes">
+      <div class="lane" id="laneA"><b>A</b></div>
+      <div class="lane" id="laneB"><b>B</b></div>
+    </div>
+    <div class="mem" id="mem">count = <span>0</span></div>
+    <div class="sim-btns"><button id="race-step">1 手進める</button><button id="race-reset">最初から</button></div>
+    <div class="sim-log" id="race-log" aria-live="polite">A と B がそれぞれ count を 1 増やします。期待する結果は 2。</div>
+  </div>
+
+  <h2 id="models">4 つのモデル</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="m-thread">スレッド＋ロック</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-loop">イベントループ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-go">goroutine</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-actor">アクター</button>
+  </div>
+  <div class="panel card" id="m-thread">
+    <p><b>OS スレッドを複数立て、メモリを共有する。</b>共有データはミューテックス（ロック）で「同時に 1 人だけ」触れるようにする。C / C++ / Java / C# / Rust の <code>std::thread</code> など。</p>
+    <ul class="plain">
+      <li><span class="ok">得意</span> 本当に並列に計算できる。素直な逐次コードが書ける。</li>
+      <li><span class="ng">苦手</span> ロック忘れ（競合）・ロックの順序違い（デッドロック）。スレッドは 1 本あたりのメモリと切り替えコストが大きく、数万本は立てにくい。</li>
+    </ul>
+    <p class="note">Rust は「共有して書き換える」をコンパイル時に禁止し（所有権と <code>Send</code> / <code>Sync</code>）、ロック忘れをビルドエラーにする（<a href="rust.html">Rust</a>）。</p>
+  </div>
+  <div class="panel card" id="m-loop" hidden>
+    <p><b>スレッドは 1 本。I/O を待つ間に別のタスクへ切り替える。</b>切り替わるのは <code>await</code> の所だけなので、それ以外の行は途中で割り込まれない。JS（ブラウザ・Node.js）、Python の asyncio、Rust の tokio（こちらはマルチスレッドにもできる）。</p>
+    <ul class="plain">
+      <li><span class="ok">得意</span> 大量の同時接続を少ないメモリで捌ける。<code>await</code> の間以外は競合が起きない。</li>
+      <li><span class="ng">苦手</span> 重い計算を 1 つ入れると<b>全体が止まる</b>。async 関数と普通の関数が混ぜにくい（「関数の色」問題）。</li>
+    </ul>
+<pre><code>const v = await db.get('count');   <span class="cm">// ← ここで他のリクエストが割り込める</span>
+await db.put('count', v + 1);      <span class="cm">// 2 つ同時に来ると更新が消える</span></code></pre>
+    <p class="note">「シングルスレッドだから競合しない」は誤り。<code>await</code> をまたぐ read → write は、上のシミュレーターの「ロックなし」と同じことが起きる。</p>
+  </div>
+  <div class="panel card" id="m-go" hidden>
+    <p><b>ランタイムが管理する軽いスレッド（グリーンスレッド）を大量に作り、少数の OS スレッドに載せて動かす（M:N スケジューリング）。</b>Go の goroutine、Java 21 の仮想スレッド、Erlang のプロセスなど。</p>
+    <ul class="plain">
+      <li><span class="ok">得意</span> 書き方は普通の同期コードのまま、10 万単位の同時処理ができる。I/O で止まると、ランタイムが自動で別の goroutine に切り替える。複数コアで並列にも動く。</li>
+      <li><span class="ng">苦手</span> メモリは共有できるので、共有すれば結局ロックが必要。</li>
+    </ul>
+<pre><code><span class="cm">// Go：「メモリを共有して通信するな。通信してメモリを共有せよ」</span>
+ch := make(chan int)
+go func() { ch &lt;- heavyWork() }()  <span class="cm">// 別の goroutine で計算</span>
+result := &lt;-ch                      <span class="cm">// チャネルで受け取る</span></code></pre>
+  </div>
+  <div class="panel card" id="m-actor" hidden>
+    <p><b>状態を持つ「アクター」同士が、メッセージだけでやり取りする。</b>アクターは自分の状態を外に見せず、届いたメッセージを<b>1 つずつ順番に</b>処理する。Erlang / Elixir、Akka、Orleans、そして Cloudflare Durable Objects。</p>
+    <ul class="plain">
+      <li><span class="ok">得意</span> 状態を共有しないので、アクターの中ではロックが要らない。相手が同じマシンでも別のマシンでも同じ書き方（位置透過性）。</li>
+      <li><span class="ng">苦手</span> 1 つのアクターは 1 度に 1 つしか処理しないので、そこに集中すると詰まる。複数のアクターをまたぐ処理は自分で整合を取る必要がある。</li>
+    </ul>
+    <p>詳しくは下の <a href="#actor">アクターモデル</a>。</p>
+  </div>
+
+  <h2 id="compare">比べると</h2>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th></th><th>スレッド＋ロック</th><th>イベントループ</th><th>goroutine 型</th><th>アクター</th></tr>
+    <tr><td>実行の単位</td><td>OS スレッド</td><td>タスク（Promise など）</td><td>軽量スレッド</td><td>アクター（＋メールボックス）</td></tr>
+    <tr><td>切り替わる所</td><td>どこでも（OS が決める）</td><td><code>await</code> の所だけ</td><td>I/O・チャネル操作など</td><td>メッセージ 1 件の処理の切れ目</td></tr>
+    <tr><td>状態の扱い</td><td>共有＋ロック</td><td>共有（1 本なので同時には触れない）</td><td>共有もチャネルもできる</td><td>共有しない</td></tr>
+    <tr><td>並列（多コア）</td><td class="ok">できる</td><td class="ng">1 本では不可</td><td class="ok">できる</td><td class="ok">アクター同士は並列</td></tr>
+    <tr><td>同時に数万</td><td class="ng">重い</td><td class="ok">軽い</td><td class="ok">軽い</td><td class="ok">軽い</td></tr>
+    <tr><td>よくある事故</td><td>デッドロック・ロック忘れ</td><td>重い計算で全停止・await 間の競合</td><td>goroutine リーク・共有時の競合</td><td>1 アクターへの集中・メッセージの取りこぼし</td></tr>
+  </table></div>
+
+  <h2 id="actor">アクターモデル</h2>
+  <div class="actor-fig">
+    <div class="card"><b>1. 状態は自分だけのもの</b><p>アクターの状態は外から直接読めない・書けない。知りたければメッセージで聞く。</p></div>
+    <div class="card"><b>2. メールボックスに並ぶ</b><p>届いたメッセージは列に並び、<b>1 件ずつ</b>処理される。</p>
+      <div class="mailbox"><span class="now">+1</span><span>+1</span><span>get</span><span>+1</span></div>
+      <p class="note" style="margin:0">同時に 2 件処理しないので、さっきの count は必ず正しく増える。</p></div>
+    <div class="card"><b>3. 処理中にできること</b><p>自分の状態を変える／他のアクターにメッセージを送る／新しいアクターを作る、の 3 つ。</p></div>
+  </div>
+  <h3 id="let-it-crash">落ちたら作り直す（Let it crash）</h3>
+  <p>Erlang / Elixir では、アクター（プロセス）がおかしくなったら無理に直さず落とし、親の<b>スーパーバイザー</b>が作り直します。状態が他と混ざっていないから、1 つだけ再起動しても全体は壊れない、という発想です。</p>
+  <h3>スケールのさせ方</h3>
+  <p>1 アクター＝1 度に 1 件なので、1 つのアクターの処理量には上限があります。速くしたいときは<b>アクターを細かく分ける</b>（ユーザーごと・部屋ごと・ドキュメントごと）。「全ユーザーのカウンター」を 1 つのアクターに持たせるのは典型的な失敗です。</p>
+
+  <h2 id="durable-objects">Durable Objects はアクター</h2>
+  <p>Cloudflare の Durable Objects (DO) は、アクターモデルをサーバーレスで提供するものです。アクターの性質がそのまま当てはまります。</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>アクターの性質</th><th>Durable Objects では</th></tr>
+    <tr><td>アイデンティティ</td><td>名前（<code>idFromName("room-42")</code>）か ID で指定。<b>同じ ID の実体は世界に 1 つだけ</b>で、どこから呼んでも同じオブジェクトに届く</td></tr>
+    <tr><td>自分だけの状態</td><td>オブジェクトごとに専用の SQLite ストレージ（以前は KV 型もあったが、2026 年 7 月以降、KV 型をまだ使っていないアカウントは新しく作れない）。SQLite はオブジェクトと同じスレッドで動くので読み書きが非常に速い</td></tr>
+    <tr><td>1 件ずつ処理</td><td>1 オブジェクトは 1 スレッド。さらに<b>入力ゲート</b>が、ストレージ操作の完了を待つ間に他のリクエストが割り込むのを防ぐ</td></tr>
+    <tr><td>メッセージ</td><td>Worker から stub 経由で <code>fetch</code> や RPC メソッドを呼ぶ。WebSocket もオブジェクトで受けられる</td></tr>
+    <tr><td>細かく分ける</td><td>オブジェクトは何百万個作ってもよい前提。部屋・ユーザー・ドキュメントごとに 1 つ</td></tr>
+  </table></div>
+
+  <h3 id="gates">入力ゲートと出力ゲート</h3>
+  <div class="grid">
+    <div class="card"><b>入力ゲート (input gate)</b><p>ストレージ操作を待っている間は、新しいイベント（別のリクエスト）を届けない。だから <code>get</code> → <code>put</code> の間に他のリクエストが割り込まず、カウンターが正しく増える。</p></div>
+    <div class="card"><b>出力ゲート (output gate)</b><p>書き込みが確定するまで、外への応答を止めておく。コードは書き込み完了を待たずに先へ進めるが、「保存できていないのに成功を返す」ことは起きない。</p></div>
+  </div>
+<pre><code>export class Counter extends DurableObject {
+  async increment() {
+    const v = (await this.ctx.storage.get('n')) ?? 0;  <span class="cm">// 入力ゲートが割り込みを防ぐ</span>
+    await this.ctx.storage.put('n', v + 1);
+    return v + 1;                                       <span class="cm">// 出力ゲート：書き込み確定後に返る</span>
+  }
+}</code></pre>
+  <p class="note"><b>落とし穴：</b>ゲートが守るのはストレージ操作の待ち時間だけ。途中で外部 API を <code>await fetch()</code> すると、その間に別のリクエストが割り込める。外部呼び出しをまたいで状態を読み書きするなら、呼び出しの前後で状態を確認し直すか、ストレージのトランザクションにまとめる。</p>
+  <p>どこで使うかは <a href="distributed-basics.html#cloudflare">分散システムの基本</a>（整合性の比較）と <a href="cloudflare-services.html">Cloudflare サービス</a>。</p>
+
+  <h2 id="choose">どれを選ぶか</h2>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>やりたいこと</th><th>向くモデル</th></tr>
+    <tr><td>大量の API 呼び出し・DB 待ち</td><td>イベントループ / goroutine</td></tr>
+    <tr><td>重い計算を全コアで</td><td>スレッド（ワーカースレッド・Rayon など）</td></tr>
+    <tr><td>部屋・在庫・座席など「1 か所で正しく」</td><td>アクター（Durable Objects など）</td></tr>
+    <tr><td>落ちても全体を止めたくない長時間サービス</td><td>アクター＋スーパーバイザー（Erlang / Elixir）</td></tr>
+  </table></div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth card"><summary>JS はシングルスレッドだから競合状態は起きない</summary><p>同じ行の途中で割り込まれることはないが、<code>await</code> をまたいだ「読んで → 書く」は他のタスクに割り込まれる。</p></details>
+  <details class="myth card"><summary>async にすれば処理が速くなる</summary><p>速くなるのは待ち時間を重ねられるときだけ。計算そのものは速くならず、重い計算はむしろ全体を止める。</p></details>
+  <details class="myth card"><summary>アクターならどれだけ負荷をかけても大丈夫</summary><p>1 アクターは 1 度に 1 件。1 つに集中すると列が伸びて遅くなる。単位を細かく分けるのが前提。</p></details>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      const p = t.dataset.panel && document.getElementById(t.dataset.panel);
+      if (p) p.hidden = !on;
+    });
+  });
+});
+(() => {
+  const plans = {
+    none: [['A','読む count → 0',()=>s.a=s.c],['B','読む count → 0',()=>s.b=s.c],['A','足して書く → 1',()=>s.c=s.a+1],['B','足して書く → 1',()=>s.c=s.b+1]],
+    lock: [['A','ロック取得',()=>{}],['B','ロック待ち…',()=>{}],['A','読む → 0、書く → 1',()=>s.c=s.c+1],['A','ロック解放',()=>{}],['B','ロック取得',()=>{}],['B','読む → 1、書く → 2',()=>s.c=s.c+1]],
+    actor: [['A','メッセージ「+1」を送る',()=>{}],['B','メッセージ「+1」を送る',()=>{}],['アクター','1 件目を処理 → 1',()=>s.c++],['アクター','2 件目を処理 → 2',()=>s.c++]]
+  };
+  let mode = 'none', i = 0, s = {a:0,b:0,c:0};
+  const A = document.getElementById('laneA'), B = document.getElementById('laneB');
+  const mem = document.getElementById('mem'), log = document.getElementById('race-log');
+  function reset() {
+    i = 0; s = {a:0,b:0,c:0};
+    A.innerHTML = '<b>' + (mode === 'actor' ? 'A・B（送る側）' : 'A') + '</b>';
+    B.innerHTML = '<b>' + (mode === 'actor' ? 'アクター（1 件ずつ処理）' : 'B') + '</b>';
+    mem.className = 'mem'; mem.innerHTML = 'count = <span>0</span>';
+    log.textContent = 'A と B がそれぞれ count を 1 増やします。期待する結果は 2。';
+  }
+  function step() {
+    const p = plans[mode];
+    if (i >= p.length) return;
+    const [who, txt, fn] = p[i++]; fn();
+    const lane = (mode === 'actor') ? (who === 'アクター' ? B : A) : (who === 'A' ? A : B);
+    document.querySelectorAll('#race .lane div').forEach(d => d.classList.remove('on'));
+    const d = document.createElement('div'); d.className = 'on'; d.textContent = (mode === 'actor' && who !== 'アクター' ? who + ': ' : '') + txt; lane.appendChild(d);
+    mem.innerHTML = 'count = <span>' + s.c + '</span>';
+    if (i === p.length) {
+      const bad = s.c !== 2; mem.className = 'mem' + (bad ? ' bad' : '');
+      log.textContent = bad ? '結果は 1。B が古い値（0）を読んだまま書いたので、A の更新が消えた。' :
+        (mode === 'lock' ? '結果は 2。B は A が終わるまで待たされた（その間 B は何もできない）。' : '結果は 2。状態を触るのはアクターだけで、メッセージを 1 件ずつ処理するのでロックが要らない。');
+    } else log.textContent = who + '：' + txt;
+  }
+  document.querySelectorAll('#race [data-mode]').forEach(b => b.addEventListener('click', () => {
+    mode = b.dataset.mode;
+    document.querySelectorAll('#race [data-mode]').forEach(x => x.classList.toggle('on', x === b));
+    reset();
+  }));
+  document.getElementById('race-step').addEventListener('click', step);
+  document.getElementById('race-reset').addEventListener('click', reset);
+  reset();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Node.js の API で「DB から在庫数を読む → 1 減らして書き込む」を await でつないでいる。同時に 2 件の注文が来たときに起こりうることは？",
+    "choices": ["シングルスレッドなので必ず正しく 2 減る", "await の間にもう一方のリクエストが割り込み、在庫が 1 しか減らないことがある", "2 件目はエラーになる"],
+    "answer": 1,
+    "explain": "イベントループは await の所で別のタスクに切り替わる。読みと書きの間に割り込まれると、古い値をもとに書いて更新が消える。",
+    "ref": "#m-loop"
+  },
+  {
+    "q": "画像のリサイズ処理（CPU を使い切る計算）を Node.js の API サーバーの中でそのまま実行した。何が起きやすい？",
+    "choices": ["自動で別コアに振り分けられる", "async 関数にしておけば他のリクエストは止まらない", "計算している間、他のリクエストの処理が全部止まる"],
+    "answer": 2,
+    "explain": "イベントループは 1 本のスレッドで回っているので、長い計算を挟むと他のタスクに切り替われない。ワーカースレッドや別プロセスに逃がす。",
+    "ref": "#compare"
+  },
+  {
+    "q": "チャットアプリを Durable Objects で作る。オブジェクトをどの単位で作るのがよい？",
+    "choices": ["チャットルームごとに 1 つ", "アプリ全体で 1 つ", "メッセージ 1 件ごとに 1 つ"],
+    "answer": 0,
+    "explain": "1 オブジェクトは 1 度に 1 件ずつ処理するので、全体で 1 つにすると詰まる。同じ部屋の参加者が同じ状態を見られる「部屋」が自然な単位。",
+    "ref": "#actor"
+  },
+  {
+    "q": "Durable Object のメソッドで、ストレージから値を読んだあと外部 API を await fetch() し、その結果で値を書き込んでいる。注意すべき点は？",
+    "choices": ["Durable Objects は 1 件ずつ処理するので何も起きない", "fetch の待ち時間には入力ゲートが働かず、別のリクエストが割り込んで値が変わっていることがある", "fetch は Durable Object の中では使えない"],
+    "answer": 1,
+    "explain": "入力ゲートが割り込みを止めるのはストレージ操作を待つ間だけ。外部呼び出しをまたぐときは、状態を読み直すなどの対策が要る。",
+    "ref": "#gates"
+  },
+  {
+    "q": "Go で 10 万件の HTTP リクエストを同時に投げたい。goroutine を 10 万個作るのは現実的？",
+    "choices": ["OS スレッドと同じ重さなので無理", "チャネルを使わないと作れない", "goroutine は軽量でランタイムが少数の OS スレッドに載せるので、十分現実的"],
+    "answer": 2,
+    "explain": "goroutine はランタイムが管理する軽量スレッドで、M:N スケジューリングで少数の OS スレッドに割り当てられる。実際には相手サーバーへの負荷のために同時数を絞ることが多い。",
+    "ref": "#m-go"
+  }
+]
+</script>
+</body>
+</html>

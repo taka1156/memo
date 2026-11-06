@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>浮動小数点と数値表現</title>
+<meta name="description" content="0.1 + 0.2 が 0.3 にならない理由を IEEE 754 のビットから確かめ、安全な整数の上限・NaN・お金の扱い・丸め・整数オーバーフローまで実務で困る点を整理する">
+<meta name="memo:tags" content="言語, JavaScript">
+<meta name="memo:date" content="2026-11-06">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #cf222e;
+  --c-warn: #9a6700;
+  --c-a: #0077b6;
+  --c-b: #8250df;
+  --c-c: #1a7f37;
+  --c-d: #bc4c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-a: #00d4ff;
+    --c-b: #bc8cff;
+    --c-c: #3fb950;
+    --c-d: #f0883e;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.2em; }
+ul.plain li { margin: 2px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+  margin: 10px 0;
+}
+.en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* 図 */
+.diagram { margin: 8px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
+.d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
+.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--accent); }
+.d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
+.d-ng-head { fill: var(--c-ng); }
+
+/* ステップ・フロー */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.flow span {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+.tbl td:first-child { font-weight: 700; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+
+
+/* よくある誤解 */
+.myth { margin-bottom: 10px; }
+.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
+.myth summary::-webkit-details-marker { display: none; }
+.myth summary::before { content: '✕ '; color: var(--c-ng); }
+.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
+.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+/* OK / NG コード比較 */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.vs > div { min-width: 0; }
+.vs .lbl { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.sim-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.sim-btns button {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 6px 12px; font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer;
+}
+.sim-btns button:hover { border-color: var(--accent); }
+.sim-btns button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.sim-log { font-size: 0.85rem; background: var(--chip); border-radius: 8px; padding: 8px 12px; min-height: 3.4em; }
+.spectrum { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.spectrum .card { padding: 10px 12px; }
+.spectrum .card b { font-size: 0.88rem; }
+.spectrum .card p { font-size: 0.8rem; color: var(--fg-2); margin: 4px 0 0; }
+.strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); letter-spacing: .1em; }
+.badge {
+  display: inline-block;
+  font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  color: var(--fg-2);
+}
+.badge.a { color: var(--c-a); }
+.badge.b { color: var(--c-b); }
+.badge.c { color: var(--c-c); }
+.badge.d { color: var(--c-d); }
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: -16px 0 22px; font-size: 0.78rem; }
+.series a { background: var(--chip); border-radius: 999px; padding: 2px 10px; text-decoration: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.fp-in { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fp-in input { font: 600 1rem 'JetBrains Mono', ui-monospace, monospace; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--chip); color: var(--fg); width: 12em; max-width: 100%; }
+.fpbits { display: flex; flex-wrap: wrap; gap: 1px; margin: 10px 0 4px; font: 600 0.72rem 'JetBrains Mono', ui-monospace, monospace; }
+.fpbits span { width: 12px; text-align: center; border-radius: 2px; padding: 1px 0; }
+.fpbits .s { background: color-mix(in srgb, var(--c-ng) 30%, transparent); }
+.fpbits .e { background: color-mix(in srgb, var(--c-a) 25%, transparent); }
+.fpbits .m { background: color-mix(in srgb, var(--c-c) 18%, transparent); }
+.exact { font: 500 0.78rem 'JetBrains Mono', ui-monospace, monospace; word-break: break-all; background: var(--chip); border-radius: 6px; padding: 6px 10px; }
+.exact b { color: var(--accent); }
+.numline { position: relative; height: 54px; margin: 8px 0; }
+.numline .axis { position: absolute; left: 0; right: 0; top: 26px; height: 2px; background: var(--line); }
+.numline i { position: absolute; top: 18px; width: 2px; height: 18px; background: var(--accent); }
+.numline span { position: absolute; top: 38px; font: 500 0.68rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); transform: translateX(-50%); white-space: nowrap; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="浮動小数点と数値表現">
+<meta property="og:description" content="0.1 + 0.2 が 0.3 にならない理由を IEEE 754 のビットから確かめ、安全な整数の上限・NaN・お金の扱い・丸め・整数オーバーフローまで実務で困る点を整理する">
+<meta property="og:url" content="https://memo.taka1156.site/floating-point.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>浮動小数点と数値表現</h1>
+  <p class="subtitle">0.1 + 0.2 ≠ 0.3 —— コンピューターの小数は「2 進数で近い値」を持っているだけ</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>多くの言語の小数（JS の Number、<code>double</code>、<code>f64</code>）は IEEE 754 の<b>2 進浮動小数点</b>。0.1 は 2 進数で割り切れないので、<b>最も近い値</b>が入っている。だから誤差が出る。</li>
+      <li>JS の Number で正確に表せる整数は <b>±2<sup>53</sup>−1 まで</b>。大きな ID を数値で受け取ると下の桁が壊れる。</li>
+      <li>お金は<b>最小単位の整数</b>（円・セント）か <b>10 進の型</b>（SQL の DECIMAL など）で持つ。小数の比較は <code>===</code> ではなく許容誤差で。</li>
+    </ul>
+  </div>
+
+  <h2 id="why">なぜ 0.1 が正確に入らないのか</h2>
+  <p>10 進数で 1/3 = 0.333… が終わらないのと同じで、2 進数では 1/10 が終わりません。</p>
+  <div class="flow"><span>0.1（10 進）</span><i>=</i><span class="mono">0.0001100110011…（2 進、0011 が無限に続く）</span><i>→ 52 ビットに丸める（最も近い値を選ぶ）</i><span>少しだけずれた値</span></div>
+<pre><code>0.1 + 0.2            <span class="cm">// 0.30000000000000004</span>
+0.1 + 0.2 === 0.3    <span class="cm">// false</span>
+0.5 + 0.25 === 0.75  <span class="cm">// true（2 進で割り切れる数は正確）</span></code></pre>
+  <p class="note">これは JS 固有の問題ではない。Python・Java・C・Rust の <code>double</code> / <code>f64</code> でも同じ結果になる。</p>
+
+  <h2 id="ieee754">IEEE 754 倍精度（64 ビット）の中身</h2>
+  <p>数を「符号 × 1.仮数 × 2<sup>指数</sup>」の形で持ちます。数値を入れると、実際のビットと<b>本当に保存されている値</b>が見られます。</p>
+  <div class="card">
+    <div class="fp-in"><input id="fp" value="0.1" aria-label="調べる数値"><div class="sim-btns" style="justify-content:flex-start">
+      <button data-v="0.1">0.1</button><button data-v="0.3">0.3</button><button data-v="0.30000000000000004">0.1+0.2</button><button data-v="0.75">0.75</button><button data-v="9007199254740993">2^53+1</button><button data-v="-0">-0</button></div></div>
+    <div class="fpbits" id="fpbits"></div>
+    <div class="legend"><span><i style="background:var(--c-ng)"></i>符号 1 ビット</span><span><i style="background:var(--c-a)"></i>指数 11 ビット</span><span><i style="background:var(--c-c)"></i>仮数 52 ビット</span></div>
+    <p style="font-size:0.82rem;margin-top:8px">保存されている値（正確な 10 進表記）：</p>
+    <div class="exact" id="fpexact"></div>
+  </div>
+  <p>仮数が 52 ビット（先頭の 1 を含めて 53 ビット）なので、10 進でおよそ <b>15〜17 桁</b>の精度。それより細かい部分は、表せる最も近い値に丸められます。</p>
+
+  <h3 id="gaps">数が大きいほど、隣の数との間隔が広がる</h3>
+  <p>ビット数は一定なので、大きな数ほど表せる値がまばらになります。2<sup>53</sup> を超えると、間隔が 2 になって奇数が表せなくなります。</p>
+  <div class="card">
+    <div class="numline"><div class="axis"></div>
+      <i style="left:4%"></i><span style="left:4%">2^53−2</span>
+      <i style="left:27%"></i><span style="left:27%">2^53−1</span>
+      <i style="left:50%"></i><span style="left:50%">2^53</span>
+      <span style="left:73%;top:2px;color:var(--c-ng)">×（2^53+1 は無い）</span>
+      <i style="left:96%"></i><span style="left:96%">2^53+2</span>
+    </div>
+  </div>
+<pre><code>Number.MAX_SAFE_INTEGER        <span class="cm">// 9007199254740991（2^53 − 1）</span>
+9007199254740993               <span class="cm">// 9007199254740992 になる</span>
+JSON.parse('{"id":1234567890123456789}').id  <span class="cm">// 1234567890123456800（下の桁が壊れる）</span>
+BigInt('1234567890123456789')  <span class="cm">// 1234567890123456789n（正確）</span></code></pre>
+  <p class="note">64 ビット整数の ID（Snowflake ID や DB の BIGINT）を JSON で JS に渡すときは、<b>文字列として送る</b>のが定石。</p>
+
+  <h2 id="special">特殊な値</h2>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>値</th><th>出てくる場面</th><th>注意</th></tr>
+    <tr><td>NaN</td><td><code>0/0</code>、<code>Number('abc')</code></td><td><b>自分自身とも等しくない</b>（<code>NaN === NaN</code> は false）。判定は <code>Number.isNaN()</code></td></tr>
+    <tr><td>Infinity</td><td><code>1/0</code>、上限超え</td><td>整数のようにエラーにならず、そのまま計算が続く</td></tr>
+    <tr><td>−0</td><td><code>-1 * 0</code>、<code>Math.round(-0.4)</code></td><td><code>-0 === 0</code> は true だが、<code>1/-0</code> は −Infinity。<code>Object.is(-0, 0)</code> は false</td></tr>
+  </table></div>
+
+  <h2 id="compare">比較と集計</h2>
+  <div class="vs">
+    <div><span class="lbl ng">NG</span>
+<pre><code>if (a + b === 0.3) { … }</code></pre></div>
+    <div><span class="lbl ok">OK：許容誤差で比べる</span>
+<pre><code>const near = (x, y, rel = 1e-9) =&gt;
+  Math.abs(x - y) &lt;= rel * Math.max(1, Math.abs(x), Math.abs(y));</code></pre></div>
+  </div>
+  <p>誤差は計算のたびに積み重なり、<b>足す順番によって結果が変わります</b>。大きな数に小さな数を何度も足すと、小さい側が丸めで消えていきます。</p>
+<pre><code>let s = 0; for (let i = 0; i &lt; 10; i++) s += 0.1;
+s   <span class="cm">// 0.9999999999999999</span>
+1e16 + 1 - 1e16   <span class="cm">// 0（1 が消える）</span></code></pre>
+
+  <h2 id="money">お金の扱い</h2>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>方法</th><th>例</th><th>向く場面</th></tr>
+    <tr><td>最小単位の整数</td><td>¥1,980 → <code>1980</code>、$19.80 → <code>1980</code>（セント）</td><td>多くの決済 API と同じ方式。足し算・比較が正確</td></tr>
+    <tr><td>10 進型</td><td>SQL の <code>DECIMAL(12,2)</code>、Python の <code>Decimal</code>、Java の <code>BigDecimal</code></td><td>税率・利率など、小数を掛け算する計算</td></tr>
+    <tr><td class="ng">float / double</td><td><code>19.8 * 3</code> → 59.400000000000006</td><td>お金には使わない</td></tr>
+  </table></div>
+  <p class="note">割り算や税計算の端数をどこで、どう丸めるか（切り捨て・四捨五入・偶数丸め）は業務ルールとして決めて、1 か所に実装する。</p>
+
+  <h3 id="rounding">丸めの落とし穴</h3>
+<pre><code>(1.005).toFixed(2)   <span class="cm">// "1.00"（1.005 は実際には 1.00499999… なので）</span>
+Math.round(2.5)      <span class="cm">// 3   JS は 0.5 を +∞ 方向へ</span>
+Math.round(-2.5)     <span class="cm">// -2</span>
+round(2.5)           <span class="cm"># 2   Python は偶数丸め（銀行丸め）</span></code></pre>
+
+  <h2 id="integers">整数型のあふれ</h2>
+  <p>固定長の整数型（<code>int32</code> など）は上限を超えると<b>反対側に回り込む</b>（ラップアラウンド）か、言語によってはエラーになります。</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>言語・場面</th><th>上限を超えると</th></tr>
+    <tr><td>C / C++ の符号付き整数</td><td>未定義動作（最適化で予想外の結果になる）</td></tr>
+    <tr><td>Java の int / Go の int32</td><td>回り込む（2147483647 + 1 → −2147483648）。Go の int は 64 ビット環境では 64 ビット</td></tr>
+    <tr><td>Rust</td><td>デバッグビルドはパニック、リリースビルドは回り込み。<code>checked_add</code> などで明示する（<a href="rust.html">Rust</a>）</td></tr>
+    <tr><td>JS のビット演算</td><td>32 ビット整数に変換される（<code>2**31 | 0</code> → −2147483648）</td></tr>
+    <tr><td>Python の int</td><td>任意精度なのであふれない</td></tr>
+  </table></div>
+
+  <h2 id="ml">精度を落とす使い方：機械学習</h2>
+  <p>LLM などでは、64 ビットどころか 16 ビット（FP16・BF16）や 8 ビット・4 ビットの数で重みを持ちます。少しの誤差より、メモリと速度を優先しているためです（量子化。<a href="llm-basics.html">LLM の仕組み</a>）。BF16 は指数のビットを float32 と同じにし、仮数を削って「表せる範囲は広いまま、精度だけ落とした」形式です。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth card"><summary>0.1 + 0.2 の問題は JavaScript のバグ</summary><p>IEEE 754 の 2 進浮動小数点を使う言語ならどれでも起きる。仕様どおりの動作。</p></details>
+  <details class="myth card"><summary>小数点以下 2 桁で表示すれば計算も正確になる</summary><p>表示を丸めても内部の値は変わらない。合計や比較で誤差が表に出る。</p></details>
+  <details class="myth card"><summary>Number で扱えるのは 2^53 まで</summary><p>もっと大きな数も入る（約 1.8×10^308 まで）。ただ 2^53 を超えると整数を 1 刻みで表せなくなる。「安全に」扱えるのがそこまで。</p></details>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      const p = t.dataset.panel && document.getElementById(t.dataset.panel);
+      if (p) p.hidden = !on;
+    });
+  });
+});
+(() => {
+  const inp = document.getElementById('fp'), bitsEl = document.getElementById('fpbits'), ex = document.getElementById('fpexact');
+  function exact(x) {
+    if (!isFinite(x)) return String(x);
+    if (x === 0) return Object.is(x, -0) ? '-0' : '0';
+    const dv = new DataView(new ArrayBuffer(8)); dv.setFloat64(0, x);
+    const hi = dv.getUint32(0), lo = dv.getUint32(4);
+    const sign = hi >>> 31, e = (hi >>> 20) & 0x7ff;
+    let m = (BigInt(hi & 0xfffff) << 32n) | BigInt(lo);
+    let exp;
+    if (e === 0) exp = -1074; else { m |= 1n << 52n; exp = e - 1075; }
+    let intPart, frac = '';
+    if (exp >= 0) intPart = (m << BigInt(exp)).toString();
+    else {
+      const d = BigInt(-exp), den = 1n << d;
+      intPart = (m / den).toString();
+      let r = m % den;
+      while (r !== 0n) { r *= 10n; frac += (r / den).toString(); r %= den; }
+    }
+    return (sign ? '-' : '') + intPart + (frac ? '.' + frac : '');
+  }
+  function run() {
+    const v = inp.value.trim(), x = Number(v);
+    const dv = new DataView(new ArrayBuffer(8)); dv.setFloat64(0, x);
+    let b = '';
+    for (let i = 0; i < 8; i++) b += dv.getUint8(i).toString(2).padStart(8, '0');
+    bitsEl.innerHTML = [...b].map((c, i) => '<span class="' + (i === 0 ? 's' : i < 12 ? 'e' : 'm') + '">' + c + '</span>').join('');
+    const ev = exact(x);
+    const same = ev === v || (ev === '0' && /^0+(\.0*)?$/.test(v));
+    ex.innerHTML = '<b>' + ev + '</b>' + (isNaN(x) ? '' : same ? '<br>（入力した値と完全に一致）' : '<br>（入力した ' + v + ' とは少しずれている）');
+  }
+  inp.addEventListener('input', run);
+  document.querySelectorAll('.fp-in [data-v]').forEach(btn => btn.addEventListener('click', () => { inp.value = btn.dataset.v; run(); }));
+  run();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "API が {\"id\": 1234567890123456789} のように 19 桁の数値 ID を返す。JS で JSON.parse すると何が起きる？",
+    "choices": ["そのまま正確に読める", "2^53 を超えるので下の桁が丸められ、別の ID になる", "自動で BigInt として読まれる"],
+    "answer": 1,
+    "explain": "Number は 2^53−1 までしか整数を正確に表せない。大きな ID は文字列で送受信する。",
+    "ref": "#gaps"
+  },
+  {
+    "q": "ショッピングカートの合計金額を計算する。価格をどう持つのがよい？",
+    "choices": ["円・セントなど最小単位の整数で持つ", "double で持ち、表示時に toFixed(2) する", "文字列で持ち、計算のたびに parseFloat する"],
+    "answer": 0,
+    "explain": "2 進の浮動小数点では 0.1 などが正確に表せず、合計で誤差が出る。整数か 10 進型を使う。",
+    "ref": "#money"
+  },
+  {
+    "q": "テストで expect(calcTax(1000) * 0.1 + 50).toBe(150) が、計算は合っているはずなのに稀に失敗する。直し方として適切なのは？",
+    "choices": ["toBe の代わりに許容誤差で比べる（toBeCloseTo など）", "Math.round を外す", "テストを 3 回リトライする設定にする"],
+    "answer": 0,
+    "explain": "浮動小数点の計算結果は最後の桁がずれることがある。=== ではなく、誤差を許して比べる。",
+    "ref": "#compare"
+  },
+  {
+    "q": "フォームの入力値を Number() に通した結果が数値として正しいかを確かめたい。x === NaN で判定したが、うまくいかない。なぜ？",
+    "choices": ["Number() は失敗時に null を返すから", "NaN は文字列なので型が違うから", "NaN は自分自身とも等しくないので、=== は常に false になるから"],
+    "answer": 2,
+    "explain": "IEEE 754 の定義で NaN はどの値とも等しくない。Number.isNaN(x) を使う。",
+    "ref": "#special"
+  },
+  {
+    "q": "(1.005).toFixed(2) が \"1.01\" ではなく \"1.00\" になった。理由は？",
+    "choices": ["toFixed は常に切り捨てるから", "1.005 は 2 進では 1.00499999… として保存されていて、それを丸めているから", "toFixed は偶数丸めだから"],
+    "answer": 1,
+    "explain": "丸めは「保存されている値」に対して行われる。1.005 ちょうどは保存できず、少し小さい値になっている。",
+    "ref": "#rounding"
+  }
+]
+</script>
+</body>
+</html>

@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>メッセージキューと Pub/Sub</title>
+<meta name="description" content="キュー・Pub/Sub・ログ型（Kafka）の違い、ack と再配信・DLQ・順序・Outbox パターンを、SQS・Cloudflare Queues・Kafka の比較で整理する">
+<meta name="memo:tags" content="設計, インフラ, バックエンド">
+<meta name="memo:date" content="2026-11-06">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #1a7f37;
+  --c-ng: #cf222e;
+  --c-warn: #9a6700;
+  --c-a: #0077b6;
+  --c-b: #8250df;
+  --c-c: #1a7f37;
+  --c-d: #bc4c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #3fb950;
+    --c-ng: #f85149;
+    --c-warn: #d29922;
+    --c-a: #00d4ff;
+    --c-b: #bc8cff;
+    --c-c: #3fb950;
+    --c-d: #f0883e;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.2em; }
+ul.plain li { margin: 2px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note {
+  font-size: 0.85rem;
+  color: var(--fg-2);
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+  margin: 10px 0;
+}
+.en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.warn { color: var(--c-warn); font-weight: 700; }
+
+/* 図 */
+.diagram { margin: 8px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
+.d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
+.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--accent); }
+.d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
+.d-ng-head { fill: var(--c-ng); }
+
+/* ステップ・フロー */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.flow span {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+.tbl td:first-child { font-weight: 700; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+
+
+/* よくある誤解 */
+.myth { margin-bottom: 10px; }
+.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
+.myth summary::-webkit-details-marker { display: none; }
+.myth summary::before { content: '✕ '; color: var(--c-ng); }
+.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
+.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+/* OK / NG コード比較 */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.vs > div { min-width: 0; }
+.vs .lbl { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+.sim-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.sim-btns button {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 6px 12px; font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer;
+}
+.sim-btns button:hover { border-color: var(--accent); }
+.sim-btns button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.sim-log { font-size: 0.85rem; background: var(--chip); border-radius: 8px; padding: 8px 12px; min-height: 3.4em; }
+.spectrum { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.spectrum .card { padding: 10px 12px; }
+.spectrum .card b { font-size: 0.88rem; }
+.spectrum .card p { font-size: 0.8rem; color: var(--fg-2); margin: 4px 0 0; }
+.strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); letter-spacing: .1em; }
+.badge {
+  display: inline-block;
+  font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  color: var(--fg-2);
+}
+.badge.a { color: var(--c-a); }
+.badge.b { color: var(--c-b); }
+.badge.c { color: var(--c-c); }
+.badge.d { color: var(--c-d); }
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: -16px 0 22px; font-size: 0.78rem; }
+.series a { background: var(--chip); border-radius: 999px; padding: 2px 10px; text-decoration: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.qsim { display: grid; gap: 10px; }
+.qrow { display: grid; grid-template-columns: 80px 1fr 80px; gap: 8px; align-items: center; }
+.qrow b { font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace; text-align: center; }
+.qbox { background: var(--chip); border-radius: 8px; min-height: 44px; padding: 6px; display: flex; flex-wrap: wrap; gap: 3px; align-content: flex-start; }
+.qbox i { width: 8px; height: 14px; border-radius: 2px; background: var(--accent); display: block; }
+.qstat { font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace; text-align: center; color: var(--fg-2); }
+.pat { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.pat svg { width: 100%; height: auto; display: block; margin: 6px 0; }
+.pat text { font: 600 11px 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
+.pat rect { fill: var(--chip); stroke: var(--line); }
+.pat rect.q { fill: color-mix(in srgb, var(--accent) 18%, transparent); stroke: var(--accent); }
+.pat line, .pat path { stroke: var(--accent); stroke-width: 1.6; fill: none; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="メッセージキューと Pub/Sub">
+<meta property="og:description" content="キュー・Pub/Sub・ログ型（Kafka）の違い、ack と再配信・DLQ・順序・Outbox パターンを、SQS・Cloudflare Queues・Kafka の比較で整理する">
+<meta property="og:url" content="https://memo.taka1156.site/message-queues.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>メッセージキューと Pub/Sub</h1>
+  <p class="subtitle">「今すぐ返事はいらない仕事」を間に置いた箱に預ける —— 送る側と受ける側を切り離すしくみ</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>キューを挟むと、送る側（プロデューサー）は<b>受ける側（コンシューマー）が落ちていても遅くても</b>処理を続けられる。急なアクセス増もキューが吸収する。</li>
+      <li>形は 3 つ：<b>キュー</b>（1 件を誰か 1 人が処理）／<b>Pub/Sub</b>（1 件を購読者全員に配る）／<b>ログ型</b>（Kafka。消さずに保持して、各自が好きな位置から読む）。</li>
+      <li>ほとんどのキューは<b>「少なくとも 1 回」届ける</b>。重複は起きる前提で、受ける側を冪等にする。処理できないメッセージは <b>DLQ</b> に退避する。</li>
+    </ul>
+  </div>
+
+  <h2 id="why">なぜキューを挟むのか</h2>
+  <div class="vs">
+    <div class="card"><b class="ng">直接呼ぶと</b>
+      <ul class="plain">
+        <li>メール送信サービスが落ちていると、注文 API までエラーになる</li>
+        <li>メール送信が 3 秒かかると、注文 API も 3 秒待たされる</li>
+        <li>セールで 100 倍のアクセスが来ると、下流がまとめて落ちる</li>
+      </ul></div>
+    <div class="card"><b class="ok">キューを挟むと</b>
+      <ul class="plain">
+        <li>注文 API は「メールを送って」とキューに入れてすぐ返す</li>
+        <li>メール送信側は自分のペースで取り出して処理する</li>
+        <li>落ちていても、復旧後に溜まった分から処理すればよい</li>
+      </ul></div>
+  </div>
+
+  <h3 id="buffer">急増をキューが吸収する</h3>
+  <p>プロデューサーが一気に投入しても、コンシューマーは一定のペースで処理します。台数を増やすと溜まった分（バックログ）が早く減ります。</p>
+  <div class="card qsim">
+    <div class="qrow"><b>送る側</b><div class="qbox" id="qbox"></div><div class="qstat" id="qlen">0 件</div></div>
+    <div class="sim-btns">
+      <button id="q-burst">60 件まとめて投入</button>
+      <button data-c="1" class="on">受ける側 1 台</button>
+      <button data-c="3">3 台</button>
+      <button data-c="0">0 台（障害）</button>
+    </div>
+    <div class="sim-log" id="q-log" aria-live="polite">「60 件まとめて投入」を押して、台数を切り替えてみてください。</div>
+  </div>
+
+  <h2 id="patterns">3 つの形</h2>
+  <div class="pat">
+    <div class="card"><b>キュー（1 対 1）</b>
+      <svg viewBox="0 0 230 90" aria-hidden="true"><rect x="2" y="32" width="44" height="26" rx="4"/><text x="8" y="49">送る</text>
+        <rect class="q" x="78" y="32" width="70" height="26" rx="4"/><text x="92" y="49">queue</text>
+        <rect x="182" y="8" width="44" height="22" rx="4"/><text x="188" y="23">受A</text><rect x="182" y="60" width="44" height="22" rx="4"/><text x="188" y="75">受B</text>
+        <line x1="46" y1="45" x2="78" y2="45"/><path d="M148 45 L182 19"/><path d="M148 45 L182 71"/></svg>
+      <p class="note" style="margin:0">1 件のメッセージは A か B の<b>どちらか一方</b>だけが処理する。仕事の分担（ワーカー）向き。SQS・Cloudflare Queues・RabbitMQ のキュー。</p></div>
+    <div class="card"><b>Pub/Sub（1 対 多）</b>
+      <svg viewBox="0 0 230 90" aria-hidden="true"><rect x="2" y="32" width="44" height="26" rx="4"/><text x="8" y="49">送る</text>
+        <rect class="q" x="78" y="32" width="70" height="26" rx="4"/><text x="92" y="49">topic</text>
+        <rect x="182" y="2" width="44" height="22" rx="4"/><text x="186" y="17">メール</text><rect x="182" y="34" width="44" height="22" rx="4"/><text x="186" y="49">在庫</text><rect x="182" y="66" width="44" height="22" rx="4"/><text x="186" y="81">分析</text>
+        <line x1="46" y1="45" x2="78" y2="45"/><path d="M148 45 L182 13"/><path d="M148 45 L182 45"/><path d="M148 45 L182 77"/></svg>
+      <p class="note" style="margin:0">「注文が入った」を<b>購読者全員</b>が受け取る。送る側は誰が聞いているかを知らなくてよい。SNS・Google Pub/Sub・Redis Pub/Sub。</p></div>
+    <div class="card"><b>ログ型（Kafka）</b>
+      <svg viewBox="0 0 230 90" aria-hidden="true"><rect x="2" y="32" width="44" height="26" rx="4"/><text x="8" y="49">送る</text>
+        <rect class="q" x="60" y="32" width="166" height="26" rx="4"/><text x="66" y="49">0 1 2 3 4 5 6 7 …</text>
+        <line x1="46" y1="45" x2="60" y2="45"/><path d="M110 58 L110 80"/><text x="84" y="88">G1 は 2 から</text><path d="M180 32 L180 12"/><text x="140" y="10">G2 は 6 から</text></svg>
+      <p class="note" style="margin:0">メッセージは読んでも<b>消えず</b>、保持期間まで残る。グループごとに「どこまで読んだか（オフセット）」を持ち、巻き戻して読み直せる。</p></div>
+  </div>
+  <p class="note">組み合わせも多い：Pub/Sub のトピックから購読者ごとのキューへ配る（SNS → SQS など）と、「全員に配る」と「各自のペースで確実に処理」を両立できる。</p>
+
+  <h2 id="ack">ack・再配信・DLQ</h2>
+  <p>キューは「取り出した＝処理完了」とはみなしません。コンシューマーが<b>処理し終えてから ack（確認応答）</b>を返したときに初めて消します。</p>
+  <div class="steps">
+    <div class="step"><b>1. 受け取る</b><p>メッセージは他のコンシューマーから一時的に見えなくなる（SQS の可視性タイムアウト）。</p></div>
+    <div class="step"><b>2. 処理する</b><p>メール送信・DB 更新など。</p></div>
+    <div class="step"><b>3a. ack</b><p>成功を伝える → キューから削除。</p></div>
+    <div class="step"><b>3b. ack なし</b><p>失敗・タイムアウト・クラッシュ → しばらくして<b>再配信</b>。</p></div>
+    <div class="step"><b>4. DLQ</b><p>決まった回数失敗したら、デッドレターキューに移して人が調べる。</p></div>
+  </div>
+  <p>「処理は終わったが ack を返す前に落ちた」ときも再配信されるので、<b>同じメッセージが 2 回届く</b>ことがあります。これが「少なくとも 1 回 (at-least-once)」配信の意味で、対策は受ける側の冪等化です（詳しくは <a href="distributed-basics.html#delivery">分散システムの基本：配送保証</a>・<a href="distributed-basics.html#idempotency">冪等性</a>）。</p>
+  <p class="note"><b>ポイズンメッセージ（poison message、有害メッセージとも）：</b>形式が壊れているなど、何度やっても失敗するメッセージ。DLQ がないと再配信が永遠に続き、後ろのメッセージが詰まったりコストがかさんだりする。DLQ は必ず設定する。</p>
+
+  <h2 id="ordering">順序の保証</h2>
+  <p>順序と並列はトレードオフです。全メッセージを厳密に順番どおり処理するなら、コンシューマーは 1 台しか使えません。そこで多くのしくみは<b>「同じキーの中だけ順序を守る」</b>という形をとります。</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th>しくみ</th><th>順序の単位</th><th>使い方</th></tr>
+    <tr><td>Kafka</td><td>パーティション内</td><td>キー（例：<code>user_id</code>）でパーティションが決まるので、同じユーザーのイベントは順番どおり</td></tr>
+    <tr><td>SQS FIFO</td><td>メッセージグループ内</td><td><code>MessageGroupId</code> を注文 ID などにする</td></tr>
+    <tr><td>SQS 標準・Cloudflare Queues</td><td>保証しない前提</td><td>順序に依存しない設計にする（バージョン番号・タイムスタンプで新旧を判断）</td></tr>
+  </table></div>
+
+  <h2 id="products">主なサービスの比較</h2>
+  <div class="tbl-wrap"><table class="tbl">
+    <tr><th></th><th>Cloudflare Queues</th><th>Amazon SQS</th><th>Apache Kafka</th></tr>
+    <tr><td>形</td><td>キュー</td><td>キュー（標準 / FIFO）</td><td>ログ型（パーティション分割されたトピック）</td></tr>
+    <tr><td>受け取り方</td><td>Worker に<b>バッチで押し込まれる</b>（push）か、HTTP で取りに行く（pull）</td><td>コンシューマーが取りに行く（ロングポーリング）</td><td>コンシューマーグループが取りに行き、オフセットを記録</td></tr>
+    <tr><td>読んだ後</td><td>ack で削除</td><td>削除 API で削除</td><td>消えない（保持期間まで）。巻き戻して再処理できる</td></tr>
+    <tr><td>失敗時</td><td>既定で数回リトライ → DLQ。遅延して再試行も可</td><td>可視性タイムアウト後に再配信 → 規定回数で DLQ</td><td>ブローカー自体に DLQ はない。アプリ側でリトライ用・DLQ 用のトピックを用意する（Kafka Connect や Kafka Streams 4.2 以降には DLQ の設定がある）</td></tr>
+    <tr><td>向いている</td><td>Workers からの非同期処理・バッチ書き込み</td><td>AWS 上のワーカー・ジョブ</td><td>大量のイベントストリーム・複数システムでの再利用・再処理</td></tr>
+  </table></div>
+  <p class="note">Kafka のコンシューマーグループでは 1 パーティションを 1 台が担当するため、並列数はパーティション数が上限になる。Kafka 4.2 からは、パーティションに縛られずに 1 件ずつ ack できる share groups（Kafka Queues、KIP-932）が本番利用できるようになり、キューとしても使える。</p>
+
+  <h2 id="outbox">DB 更新と送信をそろえる：Outbox パターン</h2>
+  <p>「注文を DB に保存してから、キューに『注文が入った』を送る」とき、保存後・送信前に落ちるとイベントが消えます。逆順だと、送ったのに保存されていない注文が生まれます。</p>
+  <div class="steps">
+    <div class="step"><b>1. 同じトランザクション</b><p>注文テーブルへの INSERT と、<code>outbox</code> テーブルへのイベント INSERT を 1 つのトランザクションで行う。</p></div>
+    <div class="step"><b>2. 中継役</b><p>別のプロセスが outbox を読み、キューに送る。</p></div>
+    <div class="step"><b>3. 送ったら印</b><p>送信済みにする。途中で落ちても再送するだけ（だから受け手は冪等に）。</p></div>
+  </div>
+  <p class="note">トランザクションの話は <a href="db-index-transaction.html">インデックスとトランザクション</a>。</p>
+
+  <h2 id="vs-realtime">リアルタイム通信との違い</h2>
+  <p>WebSocket や SSE（<a href="realtime-comm.html">リアルタイム通信</a>）は「今つながっている相手に即座に届ける」もので、相手がいなければ届きません。キューは「相手がいなくても預かって、後で確実に処理させる」もの。チャットなら、送信はキューで確実に保存・配信処理し、表示は WebSocket で即時に、と組み合わせることが多いです。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth card"><summary>キューに入れれば必ず 1 回だけ処理される</summary><p>多くは少なくとも 1 回。ack 前の障害で 2 回届くことがあるので、受け手を冪等にする。</p></details>
+  <details class="myth card"><summary>Kafka は高性能なキュー</summary><p>Kafka はメッセージを保持し続けるログで、複数のグループが別々の位置から読み直せる。1 件ごとの ack や、パーティション数を超える並列処理は従来のキューのほうが得意。</p></details>
+  <details class="myth card"><summary>キューを入れれば負荷の問題は解決する</summary><p>キューは急増を平らにするだけ。平均でも処理能力が足りなければバックログは増え続ける。キューの長さ・最古メッセージの経過時間を監視する（<a href="observability.html">オブザーバビリティ</a>）。</p></details>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      const p = t.dataset.panel && document.getElementById(t.dataset.panel);
+      if (p) p.hidden = !on;
+    });
+  });
+});
+(() => {
+  let n = 0, c = 1;
+  const box = document.getElementById('qbox'), len = document.getElementById('qlen'), log = document.getElementById('q-log');
+  const draw = () => { box.innerHTML = '<i></i>'.repeat(n); len.textContent = n + ' 件'; };
+  document.getElementById('q-burst').addEventListener('click', () => { n += 60; draw(); log.textContent = '60 件投入。送る側はすぐ次の仕事に戻れる。'; });
+  document.querySelectorAll('.qsim [data-c]').forEach(b => b.addEventListener('click', () => {
+    c = +b.dataset.c;
+    document.querySelectorAll('.qsim [data-c]').forEach(x => x.classList.toggle('on', x === b));
+    log.textContent = c === 0 ? '受ける側が全部止まった。メッセージはキューに残って待つ（失われない）。' : '受ける側 ' + c + ' 台で処理中。';
+  }));
+  setInterval(() => {
+    if (n > 0 && c > 0) { n = Math.max(0, n - c); draw(); if (n === 0) log.textContent = 'バックログがなくなった。'; }
+  }, 250);
+  draw();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "注文が入ったら「確認メール送信」「在庫引き当て」「売上集計」の 3 つの処理をそれぞれ独立して動かしたい。合う形は？",
+    "choices": ["1 つのキューに 3 種類のワーカーをつなぐ", "Pub/Sub のトピックに発行し、3 つの購読者がそれぞれ受け取る", "注文 API から 3 つのサービスを順番に直接呼ぶ"],
+    "answer": 1,
+    "explain": "キューに 3 種類のワーカーをつなぐと、1 件はどれか 1 つにしか届かない。全員に配るのは Pub/Sub。",
+    "ref": "#patterns"
+  },
+  {
+    "q": "キューのコンシューマーが「メール送信は成功したが、ack を返す直前にクラッシュ」した。その後どうなる？",
+    "choices": ["メッセージは処理済みとして消える", "メッセージは再配信され、同じメールがもう一度送られうる", "メッセージは即座に DLQ に移る"],
+    "answer": 1,
+    "explain": "キューは ack を受け取るまで処理完了とみなさない。重複を防ぐには、送信済みかを記録するなど受け手を冪等にする。",
+    "ref": "#ack"
+  },
+  {
+    "q": "形式の壊れたメッセージが 1 件混ざり、コンシューマーが何度やっても例外を出す。被害を広げないために設定しておくべきものは？",
+    "choices": ["可視性タイムアウトを無限にする", "リトライ回数を無制限にする", "最大リトライ回数と DLQ（デッドレターキュー）"],
+    "answer": 2,
+    "explain": "上限がないと失敗し続けるメッセージが再配信され続ける。規定回数で DLQ に退避し、原因を調べてから再投入する。",
+    "ref": "#ack"
+  },
+  {
+    "q": "ユーザーごとの操作イベントを Kafka で処理している。同じユーザーのイベントは発生順に処理したいが、全体は並列にしたい。どうする？",
+    "choices": ["パーティションを 1 つにする", "メッセージのキーを user_id にして、同じユーザーが同じパーティションに入るようにする", "コンシューマーグループを 1 台にする"],
+    "answer": 1,
+    "explain": "Kafka はパーティション内の順序を保証し、キーでパーティションが決まる。ユーザー単位の順序を保ちつつ、パーティションごとに並列に処理できる。",
+    "ref": "#ordering"
+  },
+  {
+    "q": "注文を DB に保存し、その後キューにイベントを送っている。保存直後にプロセスが落ちるとイベントが消えてしまう。確実にする方法は？",
+    "choices": ["イベント送信を先にしてから DB に保存する", "注文とイベントを同じトランザクションで outbox テーブルに書き、別プロセスがキューに中継する", "送信に失敗したらログに出す"],
+    "answer": 1,
+    "explain": "Outbox パターン。DB のトランザクションで「注文」と「送るべきイベント」を一緒に確定させ、中継は再送できるようにする。",
+    "ref": "#outbox"
+  }
+]
+</script>
+</body>
+</html>
