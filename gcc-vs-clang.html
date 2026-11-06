@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GCC と Clang の構成比較</title>
+<meta name="description" content="GCC（GENERIC・GIMPLE・RTL の一体型）と Clang/LLVM（ライブラリ型・LLVM IR）の内部構成の違いを、同じ C コードのダンプを並べて比べる">
+<meta name="memo:tags" content="言語, 開発ツール">
+<meta name="memo:date" content="2026-11-06">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-gcc: #c2410c;
+  --c-clang: #6d4fd8;
+  --c-fe: #2a9d8f;
+  --c-mid: #8a5cf6;
+  --c-be: #e07a1f;
+  --c-ext: #7d8b9d;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-gcc: #ff8a5c;
+    --c-clang: #b195ff;
+    --c-fe: #4fd1c5;
+    --c-mid: #b195ff;
+    --c-be: #ffa65c;
+    --c-ext: #7d8b9d;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.76rem;
+  line-height: 1.55;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+:not(pre) > code { white-space: nowrap; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
+.series { font-size: 0.8rem; color: var(--fg-2); margin: -16px 0 22px; }
+.series a, .series b { display: inline-block; margin-right: 10px; }
+.series b { color: var(--fg); }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.grid2 > * { min-width: 0; }
+.grid2 > .card + .card { margin-top: 0; }
+.label {
+  display: inline-block;
+  font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  margin-bottom: 4px;
+}
+.gcc { color: var(--c-gcc); } .clang { color: var(--c-clang); }
+.card.gcc-c { border-top: 3px solid var(--c-gcc); }
+.card.clang-c { border-top: 3px solid var(--c-clang); }
+
+/* 2 レーンのパイプライン */
+.lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lanes > * { min-width: 0; }
+.lanes > .card + .card { margin-top: 0; }
+.lane h3 { margin: 0 0 8px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.proc {
+  border: 1.5px dashed var(--line);
+  border-radius: 10px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.proc > .pn { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); display: block; margin-bottom: 4px; }
+.proc.ext { border-style: solid; border-color: var(--c-ext); }
+.st {
+  border-left: 4px solid var(--k);
+  background: var(--chip);
+  border-radius: 6px;
+  padding: 5px 8px;
+  margin: 4px 0;
+  font-size: 0.78rem;
+  cursor: help;
+}
+.st b { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.76rem; }
+.st small { display: block; color: var(--fg-2); font-size: 0.7rem; }
+.st.fe { --k: var(--c-fe); } .st.mid { --k: var(--c-mid); } .st.be { --k: var(--c-be); } .st.ext { --k: var(--c-ext); }
+.st.hl { outline: 2px solid var(--accent); outline-offset: 1px; }
+.arrow { text-align: center; color: var(--fg-2); font-size: 0.75rem; line-height: 1; margin: 2px 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); margin-bottom: 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+@media (max-width: 560px) {
+  .lanes { grid-template-columns: 1fr; }
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 600; font-size: 0.75rem; }
+th.gcc, th.clang { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+td:first-child { font-weight: 600; white-space: nowrap; }
+.tblwrap { overflow-x: auto; }
+.tblwrap table { min-width: 560px; }
+
+/* 場面別 */
+.pick { display: grid; gap: 8px; }
+.pick button {
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.pick button[aria-expanded="true"] { border-color: var(--accent); }
+.pick .ans { font-size: 0.85rem; padding: 4px 12px 8px; border-left: 3px solid var(--accent); margin-left: 6px; }
+.pick .ans[hidden] { display: none; }
+
+details { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px 14px; }
+details + details { margin-top: 8px; }
+summary { cursor: pointer; font-weight: 600; }
+details p { font-size: 0.88rem; }
+
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+.sources { font-size: 0.78rem; color: var(--fg-2); }
+.sources li { margin-left: 1.2em; }
+.sources a { word-break: break-all; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="GCC と Clang の構成比較">
+<meta property="og:description" content="GCC（GENERIC・GIMPLE・RTL の一体型）と Clang/LLVM（ライブラリ型・LLVM IR）の内部構成の違いを、同じ C コードのダンプを並べて比べる">
+<meta property="og:url" content="https://memo.taka1156.site/gcc-vs-clang.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>GCC と Clang の構成比較</h1>
+  <p class="subtitle">同じ「フロント → 中間表現 → バックエンド」でも、部品の切り方がまるで違う</p>
+  <p class="series">シリーズ: <a href="llvm.html">← LLVM の構成と仕組み</a><b>GCC と Clang の構成比較</b></p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>GCC</b> は 1 つの製品として作られたコンパイラ。言語ごとの <code>cc1</code> などのプログラムの中で、GENERIC → GIMPLE → RTL と中間表現を乗り換えながら、アセンブリのテキストまで出す。</li>
+      <li><b>Clang</b> は LLVM のライブラリを使うフロントエンド。中間表現は公開された LLVM IR に一本化され、最適化・コード生成・アセンブラは LLVM 側の部品が受け持つ。</li>
+      <li>コマンドの使い勝手はほぼ互換だが、「中身を部品として再利用できるか」「1 つのバイナリで複数 CPU を狙えるか」で差が出る。</li>
+    </ul>
+  </div>
+
+  <h2 id="pipeline">全体の流れを並べる</h2>
+  <p>どちらもコマンド (<code>gcc</code> / <code>clang</code>) は<b>ドライバ</b>で、実際のコンパイルは別のプロセスに任せている。点線の枠が 1 つのプロセス、実線の枠は外部のプログラム。段にカーソルを乗せる（タップする）と、反対側の対応する段が光る。</p>
+  <div class="legend"><span><i style="background:var(--c-fe)"></i>フロントエンド</span><span><i style="background:var(--c-mid)"></i>ミドルエンド（CPU 非依存の最適化）</span><span><i style="background:var(--c-be)"></i>バックエンド</span><span><i style="background:var(--c-ext)"></i>外部ツール</span></div>
+  <div class="lanes" id="lanes">
+    <div class="lane card gcc-c">
+      <h3 class="gcc">gcc x.c</h3>
+      <div class="proc"><span class="pn">cc1（C 用。C++ は cc1plus）</span>
+        <div class="st fe" data-k="parse"><b>前処理・構文解析</b><small>手書きの再帰下降パーサ</small></div>
+        <div class="st fe" data-k="ast"><b>GENERIC</b><small>言語共通の木。C 固有の木から変換</small></div>
+        <div class="arrow">↓ gimplify</div>
+        <div class="st mid" data-k="ir"><b>GIMPLE</b><small>3 番地コード（タプル表現）。ここから SSA 化</small></div>
+        <div class="st mid" data-k="opt"><b>GIMPLE パス群 (tree-ssa)</b><small>インライン化・定数伝播・ベクトル化など</small></div>
+        <div class="arrow">↓ expand</div>
+        <div class="st be" data-k="isel"><b>RTL</b><small>CPU 命令に近い式。machine description (.md) と照合</small></div>
+        <div class="st be" data-k="ra"><b>RTL パス・IRA / LRA</b><small>命令の組み合わせ・スケジュール・レジスタ割付</small></div>
+        <div class="st be" data-k="emit"><b>final</b><small>アセンブリのテキスト (.s) を書く</small></div>
+      </div>
+      <div class="arrow">↓ .s ファイル</div>
+      <div class="proc ext"><span class="pn">as（GNU binutils）</span><div class="st ext" data-k="asm"><b>アセンブル</b><small>.s → .o</small></div></div>
+      <div class="arrow">↓</div>
+      <div class="proc ext"><span class="pn">collect2 → ld</span><div class="st ext" data-k="link"><b>リンク</b><small>GNU ld / mold / lld など（gold は binutils 2.44 で非推奨）</small></div></div>
+    </div>
+    <div class="lane card clang-c">
+      <h3 class="clang">clang x.c</h3>
+      <div class="proc"><span class="pn">clang -cc1（同じバイナリを別モードで起動）</span>
+        <div class="st fe" data-k="parse"><b>前処理・構文解析</b><small>手書きの再帰下降パーサ</small></div>
+        <div class="st fe" data-k="ast"><b>Clang AST ＋ Sema</b><small>ソースに忠実な木。位置情報を細かく持つ</small></div>
+        <div class="arrow">↓ CodeGen</div>
+        <div class="st mid" data-k="ir"><b>LLVM IR</b><small>最初から SSA。外に出せる公開フォーマット</small></div>
+        <div class="st mid" data-k="opt"><b>LLVM パス群 (opt)</b><small>mem2reg・inline・instcombine・ベクトル化など</small></div>
+        <div class="arrow">↓ 命令選択</div>
+        <div class="st be" data-k="isel"><b>SelectionDAG / GlobalISel → MIR</b><small>TableGen (.td) から生成した表と照合</small></div>
+        <div class="st be" data-k="ra"><b>MIR パス・レジスタ割付</b><small>スケジュール・greedy アロケータ</small></div>
+        <div class="st be" data-k="emit"><b>MC 層</b><small>機械語を直接書く</small></div>
+        <div class="st be" data-k="asm"><b>統合アセンブラ</b><small>外部の as を呼ばずに .o を出力</small></div>
+      </div>
+      <div class="arrow">↓ .o ファイル</div>
+      <div class="proc ext"><span class="pn">ld / lld</span><div class="st ext" data-k="link"><b>リンク</b><small>システムの ld か、-fuse-ld=lld</small></div></div>
+    </div>
+  </div>
+  <p class="note">実際に呼ばれるプロセスは <code>gcc -### x.c</code> / <code>clang -### x.c</code> で見られる（GCC 13 では cc1 → as → collect2、clang 18 では clang -cc1 -emit-obj → ld だった）。</p>
+
+  <h2 id="ir">中間表現を実物で比べる</h2>
+  <p>同じ C コードを GCC 13 と clang 18 (x86-64 Linux, <code>-O2</code>) に通し、それぞれのダンプを並べた。LLVM IR は見やすさのため <code>dso_local</code>・<code>noundef</code>・属性 <code>#0</code> などを省略した。</p>
+<pre><code>static int sq(int x) { return x * x; }
+int f(void) { int a = 3; return sq(a) + 1; }
+int add(int a, int b) { int c = a + b; return c; }
+int max(int a, int b) { int r; if (a > b) r = a; else r = b; return r; }</code></pre>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="ir-early">最適化前</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="ir-late">最適化後</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="ir-mach">機械寄りの IR</button>
+  </div>
+  <div class="panel" id="ir-early">
+    <div class="grid2">
+      <div><span class="label gcc">GCC: GIMPLE (-fdump-tree-gimple)</span><pre><code>int add (int a, int b)
+{
+  int D.2760;
+  int c;
+
+  c = a + b;
+  D.2760 = c;
+  return D.2760;
+}</code></pre></div>
+      <div><span class="label clang">Clang: LLVM IR (-O0 -emit-llvm)</span><pre><code>define i32 @add(i32 %a, i32 %b) {
+entry:
+  %a.addr = alloca i32, align 4
+  %b.addr = alloca i32, align 4
+  %c = alloca i32, align 4
+  store i32 %a, ptr %a.addr, align 4
+  store i32 %b, ptr %b.addr, align 4
+  %0 = load i32, ptr %a.addr, align 4
+  %1 = load i32, ptr %b.addr, align 4
+  %add = add nsw i32 %0, %1
+  store i32 %add, ptr %c, align 4
+  %2 = load i32, ptr %c, align 4
+  ret i32 %2
+}</code></pre></div>
+    </div>
+    <p class="note">GIMPLE はまだ C っぽい見た目で、変数は変数のまま（<code>D.2760</code> は GCC が足した一時変数）。LLVM IR は最初から「メモリの箱と load/store」で書かれ、型とアラインメントが明示される。</p>
+  </div>
+  <div class="panel" id="ir-late" hidden>
+    <div class="grid2">
+      <div><span class="label gcc">GCC: GIMPLE SSA (-fdump-tree-optimized)</span><pre><code>int f ()
+{
+  &lt;bb 2&gt; [local count: 1073741824]:
+  return 10;
+}
+
+int add (int a, int b)
+{
+  &lt;bb 2&gt; [local count: 1073741824]:
+  c_3 = a_1(D) + b_2(D);
+  return c_3;
+}
+
+int max (int a, int b)
+{
+  &lt;bb 2&gt; [local count: 1073741824]:
+  _3 = MAX_EXPR &lt;a_1(D), b_2(D)&gt;;
+  return _3;
+}</code></pre></div>
+      <div><span class="label clang">Clang: LLVM IR (-O2 -emit-llvm)</span><pre><code>define noundef i32 @f() {
+entry:
+  ret i32 10
+}
+
+define i32 @add(i32 %a, i32 %b) {
+entry:
+  %add = add nsw i32 %b, %a
+  ret i32 %add
+}
+
+define noundef i32 @max(i32 %a, i32 %b) {
+entry:
+  %a.b = tail call i32 @llvm.smax.i32(i32 %a, i32 %b)
+  ret i32 %a.b
+}</code></pre></div>
+    </div>
+    <p class="note">結論はそっくり: どちらも f をインライン化して <code>10</code> に畳み、max を分岐のない「最大値」の 1 命令にした（GCC は <code>MAX_EXPR</code>、LLVM は組み込み関数 <code>llvm.smax</code>）。GCC の SSA は <code>a_1</code> のように変数名＋版数で書き、<code>(D)</code> は「関数に入ったときの値」。</p>
+  </div>
+  <div class="panel" id="ir-mach" hidden>
+    <div class="grid2">
+      <div><span class="label gcc">GCC: RTL (-fdump-rtl-final, add の本体)</span><pre><code>(insn:TI 18 4 13 2 (set (reg:SI 0 ax [orig:85 c ] [85])
+        (plus:SI (reg:SI 5 di [86])
+            (reg:SI 4 si [87]))) "add.c":3:29 240 {*leasi}
+     (expr_list:REG_DEAD (reg:SI 5 di [86])
+        (expr_list:REG_DEAD (reg:SI 4 si [87])
+            (nil))))</code></pre></div>
+      <div><span class="label clang">最終的なアセンブリ (x86-64)</span><pre><code># GCC 13 -O2
+add:
+	endbr64
+	leal	(%rdi,%rsi), %eax
+	ret
+
+# clang 18 -O2
+add:
+	leal	(%rdi,%rsi), %eax
+	retq</code></pre></div>
+    </div>
+    <p class="note">RTL は Lisp 風の式で「ax ← di + si」を表し、<code>{*leasi}</code> は machine description のどのパターン（ここでは lea 命令）に当てはまったかを示す。LLVM 側でこれに当たるのが MIR（<code>llc -print-after-isel</code> などで見られる）。GCC の <code>endbr64</code> は Ubuntu の GCC が既定で <code>-fcf-protection</code> を有効にしているため。</p>
+  </div>
+
+  <h2 id="design">設計の違いを表で</h2>
+  <div class="tblwrap"><table>
+    <tr><th>観点</th><th class="gcc">GCC</th><th class="clang">Clang / LLVM</th></tr>
+    <tr><td>作りの単位</td><td>言語ごとのコンパイラ本体（cc1・cc1plus・f951 など）に、フロントからバックエンドまでが一体でリンクされている</td><td>LLVM はライブラリの集まり。clang・rustc・swiftc がそれぞれ必要な部品をリンクして使う</td></tr>
+    <tr><td>中間表現</td><td>GENERIC → GIMPLE → RTL の 3 種類。GCC の内部形式で、外部向けの安定した仕様ではない</td><td>LLVM IR に一本化（バックエンド内は MIR）。仕様書 (LangRef) があり、テキスト・ビットコードで外に出せる</td></tr>
+    <tr><td>CPU の記述</td><td>machine description (<code>.md</code>)。RTL のパターンで命令を書く</td><td>TableGen (<code>.td</code>)。そこから命令選択表・レジスタ情報などを生成</td></tr>
+    <tr><td>対象 CPU の選び方</td><td>コンパイラを作るときに 1 つ決める。クロスコンパイルには <code>aarch64-linux-gnu-gcc</code> のような専用ビルドが要る</td><td>1 つの clang に複数のバックエンドが入る。<code>--target=aarch64-linux-gnu</code> で切り替え（ヘッダやライブラリは別に要る）</td></tr>
+    <tr><td>アセンブラ</td><td>.s を書き、外部の GNU as を呼ぶ</td><td>統合アセンブラで直接 .o を書く（<code>-fno-integrated-as</code> で外部も可）</td></tr>
+    <tr><td>LTO</td><td><code>-flto</code>: .o に GIMPLE を入れ、リンク時に分割して並列最適化 (WHOPR)</td><td><code>-flto</code>（フル）と <code>-flto=thin</code>。.o に LLVM ビットコードを入れる</td></tr>
+    <tr><td>拡張・再利用</td><td>プラグイン API、<code>libgccjit</code>（GCC をライブラリとして JIT・AOT に使う）</td><td>libclang・LibTooling で AST を使うツールを作れる（clangd・clang-tidy など。clang-format は字句解析ベースの libFormat）</td></tr>
+    <tr><td>対応言語</td><td>C・C++・Fortran・Ada・D・Go・Modula-2・COBOL など。Rust (gccrs) は実験的</td><td>Clang は C・C++・Objective-C/C++・OpenCL・CUDA。他の言語は別のフロントエンドが LLVM を使う（LLVM プロジェクト内の Flang、外部の rustc・swiftc など）</td></tr>
+    <tr><td>標準ライブラリ</td><td>libstdc++・libgcc</td><td>libc++・compiler-rt があるが、Linux の clang は既定で GCC の libstdc++・libgcc を使う</td></tr>
+    <tr><td>ライセンス</td><td>GPLv3 以降（ランタイムライブラリ例外つき。生成したプログラムに GPL は及ばない）</td><td>Apache License 2.0 with LLVM Exceptions</td></tr>
+  </table></div>
+  <p class="note">ライセンスの違いは、コンパイラ自体を改造して配る・製品に組み込む場合に効く。どちらでコンパイルしても、できたプログラムのライセンスは自分で決められる。</p>
+
+  <h2 id="compat">互換性: clang は「GCC のふり」をする</h2>
+  <div class="grid2">
+    <div class="card">
+      <span class="label clang">同じオプションがだいたい通る</span>
+      <p style="font-size:0.88rem"><code>-O2</code>・<code>-Wall</code>・<code>-std=c17</code>・<code>-march</code>・<code>-fPIC</code> など主なオプションは共通。<code>__attribute__</code> や statement expression（<code>({ ... })</code>）などの GNU 拡張も Clang がほぼ受け付けるので、Makefile の <code>CC=clang</code> だけで切り替わることが多い。</p>
+    </div>
+    <div class="card">
+      <span class="label clang">マクロでも名乗る</span>
+      <p style="font-size:0.88rem">Clang は既定で <code>__GNUC__</code> を定義する（GCC 4.2.1 相当を名乗る）。<code>#ifdef __GNUC__</code> だけでは GCC か Clang か区別できないので、Clang を見分けたいときは <code>__clang__</code> を先に調べる。</p>
+    </div>
+  </div>
+<pre><code>#if defined(__clang__)
+  /* Clang */
+#elif defined(__GNUC__)
+  /* 本物の GCC */
+#endif</code></pre>
+  <p class="note">それでも完全一致ではない: 警告の種類と既定値、<code>-O3</code> などで行う最適化の中身、未定義動作に対する振る舞い、インラインアセンブリの細部、GCC だけにあるオプション（例: <code>-fanalyzer</code>）などは違う。両方でビルドして警告を見比べると、移植性の低いコードが見つかりやすい。</p>
+
+  <h2 id="choose">こんなときはどっち？</h2>
+  <div class="pick" id="pick">
+    <button aria-expanded="false">1 台の開発マシンから x86-64・AArch64・RISC-V 向けにビルドしたい</button>
+    <div class="ans" hidden>Clang が楽。1 つのバイナリで <code>--target</code> を切り替えられる（各ターゲット用の sysroot は必要）。GCC はターゲットごとのクロスコンパイラを用意する。</div>
+    <button aria-expanded="false">エディタの補完・リファクタ・静的解析ツールを自作・導入したい</button>
+    <div class="ans" hidden>Clang。AST をライブラリ (libclang / LibTooling) として使え、clangd・clang-tidy がそのまま使える。</div>
+    <button aria-expanded="false">マイナーな組込み CPU や古いアーキテクチャ向けにビルドしたい</button>
+    <div class="ans" hidden>GCC のほうが対応ターゲットが広い場面が多い。ベンダの SDK も GCC ベースのことがある。まず公式に対応しているかを確認する。</div>
+    <button aria-expanded="false">新しい言語を作って、最適化つきで機械語を出したい</button>
+    <div class="ans" hidden>LLVM を使うのが定番（Rust・Swift・Julia など）。IR が公開仕様なので、フロントエンドを書いて IR を出すだけでよい。GCC にも libgccjit や GCC のフロントエンドとして組み込む道はあるが、例は少ない。</div>
+    <button aria-expanded="false">どちらのほうが速いコードを出すか知りたい</button>
+    <div class="ans" hidden>一般論では決まらない。コードと CPU とオプションで勝ち負けが入れ替わる。自分のコードで両方ビルドしてベンチマークを取る。</div>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details><summary>「Clang は GCC のコードを一切使っていない」</summary><p>コンパイラ本体は独立しているが、Linux の clang は既定で GCC が入れたディレクトリを探し、libstdc++ のヘッダ、libgcc、<code>crtbegin.o</code> などのスタートアップファイルを使う（<code>clang++ -v</code> の「Selected GCC installation」で見える）。Clang だけで完結させたいなら <code>-stdlib=libc++ -rtlib=compiler-rt</code> などを指定する。</p></details>
+  <details><summary>「GCC には中間表現がない（ソースから直接アセンブリを出す）」</summary><p>GCC も GENERIC・GIMPLE・RTL と 3 段の中間表現を持ち、SSA ベースの最適化をする。違いは、それが GCC の内部形式で、外部のツールが入出力するための安定したフォーマットとして公開されていないこと。</p></details>
+  <details><summary>「GCC は 1 つの巨大なプログラム、Clang はたくさんのプログラム」</summary><p>プロセスの数で見るとむしろ逆に近い。GCC は cc1 → as → collect2/ld と別プログラムを順に呼び、Clang は clang -cc1 の中でアセンブルまで済ませてからリンカを呼ぶ。違いは「プロセスの数」ではなく「中身がライブラリとして切り出されているか」。</p></details>
+
+  <h2 id="commands">手元で比べるコマンド</h2>
+<pre><code># 裏で呼ばれるプロセスを表示（実行はしない）
+gcc   -### x.c
+clang -### x.c
+
+# 中間表現を見る
+gcc -O2 -c x.c -fdump-tree-gimple -fdump-tree-optimized   # x.c.*.gimple / x.c.*.optimized
+gcc -O2 -c x.c -fdump-rtl-final                            # RTL の最終形
+clang -O2 -S -emit-llvm x.c -o x.ll                        # LLVM IR
+
+# 最適化の報告
+gcc   -O2 -fopt-info-vec-missed -c x.c
+clang -O2 -Rpass-missed=loop-vectorize -c x.c
+
+# クロスコンパイル
+aarch64-linux-gnu-gcc -O2 -S x.c          # GCC: ターゲット専用のコンパイラ
+clang --target=aarch64-linux-gnu -O2 -S x.c   # Clang: 同じ clang で切り替え</code></pre>
+
+  <h2>関連メモ</h2>
+  <p class="related"><a href="llvm.html">LLVM の構成と仕組み</a><a href="rust.html">Rust</a><a href="webassembly.html">WebAssembly</a><a href="linux-process.html">Linux のプロセス</a><a href="language-genealogy.html">プログラミング言語の系譜</a></p>
+
+  <h2>参考</h2>
+  <ul class="sources">
+    <li><a href="https://gcc.gnu.org/onlinedocs/gccint/">GNU Compiler Collection (GCC) Internals</a></li>
+    <li><a href="https://gcc.gnu.org/onlinedocs/gccint/GIMPLE.html">GCC Internals: GIMPLE</a></li>
+    <li><a href="https://gcc.gnu.org/onlinedocs/gccint/RTL.html">GCC Internals: RTL Representation</a></li>
+    <li><a href="https://gcc.gnu.org/onlinedocs/jit/">libgccjit</a></li>
+    <li><a href="https://clang.llvm.org/docs/InternalsManual.html">Clang Internals Manual</a></li>
+    <li><a href="https://clang.llvm.org/docs/CrossCompilation.html">Clang: Cross-compilation using Clang</a></li>
+    <li><a href="https://llvm.org/docs/LangRef.html">LLVM Language Reference Manual</a></li>
+    <li><a href="https://www.gnu.org/licenses/gcc-exception-3.1.html">GCC Runtime Library Exception</a></li>
+    <li><a href="https://llvm.org/LICENSE.txt">LLVM License (Apache 2.0 with LLVM Exceptions)</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+// 対応する段を光らせる
+(() => {
+  const lanes = document.getElementById('lanes');
+  const all = [...lanes.querySelectorAll('.st')];
+  const hl = k => all.forEach(s => s.classList.toggle('hl', !!k && s.dataset.k === k));
+  lanes.addEventListener('mouseover', e => { const s = e.target.closest('.st'); hl(s && s.dataset.k); });
+  lanes.addEventListener('mouseleave', () => hl(null));
+  lanes.addEventListener('click', e => { const s = e.target.closest('.st'); hl(s && s.dataset.k); });
+})();
+
+// 場面別
+document.getElementById('pick').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const open = b.getAttribute('aria-expanded') !== 'true';
+  b.setAttribute('aria-expanded', String(open));
+  b.nextElementSibling.hidden = !open;
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "x86-64 の Linux マシンから Raspberry Pi (AArch64) 向けのバイナリを作りたい。GCC と Clang で準備の違いは？",
+    "choices": ["どちらも同じコンパイラに -march=armv8-a をつけるだけでよい", "GCC は AArch64 向けのクロスコンパイラ（aarch64-linux-gnu-gcc など）が別に要り、Clang は同じ clang に --target を渡せばよい（どちらもターゲット用のヘッダ・ライブラリは要る）", "Clang はクロスコンパイルに対応していないので GCC を使うしかない", "GCC は --target で切り替えられるが、Clang はターゲットごとに別ビルドが要る"],
+    "answer": 1,
+    "explain": "GCC は対象 CPU をビルド時に決める作り、LLVM は複数のバックエンドを 1 つのバイナリに入れられる作りになっている。",
+    "ref": "#design"
+  },
+  {
+    "q": "ヘッダで #ifdef __GNUC__ を使って GCC 専用の回避コードを入れたら、Clang でビルドしたときにもそのコードが有効になった。なぜ？",
+    "choices": ["Clang は GCC 互換のために __GNUC__ も定義するから", "Clang が内部で GCC を呼び出してコンパイルしているから", "__GNUC__ は C 標準のマクロで、すべてのコンパイラが定義するから", "Linux では libstdc++ のヘッダが __GNUC__ を定義し直すから"],
+    "answer": 0,
+    "explain": "Clang は既定で GCC 4.2.1 相当として __GNUC__ を定義する。Clang を区別するには __clang__ を先に調べる。",
+    "ref": "#compat"
+  },
+  {
+    "q": "C++ のソースを解析して、独自のリファクタリングツールを作りたい。構文木をライブラリとして使いやすいのはどちら？",
+    "choices": ["GCC。GIMPLE がファイルに出力できるのでそれを読めばよい", "GCC。RTL ダンプに型情報が残っている", "Clang。AST を libclang / LibTooling から使え、clang-tidy などもその上に作られている", "どちらも不可能で、パーサを自作するしかない"],
+    "answer": 2,
+    "explain": "Clang は最初からライブラリとして切り出す設計で、ソースに忠実な AST を外部ツールから使える。GIMPLE は最適化向けに崩した形でソースの再構成には向かない。",
+    "ref": "#design"
+  },
+  {
+    "q": "Linux で clang++ を使っているのに、リンクエラーのメッセージに libstdc++ や GCC のディレクトリが出てくる。何が起きている？",
+    "choices": ["clang++ のインストールが壊れて GCC にフォールバックしている", "Linux の clang は既定で GCC が入れた libstdc++・libgcc・スタートアップファイルを使うので、正常な動作", "clang++ は C++ のコードを GCC の cc1plus に渡している", "libstdc++ は LLVM プロジェクトの一部なので名前が出るだけ"],
+    "answer": 1,
+    "explain": "Clang のコンパイラ本体は独立しているが、Linux では GCC の C++ 標準ライブラリやランタイムを使うのが既定。libc++ にしたいときは -stdlib=libc++ を指定する。",
+    "ref": "#myths"
+  }
+]
+</script>
+</body>
+</html>
