@@ -5,7 +5,7 @@
 > CAP 定理・整合性モデル・冪等性・リトライを、ネットワークが切れる／遅れる前提で図解し、Cloudflare の KV・D1・Durable Objects がどこに当たるかも整理する
 
 - URL: https://memo.taka1156.site/distributed-basics.html
-- タグ: 設計, インフラ
+- タグ: 設計, インフラ, バックエンド
 - 日付: 2026-11-03
 
 ---

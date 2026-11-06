@@ -5,7 +5,7 @@
 > XSS・CSRF・SQL インジェクション・OS コマンドインジェクション・セッションハイジャック・ReDoS に、パストラバーサル・SSRF・オープンリダイレクト・認可不備を加えて、攻撃の流れと NG/OK コードで図解。
 
 - URL: https://memo.taka1156.site/web-vulnerabilities.html
-- タグ: セキュリティ
+- タグ: セキュリティ, バックエンド
 - 日付: 2026-11-03
 
 ---

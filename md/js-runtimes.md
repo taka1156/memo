@@ -5,7 +5,7 @@
 > Node.js・Bun・Cloudflare Workers の内部構造、プロセス型と isolate 型の違い、API・互換性・制限を比較。
 
 - URL: https://memo.taka1156.site/js-runtimes.html
-- タグ: JavaScript
+- タグ: JavaScript, バックエンド
 - 日付: 2026-11-02
 
 ---

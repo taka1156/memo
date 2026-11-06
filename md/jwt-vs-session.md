@@ -5,7 +5,7 @@
 > JWT の中身と署名、セッションとの違い、失効の難しさ、Cookie と localStorage のどちらに置くかまでを図解。
 
 - URL: https://memo.taka1156.site/jwt-vs-session.html
-- タグ: セキュリティ
+- タグ: セキュリティ, バックエンド
 - 日付: 2026-11-02
 
 ---

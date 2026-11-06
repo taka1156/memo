@@ -5,7 +5,7 @@
 > DDD の要素と依存の向きを図解し、Hono・Void での構成例と AI 時代向けの軽量版を比較。
 
 - URL: https://memo.taka1156.site/ddd-onion.html
-- タグ: 設計
+- タグ: 設計, バックエンド
 - 日付: 2026-11-03
 
 ---
