@@ -5,6 +5,5 @@
 - サイト: [memo.taka1156.site](https://memo.taka1156.site/)
 - クイズ: [quiz.html](https://memo.taka1156.site/quiz.html)
 - ロードマップ: [roadmap.html](https://memo.taka1156.site/roadmap.html)
-- 姉妹サイト: [CheatSheet](https://cs.taka1156.site/)
 
 [memo-kit](https://github.com/taka1156/memo-kit) で作っています。
