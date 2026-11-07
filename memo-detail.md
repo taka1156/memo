@@ -290,7 +290,7 @@ flowchart LR
   data -- "build が集める" --> qj
   qj -- "fetch" --> idx["index.html<br/>ランダムクイズ"]
   qj -- "fetch" --> qp["quiz.html<br/>10 問クイズ・タイムアタック"]
-  idx -- "本文で確認する（ref）" --> memo
+  idx -- "メモを開く（ref）" --> memo
   qp -- "メモを開く（ref）" --> memo
 ```
 
