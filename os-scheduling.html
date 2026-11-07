@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OS のスケジューリング</title>
+<meta name="description" content="OS が限られた CPU を多くのプロセス・スレッドに配るしくみ。実行・待ち・ブロックの状態、コンテキストスイッチのコスト、ラウンドロビンなどのアルゴリズム、Linux の nice と公平スケジューラ、優先度逆転、コンテナの CPU 制限までを図解。">
+<meta name="memo:tags" content="CS基礎, Linux">
+<meta name="memo:date" content="2026-11-07">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-a: #c2410c;
+  --c-b: #15803d;
+  --c-c: #7c3aed;
+  --c-d: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-a: #fb923c;
+    --c-b: #4ade80;
+    --c-c: #c4b5fd;
+    --c-d: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.dots, ol.dots { margin: 6px 0 6px 1.3em; }
+ul.dots li, ol.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.myth { margin-bottom: 10px; }
+.myth p { margin: 4px 0; }
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+svg.fig { width: 100%; height: auto; display: block; max-width: 420px; margin: 0 auto; }
+svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); font-size: 15px; }
+svg.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 700; }
+svg.fig .sub { fill: var(--fg-2); font-size: 13px; }
+svg.fig .st { fill: var(--surface); stroke: var(--line); stroke-width: 2; }
+svg.fig .st.run { stroke: var(--accent); }
+svg.fig .ed { stroke: var(--fg-2); stroke-width: 1.5; fill: none; marker-end: url(#ar); }
+.steps { counter-reset: s; display: grid; gap: 6px; }
+.steps div { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; align-items: start; font-size: 0.88rem; }
+.steps div::before { counter-increment: s; content: counter(s); font: 700 0.75rem 'JetBrains Mono', monospace; background: var(--chip); border-radius: 999px; text-align: center; line-height: 22px; height: 22px; }
+.sim .ctrl { display: grid; gap: 4px; margin-bottom: 10px; }
+.sim .ctrl b { font: 700 0.9rem 'JetBrains Mono', monospace; }
+.gantt { display: flex; height: 34px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+.gantt span { display: flex; align-items: center; justify-content: center; font: 700 0.72rem 'JetBrains Mono', monospace; color: #fff; border-right: 1px solid var(--surface); min-width: 0; overflow: hidden; }
+.gantt span.sw { background: repeating-linear-gradient(45deg, var(--chip), var(--chip) 3px, var(--line) 3px, var(--line) 6px); color: var(--fg-2); }
+.t-A { background: var(--c-a); }
+.t-B { background: var(--c-c); }
+.t-C { background: var(--c-b); }
+.ticks { display: flex; justify-content: space-between; font: 500 0.68rem 'JetBrains Mono', monospace; color: var(--fg-2); margin-top: 2px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+.stats div { background: var(--chip); border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; }
+.stats b { display: block; font: 700 1rem 'JetBrains Mono', monospace; }
+.tasks { display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.8rem; margin: 6px 0; }
+.tasks span { display: inline-flex; align-items: center; gap: 4px; }
+.tasks i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.share { display: flex; height: 26px; border-radius: 6px; overflow: hidden; margin: 6px 0; font: 700 0.72rem 'JetBrains Mono', monospace; }
+.share span { display: flex; align-items: center; justify-content: center; color: #fff; }
+.inv { display: grid; gap: 4px; font: 500 0.76rem 'JetBrains Mono', monospace; }
+.inv .lane { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 6px; }
+.inv .track { display: grid; grid-template-columns: repeat(10, 1fr); height: 22px; gap: 1px; }
+.inv .track i { border-radius: 3px; background: var(--chip); }
+.inv .track i.run { background: var(--c-a); }
+.inv .track i.lock { background: var(--c-c); }
+.inv .track i.wait { background: repeating-linear-gradient(45deg, var(--chip), var(--chip) 3px, color-mix(in srgb, var(--c-ng) 40%, transparent) 3px, color-mix(in srgb, var(--c-ng) 40%, transparent) 6px); }
+.inv .track i.mid { background: var(--c-d); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="OS のスケジューリング">
+<meta property="og:description" content="OS が限られた CPU を多くのプロセス・スレッドに配るしくみ。実行・待ち・ブロックの状態、コンテキストスイッチのコスト、ラウンドロビンなどのアルゴリズム、Linux の nice と公平スケジューラ、優先度逆転、コンテナの CPU 制限までを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/os-scheduling.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>OS のスケジューリング</h1>
+  <p class="subtitle">プロセスの状態 / コンテキストスイッチ / アルゴリズム / Linux の nice・公平スケジューラ / コンテナの CPU 制限</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>CPU コアの数より動きたいスレッドのほうがずっと多い。OS の<b>スケジューラ</b>が「次にどれを、どのコアで、どれだけ動かすか」を決め、短い時間で切り替えて同時に動いているように見せる。</li>
+      <li>切り替え（<b>コンテキストスイッチ</b>）にはコストがある。細かく切り替えるほど応答は良くなるが、切り替えの手間が増える。</li>
+      <li>Linux は各スレッドに CPU を公平に配り、<b>nice</b> 値で配分の重みを変える。コンテナの CPU 上限は「一定期間に使える時間」の上限で、使い切ると<b>止められる（スロットリング）</b>。</li>
+    </ul>
+  </div>
+
+  <h2 id="states">スレッドの 3 つの状態</h2>
+  <p>スケジューラが扱う単位はスレッド（Linux ではプロセスもスレッドも「タスク」として同じに扱う）。どのタスクも、大きく 3 つの状態を行き来する。</p>
+  <div class="card">
+    <svg class="fig" viewBox="0 30 360 250" role="img" aria-label="実行可能・実行中・ブロック中の 3 状態と遷移">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--fg-2)"/></marker></defs>
+      <rect class="st" x="6" y="44" width="124" height="58" rx="10"/>
+      <text x="68" y="68" text-anchor="middle" class="mono">READY</text>
+      <text x="68" y="89" text-anchor="middle" class="sub">順番待ち</text>
+      <rect class="st run" x="230" y="44" width="124" height="58" rx="10"/>
+      <text x="292" y="68" text-anchor="middle" class="mono">RUNNING</text>
+      <text x="292" y="89" text-anchor="middle" class="sub">CPU で実行中</text>
+      <rect class="st" x="118" y="214" width="124" height="58" rx="10"/>
+      <text x="180" y="238" text-anchor="middle" class="mono">BLOCKED</text>
+      <text x="180" y="259" text-anchor="middle" class="sub">I/O・ロック待ち</text>
+      <path class="ed" d="M130,60 L228,60"/>
+      <text x="180" y="52" text-anchor="middle" class="sub">① 選ばれる</text>
+      <path class="ed" d="M230,86 L132,86"/>
+      <text x="180" y="106" text-anchor="middle" class="sub">② 取り上げ</text>
+      <path class="ed" d="M300,102 L222,212"/>
+      <text x="356" y="172" text-anchor="end" class="sub">③ 待ちに入る</text>
+      <path class="ed" d="M138,212 L62,104"/>
+      <text x="4" y="172" class="sub">④ 待ちが終わる</text>
+    </svg>
+    <ol class="dots muted" style="margin-top:6px">
+      <li>スケジューラが CPU を渡す</li>
+      <li>持ち時間を使い切った・より優先すべきタスクが来たので取り上げられる</li>
+      <li><code>read()</code> やロック、<code>sleep</code> などで待ちに入る</li>
+      <li>データが届く・ロックが空くと、また順番待ちの列に戻る（すぐ RUNNING には戻らない）</li>
+    </ol>
+  </div>
+  <ul class="dots">
+    <li><b>CPU を使い続ける処理（CPU バウンド）</b>は READY と RUNNING を行き来する。<b>I/O を待つ処理（I/O バウンド）</b>はほとんどの時間 BLOCKED にいて、CPU を使わない。</li>
+    <li>BLOCKED のタスクはスケジューラの選択肢に入らない。だから、待ちの多い処理を何千本動かしても CPU は空いている。</li>
+    <li><code>ps</code> や <code>top</code> の STAT 列では、R（実行中・実行可能）、S（割り込み可能な待ち）、D（割り込み不可の待ち。主にディスク I/O）として見える（<a href="linux-process.html">Linux プロセスの仕組み</a>）。</li>
+  </ul>
+
+  <h2 id="switch">コンテキストスイッチ</h2>
+  <p>CPU を別のタスクに渡すとき、OS は今のタスクの続きを再開できるよう状態を保存し、次のタスクの状態を戻す。</p>
+  <div class="card steps">
+    <div>タイマー割り込み（持ち時間切れ）や、システムコールでの待ちをきっかけにカーネルに入る</div>
+    <div>今のタスクのレジスタ（プログラムカウンタ・スタックポインタなど）をカーネルのメモリに保存する</div>
+    <div>スケジューラが次のタスクを選ぶ</div>
+    <div>別のプロセスなら、アドレス空間（ページテーブル）も切り替える。同じプロセスのスレッド同士なら不要</div>
+    <div>次のタスクのレジスタを戻し、ユーザー空間に戻って続きを実行する</div>
+  </div>
+  <ul class="dots">
+    <li>直接の手間はマイクロ秒単位だが、本当のコストは<b>その後</b>。CPU キャッシュや TLB（アドレス変換のキャッシュ）が前のタスクのデータで埋まっていて、しばらく遅くなる（<a href="virtual-memory.html">仮想メモリとページング</a>）。</li>
+    <li>スレッドを何千本も作って細かく切り替えるより、少数のスレッドで多くの仕事を回すほうが速いのはこのため。イベントループや goroutine のような軽量スレッドは、OS の切り替えを減らす工夫（<a href="concurrency-models.html">並行処理のモデル</a>）。</li>
+  </ul>
+
+  <h2 id="algos">スケジューリングの方式</h2>
+  <p>「どれを次に動かすか」の決め方には古典的な型がいくつかある。実際の OS はこれらを組み合わせている。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="a-fcfs">FCFS</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="a-sjf">SJF</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="a-rr">ラウンドロビン</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="a-prio">優先度</button>
+  </div>
+  <div class="panel card" id="a-fcfs"><span class="label">FIRST COME FIRST SERVED</span><p>来た順に最後まで動かす。単純だが、長い処理の後ろに短い処理が並ぶと、短い処理まで長く待たされる（<b>コンボイ効果、convoy effect</b>）。途中で取り上げない（非プリエンプティブ）。</p></div>
+  <div class="panel card" id="a-sjf" hidden><span class="label">SHORTEST JOB FIRST</span><p>短い仕事から先に動かす。平均の待ち時間は最小になるが、実行時間を前もって知る必要があり、長い仕事がいつまでも後回しになりうる（<b>飢餓 (starvation)</b>）。</p></div>
+  <div class="panel card" id="a-rr" hidden><span class="label">ROUND ROBIN</span><p>全員に同じ持ち時間（<b>タイムスライス</b>）を順に配り、時間が来たら取り上げて列の後ろに回す（プリエンプティブ）。誰も長く待たされないので対話的な処理に向く。持ち時間の長さが性能を左右する（下のシミュレーション）。</p></div>
+  <div class="panel card" id="a-prio" hidden><span class="label">PRIORITY / MLFQ</span><p>優先度の高いものから動かす。そのままだと低いものが飢えるので、待った時間に応じて優先度を上げる（エージング）。<b>多段フィードバックキュー (MLFQ)</b> は、持ち時間を使い切る CPU バウンドな処理の優先度を下げ、すぐ I/O 待ちに入る対話的な処理を上に保つ。</p></div>
+
+  <h2 id="sim">ラウンドロビンのシミュレーション</h2>
+  <div class="card sim">
+    <div class="tasks">
+      <span><i class="t-A"></i>A: 8 単位（重い計算）</span>
+      <span><i class="t-B"></i>B: 4 単位</span>
+      <span><i class="t-C"></i>C: 1 単位（キー入力への応答）</span>
+    </div>
+    <div class="ctrl">
+      <label for="q">持ち時間（タイムスライス）: <b id="q-val">2</b> 単位</label>
+      <input type="range" id="q" min="1" max="8" value="2">
+      <label for="cs">1 回の切り替えにかかる時間: <b id="cs-val">0.2</b> 単位</label>
+      <input type="range" id="cs" min="0" max="5" value="2">
+    </div>
+    <div class="gantt" id="gantt" aria-label="実行の順番"></div>
+    <div class="ticks"><span>0</span><span id="t-end"></span></div>
+    <div class="stats">
+      <div>C が終わるまで<b id="s-c"></b></div>
+      <div>平均の完了時刻<b id="s-avg"></b></div>
+      <div>切り替え回数<b id="s-sw"></b></div>
+      <div>切り替えに使った割合<b id="s-ov"></b></div>
+    </div>
+    <p class="muted" id="sim-note"></p>
+  </div>
+
+  <h2 id="linux">Linux のスケジューラ</h2>
+  <p>普通のタスクは、長らく <b>CFS (Completely Fair Scheduler)</b> が、6.6 以降は後継の <b>EEVDF</b> が受け持つ。どちらも各タスクが使った CPU 時間を重み付きで記録する。CFS は<b>使った時間がいちばん少ないタスク</b>を次に動かす。EEVDF は、取り分より使いすぎていないタスクのうち、<b>締め切り（仮想デッドライン）がいちばん早いもの</b>を動かす。I/O 待ちから起きたタスクは CPU を使っていないぶん順番が回ってきやすいが、必ずすぐ動けるとは限らない。</p>
+  <h3>nice 値 — 配分の重み</h3>
+  <p><code>nice</code> は −20〜19（既定 0）。大きいほど「他に譲る」＝優先度が低い。1 段違うと CPU の取り分がおよそ 1.25 倍（約 10%）変わる。CPU を取り合う 2 つのタスクの取り分の目安:</p>
+  <div class="card">
+    <div class="ctrl"><label for="nice">B の nice 値: <b id="nice-val">5</b>（A は 0）</label><input type="range" id="nice" min="-10" max="19" value="5"></div>
+    <div class="share" id="share"></div>
+    <p class="muted">CPU を取り合っていないとき（他に動きたいタスクがないとき）は、nice 19 でも CPU を使い切れる。nice は「取り合ったときの割合」を決めるもの。</p>
+  </div>
+  <h3>スケジューリングクラス</h3>
+  <div class="table-wrap">
+  <table>
+    <tr><th>ポリシー</th><th>動き</th><th>使いどころ</th></tr>
+    <tr><td>SCHED_OTHER</td><td>公平スケジューラ。nice で重みを変える（既定）</td><td>ほぼすべての処理</td></tr>
+    <tr><td>SCHED_BATCH / IDLE</td><td>対話性を気にしない／他に何もないときだけ動く</td><td>バッチ処理、バックグラウンドの集計</td></tr>
+    <tr><td>SCHED_FIFO / RR</td><td>リアルタイム。優先度が高いものは普通のタスクより先に動く（既定では、暴走しても普通のタスクに 1 秒のうち約 5% が残るよう制限される）</td><td>音声・制御系など遅れが許されない処理。誤るとシステムを固める</td></tr>
+  </table>
+  </div>
+
+  <h2 id="inversion">優先度逆転</h2>
+  <p>優先度だけで決めると、<b>低い優先度のタスクがロックを持ったまま、中くらいのタスクに追い出される</b>ことで、高い優先度のタスクがいつまでも待たされることがある。</p>
+  <div class="card inv">
+    <div class="lane"><span>高 H</span><div class="track"><i></i><i></i><i class="run"></i><i class="wait"></i><i class="wait"></i><i class="wait"></i><i class="wait"></i><i class="wait"></i><i class="wait"></i><i class="run"></i></div></div>
+    <div class="lane"><span>中 M</span><div class="track"><i></i><i></i><i></i><i class="mid"></i><i class="mid"></i><i class="mid"></i><i class="mid"></i><i></i><i></i><i></i></div></div>
+    <div class="lane"><span>低 L</span><div class="track"><i class="lock"></i><i class="lock"></i><i></i><i></i><i></i><i></i><i></i><i class="lock"></i><i class="lock"></i><i></i></div></div>
+    <p class="muted" style="font-family:'Noto Sans JP',sans-serif">L がロックを取る（紫）→ H が起きて同じロックを待つ（斜線）→ ロックと無関係な M が L より優先されて動き続ける → L がロックを返せず、H も止まったまま。</p>
+  </div>
+  <p>対策は<b>優先度継承</b>: ロックを持つタスクに、待っている中でいちばん高い優先度を一時的に貸す。Linux では PI 対応の futex（<code>pthread_mutexattr_setprotocol</code> の <code>PTHREAD_PRIO_INHERIT</code>）で使える。</p>
+
+  <h2 id="cgroups">コンテナの CPU 制限とスロットリング</h2>
+  <p>cgroup v2 の <code>cpu.max</code>（Kubernetes の <code>resources.limits.cpu</code> もこれになる）は「<b>期間</b>（既定 100ms）ごとに使える<b>時間</b>」の上限。<code>limits.cpu: 500m</code> なら 100ms ごとに 50ms。</p>
+  <ul class="dots">
+    <li>マルチスレッドの処理が 4 コアで同時に動くと、50ms 分を 12.5ms ほどで使い切り、<b>残りの約 87ms は止められる</b>。平均の CPU 使用率は低いのに、応答が数十 ms 単位で遅れる原因になる。</li>
+    <li>確認は <code>cpu.stat</code> の <code>nr_throttled</code>・<code>throttled_usec</code>（Kubernetes なら cAdvisor の <code>container_cpu_cfs_throttled_periods_total</code>）。</li>
+    <li><code>requests.cpu</code> は上限ではなく、取り合ったときの重み（<code>cpu.weight</code>）と配置の目安。上限を付けずに requests だけにする運用もある。</li>
+    <li>ランタイムがコア数を見てスレッド数を決める場合は、コンテナの上限より多いスレッドを作らないか確かめる。Go 1.25 以降と最近の JVM は CPU 上限を読んで自動で合わせるが、古いバージョンや、自分でコア数を数えてワーカーを作るコード（Node.js の cluster で <code>os.cpus().length</code> 個起動する、など）は注意。Node.js の libuv スレッドプールはコア数に関係なく既定 4 本（<code>UV_THREADPOOL_SIZE</code> で変更）。</li>
+  </ul>
+
+  <h2 id="commands">コマンド例</h2>
+<pre><code>nice -n 19 ./backup.sh          <span class="cm"># 優先度を下げて起動</span>
+renice -n 10 -p 1234             <span class="cm"># 動いているプロセスの nice を変える</span>
+chrt -i 0 ./batch-job            <span class="cm"># SCHED_IDLE で起動（他に何もないときだけ動く）</span>
+taskset -c 0,1 ./app             <span class="cm"># 使う CPU コアを 0 と 1 に限定</span>
+vmstat 1                         <span class="cm"># r = 実行可能なタスク数、cs = 1 秒あたりの切り替え回数</span>
+pidstat -w -p 1234 1             <span class="cm"># cswch/s = 自発的（待ち）、nvcswch/s = 取り上げられた切り替え</span>
+cat /proc/loadavg                <span class="cm"># ロードアベレージ（Linux では D 状態も数える）</span></code></pre>
+  <p class="muted">ロードアベレージがコア数を大きく超えていても CPU 使用率が低いなら、CPU の取り合いではなく、ディスクや NFS の I/O 待ち（D 状態）が溜まっている可能性が高い。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✗</span> スレッドを増やせば処理は速くなる</p><p><span class="ok">✓</span> CPU バウンドな処理はコア数を超えて増やしても速くならず、切り替えとキャッシュの汚れで遅くなる。増やして効くのは I/O 待ちが多い処理。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> nice 19 にすれば、そのプロセスは CPU をほとんど使わない</p><p><span class="ok">✓</span> 取り合う相手がいなければ使い切れる。nice は取り合ったときの配分の重み。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> コンテナの CPU 上限 1 コアは「1 コアだけ使える」</p><p><span class="ok">✓</span> 「100ms ごとに合計 100ms まで」。複数のコアで同時に動けるが、合計が上限に達するとその期間の残りは止められる。</p></div>
+
+  <p class="related">関連: <a href="concurrency-models.html">並行処理のモデル</a><a href="linux-process.html">Linux プロセスの仕組み</a><a href="linux-signal.html">Linux シグナルとジョブ制御</a><a href="virtual-memory.html">仮想メモリとページング</a><a href="event-loop.html">JS のイベントループ</a></p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+(() => {
+  const TASKS = [['A', 8], ['B', 4], ['C', 1]];
+  const qEl = document.getElementById('q'), csEl = document.getElementById('cs');
+  const gantt = document.getElementById('gantt');
+  const r1 = v => Math.round(v * 10) / 10;
+  const run = () => {
+    const q = Number(qEl.value), cs = Number(csEl.value) / 10;
+    document.getElementById('q-val').textContent = q;
+    document.getElementById('cs-val').textContent = cs;
+    const queue = TASKS.map(([n, b]) => ({ n, left: b }));
+    const seg = [], done = {};
+    let t = 0, sw = 0, prev = null;
+    while (queue.length) {
+      const cur = queue.shift();
+      if (prev !== null && prev !== cur.n) { seg.push(['sw', cs]); t += cs; sw++; }
+      const d = Math.min(q, cur.left);
+      seg.push([cur.n, d]); t += d; cur.left -= d;
+      if (cur.left > 0) queue.push(cur); else done[cur.n] = t;
+      prev = cur.n;
+    }
+    gantt.innerHTML = '';
+    seg.forEach(([n, d]) => {
+      if (d <= 0) return;
+      const s = document.createElement('span');
+      s.className = n === 'sw' ? 'sw' : 't-' + n;
+      s.style.flex = String(d);
+      s.textContent = n === 'sw' ? '' : n;
+      s.title = n === 'sw' ? '切り替え ' + d : n + ' を ' + d + ' 単位';
+      gantt.appendChild(s);
+    });
+    const avg = (done.A + done.B + done.C) / 3;
+    document.getElementById('t-end').textContent = r1(t);
+    document.getElementById('s-c').textContent = r1(done.C);
+    document.getElementById('s-avg').textContent = r1(avg);
+    document.getElementById('s-sw').textContent = sw;
+    document.getElementById('s-ov').textContent = t ? Math.round(sw * cs / t * 100) + '%' : '0%';
+    let note;
+    if (q >= 8) note = '持ち時間が十分長いと、来た順に最後まで動かす FCFS と同じになる。C はたった 1 単位の仕事なのに、A と B が終わるまで待たされる。';
+    else if (q === 1) note = '持ち時間が短いほど C はすぐ終わる（応答が速い）が、切り替えの回数が増え、その分だけ全体の完了が遅れる。切り替えの時間を大きくすると差がよく分かる。';
+    else note = '持ち時間を短くすると C の応答が速くなり、長くすると切り替えが減る。実際の OS は数 ms 程度の持ち時間を、タスクの数や性質に応じて調整している。';
+    document.getElementById('sim-note').textContent = note;
+  };
+  qEl.addEventListener('input', run);
+  csEl.addEventListener('input', run);
+  run();
+
+  const niceEl = document.getElementById('nice'), share = document.getElementById('share');
+  const drawShare = () => {
+    const n = Number(niceEl.value);
+    document.getElementById('nice-val').textContent = n;
+    const wA = 1024, wB = 1024 / Math.pow(1.25, n);
+    const pA = Math.round(wA / (wA + wB) * 100), pB = 100 - pA;
+    share.innerHTML = '';
+    [['A', pA, 'var(--c-a)'], ['B', pB, 'var(--c-c)']].forEach(([name, p, c]) => {
+      const s = document.createElement('span');
+      s.style.flex = String(Math.max(p, 0.5));
+      s.style.background = c;
+      s.textContent = p >= 8 ? name + ' ' + p + '%' : '';
+      s.title = name + ' ' + p + '%';
+      share.appendChild(s);
+    });
+  };
+  niceEl.addEventListener('input', drawShare);
+  drawShare();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "同じ Linux サーバーで、夜間のバックアップスクリプトが動くと Web アプリの応答が遅くなる。バックアップは止めたくない。CPU の面でまずできることは？",
+    "choices": ["バックアップを nice 19（または SCHED_IDLE）で動かし、取り合ったときに Web アプリへ CPU を譲らせる", "バックアップを SCHED_FIFO にして早く終わらせる", "Web アプリのスレッド数を 10 倍に増やす"],
+    "answer": 0,
+    "explain": "nice を上げると取り合ったときの配分が減り、Web アプリが優先される。SCHED_FIFO にすると逆に普通のタスクより先に動いてしまう。",
+    "ref": "#linux"
+  },
+  {
+    "q": "4 コアの Linux サーバーでロードアベレージが 30 を超えているのに、top の CPU 使用率は 10% ほどしかない。最も疑わしいのは？",
+    "choices": ["CPU が足りず、30 個のタスクが CPU を取り合っている", "NFS やディスクの応答が遅く、I/O を待つ D 状態のタスクが溜まっている", "nice 値が高すぎて CPU が使われていない"],
+    "answer": 1,
+    "explain": "Linux のロードアベレージは、実行可能なタスクに加えて割り込み不可の I/O 待ち（D 状態）も数える。CPU が空いているなら I/O 側を疑う。",
+    "ref": "#commands"
+  },
+  {
+    "q": "Kubernetes で limits.cpu: 500m の API サーバーが、平均 CPU 使用率は 30% なのに、ときどき応答が数十 ms 遅れる。マルチスレッドで動いている。原因として考えられるのは？",
+    "choices": ["requests.cpu が limits より小さいので、毎回 Pod が再起動されている", "500m は 0.5 コアなので、スレッドが 1 本しか動けない", "複数のスレッドが同時に動いて 100ms ごとの持ち時間 50ms をすぐ使い切り、期間の残りを止められている（スロットリング）"],
+    "answer": 2,
+    "explain": "CPU 上限は期間あたりの合計時間。並列に動くと短時間で使い切り、残りは止められる。平均使用率が低くても起きるので、nr_throttled などで確かめる。",
+    "ref": "#cgroups"
+  },
+  {
+    "q": "ラウンドロビンで持ち時間（タイムスライス）を極端に短くすると、何が起きる？",
+    "choices": ["短い処理の応答は速くなるが、切り替えの回数が増えてその手間の分だけ全体の処理が遅くなる", "切り替えが減って全体が速くなる", "長い処理が先に終わるようになる"],
+    "answer": 0,
+    "explain": "持ち時間が短いほど誰もが早く順番を得るが、切り替えのたびにレジスタの保存やキャッシュの汚れのコストがかかる。長すぎると FCFS に近づき応答が悪くなる。",
+    "ref": "#sim"
+  },
+  {
+    "q": "高い優先度のスレッドが、低い優先度のスレッドが持つロックを待っている間、ロックと無関係な中くらいの優先度のスレッドがずっと動き続けて、高い優先度のスレッドが止まったままになる。一般的な対策は？",
+    "choices": ["中くらいのスレッドの nice を下げる", "ロックを持つスレッドに、待っているスレッドの高い優先度を一時的に貸す（優先度継承）", "ロックをスピンロックに替える"],
+    "answer": 1,
+    "explain": "優先度逆転。ロックを持つ低い優先度のスレッドが中くらいのスレッドに追い出されないよう、待っている中で最も高い優先度を一時的に継承させる。",
+    "ref": "#inversion"
+  }
+]
+</script>
+</body>
+</html>

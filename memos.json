@@ -1,5 +1,37 @@
 [
  {
+  "file": "virtual-memory.html",
+  "title": "仮想メモリとページング",
+  "desc": "OS がプロセスごとに専用のメモリ空間を見せるしくみ。ページとページテーブルによるアドレス変換、TLB と huge page、ページフォルトの種類、オーバーコミットと OOM killer、fork の copy-on-write、mmap と共有、VIRT と RES の読み方までを図解。",
+  "tags": [
+   "CS基礎",
+   "Linux"
+  ],
+  "date": "2026-11-07",
+  "quizzes": 5
+ },
+ {
+  "file": "os-scheduling.html",
+  "title": "OS のスケジューリング",
+  "desc": "OS が限られた CPU を多くのプロセス・スレッドに配るしくみ。実行・待ち・ブロックの状態、コンテキストスイッチのコスト、ラウンドロビンなどのアルゴリズム、Linux の nice と公平スケジューラ、優先度逆転、コンテナの CPU 制限までを図解。",
+  "tags": [
+   "CS基礎",
+   "Linux"
+  ],
+  "date": "2026-11-07",
+  "quizzes": 5
+ },
+ {
+  "file": "data-structures.html",
+  "title": "データ構造と計算量の早見表",
+  "desc": "O 記法の読み方と増え方の違い、配列・連結リスト・ハッシュ表・木・ヒープなど主なデータ構造の操作ごとの計算量、場面ごとの選び方と、計算量だけでは決まらない速さ（キャッシュ）を図解。",
+  "tags": [
+   "CS基礎"
+  ],
+  "date": "2026-11-07",
+  "quizzes": 5
+ },
+ {
   "file": "unicode-text.html",
   "title": "文字コードと Unicode",
   "desc": "コードポイント・UTF-8・UTF-16 の関係、絵文字や結合文字で「1 文字」が数え方によって変わる理由、正規化（NFC / NFKC）と文字化け・utf8mb4 などの実務の落とし穴を、入力して確かめながら整理する",

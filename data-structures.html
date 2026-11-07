@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>データ構造と計算量の早見表</title>
+<meta name="description" content="O 記法の読み方と増え方の違い、配列・連結リスト・ハッシュ表・木・ヒープなど主なデータ構造の操作ごとの計算量、場面ごとの選び方と、計算量だけでは決まらない速さ（キャッシュ）を図解。">
+<meta name="memo:tags" content="CS基礎">
+<meta name="memo:date" content="2026-11-07">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-a: #c2410c;
+  --c-b: #15803d;
+  --c-c: #7c3aed;
+  --c-d: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-a: #fb923c;
+    --c-b: #4ade80;
+    --c-c: #c4b5fd;
+    --c-d: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.dots, ol.dots { margin: 6px 0 6px 1.3em; }
+ul.dots li, ol.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 560px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.myth { margin-bottom: 10px; }
+.myth p { margin: 4px 0; }
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.o { font: 700 0.78rem 'JetBrains Mono', monospace; white-space: nowrap; }
+.o1 { color: var(--c-b); }
+.olog { color: var(--c-b); }
+.on { color: var(--c-d); }
+.onlog { color: var(--c-d); }
+.on2 { color: var(--c-ng); }
+.growth .row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 118px; gap: 8px; align-items: center; margin: 6px 0; font-size: 0.8rem; }
+.growth .name { font: 700 0.78rem 'JetBrains Mono', monospace; }
+.growth .bar { height: 14px; border-radius: 4px; background: var(--chip); overflow: hidden; }
+.growth .bar span { display: block; height: 100%; border-radius: 4px; transition: width .2s; }
+.growth .val { font: 500 0.74rem 'JetBrains Mono', monospace; text-align: right; color: var(--fg-2); }
+.nline { font: 700 0.9rem 'JetBrains Mono', monospace; }
+@media (max-width: 480px) { .growth .row { grid-template-columns: 70px minmax(0, 1fr) 92px; } }
+.ds { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.ds .card { margin: 0; }
+.ds .pic { display: flex; gap: 3px; flex-wrap: wrap; align-items: center; margin: 6px 0 4px; font: 600 0.72rem 'JetBrains Mono', monospace; }
+.cell { border: 1px solid var(--line); background: var(--chip); border-radius: 4px; padding: 2px 7px; }
+.cell.hl { border-color: var(--accent); color: var(--accent); }
+.ar { color: var(--fg-2); }
+.pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.pick .card { margin: 0; }
+.pick .q { font-size: 0.85rem; color: var(--fg-2); }
+.pick .a { font-weight: 700; }
+.mem { display: flex; gap: 2px; flex-wrap: wrap; margin: 6px 0; }
+.mem span { width: 22px; height: 22px; border-radius: 3px; background: color-mix(in srgb, var(--c-b) 30%, transparent); }
+.mem span.far { background: color-mix(in srgb, var(--c-a) 30%, transparent); }
+.mem span.gap { background: transparent; border: 1px dashed var(--line); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="データ構造と計算量の早見表">
+<meta property="og:description" content="O 記法の読み方と増え方の違い、配列・連結リスト・ハッシュ表・木・ヒープなど主なデータ構造の操作ごとの計算量、場面ごとの選び方と、計算量だけでは決まらない速さ（キャッシュ）を図解。">
+<meta property="og:url" content="https://memo.taka1156.site/data-structures.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>データ構造と計算量の早見表</h1>
+  <p class="subtitle">O 記法の読み方 / 主なデータ構造の操作コスト / 場面ごとの選び方</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>O 記法</b>は「データが n 個に増えたとき、手間がどんな勢いで増えるか」。定数倍は無視して、増え方の形だけを見る。</li>
+      <li>データ構造は「どの操作を速くするか」の選択。<b>番号で引くなら配列、キーで引くならハッシュ表、順序や範囲が要るなら木、最小・最大を何度も取るならヒープ</b>。</li>
+      <li>同じ計算量でも実際の速さは違う。メモリ上で<b>連続している</b>ほどキャッシュに乗りやすく速い。最後は測って決める。</li>
+    </ul>
+  </div>
+
+  <h2 id="big-o">O 記法 — 増え方の形を見る</h2>
+  <p>「配列から値を探す」は、最悪で全部見るので n に比例する手間がかかる。これを <span class="o on">O(n)</span> と書く。<code>3n + 5</code> 回でも <code>n/2</code> 回でも、n が大きくなれば効いてくるのは「n に比例する」という形だけなので、まとめて O(n) と呼ぶ。</p>
+  <div class="card growth" id="growth">
+    <div class="nline">n = <span id="n-val">1,000</span></div>
+    <input type="range" id="n-range" min="1" max="7" step="1" value="3" aria-label="データの個数 n（10 の何乗か）">
+    <div id="growth-rows"></div>
+    <p class="muted" id="growth-note"></p>
+  </div>
+  <div class="table-wrap">
+  <table>
+    <tr><th>記法</th><th>呼び方</th><th>典型例</th><th>n が 10 倍になると</th></tr>
+    <tr><td><span class="o o1">O(1)</span></td><td>定数時間</td><td>配列の i 番目を読む、ハッシュ表で引く（平均）</td><td>変わらない</td></tr>
+    <tr><td><span class="o olog">O(log n)</span></td><td>対数時間</td><td>二分探索、平衡二分木・B 木での検索</td><td>少し増えるだけ（二分探索なら比較が約 3.3 回増える。B 木なら段が 1 つ増える程度）</td></tr>
+    <tr><td><span class="o on">O(n)</span></td><td>線形時間</td><td>全件をなめる、配列の途中に挿入</td><td>10 倍</td></tr>
+    <tr><td><span class="o onlog">O(n log n)</span></td><td></td><td>比較による並べ替え（マージソートなど）</td><td>10 倍ちょっと</td></tr>
+    <tr><td><span class="o on2">O(n²)</span></td><td>二乗時間</td><td>二重ループで全ペアを比べる</td><td>100 倍</td></tr>
+  </table>
+  </div>
+  <h3>計算量の見方の注意</h3>
+  <ul class="dots">
+    <li><b>最悪・平均・償却</b>を区別する。ハッシュ表の検索は平均 O(1) だが、衝突が偏ると最悪 O(n)。配列の末尾追加は、ときどき領域を作り直す O(n) が起きるが、ならすと 1 回あたり O(1)（<b>償却 O(1)</b>）。</li>
+    <li>時間だけでなく<b>メモリ（空間計算量）</b>も見る。「速くするために索引を持つ」は、メモリと引き換え。</li>
+    <li>n が小さいうちは定数倍のほうが効く。要素が数十個なら、配列を全部なめるほうがハッシュ表より速いこともある。</li>
+  </ul>
+
+  <h2 id="structures">主なデータ構造</h2>
+  <div class="ds">
+    <div class="card">
+      <span class="label">ARRAY</span><b> 配列（動的配列）</b>
+      <div class="pic"><span class="cell">3</span><span class="cell hl">8</span><span class="cell">1</span><span class="cell">5</span><span class="cell">9</span></div>
+      <p class="muted">メモリ上に隙間なく並ぶ。番号から位置を計算できるので i 番目を一発で読める。途中に入れると後ろを全部ずらす。JS の Array、Python の list、Go の slice、Rust の Vec。</p>
+    </div>
+    <div class="card">
+      <span class="label">LINKED LIST</span><b> 連結リスト</b>
+      <div class="pic"><span class="cell">3</span><span class="ar">→</span><span class="cell">8</span><span class="ar">→</span><span class="cell hl">1</span><span class="ar">→</span><span class="cell">5</span></div>
+      <p class="muted">各要素が次の要素を指す。位置が分かっていれば付け替えだけで O(1) で挿入・削除できるが、i 番目に行くには先頭からたどる。LRU キャッシュの内部などで使う。</p>
+    </div>
+    <div class="card">
+      <span class="label">HASH TABLE</span><b> ハッシュ表</b>
+      <div class="pic"><span class="cell">"id"</span><span class="ar">→ hash →</span><span class="cell hl">[2]</span><span class="ar">→</span><span class="cell">値</span></div>
+      <p class="muted">キーをハッシュ関数で番号に変え、配列のその位置に置く。キーで引く・入れる・消すが平均 O(1)。順序や範囲での検索は苦手。JS の Map / Set / オブジェクト、Python の dict / set。</p>
+    </div>
+    <div class="card">
+      <span class="label">BALANCED TREE</span><b> 平衡二分探索木・B 木</b>
+      <div class="pic"><span class="cell hl">50</span><span class="ar">↙</span><span class="cell">20</span><span class="ar">↘</span><span class="cell">80</span></div>
+      <p class="muted">「左は小さく右は大きく」と並べ、高さを log n に保つ。検索・挿入・削除が O(log n) で、<b>順番どおりに取り出す・範囲で絞る</b>ができる。赤黒木（Java の TreeMap、C++ の std::map）、B 木（DB のインデックス）。</p>
+    </div>
+    <div class="card">
+      <span class="label">HEAP</span><b> ヒープ（優先度付きキュー）</b>
+      <div class="pic"><span class="cell hl">1</span><span class="ar">↙</span><span class="cell">4</span><span class="ar">↘</span><span class="cell">3</span><span class="ar">…</span></div>
+      <p class="muted">「親は子より小さい」だけを守る木（配列で表せる）。最小値を見るのは O(1)、取り出し・追加は O(log n)。全体は並んでいないので、検索は O(n)。タイマー、ジョブキュー、ダイクストラ法。</p>
+    </div>
+    <div class="card">
+      <span class="label">STACK / QUEUE</span><b> スタック・キュー</b>
+      <div class="pic"><span class="cell">後入れ先出し</span><span class="ar">/</span><span class="cell">先入れ先出し</span></div>
+      <p class="muted">端だけを出し入れする。どちらも O(1)。スタックは関数呼び出し・undo・深さ優先探索、キューは幅優先探索・処理待ちの列。JS で配列の <code>shift()</code> をキューに使うと先頭を抜くたびに詰め直しが起きうる。</p>
+    </div>
+  </div>
+  <p class="muted">ほかに、前方一致に強い<b>トライ (trie)</b>、「入っているかもしれない／絶対ない」を少ないメモリで答える<b>ブルームフィルタ</b>、点と辺の関係を表す<b>グラフ</b>（隣接リスト・隣接行列）などがある。ベクトル検索の近似索引（HNSW）はグラフの応用（<a href="rag-vector-search.html">RAG とベクトル検索</a>）。</p>
+
+  <h2 id="cheatsheet">操作ごとの計算量</h2>
+  <div class="table-wrap">
+  <table>
+    <tr><th>構造</th><th>i 番目を読む</th><th>キーで検索</th><th>先頭に追加</th><th>末尾に追加</th><th>途中に挿入</th><th>最小を取る</th><th>順序・範囲</th></tr>
+    <tr><td>配列</td><td><span class="o o1">O(1)</span></td><td><span class="o on">O(n)</span></td><td><span class="o on">O(n)</span></td><td><span class="o o1">O(1)</span>*</td><td><span class="o on">O(n)</span></td><td><span class="o on">O(n)</span></td><td>—</td></tr>
+    <tr><td>ソート済み配列</td><td><span class="o o1">O(1)</span></td><td><span class="o olog">O(log n)</span></td><td><span class="o on">O(n)</span></td><td><span class="o on">O(n)</span></td><td><span class="o on">O(n)</span></td><td><span class="o o1">O(1)</span></td><td>得意</td></tr>
+    <tr><td>連結リスト</td><td><span class="o on">O(n)</span></td><td><span class="o on">O(n)</span></td><td><span class="o o1">O(1)</span></td><td><span class="o o1">O(1)</span>†</td><td><span class="o o1">O(1)</span>‡</td><td><span class="o on">O(n)</span></td><td>—</td></tr>
+    <tr><td>ハッシュ表</td><td>—</td><td><span class="o o1">O(1)</span> 平均</td><td colspan="3"><span class="o o1">O(1)</span> 平均（順序なし）</td><td><span class="o on">O(n)</span></td><td>苦手</td></tr>
+    <tr><td>平衡木・B 木</td><td><span class="o olog">O(log n)</span>§</td><td><span class="o olog">O(log n)</span></td><td colspan="3"><span class="o olog">O(log n)</span>（キーの順に自動で並ぶ）</td><td><span class="o olog">O(log n)</span></td><td>得意</td></tr>
+    <tr><td>二分ヒープ</td><td>—</td><td><span class="o on">O(n)</span></td><td colspan="3"><span class="o olog">O(log n)</span>（追加）</td><td><span class="o o1">O(1)</span> 見る / <span class="o olog">O(log n)</span> 取り出す</td><td>—</td></tr>
+  </table>
+  </div>
+  <p class="muted">* 償却 O(1)。† 末尾を指すポインタを持っている場合。‡ 挿入位置のノードがもう分かっている場合（探すのは O(n)）。§ 部分木の大きさを持たせた木の場合。</p>
+
+  <h2 id="choose">場面ごとの選び方</h2>
+  <div class="pick">
+    <div class="card"><p class="q">ID の一覧に含まれるかを何度も調べる</p><p class="a">Set（ハッシュ表）</p><p class="muted">配列の <code>includes</code> は毎回 O(n)。ループの中で使うと全体で O(n²) になる。</p></div>
+    <div class="card"><p class="q">キーから値をすぐ引きたい（順序は要らない）</p><p class="a">Map / dict</p><p class="muted">JS ではキーが文字列以外のとき・頻繁に足し引きするときはオブジェクトより Map。</p></div>
+    <div class="card"><p class="q">「締め切りがいちばん近いもの」を次々取り出す</p><p class="a">ヒープ</p><p class="muted">毎回ソートし直すと O(n log n)。ヒープなら 1 回 O(log n)。</p></div>
+    <div class="card"><p class="q">「2026-01〜03 の注文」のように範囲で絞る</p><p class="a">ソート済みの構造・B 木</p><p class="muted">ハッシュは隣のキーが近くに置かれないので範囲検索に使えない。DB のインデックスが B 木なのはこのため。</p></div>
+    <div class="card"><p class="q">番号順に読み、末尾に足していく</p><p class="a">配列</p><p class="muted">いちばん単純で、多くの場面でいちばん速い。迷ったらまず配列。</p></div>
+    <div class="card"><p class="q">入力補完（前方一致）</p><p class="a">トライ・ソート済み配列＋二分探索</p><p class="muted">共通の接頭辞をまとめて持てる。件数が少ないならソート済み配列で十分。</p></div>
+  </div>
+  <h3>よくある O(n²) の直し方</h3>
+<pre><code><span class="cm">// ✗ users ごとに orders を全部なめる: O(users × orders)</span>
+for (const u of users) {
+  u.orders = orders.filter(o =&gt; o.userId === u.id);
+}
+
+<span class="cm">// ✓ 先に userId → 注文一覧 の Map を作る: O(users + orders)</span>
+const byUser = new Map();
+for (const o of orders) {
+  if (!byUser.has(o.userId)) byUser.set(o.userId, []);
+  byUser.get(o.userId).push(o);
+}
+for (const u of users) u.orders = byUser.get(u.id) ?? [];</code></pre>
+  <p class="muted">DB で同じことが起きるのが N+1 問題。こちらは 1 回のクエリにまとめる（JOIN や IN）のが直し方（<a href="db-index-transaction.html">インデックスとトランザクション</a>）。</p>
+
+  <h2 id="sort">並べ替えと二分探索</h2>
+  <ul class="dots">
+    <li>要素同士を比べて並べ替える方法は、どう工夫しても最悪の場合 n log n に比例する回数（Ω(n log n)）の比較が要る。言語の標準のソート（JS の <code>Array.prototype.sort</code>、Python の <code>sorted</code> など）はこの速さで、自分で書く必要はほぼない。</li>
+    <li>JS の <code>sort()</code> は比較関数を渡さないと<b>文字列として</b>比べる。数値なら <code>a.sort((x, y) =&gt; x - y)</code>。</li>
+    <li><b>安定ソート</b>は、同じ値の要素の元の順番を保つ。「日付順に並べたものを、さらに担当者で並べる」ときに日付順が崩れない。JS と Python の標準ソートは安定。</li>
+    <li><b>二分探索</b>は、並んでいる範囲の真ん中を見て半分を捨てていく。100 万件でも 20 回ほどで見つかる。前提は<b>ソート済み</b>であること。</li>
+    <li>一度しか探さないなら、ソート（O(n log n)）してから二分探索するより全件なめる（O(n)）ほうが速い。何度も探すときにソートが元を取る。</li>
+  </ul>
+
+  <h2 id="cache">計算量だけでは決まらない — メモリの近さ</h2>
+  <p>CPU はメモリをまとめて（キャッシュライン単位で）読み込み、近くのデータは速く読める。配列はデータが連続しているので、次の要素はもうキャッシュにあることが多い。連結リストや木はノードがメモリのあちこちに散らばり、たどるたびに遠くまで取りに行く。</p>
+  <div class="card">
+    <span class="label" style="color:var(--c-b)">配列</span>
+    <div class="mem"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <span class="label" style="color:var(--c-a)">連結リスト</span>
+    <div class="mem"><span class="far"></span><span class="gap"></span><span class="gap"></span><span class="far"></span><span class="gap"></span><span class="far"></span><span class="gap"></span><span class="gap"></span><span class="gap"></span><span class="far"></span></div>
+    <p class="muted">「途中に挿入」が O(1) の連結リストでも、挿入位置を探すのに O(n) かかる上に 1 歩ずつ遅い。実際には、配列を詰め直すほうが速いことが多い。</p>
+  </div>
+  <ul class="dots">
+    <li>DB の B 木が二分木ではなく「1 ノードに数百のキー」を持つのも同じ理由。ディスクやメモリから 1 回で読める量に合わせ、読む回数（木の高さ）を減らしている（<a href="db-internals.html">DB のしくみ</a>）。</li>
+    <li>速さが問題になったら、推測でデータ構造を替える前にプロファイラで測る。</li>
+  </ul>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✗</span> O(1) なら O(log n) より必ず速い</p><p><span class="ok">✓</span> O 記法は定数倍を捨てている。ハッシュの計算が重い・キャッシュに乗らない場合は、小さな n では O(log n) や O(n) のほうが速いこともある。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> ハッシュ表は常に O(1)</p><p><span class="ok">✓</span> 平均の話。衝突が多いと遅くなる。外部から送られたキーを入れるときは、衝突を狙った攻撃（hash flooding）に備えて、言語のランタイムがハッシュに乱数の種を混ぜていることが多い。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> 挿入が多いなら連結リスト</p><p><span class="ok">✓</span> 挿入位置を探すコストとキャッシュの悪さで、配列に負けることが多い。末尾への追加が中心なら配列で十分。</p></div>
+
+  <p class="related">関連: <a href="memory-management.html">メモリ管理</a><a href="db-internals.html">DB のしくみ</a><a href="db-index-transaction.html">インデックスとトランザクション</a><a href="redis-valkey.html">Redis と Valkey</a></p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+(() => {
+  const F = [
+    ['O(1)', n => 1, 'var(--c-b)'],
+    ['O(log n)', n => Math.max(1, Math.log2(n)), 'var(--c-b)'],
+    ['O(n)', n => n, 'var(--c-d)'],
+    ['O(n log n)', n => n * Math.max(1, Math.log2(n)), 'var(--c-d)'],
+    ['O(n²)', n => n * n, 'var(--c-ng)']
+  ];
+  const rows = document.getElementById('growth-rows');
+  const range = document.getElementById('n-range');
+  const nVal = document.getElementById('n-val');
+  const note = document.getElementById('growth-note');
+  const els = F.map(([name, , color]) => {
+    const r = document.createElement('div');
+    r.className = 'row';
+    r.innerHTML = '<span class="name"></span><span class="bar"><span></span></span><span class="val"></span>';
+    r.querySelector('.name').textContent = name;
+    r.querySelector('.bar span').style.background = color;
+    rows.appendChild(r);
+    return r;
+  });
+  const fmt = v => {
+    if (v < 1e4) return Math.round(v).toLocaleString();
+    const e = Math.floor(Math.log10(v));
+    return (v / Math.pow(10, e)).toFixed(1) + '×10^' + e;
+  };
+  const time = v => {
+    const s = v / 1e8;
+    if (s < 1e-3) return '一瞬';
+    if (s < 1) return Math.round(s * 1000) + ' ms';
+    if (s < 3600) return Math.round(s) + ' 秒';
+    if (s < 86400 * 2) return Math.round(s / 3600) + ' 時間';
+    return Math.round(s / 86400) + ' 日';
+  };
+  const draw = () => {
+    const n = Math.pow(10, Number(range.value));
+    nVal.textContent = n.toLocaleString();
+    const vals = F.map(([, f]) => f(n));
+    const maxLog = Math.log10(Math.max(...vals)) || 1;
+    els.forEach((r, i) => {
+      const v = vals[i];
+      r.querySelector('.bar span').style.width = Math.max(2, (Math.log10(v) / Math.max(maxLog, 1)) * 100) + '%';
+      r.querySelector('.val').textContent = fmt(v) + ' / ' + time(v);
+    });
+    note.textContent = '棒の長さは対数目盛り（1 目盛りごとに 10 倍）。右は手間の回数と、1 秒に 1 億回処理できるとしたときの目安。n = ' + n.toLocaleString() + ' で O(n²) は ' + time(vals[4]) + '。';
+  };
+  range.addEventListener('input', draw);
+  draw();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "10 万件のユーザー ID の配列があり、別の 10 万件のログそれぞれについて「そのユーザーが一覧に含まれるか」を ids.includes(log.userId) で調べたら非常に遅い。まず何をする？",
+    "choices": ["ログを先にソートしておく", "ループを for 文から forEach に書き換える", "ids から Set を作り、set.has(log.userId) で調べる"],
+    "answer": 2,
+    "explain": "includes は毎回配列を先頭からなめる O(n) なので、全体で O(n²)。Set ならハッシュで平均 O(1) になり、全体は O(n) で済む。",
+    "ref": "#choose"
+  },
+  {
+    "q": "ジョブを「実行予定時刻がいちばん早いもの」から順に取り出したい。ジョブは処理中にもどんどん追加される。合うデータ構造は？",
+    "choices": ["ヒープ（優先度付きキュー）", "追加のたびに配列を全部ソートし直す", "実行予定時刻をキーにしたハッシュ表"],
+    "answer": 0,
+    "explain": "ヒープは最小のものの取り出しと追加がどちらも O(log n)。毎回ソートし直すと O(n log n)、ハッシュ表は最小のものを探すのに全件見る必要がある。",
+    "ref": "#structures"
+  },
+  {
+    "q": "RDB で created_at に索引を付け、「先月作られた注文」を範囲で検索したい。索引の構造としてハッシュではなく B 木が使われるのはなぜ？",
+    "choices": ["B 木はハッシュより必ずメモリが少ないから", "B 木はキーの順に並んでいるので、範囲の始まりを探したあと隣を順に読めるから", "ハッシュは日付型のキーを扱えないから"],
+    "answer": 1,
+    "explain": "ハッシュは近いキーを近くに置かないため、等しいかどうかの検索にしか使えない。B 木は順序を保つので範囲検索や ORDER BY に使える。",
+    "ref": "#choose"
+  },
+  {
+    "q": "未ソートの 100 万件の配列から、特定の値を 1 回だけ探したい。二分探索を使うためにまずソートすべき？",
+    "choices": ["ソートすべき。二分探索は O(log n) なので必ず得をする", "ソートしなくても二分探索はそのまま使える", "1 回だけならソート（O(n log n)）より全件をなめる（O(n)）ほうが速い"],
+    "answer": 2,
+    "explain": "二分探索の前提はソート済みであること。ソート自体に O(n log n) かかるので、何度も探すときでないと元が取れない。",
+    "ref": "#sort"
+  },
+  {
+    "q": "途中への挿入が多い処理で、配列を連結リストに替えたのに速くならなかった。考えられる理由は？",
+    "choices": ["挿入位置を探すのに先頭からたどる O(n) がかかり、ノードがメモリに散らばってキャッシュも効きにくいから", "連結リストの挿入は O(n²) だから", "JS では連結リストを使うと GC が止まるから"],
+    "answer": 0,
+    "explain": "連結リストの挿入が O(1) なのは、位置がもう分かっているときだけ。探す手間と、メモリが連続していないことによる遅さで、詰め直しの速い配列に負けやすい。",
+    "ref": "#cache"
+  }
+]
+</script>
+</body>
+</html>
