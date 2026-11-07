@@ -22,18 +22,31 @@ description: "taka1156/memo（MEMO）に関する依頼の入口。HTMLで図解
 
 ### 1. リポジトリを取得する
 
-作業用ディレクトリに浅くクローンする（すでにあれば更新）。
+作業用ディレクトリに `master` ブランチを浅くクローンする。
 
 ```bash
-git clone --depth 1 https://github.com/taka1156/memo.git memo 2>/dev/null || git -C memo pull -q
+git clone --depth 1 -b master https://github.com/taka1156/memo.git memo
 ```
 
-クローンできない環境では、raw URL を WebFetch で読む（振り分けの表 → 必要なスキルの順）。
+`memo` がすでにあるとき（前の作業の続きなど）は、先に残っている作業を確かめる。
+
+```bash
+git -C memo status --porcelain                       # 未コミットの変更
+git -C memo log --oneline origin/master..HEAD     # push していないコミット
+```
+
+どちらかに何か出たら（エラーが出たときも。`origin/master` が無い・別のブランチで clone したフォルダなど）、前の作業が残っているかもしれない。消さずに、そのことをユーザーに伝えて、続けるか捨てるかを確認する。どちらも何も出なければ最新にそろえる。
+
+```bash
+git -C memo fetch -q --depth 1 origin master && git -C memo checkout -q -B master FETCH_HEAD
+```
+
+クローンも更新もできないとき（エラーはそのまま読む）は、raw URL を WebFetch で読む（振り分けの表 → 必要なスキルの順）。
 
 - https://raw.githubusercontent.com/taka1156/memo/master/.claude/skills/ROUTING.md
 - https://raw.githubusercontent.com/taka1156/memo/master/.claude/skills/<スキル名>/SKILL.md
 
-どちらも取得できなかったら、作り始める前にその旨を伝えて止まる。**記憶で手順や規約を再現しない。**
+WebFetch で読めるのは手順だけで、`scripts/memo.py` は動かせない。そのときにできるのは、既存のメモの内容を答えることと、保存しない下書きを作ることまで。登録・修正・ファクトチェックの反映など `memo.py` や push が要る作業は、クローンできないので進められないと伝えて止まる。どちらも取得できなかったら、作り始める前にその旨を伝えて止まる。**記憶で手順や規約を再現しない。**
 
 ### 2. どのスキルを使うか決める
 

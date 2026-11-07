@@ -124,7 +124,7 @@ node ≈ 380MB
 
 workerd ○ 本番 △ ビルド段 ◎
 
-Ds
+D_s
 
 ### *-slim
 
@@ -226,7 +226,7 @@ Debian 版 = glibc Alpine 版 = musl Apache 2.0
 
 workerd ○ （Debian 版） 本番 ◎
 
-Uc
+U_c
 
 ### Chiseled Ubuntu
 
