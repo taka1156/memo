@@ -221,7 +221,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <ul>
       <li>3つとも JS を実行するが、<b>JS エンジン</b>と<b>周りを支える層</b>が違う。Node は V8 ＋ libuv、Bun は JavaScriptCore ＋ Rust 製の本体、Workers は V8 ＋ workerd</li>
       <li>Node と Bun はサーバー上で<b>プロセスとして常駐</b>する。Workers は世界中のエッジで、1つのプロセスの中に<b>何千もの isolate（軽い隔離区画）</b>を並べて動かす</li>
-      <li>Workers は起動が数ミリ秒と速い代わりに、ファイルシステムがなく、CPU 時間やメモリに制限がある。用途で選ぶもので、上下関係ではない</li>
+      <li>Workers は起動が数ミリ秒と速い代わりに、ファイルを残しておけるディスクがなく、CPU 時間やメモリに制限がある。用途で選ぶもので、上下関係ではない</li>
     </ul>
   </div>
 
@@ -338,7 +338,7 @@ createServer((req, res) =&gt; {
       <tr><td>パッケージ管理</td><td>npm（pnpm、yarn も）</td><td><code>bun install</code> を内蔵</td><td>npm などで入れて、ビルド時にバンドル</td></tr>
       <tr><td>付属ツール</td><td>テストランナー、ウォッチモード</td><td>バンドラー、テストランナー、SQLite など全部入り</td><td>wrangler（開発・デプロイ CLI）</td></tr>
       <tr><td>Node 互換性</td><td>本家</td><td>高い（大半の npm パッケージが動く）</td><td><code>nodejs_compat</code> フラグで主要モジュールに対応</td></tr>
-      <tr><td>ファイルシステム</td><td>あり</td><td>あり</td><td>なし（ストレージは R2・KV などを使う）</td></tr>
+      <tr><td>ファイルシステム</td><td>あり</td><td>あり</td><td>メモリ上の仮想ファイルシステムだけ（<code>node:fs</code> で読み書きできるが、<code>/tmp</code> に書いた内容はそのリクエストが終わると消える。残すなら R2・KV などを使う）</td></tr>
       <tr><td>制限</td><td>サーバー次第</td><td>サーバー次第</td><td>メモリ 128 MB／リクエストあたり CPU 時間：無料 10 ms、有料は既定 30 秒（最大 5 分）</td></tr>
       <tr><td>どこで動く</td><td>自分で用意したサーバー、コンテナ、Lambda など</td><td>同左</td><td>Cloudflare のエッジ（ローカルでは workerd で再現）</td></tr>
     </table>
@@ -361,7 +361,7 @@ createServer((req, res) =&gt; {
       <span class="ph">check（setImmediate）</span><span class="arrow">→</span>
       <span class="ph">close</span><span class="arrow">↺</span>
     </div>
-    <p class="muted">JS を実行するのは1スレッドだが、ファイル I/O や DNS などは libuv のスレッドプールが裏で並列に処理する。各段階の間で Promise のコールバック（マイクロタスク）がまとめて実行される。</p>
+    <p class="muted">JS を実行するのは1スレッドだが、ファイル I/O や DNS などは libuv のスレッドプールが裏で並列に処理する。Promise のコールバック（マイクロタスク）は、コールバックを 1 つ実行し終えるたびに、溜まっている分がまとめて実行される（Node 11 以降。ブラウザと同じ順序）。</p>
   </div>
   <div class="panel card" id="f2" hidden>
     <p><b>全部入りで速い</b>。ランタイム・パッケージマネージャー・バンドラー・テストランナーが1つのバイナリに入っている。<code>bun install</code> の速さから、パッケージマネージャーとしてだけ使う人も多い。</p>
@@ -409,7 +409,7 @@ createServer((req, res) =&gt; {
   </div>
   <div class="card myth">
     <p><span class="ng">✕</span> 「Workers でも npm のパッケージは何でも動く」</p>
-    <p><span class="ok">○</span> ファイルシステムや子プロセス、ネイティブアドオンに依存するものは動かない。<code>nodejs_compat</code> で動く範囲は広がったが、すべてではない。</p>
+    <p><span class="ok">○</span> ディスクにファイルが残ることを前提にしたものや、子プロセス、ネイティブアドオンに依存するものは動かない。<code>nodejs_compat</code> で動く範囲は広がったが、すべてではない。</p>
   </div>
   <div class="card myth">
     <p><span class="ng">✕</span> 「Node はシングルスレッドだから CPU を1つしか使えない」</p>
@@ -439,14 +439,14 @@ document.querySelectorAll('.tabs').forEach(group => {
 <script type="application/json" id="memo-quiz">
 [
   {
-    "q": "Cloudflare Workers で、アップロードされた画像をいったんディスクに保存してから処理しようとした。どうする？",
+    "q": "Cloudflare Workers で、アップロードされた画像を保存しておき、あとで別のリクエストで処理したい。どうする？",
     "choices": [
-      "nodejs_compat フラグを付ければディスクに書ける",
-      "node:fs で /tmp に書けば問題ない",
-      "ファイルシステムがないので、R2 などのストレージを使う"
+      "nodejs_compat フラグを付ければ、ふつうのディスクに書ける",
+      "node:fs で /tmp に書いておけば、あとで読める",
+      "R2 などのストレージに保存する"
     ],
     "answer": 2,
-    "explain": "Workers は isolate 型で OS の機能が使えない。外とのやり取りは fetch とバインディングだけ。",
+    "explain": "Workers の node:fs はメモリ上の仮想ファイルシステムで、/tmp に書いた内容はそのリクエストが終わると消える。リクエストをまたいで残すなら R2 などを使う。",
     "ref": "#compare"
   },
   {
