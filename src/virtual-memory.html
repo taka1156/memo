@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>仮想メモリとページング</title>
+<meta name="description" content="OS がプロセスごとに専用のメモリ空間を見せるしくみ。ページとページテーブルによるアドレス変換、TLB と huge page、ページフォルトの種類、オーバーコミットと OOM killer、fork の copy-on-write、mmap と共有、VIRT と RES の読み方までを図解。">
+<meta name="memo:tags" content="CS基礎, Linux">
+<meta name="memo:date" content="2026-11-07">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-a: #c2410c;
+  --c-b: #15803d;
+  --c-c: #7c3aed;
+  --c-d: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-a: #fb923c;
+    --c-b: #4ade80;
+    --c-c: #c4b5fd;
+    --c-d: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.dots, ol.dots { margin: 6px 0 6px 1.3em; }
+ul.dots li, ol.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+.btn {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+input[type="text"] {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 500 0.85rem 'JetBrains Mono', monospace;
+  width: 120px;
+}
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.myth { margin-bottom: 10px; }
+.myth p { margin: 4px 0; }
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.why { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.why .card { margin: 0; }
+.map { display: grid; grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr) 40px minmax(0, 1fr); align-items: center; gap: 4px; font: 600 0.72rem 'JetBrains Mono', monospace; }
+.map .col { display: grid; gap: 3px; }
+.map .col > b { font-size: 0.7rem; color: var(--fg-2); text-align: center; margin-bottom: 2px; }
+.map .pg { border-radius: 4px; padding: 3px 6px; border: 1px solid var(--line); background: var(--chip); text-align: center; }
+.map .pa { background: color-mix(in srgb, var(--c-a) 22%, transparent); border-color: var(--c-a); }
+.map .pb { background: color-mix(in srgb, var(--c-c) 22%, transparent); border-color: var(--c-c); }
+.map .sh { background: color-mix(in srgb, var(--c-b) 22%, transparent); border-color: var(--c-b); }
+.map .ar { text-align: center; color: var(--fg-2); }
+@media (max-width: 520px) { .map { grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr) 20px minmax(0, 1fr); font-size: 0.64rem; } }
+.addr { display: flex; flex-wrap: wrap; gap: 0; font: 700 0.95rem 'JetBrains Mono', monospace; margin: 8px 0; }
+.addr span { padding: 4px 10px; }
+.addr .vpn { background: color-mix(in srgb, var(--c-a) 22%, transparent); border-radius: 6px 0 0 6px; }
+.addr .off { background: color-mix(in srgb, var(--c-b) 22%, transparent); border-radius: 0 6px 6px 0; }
+.addr small { display: block; font: 500 0.66rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.xl .ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.pt { width: 100%; min-width: 0; font: 500 0.76rem 'JetBrains Mono', monospace; }
+.pt td, .pt th { padding: 4px 8px; }
+.pt tr.hit td { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.result { border-radius: 8px; padding: 10px 12px; font-size: 0.86rem; margin-top: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.result.bad { background: color-mix(in srgb, var(--c-ng) 12%, var(--surface)); }
+.result.warn { background: color-mix(in srgb, var(--c-d) 14%, var(--surface)); }
+.result b.mono { font-family: 'JetBrains Mono', monospace; }
+.walk { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+.walk .box { background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font: 600 0.78rem 'JetBrains Mono', monospace; }
+.walk .box small { display: block; font: 400 0.68rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
+.walk .box.tlb { border-color: var(--accent); }
+.walk .arr { color: var(--fg-2); font-weight: 700; }
+.faults { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.faults .card { margin: 0; }
+.cow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 560px) { .cow { grid-template-columns: 1fr; } }
+.cow .card { margin: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>仮想メモリとページング</h1>
+  <p class="subtitle">アドレス変換 / ページテーブルと TLB / ページフォルト / オーバーコミット / copy-on-write / mmap</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>プログラムが使うアドレスは<b>仮想アドレス</b>。CPU の MMU が、OS の作った<b>ページテーブル</b>を見て、ページ（ふつう 4KiB）単位で実際の物理メモリの位置に変換する。</li>
+      <li>おかげで各プロセスは自分専用のメモリ空間を持ち、他のプロセスのメモリは見えない。物理メモリは<b>実際に触ったページにだけ</b>割り当てられる。</li>
+      <li><code>fork</code> が速いのも、共有ライブラリが 1 つで済むのも、<code>top</code> の VIRT が巨大でも平気なのも、このしくみのおかげ。</li>
+    </ul>
+  </div>
+
+  <h2 id="why">なぜ仮想にするのか</h2>
+  <div class="why">
+    <div class="card"><span class="label">ISOLATION</span><p>プロセスごとに別のページテーブルを持つので、同じアドレス <code>0x4000</code> でも指す先が違う。他のプロセスのメモリを壊せない。</p></div>
+    <div class="card"><span class="label">ON DEMAND</span><p>確保しただけのメモリには物理メモリを割り当てず、初めて触ったときに割り当てる。使っていない部分はディスクに追い出せる。</p></div>
+    <div class="card"><span class="label">SHARING</span><p>共有ライブラリやファイルの中身は、複数のプロセスのページテーブルから同じ物理ページを指して共有できる。</p></div>
+    <div class="card"><span class="label">PROTECTION</span><p>ページごとに読み・書き・実行の許可を持つ。コードは書き込み禁止、データは実行禁止にして、攻撃を防ぐ。</p></div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="map">
+      <div class="col"><b>プロセス A（仮想）</b><div class="pg pa">コード</div><div class="pg sh">libc</div><div class="pg pa">ヒープ</div><div class="pg pa">スタック</div></div>
+      <div class="ar">→</div>
+      <div class="col"><b>物理メモリ</b><div class="pg pa">A のヒープ</div><div class="pg sh">libc（1 つだけ）</div><div class="pg pb">B のヒープ</div><div class="pg pa">A のコード</div><div class="pg pb">B のスタック</div><div class="pg">空き</div></div>
+      <div class="ar">←</div>
+      <div class="col"><b>プロセス B（仮想）</b><div class="pg pb">コード</div><div class="pg sh">libc</div><div class="pg pb">ヒープ</div><div class="pg pb">スタック</div></div>
+    </div>
+    <p class="muted">仮想アドレスでは連続していても、物理メモリ上ではばらばらでよい。共有ライブラリ（緑）は両方から同じ物理ページを指す（図では B のコードは省略）。</p>
+  </div>
+
+  <h2 id="translate">アドレス変換 — ページ番号とオフセット</h2>
+  <p>4KiB = 2<sup>12</sup> バイトのページなら、仮想アドレスの<b>下位 12 ビット（16 進で下 3 桁）がページ内の位置（オフセット）</b>、残りが<b>ページ番号</b>。ページテーブルでページ番号を物理ページ（フレーム）番号に置き換え、オフセットはそのまま付ける。</p>
+  <div class="addr"><span class="vpn">0x2<small>ページ番号</small></span><span class="off">A3C<small>オフセット</small></span></div>
+  <div class="card xl">
+    <span class="label">TRY</span> 下のおもちゃのプロセス（仮想アドレス 16 ビット、ページ 4KiB）でアドレスを変換してみる。
+    <div class="ctrl" style="margin-top:8px">
+      <label for="va">仮想アドレス</label>
+      <input type="text" id="va" value="0x2A3C" aria-label="仮想アドレス（16 進）">
+      <button class="btn" id="op-r" aria-pressed="true">読む</button>
+      <button class="btn" id="op-w" aria-pressed="false">書く</button>
+      <button class="btn" id="op-x" aria-pressed="false">実行</button>
+    </div>
+    <div class="ctrl">
+      <span class="muted">例:</span>
+      <button class="btn ex" data-a="0x1040" data-o="x">コードを実行</button>
+      <button class="btn ex" data-a="0x1040" data-o="w">コードに書く</button>
+      <button class="btn ex" data-a="0x0000" data-o="r">NULL を読む</button>
+      <button class="btn ex" data-a="0xE010" data-o="w">初めて触るスタック</button>
+      <button class="btn ex" data-a="0x3200" data-o="r">追い出されたページ</button>
+    </div>
+    <div class="table-wrap">
+    <table class="pt" id="pt">
+      <tr><th>ページ</th><th>用途</th><th>存在</th><th>フレーム</th><th>許可</th></tr>
+    </table>
+    </div>
+    <div class="result" id="xl-out"></div>
+  </div>
+
+  <h2 id="tlb">多段のページテーブルと TLB</h2>
+  <p>64 ビットの CPU でページテーブルを 1 枚の表にすると巨大になる。x86-64 では仮想アドレスの 48 ビット（新しい CPU では 57 ビットの 5 段もある）を 9 ビットずつに分けた <b>4 段の木</b>にして、使っている部分の表だけを作る。</p>
+  <div class="walk">
+    <div class="box tlb">TLB<small>最近の変換のキャッシュ</small></div><span class="arr">ミスなら →</span>
+    <div class="box">第 4 段<small>512 項目</small></div><span class="arr">→</span>
+    <div class="box">第 3 段</div><span class="arr">→</span>
+    <div class="box">第 2 段</div><span class="arr">→</span>
+    <div class="box">第 1 段</div><span class="arr">→</span>
+    <div class="box">物理ページ<small>＋オフセット</small></div>
+  </div>
+  <ul class="dots">
+    <li>毎回 4 段をたどると遅いので、CPU は最近の変換結果を <b>TLB (Translation Lookaside Buffer)</b> にキャッシュする。TLB に当たれば変換はほぼタダ。</li>
+    <li>TLB の項目は数千程度しかない。巨大な配列をランダムに読むと TLB ミスが続き、CPU キャッシュのミスと合わせて遅くなる。</li>
+    <li><b>huge page</b>（x86-64 なら 2MiB や 1GiB）を使うと、1 項目で覆える範囲が 512 倍以上になり、TLB ミスが減る。大きなメモリを使う DB や JVM で使われる。Linux の <b>THP（Transparent Huge Pages）</b>は自動で使うが、遅延の揺れの原因になることもあり、Redis などは無効にするよう勧めている。</li>
+    <li>プロセスを切り替えるとページテーブルが替わるので、TLB の中身の多くが使えなくなる。コンテキストスイッチのコストの一部（<a href="os-scheduling.html">OS のスケジューリング</a>）。</li>
+  </ul>
+
+  <h2 id="fault">ページフォルト</h2>
+  <p>MMU が変換できない（ページテーブルに「存在する」印がない、許可がない）と、CPU は<b>ページフォルト</b>を起こしてカーネルに処理を渡す。カーネルは理由を調べて 3 通りに分ける。</p>
+  <div class="faults">
+    <div class="card"><span class="label" style="color:var(--c-b)">MINOR</span><p><b>ディスクを読まずに済む。</b>確保済みで初めて触ったページに空きの物理ページを割り当てる、ページキャッシュにもうあるファイルの中身を指す、など。マイクロ秒以下。</p></div>
+    <div class="card"><span class="label" style="color:var(--c-d)">MAJOR</span><p><b>ディスクから読み込む。</b>スワップに追い出したページ、まだ読んでいないファイルを mmap した部分など。SSD でも数十〜数百マイクロ秒、HDD ならミリ秒単位かかる。メモリアクセスの数百倍以上遅いので、多発すると極端に遅くなる。</p></div>
+    <div class="card"><span class="label" style="color:var(--c-ng)">INVALID</span><p><b>そもそも使えないアドレス・許可のない操作。</b>NULL 参照、範囲外、読み取り専用への書き込み。カーネルはプロセスに <code>SIGSEGV</code> を送る（Segmentation fault）。</p></div>
+  </div>
+  <p class="muted">アドレス 0 付近をわざとどのページにも割り当てないのは、NULL ポインタを使ったバグをその場で落とすため。</p>
+
+  <h2 id="overcommit">確保と使用は別 — オーバーコミットと OOM killer</h2>
+  <p><code>malloc(1GB)</code> や <code>mmap</code> で確保しても、カーネルは「この範囲を使ってよい」と記録するだけで、物理メモリはまだ割り当てない。書き込んで初めてページ単位で割り当てる（<b>デマンドページング</b>）。</p>
+  <div class="table-wrap">
+  <table>
+    <tr><th>表示</th><th>意味</th><th>読み方</th></tr>
+    <tr><td>VIRT / VSZ</td><td>確保した仮想アドレス空間の合計</td><td>予約しただけの領域やマップしたファイルも含む。巨大でも問題ないことが多い</td></tr>
+    <tr><td>RES / RSS</td><td>今、物理メモリに載っているページ</td><td>実際のメモリ使用の目安。共有ライブラリは各プロセスに重複して数えられる</td></tr>
+    <tr><td>SHR</td><td>RES のうち共有しうるページ</td><td>ライブラリやファイルの mmap、共有メモリ</td></tr>
+  </table>
+  </div>
+  <ul class="dots">
+    <li>Linux は既定（<code>vm.overcommit_memory=0</code>）で、確保の合計が物理メモリ＋スワップを超えることを許す（<b>オーバーコミット</b>）。明らかに大きすぎる 1 回の確保だけは拒否する。全員が確保した分を本当に使うことはまずない、という前提。</li>
+    <li>前提が外れて物理メモリが尽きると、カーネルの <b>OOM killer</b> がプロセスを選んで <code>SIGKILL</code> で殺す。多くの場合、<code>malloc</code> が失敗するのではなく、ある時点で突然殺される。</li>
+    <li>コンテナでは cgroup の <code>memory.max</code>（Kubernetes の <code>limits.memory</code>）を超えると、そのコンテナの中で OOM kill が起きる。終了コード <b>137</b>（128 + SIGKILL の 9）、Kubernetes では <code>OOMKilled</code> と表示される。</li>
+  </ul>
+
+  <h2 id="cow">fork と copy-on-write</h2>
+  <p><code>fork</code> は親プロセスを丸ごと複製するが、メモリを実際にコピーはしない。親子のページテーブルを同じ物理ページに向け、両方を<b>読み取り専用</b>にしておく。</p>
+  <div class="cow">
+    <div class="card"><span class="label">fork 直後</span><p>親と子が同じ物理ページを共有。2GB のプロセスでも、コピーするのはページテーブルだけなので速い。</p></div>
+    <div class="card"><span class="label">どちらかが書いた</span><p>読み取り専用への書き込みでページフォルトが起き、カーネルがそのページ<b>だけ</b>をコピーして書いた側に割り当てる。</p></div>
+  </div>
+  <ul class="dots">
+    <li>シェルがコマンドを起動するとき（<code>fork</code> → <code>exec</code>）は、子がすぐ別のプログラムに置き換わるので、ほとんどコピーが起きない（<a href="linux-process.html">Linux プロセスの仕組み</a>）。</li>
+    <li>Redis の <code>BGSAVE</code> は fork した子にスナップショットを書かせる。書き込みが多いと親がページを書き換えるたびにコピーが起き、メモリ使用量が最大で 2 倍近くまで増えうる（<a href="redis-valkey.html">Redis と Valkey</a>）。</li>
+  </ul>
+
+  <h2 id="mmap">mmap — ファイルをメモリとして扱う</h2>
+  <ul class="dots">
+    <li><code>mmap</code> でファイルをアドレス空間に貼り付けると、読んだ部分だけがページフォルト経由でページキャッシュから読み込まれる。<code>read()</code> でバッファにコピーする手間がない。</li>
+    <li>実行ファイルや共有ライブラリの読み込みもこの仕組み。同じライブラリは全プロセスで同じ物理ページ（ページキャッシュ）を共有する。</li>
+    <li>Linux は空いている物理メモリをファイルのキャッシュ（ページキャッシュ）に使う。<code>free</code> の <code>free</code> 列が小さくても、<code>available</code> 列が十分なら困っていない。</li>
+    <li>メモリが足りなくなると、カーネルはあまり使われていないページを追い出す。ファイルの内容は捨てて後で読み直し、ヒープなどの匿名ページは<b>スワップ</b>に書き出す。スワップの出し入れ（<code>vmstat</code> の <code>si</code> / <code>so</code>）が続くなら、メモリが足りていない。</li>
+  </ul>
+
+  <h3>コマンド例</h3>
+<pre><code>getconf PAGESIZE                 <span class="cm"># ページの大きさ（多くは 4096。Apple Silicon の macOS は 16KiB）</span>
+free -h                          <span class="cm"># available が実際に使える量の目安</span>
+grep -E 'VmRSS|VmSize' /proc/1234/status
+cat /proc/1234/maps              <span class="cm"># アドレス空間の配置（コード・ヒープ・ライブラリ・スタック）</span>
+pmap -x 1234                     <span class="cm"># マッピングごとの RSS</span>
+vmstat 1                         <span class="cm"># si / so = スワップの出し入れ</span>
+perf stat -e page-faults,major-faults ./app
+cat /sys/kernel/mm/transparent_hugepage/enabled</code></pre>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✗</span> top の VIRT が 20GB なので、このプロセスは 20GB 使っている</p><p><span class="ok">✓</span> VIRT は予約したアドレス空間。実際に物理メモリに載っているのは RES。JVM や Go、ブラウザは大きく予約するのが普通。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> malloc が NULL を返さなければ、そのメモリは確保できている</p><p><span class="ok">✓</span> Linux の既定では、物理メモリは触ったときに割り当てる。足りなければ、その時点で OOM killer に殺されうる。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> free の free 列が少ないのはメモリ不足</p><p><span class="ok">✓</span> 空きはページキャッシュに使われ、必要になれば手放される。見るのは available とスワップの出し入れ。</p></div>
+
+  <p class="related">関連: <a href="memory-management.html">メモリ管理</a><a href="os-scheduling.html">OS のスケジューリング</a><a href="linux-process.html">Linux プロセスの仕組み</a><a href="docker.html">Docker 動作原理</a><a href="redis-valkey.html">Redis と Valkey</a></p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+(() => {
+  // state: 'map' = 物理メモリにある, 'lazy' = 確保済みだが未割り当て, 'swap' = 追い出し済み, 'none' = 割り当てなし
+  const PT = [
+    { vpn: 0x0, use: 'NULL ガード', st: 'none' },
+    { vpn: 0x1, use: 'コード', st: 'map', fr: 0x7, perm: 'r-x' },
+    { vpn: 0x2, use: 'データ', st: 'map', fr: 0x3, perm: 'rw-' },
+    { vpn: 0x3, use: 'ヒープ', st: 'swap', fr: null, perm: 'rw-' },
+    { vpn: 0x4, use: 'ヒープ', st: 'map', fr: 0x9, perm: 'rw-' },
+    { vpn: 0x5, use: '（未使用）', st: 'none', range: '0x5〜0xD' },
+    { vpn: 0xE, use: 'スタック', st: 'lazy', fr: null, perm: 'rw-' },
+    { vpn: 0xF, use: 'スタック', st: 'map', fr: 0xC, perm: 'rw-' }
+  ];
+  const find = v => PT.find(p => p.vpn === v) || (v >= 0x5 && v <= 0xD ? PT[5] : null);
+  const table = document.getElementById('pt');
+  const rowEls = PT.map(p => {
+    const tr = document.createElement('tr');
+    const exist = { map: '○', lazy: '— 未割り当て', swap: '— スワップ', none: '×' }[p.st];
+    const cells = [p.range || '0x' + p.vpn.toString(16).toUpperCase(), p.use, exist, p.fr != null ? '0x' + p.fr.toString(16).toUpperCase() : '—', p.perm || '—'];
+    cells.forEach(c => { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); });
+    table.appendChild(tr);
+    return tr;
+  });
+  let op = 'r';
+  const opName = { r: '読む', w: '書く', x: '実行' };
+  const opBtns = { r: document.getElementById('op-r'), w: document.getElementById('op-w'), x: document.getElementById('op-x') };
+  const input = document.getElementById('va'), out = document.getElementById('xl-out');
+  const hex = (n, w) => '0x' + n.toString(16).toUpperCase().padStart(w, '0');
+  const setOut = (cls, html) => { out.className = 'result' + (cls ? ' ' + cls : ''); out.innerHTML = html; };
+  const run = () => {
+    Object.entries(opBtns).forEach(([k, b]) => b.setAttribute('aria-pressed', String(k === op)));
+    rowEls.forEach(r => r.classList.remove('hit'));
+    const raw = input.value.trim().replace(/^0x/i, '');
+    if (!/^[0-9a-f]{1,4}$/i.test(raw)) { setOut('bad', '0x0000〜0xFFFF の 16 進で入力する。'); return; }
+    const va = parseInt(raw, 16), vpn = va >> 12, off = va & 0xFFF;
+    const p = find(vpn);
+    rowEls[PT.indexOf(p)].classList.add('hit');
+    const head = '<b class="mono">' + hex(va, 4) + '</b> → ページ <b class="mono">0x' + vpn.toString(16).toUpperCase() + '</b> ＋ オフセット <b class="mono">' + hex(off, 3) + '</b>（' + opName[op] + '）<br>';
+    if (p.st === 'none') { setOut('bad', head + '<span class="ng">INVALID</span>: どこにも割り当てていないページ。カーネルは SIGSEGV を送り、プロセスは Segmentation fault で落ちる。'); return; }
+    const need = { r: 'r', w: 'w', x: 'x' }[op];
+    if (!p.perm.includes(need)) { setOut('bad', head + '<span class="ng">INVALID</span>: 許可が ' + p.perm + ' のページに「' + opName[op] + '」はできない。保護違反で SIGSEGV。' + (op === 'w' ? ' コードを書き換える攻撃はこれで防ぐ。' : ' データ領域を実行禁止（NX）にして、注入したコードを動かせないようにしている。')); return; }
+    if (p.st === 'lazy') { setOut('warn', head + '<b>MINOR フォルト</b>: 確保済みだが初めて触るページ。カーネルが空きの物理ページを 0 で埋めて割り当て、ページテーブルに書いてから命令をやり直す。プログラムからは何も起きなかったように見える。'); return; }
+    if (p.st === 'swap') { setOut('warn', head + '<b>MAJOR フォルト</b>: スワップに追い出されたページ。カーネルがディスクから読み戻すまでスレッドは止まる（SSD で数十マイクロ秒〜、HDD ならミリ秒単位）。'); return; }
+    const pa = (p.fr << 12) | off;
+    setOut('', head + '<span class="ok">OK</span>: ページテーブルでフレーム <b class="mono">0x' + p.fr.toString(16).toUpperCase() + '</b> に変換 → 物理アドレス <b class="mono">' + hex(pa, 4) + '</b>。オフセットは変わらない。');
+  };
+  Object.entries(opBtns).forEach(([k, b]) => b.addEventListener('click', () => { op = k; run(); }));
+  input.addEventListener('input', run);
+  document.querySelectorAll('.ex').forEach(b => b.addEventListener('click', () => { input.value = b.dataset.a; op = b.dataset.o; run(); }));
+  run();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Java のアプリを top で見ると VIRT が 20GB、RES が 600MB。サーバーの物理メモリは 8GB。メモリの使いすぎを心配すべき？",
+    "choices": ["物理メモリより VIRT が大きいので、すぐスワップが始まる", "VIRT は予約したアドレス空間で、物理メモリに載っているのは RES の 600MB。VIRT だけでは問題にならない", "VIRT と RES の合計 20.6GB を使っている"],
+    "answer": 1,
+    "explain": "仮想アドレス空間を予約しても、触るまで物理メモリは割り当てられない。実際の使用量の目安は RES（RSS）。",
+    "ref": "#overcommit"
+  },
+  {
+    "q": "メモリを 4GB 使っているプロセスが fork() しても、ほぼ一瞬で終わり、空きメモリもほとんど減らない。なぜ？",
+    "choices": ["fork は子プロセスのメモリを後でバックグラウンドでコピーするから", "子プロセスはメモリを持たないから", "親子で同じ物理ページを読み取り専用で共有し、書き込まれたページだけを後でコピーする（copy-on-write）から"],
+    "answer": 2,
+    "explain": "fork でコピーするのはページテーブルだけ。どちらかが書き込んだときにそのページだけを複製する。",
+    "ref": "#cow"
+  },
+  {
+    "q": "Kubernetes の Pod が、ログにエラーも出さずに再起動を繰り返す。終了コードは 137 で、状態は OOMKilled。何が起きている？",
+    "choices": ["コンテナのメモリ使用が limits.memory を超え、カーネルの OOM killer に SIGKILL で殺された", "malloc が NULL を返し、アプリが自分で終了した", "CPU の上限を超えてスロットリングされた"],
+    "answer": 0,
+    "explain": "137 は 128 + 9（SIGKILL）。cgroup のメモリ上限を超えると OOM killer が殺すので、アプリはエラーを書く機会がない。",
+    "ref": "#overcommit"
+  },
+  {
+    "q": "C で NULL ポインタを読もうとすると、Linux や macOS ではたいてい Segmentation fault でその場で落ちる（Windows では Access Violation）。なぜ？",
+    "choices": ["コンパイラが NULL の読み込みを禁止する命令に置き換えるから", "アドレス 0 付近のページをどこにも割り当てていないので、ページフォルトを受けたカーネルが SIGSEGV を送るから", "NULL は物理メモリの 0 番地を指し、そこは OS が使っているから"],
+    "answer": 1,
+    "explain": "0 付近をわざと未割り当てにしておき、不正なアクセスをページフォルトで検出してプロセスに SIGSEGV を送る。",
+    "ref": "#fault"
+  },
+  {
+    "q": "数十 GB の配列をランダムな位置で読む処理が、同じ量を先頭から順に読むより何倍も遅い。CPU キャッシュ以外に効いている要因と、その対策は？",
+    "choices": ["ページテーブルが壊れるので、mmap を使わない", "スワップが必ず発生するので、スワップを増やす", "アドレス変換のキャッシュ（TLB）のミスが続く。huge page を使うと 1 項目で覆える範囲が広がり、ミスが減る"],
+    "answer": 2,
+    "explain": "TLB の項目は限られていて、4KiB のページではすぐ溢れる。2MiB などの huge page なら同じ項目数で 512 倍の範囲を覆える。",
+    "ref": "#tlb"
+  }
+]
+</script>
+</body>
+</html>
