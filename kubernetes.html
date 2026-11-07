@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kubernetes の全体像</title>
+<meta name="description" content="Kubernetes が「あるべき状態」を宣言して保ち続ける仕組みを、コントロールプレーンとノードの部品、Pod・Deployment・Service・Ingress / Gateway の関係、ヘルスチェックとリソース指定まで図で整理する。">
+<meta name="memo:tags" content="インフラ, Linux">
+<meta name="memo:date" content="2026-11-07">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+p { margin: 8px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+:root { --c-ok: #1f8a50; --c-warn: #b45309; --c-ng: #c0392b; --c-sub: #7c3aed; }
+@media (prefers-color-scheme: dark) {
+  :root { --c-ok: #4ade80; --c-warn: #fbbf24; --c-ng: #f87171; --c-sub: #c4b5fd; }
+}
+a { color: var(--accent); }
+h3 { font-size: 0.98rem; margin: 22px 0 8px; }
+ul.dots { margin: 8px 0 8px 1.3em; }
+ul.dots li { margin: 3px 0; }
+pre .cm { color: var(--fg-2); }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.table-wrap { overflow-x: auto; margin: 10px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--surface); }
+th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 700; white-space: nowrap; }
+.btn {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 6px 12px;
+  font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer;
+}
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn.on { border-color: var(--accent); color: var(--accent); }
+.ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
+.stepmsg {
+  border-left: 3px solid var(--accent); background: var(--surface);
+  border-radius: 0 8px 8px 0; padding: 10px 14px; min-height: 4.6em; font-size: 0.9rem;
+}
+.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); display: block; }
+.anat { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.anat .card { padding: 10px 14px; }
+.anat b { font-size: 0.85rem; color: var(--accent); }
+.anat p { font-size: 0.8rem; margin: 2px 0 0; color: var(--fg-2); }
+.panel { margin-top: 0; }
+.panel h4 { font-size: 0.9rem; margin: 10px 0 4px; }
+.panel ul { margin: 4px 0 4px 1.2em; font-size: 0.86rem; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tag-ok { color: var(--c-ok); font-weight: 700; }
+.tag-ng { color: var(--c-ng); font-weight: 700; }
+.tag-warn { color: var(--c-warn); font-weight: 700; }
+details.myth { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
+details.myth summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
+details.myth summary::before { content: '✗ '; color: var(--c-ng); }
+details.myth p { font-size: 0.86rem; }
+.related { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.related a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font-size: 0.75rem; font-weight: 600; }
+.related a:hover { color: var(--accent); }
+/* ステップ図 */
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; }
+.node {
+  flex: 1 1 110px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; font-size: 0.75rem; transition: border-color .2s, opacity .2s, transform .2s;
+}
+.node b { display: block; font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; }
+.node span { color: var(--fg-2); }
+.node.hl { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.node.dim { opacity: .45; }
+.arrow { align-self: center; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+@media (max-width: 640px) {
+  .row2 { grid-template-columns: 1fr; }
+  .flow { flex-direction: column; }
+  .arrow { transform: rotate(90deg); }
+}
+
+/* クラスタ図 */
+.cluster { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; }
+.zone { border: 1.5px dashed var(--line); border-radius: 10px; padding: 10px; }
+.zone > .zt { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); letter-spacing: .06em; margin-bottom: 6px; }
+.zone .node { margin-bottom: 6px; }
+.nodes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.wnode { border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: color-mix(in srgb, var(--chip) 50%, transparent); }
+.wnode > .zt { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-bottom: 4px; }
+.pods { display: flex; flex-wrap: wrap; gap: 4px; min-height: 30px; margin-top: 4px; }
+.pod { font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace; border: 1.5px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 2px 6px; animation: pop .25s ease-out; }
+.pod.pending { border-style: dashed; color: var(--fg-2); border-color: var(--fg-2); }
+.pod.dead { border-color: var(--c-ng); color: var(--c-ng); text-decoration: line-through; }
+@keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+/* オブジェクトの関係 */
+.objtree { font: 500 0.8rem/1.8 'JetBrains Mono', ui-monospace, monospace; white-space: pre; overflow-x: auto; }
+.objtree .k { color: var(--accent); font-weight: 700; }
+.objtree .c { color: var(--fg-2); }
+/* Service タイプ */
+.svc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.svc .card b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.svc .card p { font-size: 0.8rem; }
+@media (max-width: 640px) {
+  .cluster, .svc { grid-template-columns: 1fr; }
+}
+@media (max-width: 420px) { .nodes { grid-template-columns: 1fr; } }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="Kubernetes の全体像">
+<meta property="og:description" content="Kubernetes が「あるべき状態」を宣言して保ち続ける仕組みを、コントロールプレーンとノードの部品、Pod・Deployment・Service・Ingress / Gateway の関係、ヘルスチェックとリソース指定まで図で整理する。">
+<meta property="og:url" content="https://memo.taka1156.site/kubernetes.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>Kubernetes の全体像</h1>
+  <p class="subtitle">宣言と調整ループ / コントロールプレーンとノード / Pod・Deployment・Service / Ingress と Gateway API / プローブとリソース</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>Kubernetes には「何をどう動かせ」ではなく<b>「こうなっていてほしい」という状態</b>（レプリカ 3 つ、このイメージ、このポート）を YAML で渡す。</li>
+      <li>たくさんの<b>コントローラ</b>が「あるべき状態」と「今の状態」を見比べ、差を埋める操作を延々と繰り返す（調整ループ）。Pod が落ちても勝手に作り直されるのはこのため。</li>
+      <li>コンテナを動かす単位は <b>Pod</b>。Pod は使い捨てで IP も変わるので、安定した入口として <b>Service</b>、HTTP の振り分けに <b>Ingress / Gateway</b> を前に置く。</li>
+    </ul>
+  </div>
+
+  <p class="muted">前提: コンテナそのものの仕組みは <a href="docker.html">Docker 動作原理</a>、イメージの作り方は <a href="docker-files.html">Dockerfile と Compose</a>。Kubernetes はそのコンテナを「複数台のマシンで、止まらないように」動かすための仕組み。</p>
+
+  <h2 id="why">Docker Compose との違い</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th></th><th>Docker Compose</th><th>Kubernetes</th></tr>
+      <tr><td>動かす場所</td><td>1 台のマシン</td><td>複数台のマシン（ノード）をまとめた 1 つのクラスタ</td></tr>
+      <tr><td>書くもの</td><td>起動するコンテナの一覧</td><td>あるべき状態（オブジェクト）の集まり</td></tr>
+      <tr><td>コンテナが落ちたら</td><td><code>restart:</code> で同じマシン上で再起動</td><td>別のノードに作り直す。ノードごと落ちても移る</td></tr>
+      <tr><td>更新</td><td>止めて作り直す</td><td>少しずつ入れ替える（ローリングアップデート）、問題があれば戻す</td></tr>
+      <tr><td>入口・名前解決</td><td>サービス名で DNS、ポートを公開</td><td>Service・Ingress / Gateway・クラスタ内 DNS</td></tr>
+      <tr><td>向いている規模</td><td>開発環境・小さな 1 台の本番</td><td>複数のサービスを複数台で、止めずに運用したいとき</td></tr>
+    </table>
+  </div>
+
+  <h2 id="arch">クラスタの部品と、Deployment を作ったときの流れ</h2>
+  <div class="flow" id="k8-flow" style="display:block">
+    <div class="node" data-k="kubectl" style="margin-bottom:10px"><b>kubectl（クラスタの外: 利用者・CI）</b><span>YAML を API サーバーに送る</span></div>
+    <div class="cluster">
+      <div class="zone">
+        <div class="zt">CONTROL PLANE</div>
+        <div class="node" data-k="api"><b>kube-apiserver</b><span>唯一の窓口。認証・認可・検証して保存</span></div>
+        <div class="node" data-k="etcd"><b>etcd</b><span>全オブジェクトを保存する分散 KVS</span></div>
+        <div class="node" data-k="cm"><b>controller-manager</b><span>Deployment・ReplicaSet などのコントローラの集まり</span></div>
+        <div class="node" data-k="sched"><b>scheduler</b><span>未割り当ての Pod を置くノードを決める</span></div>
+      </div>
+      <div class="zone">
+        <div class="zt">WORKER NODES</div>
+        <div class="nodes">
+          <div class="wnode"><div class="zt">node-1</div>
+            <div class="node" data-k="kubelet"><b>kubelet</b><span>自ノードの Pod を起動・監視</span></div>
+            <div class="node" data-k="cri"><b>containerd</b><span>CRI ランタイム</span></div>
+            <div class="node" data-k="proxy"><b>kube-proxy</b><span>Service の転送規則</span></div>
+            <div class="pods" id="pods-1"></div>
+          </div>
+          <div class="wnode"><div class="zt">node-2</div>
+            <div class="node" data-k="kubelet"><b>kubelet</b><span>自ノードの Pod を起動・監視</span></div>
+            <div class="node" data-k="cri"><b>containerd</b><span>CRI ランタイム</span></div>
+            <div class="node" data-k="proxy"><b>kube-proxy</b><span>Service の転送規則</span></div>
+            <div class="pods" id="pods-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ctrl">
+    <button class="btn" id="k8-prev">← 前へ</button>
+    <button class="btn primary" id="k8-next">次へ →</button>
+    <button class="btn" id="k8-reset">最初から</button>
+  </div>
+  <div class="stepmsg" id="k8-msg"></div>
+  <p class="muted">ポイントは、部品どうしが直接命令し合わないこと。全員が API サーバーを<b>監視（watch）</b>して、自分の担当の差分を見つけたら動く。だから 1 つの部品が一時的に止まっても、戻れば続きから追いつける。</p>
+
+  <h2 id="objects">主なオブジェクト</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="o-run">動かす</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="o-net">つなぐ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="o-cfg">設定・保存</button>
+  </div>
+  <div class="panel card" id="o-run">
+    <div class="objtree"><span class="k">Deployment</span> web          <span class="c"># 「web を 3 つ、イメージは v2」。更新の方法も持つ</span>
+ └─ <span class="k">ReplicaSet</span> web-7d9f   <span class="c"># 「このテンプレートの Pod を 3 つ」。版ごとに 1 つ</span>
+     ├─ <span class="k">Pod</span> web-7d9f-abc  <span class="c"># 1 つ以上のコンテナ。同じ IP・同じボリュームを共有</span>
+     ├─ <span class="k">Pod</span> web-7d9f-def
+     └─ <span class="k">Pod</span> web-7d9f-ghi</div>
+    <div class="table-wrap">
+      <table>
+        <tr><th>種類</th><th>使いどころ</th></tr>
+        <tr><td><b>Deployment</b></td><td>状態を持たない Web・API。ほとんどのアプリはこれ</td></tr>
+        <tr><td><b>StatefulSet</b></td><td>DB など。Pod に固定の名前（db-0, db-1）と専用のボリュームを持たせ、順番に起動する</td></tr>
+        <tr><td><b>DaemonSet</b></td><td>全ノードに 1 つずつ。ログ収集・監視エージェント・ネットワークプラグイン</td></tr>
+        <tr><td><b>Job / CronJob</b></td><td>終わる処理。バッチ、マイグレーション、定期実行</td></tr>
+      </table>
+    </div>
+    <p class="muted">Pod を直接作ることはほぼない。直接作った Pod は落ちても誰も作り直さないので、必ず上のどれかに作らせる。</p>
+  </div>
+  <div class="panel card" id="o-net" hidden>
+    <div class="objtree"><span class="k">Gateway / Ingress</span>   <span class="c"># 外からの HTTP を、ホスト名やパスで Service へ</span>
+ └─ <span class="k">Service</span> web      <span class="c"># 変わらない仮想 IP と DNS 名。ラベルで Pod を選ぶ</span>
+     └─ <span class="k">EndpointSlice</span>  <span class="c"># 今 Ready な Pod の IP 一覧（自動で更新）</span>
+         ├─ 10.244.1.5:8080
+         └─ 10.244.2.9:8080</div>
+    <p>Service は <code>selector: {app: web}</code> のように<b>ラベル</b>で Pod を選ぶ。Pod が入れ替わっても、ラベルが同じなら自動で行き先に入る。<a href="#service">下で詳しく</a>。</p>
+  </div>
+  <div class="panel card" id="o-cfg" hidden>
+    <div class="table-wrap">
+      <table>
+        <tr><th>種類</th><th>使いどころ</th></tr>
+        <tr><td><b>ConfigMap</b></td><td>設定値。環境変数やファイルとして Pod に渡す</td></tr>
+        <tr><td><b>Secret</b></td><td>パスワード・トークン。渡し方は ConfigMap と同じ。<b>中身は base64 で、それ自体は暗号化ではない</b>（<a href="#myth">誤解</a>）</td></tr>
+        <tr><td><b>PersistentVolumeClaim</b></td><td>「10GiB のディスクが欲しい」という要求。StorageClass に従ってクラウドのディスクなどが割り当てられる</td></tr>
+        <tr><td><b>Namespace</b></td><td>オブジェクトを区切る名前の空間。チームや環境ごとに分け、権限やリソース上限をかける単位</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h2 id="service">Service: 消える Pod に変わらない入口を付ける</h2>
+  <div class="svc">
+    <div class="card"><b>ClusterIP</b><p>既定。クラスタ内だけで使える仮想 IP。<code>web.shop.svc.cluster.local</code>（同じ Namespace なら <code>web</code>）で引ける</p></div>
+    <div class="card"><b>NodePort</b><p>全ノードの同じポート（30000〜32767）で受けて Service へ。検証用や、外の LB から入れるとき</p></div>
+    <div class="card"><b>LoadBalancer</b><p>クラウドの LB を自動で作って外部 IP を付ける。Service ごとに LB が 1 つできる</p></div>
+  </div>
+  <ul class="dots">
+    <li>Service の仮想 IP に届いたパケットは、各ノードの <b>kube-proxy</b> が書いた iptables / nftables の規則（または Cilium などの eBPF）で、Ready な Pod の 1 つに書き換えられる。L4 の振り分けなので、HTTP の中身は見ない（<a href="lb-proxy-cdn.html#l4l7">L4 と L7</a>）。</li>
+    <li>Pod どうしは、別ノードでも NAT なしで直接 IP で通信できる前提。これを実現するのが CNI プラグイン（Calico・Cilium・クラウド専用のものなど）。</li>
+  </ul>
+
+  <h3 id="ingress">外からの HTTP: Ingress と Gateway API</h3>
+  <div class="row2">
+    <div class="card">
+      <h4 class="mono">Ingress</h4>
+      <ul class="dots">
+        <li>ホスト名・パス → Service の対応表。<b>書くだけでは何も起きず</b>、Ingress コントローラ（nginx・Traefik・クラウドの LB 連携など）を別に入れる必要がある</li>
+        <li>仕様が小さく、ヘッダー操作や重み付き振り分けはコントローラ独自のアノテーション頼みになり、移行しにくい</li>
+        <li>API は残るが、機能追加は止まっている</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="mono">Gateway API</h4>
+      <ul class="dots">
+        <li>Ingress の後継。<code>GatewayClass</code>（基盤の種類）・<code>Gateway</code>（入口）・<code>HTTPRoute</code>（振り分け）に分かれ、基盤担当とアプリ担当が別々に書ける</li>
+        <li>ヘッダーでの振り分け、重み付き（カナリア）、gRPC・TCP のルートが標準の仕様に入っている</li>
+        <li>これも実装（Envoy Gateway・Istio・Cilium・クラウドなど）を入れて使う</li>
+      </ul>
+    </div>
+  </div>
+  <p class="muted">広く使われていた Ingress コントローラの ingress-nginx（Kubernetes プロジェクト版）は、2026 年 3 月で保守を終えた。既存の環境は動き続けるがセキュリティ修正は出ないため、Kubernetes プロジェクトは Gateway API か別のコントローラへの移行を勧めている。F5 社の「NGINX Ingress Controller」は別物。</p>
+
+  <h2 id="yaml">最小の YAML</h2>
+<pre>apiVersion: apps/v1
+kind: Deployment
+metadata: { name: web }
+spec:
+  replicas: 3
+  selector: { matchLabels: { app: web } }     <span class="cm"># どの Pod を自分のものとみなすか</span>
+  template:                                   <span class="cm"># 作る Pod のひな形</span>
+    metadata: { labels: { app: web } }
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/example/web:2.4.1    <span class="cm"># latest ではなく版を固定</span>
+          ports: [{ containerPort: 8080 }]
+          resources:
+            requests: { cpu: 250m, memory: 256Mi }   <span class="cm"># 置き場所を決める目安</span>
+            limits:   { memory: 512Mi }              <span class="cm"># 超えたら OOMKilled</span>
+          readinessProbe: { httpGet: { path: /ready, port: 8080 } }
+          livenessProbe:  { httpGet: { path: /healthz, port: 8080 }, periodSeconds: 10 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: web }
+spec:
+  selector: { app: web }                      <span class="cm"># このラベルの Pod へ</span>
+  ports: [{ port: 80, targetPort: 8080 }]</pre>
+
+  <h2 id="probe">プローブとリソース: 「動いている」をどう判断するか</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>プローブ</th><th>失敗したら</th><th>何を確かめるか</th></tr>
+      <tr><td><b>readiness</b></td><td>Service の行き先から外す（再起動はしない）</td><td>今リクエストを受けられるか。起動直後のウォームアップ中や、一時的に過負荷のとき false</td></tr>
+      <tr><td><b>liveness</b></td><td>コンテナを再起動する</td><td>プロセスが固まっていないか。<b>DB など外部の依存は見ない</b>（DB が落ちると全 Pod が再起動を繰り返す）</td></tr>
+      <tr><td><b>startup</b></td><td>成功するまで他の 2 つを始めない</td><td>起動に時間がかかるアプリが、起動中に liveness で殺されないように</td></tr>
+    </table>
+  </div>
+  <div class="row2">
+    <div class="card">
+      <h4 class="mono">requests</h4>
+      <p style="font-size:.86rem">scheduler はノードの空きを requests の合計で計算して Pod を置く。実際の使用量ではない。小さすぎると 1 台に詰め込まれて取り合いになる。</p>
+    </div>
+    <div class="card">
+      <h4 class="mono">limits</h4>
+      <p style="font-size:.86rem">CPU は超えると<b>絞られる</b>（遅くなるだけ）。メモリは超えると<b>強制終了</b>（OOMKilled）。メモリの limit は必ず、CPU の limit は遅延が問題になるなら付けない選択もある。</p>
+    </div>
+  </div>
+  <p class="muted">ローリングアップデートでは、新しい Pod が readiness に通ってから古い Pod を減らす。readiness が無いと、起動途中の Pod にリクエストが流れて更新のたびにエラーが出る。</p>
+
+  <h2 id="myth">よくある誤解</h2>
+  <details class="myth"><summary>Pod はコンテナの別名</summary>
+    <p>Pod は 1 つ以上のコンテナのまとまり。同じ Pod のコンテナはネットワーク名前空間（同じ IP・localhost で通じる）とボリュームを共有し、必ず同じノードに置かれる。ログ転送やプロキシを横に添えるサイドカーはこの性質を使う。</p>
+  </details>
+  <details class="myth"><summary>Secret に入れれば暗号化される</summary>
+    <p>Secret の値は base64 で書かれているだけで、誰でも元に戻せる。守っているのは RBAC（誰が読めるか）で、etcd に保存するときの暗号化はクラスタの設定で有効にする必要がある。外部のシークレット管理（クラウドの KMS・Vault など）と連携することも多い。</p>
+  </details>
+  <details class="myth"><summary>Ingress を書けば外からつながる</summary>
+    <p>Ingress は設定データでしかない。それを読んで実際にトラフィックを受けるコントローラがクラスタに入っていなければ、何も起きない。Gateway API も同じ。</p>
+  </details>
+  <details class="myth"><summary>kubectl で Pod を直したら、それで直る</summary>
+    <p>Deployment が管理している Pod を手で変えても、コントローラが「あるべき状態」に戻す（または作り直したときに消える）。直すのは Deployment の定義の方。定義を Git に置いて自動で適用する（GitOps）と、手で変えた差分が残らない。</p>
+  </details>
+
+  <h2 id="cmd">よく使うコマンド</h2>
+<pre>kubectl get pods -o wide                   <span class="cm"># どのノードで動いているか・Pod の IP</span>
+kubectl describe pod web-7d9f-abc          <span class="cm"># 下の Events に Pending・再起動の理由が出る</span>
+kubectl logs web-7d9f-abc --previous       <span class="cm"># 再起動する前のコンテナのログ</span>
+kubectl get endpointslices -l kubernetes.io/service-name=web   <span class="cm"># Service の行き先に入っている Pod</span>
+kubectl rollout status deploy/web          <span class="cm"># ローリングアップデートの進み具合</span>
+kubectl rollout undo deploy/web            <span class="cm"># 1 つ前の ReplicaSet に戻す</span>
+kubectl port-forward svc/web 8080:80       <span class="cm"># 手元から Service に直接つなぐ</span>
+kubectl diff -f web.yaml                   <span class="cm"># 適用したら何が変わるか（apply の前に）</span></pre>
+
+  <h2>関連するメモ</h2>
+  <div class="related">
+    <a href="docker.html">Docker 動作原理</a><a href="docker-images.html">Docker イメージの種類</a><a href="lb-proxy-cdn.html">LB・リバースプロキシ・CDN</a><a href="ci-cd.html">CI/CD</a><a href="observability.html">オブザーバビリティ</a><a href="distributed-basics.html">分散システムの基本</a><a href="opentofu.html">OpenTofu</a>
+  </div>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+/* ステップ再生: steps = [{ hl: ['id', ...], t: '説明' }]。hl に含まれない .node は薄くする */
+function stepPlayer(prefix, steps, onRender) {
+  const msg = document.getElementById(prefix + '-msg');
+  const prev = document.getElementById(prefix + '-prev');
+  const next = document.getElementById(prefix + '-next');
+  const nodes = document.querySelectorAll('#' + prefix + '-flow .node');
+  let i = 0;
+  function render() {
+    const s = steps[i];
+    nodes.forEach(n => {
+      const on = s.hl.includes(n.dataset.k);
+      n.classList.toggle('hl', on);
+      n.classList.toggle('dim', !on && s.dim !== false);
+    });
+    msg.innerHTML = '<span class="n">STEP ' + (i + 1) + ' / ' + steps.length + '</span>' + s.t;
+    prev.disabled = i === 0;
+    next.disabled = i === steps.length - 1;
+    if (onRender) onRender(s, i);
+  }
+  next.onclick = () => { i++; render(); };
+  prev.onclick = () => { i--; render(); };
+  document.getElementById(prefix + '-reset').onclick = () => { i = 0; render(); };
+  render();
+}
+
+(() => {
+  const p1 = document.getElementById('pods-1'), p2 = document.getElementById('pods-2');
+  const pod = (n, cls) => '<span class="pod ' + (cls || '') + '">' + n + '</span>';
+  const views = {
+    none: ['', ''],
+    pending: [pod('abc', 'pending') + pod('def', 'pending') + pod('ghi', 'pending'), ''],
+    bound: [pod('abc', 'pending') + pod('ghi', 'pending'), pod('def', 'pending')],
+    run: [pod('abc') + pod('ghi'), pod('def')],
+    dead: [pod('abc') + pod('ghi', 'dead'), pod('def')],
+    heal: [pod('abc'), pod('def') + pod('xyz', 'pending')],
+    healed: [pod('abc'), pod('def') + pod('xyz')]
+  };
+  const steps = [
+    { hl: ['kubectl', 'api'], v: 'none', t: '<code>kubectl apply -f web.yaml</code>。API サーバーが認証・認可（RBAC）・スキーマ検証をして、Deployment「web（レプリカ 3）」を受け付ける。' },
+    { hl: ['api', 'etcd'], v: 'none', t: 'API サーバーが Deployment を etcd に保存して終わり。<b>この時点ではまだ何も起動していない</b>。kubectl はここで戻ってくる。' },
+    { hl: ['cm', 'api'], v: 'none', t: 'controller-manager の中の Deployment コントローラが、新しい Deployment に気づき、対応する ReplicaSet を作る。' },
+    { hl: ['cm', 'api'], v: 'pending', t: 'ReplicaSet コントローラが「Pod が 0 個、あるべきは 3 個」という差を見つけ、Pod を 3 つ作る。どのノードに置くかはまだ空欄（Pending）。' },
+    { hl: ['sched', 'api'], v: 'bound', t: 'scheduler が置き場所の決まっていない Pod を見つけ、ノードごとの空き（requests の合計）や制約を見て割り当てる。決めた結果も API に書くだけ。' },
+    { hl: ['kubelet', 'cri'], v: 'run', t: '各ノードの kubelet が「自分のノードに割り当てられた Pod」を見つけ、containerd にイメージの取得とコンテナの起動を頼む。プローブを監視して状態を API に報告する。' },
+    { hl: ['proxy'], v: 'run', t: 'Pod が Ready になると EndpointSlice に IP が載り、各ノードの kube-proxy が Service の転送規則を更新する。これで <code>web</code> 宛ての通信が 3 つに分かれる。' },
+    { hl: ['kubelet'], v: 'dead', t: 'node-1 の Pod「ghi」が落ちた（ノードごと落ちた場合も同じ）。kubelet やノードの状態から、API 上の Pod の状態が変わる。' },
+    { hl: ['cm', 'sched'], v: 'heal', t: 'ReplicaSet コントローラが「あるべき 3、今 2」の差を見つけ、新しい Pod「xyz」を作る。誰かが「再起動しろ」と命令したわけではない。' },
+    { hl: ['kubelet', 'cri', 'proxy'], v: 'healed', t: 'scheduler が置き場所を決め、kubelet が起動し、Ready になれば Service の行き先に入る。差が無くなったので、ループは何もしなくなる。' }
+  ];
+  stepPlayer('k8', steps, s => { p1.innerHTML = views[s.v][0]; p2.innerHTML = views[s.v][1]; });
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Deployment が管理している Pod の 1 つを kubectl delete pod で消した。少し経つとどうなる？",
+    "choices": ["Pod が 1 つ減ったまま。replicas を変えない限り戻らない", "ReplicaSet コントローラが差に気づき、新しい名前の Pod を作り直す", "同じ名前・同じ IP の Pod が同じノードに復活する", "Deployment ごと削除される"],
+    "answer": 1,
+    "explain": "コントローラはあるべき状態（3 つ）と今の状態（2 つ）の差を埋め続ける。新しい Pod は名前も IP も別になる。",
+    "ref": "#arch"
+  },
+  {
+    "q": "livenessProbe の中で DB への接続も確かめるようにしたところ、DB の短い障害のたびに全 Pod が再起動を繰り返した。どう直すのがよい？",
+    "choices": ["periodSeconds を短くする", "livenessProbe を削除し、startupProbe だけにする", "liveness はプロセス自身が応答できるかだけを見て、外部依存の状態は readiness か、アプリ側のエラー処理で扱う", "DB の Pod にも同じ livenessProbe を付ける"],
+    "answer": 2,
+    "explain": "liveness の失敗は再起動につながる。外部の障害でアプリを再起動しても直らず、負荷が増えるだけ。",
+    "ref": "#probe"
+  },
+  {
+    "q": "Pod は入れ替わるたびに IP が変わる。別のアプリから安定して web の Pod 群に接続するには？",
+    "choices": ["Pod の IP を ConfigMap に書いておき、更新のたびに直す", "ラベルで Pod を選ぶ Service を作り、その DNS 名（web など）に接続する", "Pod に hostNetwork: true を付けてノードの IP を使う", "StatefulSet に変えれば IP が固定される"],
+    "answer": 1,
+    "explain": "Service は変わらない仮想 IP と DNS 名を持ち、ラベルに合う Ready な Pod の一覧を自動で追いかける。",
+    "ref": "#service"
+  },
+  {
+    "q": "コンテナのメモリ使用量が resources.limits.memory を超えた。何が起きる？",
+    "choices": ["処理が遅くなるだけで、動き続ける", "コンテナが強制終了（OOMKilled）され、再起動される", "自動で limits が引き上げられる", "requests の値まで使用量が押し戻される"],
+    "answer": 1,
+    "explain": "CPU は超えると絞られるだけだが、メモリは取り上げられないので強制終了される。",
+    "ref": "#probe"
+  },
+  {
+    "q": "Ingress の YAML を apply したのに、外部からまったくつながらない。Service と Pod は正常。まず疑うべきことは？",
+    "choices": ["クラスタに Ingress コントローラが入っていない", "Ingress は NodePort の Service しか扱えない", "Pod に containerPort 80 を指定していない", "etcd に Ingress が保存されていない"],
+    "answer": 0,
+    "explain": "Ingress は対応表のデータでしかなく、それを読んで実際に通信を受けるコントローラが別に必要。Gateway API も同じ。",
+    "ref": "#ingress"
+  }
+]
+</script>
+</body>
+</html>

@@ -22,6 +22,17 @@
   "quizzes": 5
  },
  {
+  "file": "kubernetes.html",
+  "title": "Kubernetes の全体像",
+  "desc": "Kubernetes が「あるべき状態」を宣言して保ち続ける仕組みを、コントロールプレーンとノードの部品、Pod・Deployment・Service・Ingress / Gateway の関係、ヘルスチェックとリソース指定まで図で整理する。",
+  "tags": [
+   "インフラ",
+   "Linux"
+  ],
+  "date": "2026-11-07",
+  "quizzes": 5
+ },
+ {
   "file": "graph-algorithms.html",
   "title": "グラフ探索と最短経路",
   "desc": "グラフの表し方、BFS と DFS の違い、依存関係を並べるトポロジカルソート、ダイクストラ法の動きを迷路や手順の図で解説し、問題ごとの使い分けをまとめる。",
