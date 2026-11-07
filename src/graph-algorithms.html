@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>グラフ探索と最短経路</title>
+<meta name="description" content="グラフの表し方、BFS と DFS の違い、依存関係を並べるトポロジカルソート、ダイクストラ法の動きを迷路や手順の図で解説し、問題ごとの使い分けをまとめる。">
+<meta name="memo:tags" content="CS基礎">
+<meta name="memo:date" content="2026-11-07">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-a: #c2410c;
+  --c-b: #15803d;
+  --c-c: #7c3aed;
+  --c-d: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-a: #fb923c;
+    --c-b: #4ade80;
+    --c-c: #c4b5fd;
+    --c-d: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 20px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.dots, ol.dots { margin: 6px 0 6px 1.3em; }
+ul.dots li, ol.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+.table-wrap { overflow-x: auto; }
+table.t { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 560px; }
+table.t th, table.t td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+table.t th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+table.t td:first-child { font-weight: 700; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.myth { margin-bottom: 10px; }
+.myth p { margin: 4px 0; }
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
+.series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
+.series span { background: var(--accent); color: var(--bg); font-weight: 700; }
+.o { font: 700 0.78rem 'JetBrains Mono', monospace; white-space: nowrap; }
+.btns { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+.btn { border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 8px; padding: 5px 12px; font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace; cursor: pointer; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.repr { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.repr .card { margin: 0; }
+.maze { display: grid; gap: 2px; margin: 8px auto; width: fit-content; }
+.maze div { width: 32px; height: 32px; border-radius: 4px; background: var(--chip); display: flex; align-items: center; justify-content: center; font: 600 0.66rem 'JetBrains Mono', monospace; color: var(--fg-2); transition: background .1s; }
+.maze div.wall { background: var(--fg-2); }
+.maze div.seen { background: color-mix(in srgb, var(--c-c) 22%, var(--surface)); color: var(--fg); }
+.maze div.path { background: color-mix(in srgb, var(--c-b) 40%, var(--surface)); color: var(--fg); font-weight: 700; }
+.maze div.se { background: var(--accent); color: var(--bg); font-weight: 700; }
+@media (max-width: 420px) { .maze div { width: 30px; height: 30px; } }
+.stat { font: 500 0.8rem 'JetBrains Mono', monospace; background: var(--chip); border-radius: 8px; padding: 8px 10px; min-height: 2.4em; }
+svg.g { width: 100%; max-width: 520px; height: auto; display: block; margin: 6px auto; }
+svg.g text { font: 700 12px 'JetBrains Mono', monospace; text-anchor: middle; dominant-baseline: central; fill: var(--fg); }
+svg.g text.w { font-size: 11px; fill: var(--fg-2); }
+.dist { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; font: 600 0.75rem 'JetBrains Mono', monospace; text-align: center; margin-top: 6px; }
+.dist div { background: var(--chip); border-radius: 6px; padding: 4px 2px; border: 1px solid transparent; }
+.dist div.done { border-color: var(--c-b); }
+.dist div.cur { border-color: var(--accent); }
+.dist small { display: block; color: var(--fg-2); font-size: 0.66rem; }
+.queue { font: 500 0.78rem 'JetBrains Mono', monospace; margin-top: 6px; }
+.queue b { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>グラフ探索と最短経路</h1>
+  <p class="subtitle">表し方 / BFS と DFS / トポロジカルソート / ダイクストラ法 / 問題ごとの使い分け</p>
+
+  <nav class="series" aria-label="アルゴリズムのシリーズ">
+    <a href="data-structures.html">データ構造と計算量</a>
+    <a href="algorithm-paradigms.html">設計手法の全体像</a>
+    <a href="dynamic-programming.html">動的計画法</a>
+    <span aria-current="page">グラフ探索と最短経路</span>
+  </nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>グラフ</b>は「点（頂点）と、点どうしをつなぐ線（辺）」。道路、ネットワーク、パッケージの依存、コミットの履歴、迷路のマス目もグラフとして扱える。</li>
+      <li>探索の基本は 2 つ。<b>BFS（幅優先）</b>は近い順に広がるので、辺の重みがなければ最短経路が求まる。<b>DFS（深さ優先）</b>は行けるところまで進んで戻り、つながり・ループの検出・依存の順番づけに使う。</li>
+      <li>辺に距離やコストがあるときの最短経路は<b>ダイクストラ法</b>（負の重みがない場合）。問題の形で使う方法が決まる（<a href="#choose">使い分けの表</a>）。</li>
+    </ul>
+  </div>
+
+  <h2 id="repr">グラフの表し方</h2>
+  <div class="repr">
+    <div class="card"><span class="label">ADJACENCY LIST</span><b> 隣接リスト</b><p class="muted">頂点ごとに「つながっている先」の一覧を持つ。メモリは <span class="o">O(V + E)</span>（V: 頂点数、E: 辺の数）。隣をたどるのが速いので、<b>探索ではまずこれ</b>。</p></div>
+    <div class="card"><span class="label">ADJACENCY MATRIX</span><b> 隣接行列</b><p class="muted">V × V の表で「i から j に辺があるか（重みはいくつか）」を持つ。辺の有無を <span class="o">O(1)</span> で調べられるが、メモリは <span class="o">O(V²)</span>。頂点が数百程度で辺が多いとき向け。</p></div>
+  </div>
+<pre><code><span class="cm"># 隣接リスト（有向・重みつき）: g[u] = [(行き先, 重み), ...]</span>
+g = [[] for _ in range(n)]
+for u, v, w in edges:
+    g[u].append((v, w))
+    <span class="cm"># 無向グラフなら逆向きも足す: g[v].append((u, w))</span></code></pre>
+  <p class="muted">辺に向きがあるものを<b>有向グラフ</b>、ないものを<b>無向グラフ</b>という。迷路のマス目のようにグラフを作らなくても、「隣のマス」をその場で計算して探索してよい。</p>
+
+  <h2 id="bfs-dfs">BFS と DFS — 迷路で比べる</h2>
+  <p>左上 S から右下 G まで。マスの数字は<b>訪れた順番</b>、緑は見つけた道。</p>
+  <div class="card">
+    <div class="btns" role="group" aria-label="探索の方法">
+      <button class="btn" id="m-bfs" aria-pressed="true">BFS（キュー）</button>
+      <button class="btn" id="m-dfs" aria-pressed="false">DFS（スタック）</button>
+      <button class="btn" id="m-play">▶ 動かす</button>
+    </div>
+    <div class="maze" id="maze"></div>
+    <div class="stat" id="m-stat"></div>
+  </div>
+  <div class="tabs" role="tablist" style="margin-top:12px">
+    <button class="tab" role="tab" aria-selected="true" data-panel="p-bfs">BFS のコード</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-dfs">DFS のコード</button>
+  </div>
+  <div class="panel" id="p-bfs">
+<pre><code>from collections import deque
+
+dist = [-1] * n            <span class="cm"># -1 = まだ訪れていない</span>
+dist[s] = 0
+q = deque([s])
+while q:
+    u = q.popleft()        <span class="cm"># 先に入れたものから取り出す（近い順）</span>
+    for v in g[u]:
+        if dist[v] == -1:
+            dist[v] = dist[u] + 1
+            q.append(v)
+<span class="cm"># dist[v] が s から v までの最少の辺の数。O(V + E)</span></code></pre>
+  </div>
+  <div class="panel" id="p-dfs" hidden>
+<pre><code>seen = [False] * n
+
+def dfs(u):
+    seen[u] = True
+    for v in g[u]:
+        if not seen[v]:
+            dfs(v)         <span class="cm"># 行けるところまで進み、行き止まりで戻る</span>
+
+dfs(s)
+<span class="cm"># seen[v] が True なら s から v に行ける。O(V + E)</span>
+<span class="cm"># 深いグラフでは再帰の上限に注意（自分でスタックを持つ書き方にする）</span></code></pre>
+  </div>
+  <ul class="dots">
+    <li>BFS は<b>キュー</b>（先入れ先出し）で、距離 1 のマスを全部 → 距離 2 を全部…の順に訪れる。最初に G に着いた道が、<b>辺の数が最少の道</b>。</li>
+    <li>DFS は<b>スタック</b>（後入れ先出し、または再帰）で、1 本の道を突き進む。G には着けるが、最短とは限らない。</li>
+    <li>どちらも「訪れたか」の記録が必須。ないとループのあるグラフで同じ所を回り続ける。</li>
+  </ul>
+
+  <h2 id="topo">トポロジカルソート — 依存の順に並べる</h2>
+  <p>矢印を「先に済ませる必要がある」と読むと、作業の順番を決める問題になる。ループのない有向グラフ (DAG) なら、どの矢印にも逆らわない並べ方がある。</p>
+  <div class="card">
+    <div class="btns">
+      <button class="btn" id="t-step">1 手進む</button>
+      <button class="btn" id="t-reset">最初から</button>
+      <button class="btn" id="t-cycle" aria-pressed="false">循環する依存を足す</button>
+    </div>
+    <svg class="g" id="topo-svg" viewBox="0 0 440 230" role="img" aria-label="ビルドの依存関係のグラフ"></svg>
+    <div class="queue" id="t-queue"></div>
+    <div class="stat" id="t-stat"></div>
+  </div>
+<pre><code><span class="cm"># Kahn のアルゴリズム: 入ってくる矢印が 0 本のものから取り出す</span>
+indeg = [0] * n
+for u in range(n):
+    for v in g[u]: indeg[v] += 1
+q = deque(u for u in range(n) if indeg[u] == 0)
+order = []
+while q:
+    u = q.popleft(); order.append(u)
+    for v in g[u]:
+        indeg[v] -= 1
+        if indeg[v] == 0: q.append(v)
+if len(order) &lt; n: print("循環する依存がある")</code></pre>
+  <ul class="dots">
+    <li>DFS で、戻るとき（その先を全部訪れ終えたとき）に頂点を記録し、最後に逆順にしても求まる。</li>
+    <li>実例: ビルドツールの実行順、パッケージのインストール順、表計算ソフトのセルの再計算順。<code>git log --topo-order</code> は、子コミットが親より先に出るようにコミットを並べる（<a href="git-internals.html">Git の内部構造</a>）。</li>
+    <li>並べ終わる前に取り出せるものがなくなったら、<b>循環する依存</b>がある。</li>
+  </ul>
+
+  <h2 id="dijkstra">ダイクストラ法 — 重みつきの最短経路</h2>
+  <p>辺に距離がある場合、BFS の「近い順」を「<b>今わかっている距離が最小の頂点から確定する</b>」に置き換える。確定した頂点から出る辺で、隣の距離を短くできれば更新する（緩和）。</p>
+  <div class="card">
+    <div class="btns">
+      <button class="btn" id="d-step">1 手進む</button>
+      <button class="btn" id="d-all">最後まで</button>
+      <button class="btn" id="d-reset">最初から</button>
+    </div>
+    <svg class="g" id="dij-svg" viewBox="0 0 430 220" role="img" aria-label="重みつきグラフ"></svg>
+    <div class="dist" id="d-dist"></div>
+    <div class="stat" id="d-stat" style="margin-top:8px"></div>
+  </div>
+<pre><code>import heapq
+INF = float("inf")
+dist = [INF] * n
+dist[s] = 0
+pq = [(0, s)]                        <span class="cm"># (距離, 頂点) のヒープ</span>
+while pq:
+    d, u = heapq.heappop(pq)         <span class="cm"># 距離が最小のものを取り出す</span>
+    if d &gt; dist[u]: continue         <span class="cm"># 古い情報は捨てる</span>
+    for v, w in g[u]:
+        if dist[u] + w &lt; dist[v]:    <span class="cm"># 緩和</span>
+            dist[v] = dist[u] + w
+            heapq.heappush(pq, (dist[v], v))
+<span class="cm"># O((V + E) log V)</span></code></pre>
+  <ul class="dots">
+    <li>最小を取り出すのに<b>ヒープ（優先度付きキュー）</b>を使う（<a href="data-structures.html#structures">データ構造</a>）。毎回の選択が「その場で最小」なので貪欲法の一種（<a href="algorithm-paradigms.html#greedy">設計手法</a>）。</li>
+    <li>前提は<b>負の重みがない</b>こと。負の辺があると「確定した距離」が後から縮むことがあり、答えが狂う。そのときはベルマン–フォード法。</li>
+    <li>ルーター同士が経路を決める OSPF は、各ルーターがネットワーク全体の地図を持ち、ダイクストラ法で最短経路を計算する（<a href="tcp-ip.html#routing">TCP/IP のルーティング</a>）。</li>
+  </ul>
+
+  <h2 id="choose">問題ごとの使い分け</h2>
+  <div class="table-wrap">
+  <table class="t">
+    <tr><th>やりたいこと</th><th>方法</th><th>計算量</th></tr>
+    <tr><td>辺の重みがない最短経路（迷路、乗り換え回数）</td><td>BFS</td><td><span class="o">O(V + E)</span></td></tr>
+    <tr><td>重みが 0 か 1 だけの最短経路</td><td>0-1 BFS（両端キューで、0 の辺は前、1 の辺は後ろに入れる）</td><td><span class="o">O(V + E)</span></td></tr>
+    <tr><td>重みが 0 以上の最短経路</td><td>ダイクストラ法</td><td><span class="o">O((V + E) log V)</span></td></tr>
+    <tr><td>負の重みがある最短経路・負閉路（重みの合計が負になる閉路）の検出</td><td>ベルマン–フォード法</td><td><span class="o">O(VE)</span></td></tr>
+    <tr><td>全部の頂点の組の最短距離（V が数百まで）</td><td>ワーシャル–フロイド法</td><td><span class="o">O(V³)</span></td></tr>
+    <tr><td>DAG 上の最短・最長経路</td><td>トポロジカル順に DP（<a href="dynamic-programming.html#dag">動的計画法</a>）</td><td><span class="o">O(V + E)</span></td></tr>
+    <tr><td>つながっているか・グループ分け</td><td>BFS / DFS、辺が後から増えるなら Union-Find</td><td><span class="o">O(V + E)</span></td></tr>
+    <tr><td>全部の頂点を最小コストでつなぐ</td><td>最小全域木（クラスカル法・プリム法）</td><td><span class="o">O(E log E)</span></td></tr>
+  </table>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✗</span> DFS でも最短経路が求まる</p><p><span class="ok">✓</span> DFS は最初に見つけた道を返すだけで、遠回りのことがある。重みなしの最短経路は BFS。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> ダイクストラ法は負の重みがあっても使える</p><p><span class="ok">✓</span> 「一度確定した距離はもう縮まない」ことに頼っているので、負の辺があると誤った答えになりうる。ベルマン–フォード法を使う。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> 木と同じように、訪れた記録なしで探索してよい</p><p><span class="ok">✓</span> 木にはループがないが、一般のグラフにはある。記録なしだと同じ頂点を何度も訪れ、終わらないか指数的に遅くなる。</p></div>
+
+  <p class="related">関連: <a href="algorithm-paradigms.html">設計手法の全体像</a><a href="dynamic-programming.html">動的計画法</a><a href="data-structures.html">データ構造と計算量</a><a href="tcp-ip.html">TCP/IP</a><a href="git-internals.html">Git の内部構造</a></p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+const NS = 'http://www.w3.org/2000/svg';
+const mk = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+
+// 迷路: BFS と DFS
+(() => {
+  const M = ['S..#.....', '.#.#.###.', '.#...#...', '.####.#.#', '......#..', '#.###.##.', '...#....G'];
+  const H = M.length, W = M[0].length;
+  const box = document.getElementById('maze');
+  box.style.gridTemplateColumns = 'repeat(' + W + ', auto)';
+  const cells = [];
+  for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) { const d = document.createElement('div'); box.appendChild(d); cells.push(d); }
+  const id = (r, c) => r * W + c;
+  const S = id(0, 0), G = id(H - 1, W - 1);
+  const DIRS = [[0, 1], [1, 0], [0, -1], [-1, 0]]; // 右・下・左・上
+  const nbrs = u => { const r = Math.floor(u / W), c = u % W, out = []; for (const [dr, dc] of DIRS) { const nr = r + dr, nc = c + dc; if (nr >= 0 && nr < H && nc >= 0 && nc < W && M[nr][nc] !== '#') out.push(id(nr, nc)); } return out; };
+  const run = mode => {
+    const order = [], par = new Map();
+    if (mode === 'bfs') {
+      const q = [S]; par.set(S, -1);
+      while (q.length) { const u = q.shift(); order.push(u); if (u === G) break; for (const v of nbrs(u)) if (!par.has(v)) { par.set(v, u); q.push(v); } }
+    } else {
+      const st = [[S, -1]], seen = new Set();
+      while (st.length) {
+        const [u, p] = st.pop();
+        if (seen.has(u)) continue;
+        seen.add(u); par.set(u, p); order.push(u);
+        if (u === G) break;
+        nbrs(u).reverse().forEach(v => { if (!seen.has(v)) st.push([v, u]); }); // 右から先に進むよう逆順に積む
+      }
+    }
+    const path = []; if (par.has(G)) { let u = G; while (u !== -1) { path.push(u); u = par.get(u); } }
+    return { order, path };
+  };
+  let mode = 'bfs', timer = null;
+  const paint = (k, res) => {
+    cells.forEach((d, i) => {
+      const r = Math.floor(i / W), c = i % W;
+      d.className = M[r][c] === '#' ? 'wall' : '';
+      d.textContent = i === S ? 'S' : i === G ? 'G' : '';
+    });
+    res.order.slice(0, k).forEach((u, n) => { if (u !== S && u !== G) { cells[u].className = 'seen'; cells[u].textContent = n; } });
+    const done = k >= res.order.length;
+    if (done) res.path.forEach(u => { if (u !== S && u !== G) cells[u].className = 'path'; });
+    cells[S].className = 'se'; cells[G].className = 'se';
+    document.getElementById('m-stat').textContent = done
+      ? (mode === 'bfs' ? 'BFS: ' : 'DFS: ') + res.order.length + ' マス訪れて G に到着。見つけた道は ' + (res.path.length - 1) + ' 歩' + (mode === 'bfs' ? '（これが最短）。' : '（最短は 14 歩。DFS は最初に見つけた道を返す）。')
+      : '訪れたマス: ' + k;
+  };
+  const show = (animate) => {
+    clearInterval(timer);
+    const res = run(mode);
+    if (!animate) { paint(res.order.length, res); return; }
+    let k = 0;
+    timer = setInterval(() => { k++; paint(k, res); if (k >= res.order.length) clearInterval(timer); }, 70);
+  };
+  const setMode = m => { mode = m; document.getElementById('m-bfs').setAttribute('aria-pressed', String(m === 'bfs')); document.getElementById('m-dfs').setAttribute('aria-pressed', String(m === 'dfs')); show(true); };
+  document.getElementById('m-bfs').onclick = () => setMode('bfs');
+  document.getElementById('m-dfs').onclick = () => setMode('dfs');
+  document.getElementById('m-play').onclick = () => show(true);
+  show(false);
+})();
+
+// トポロジカルソート（Kahn）
+(() => {
+  const svg = document.getElementById('topo-svg');
+  const N = [
+    { k: 'types', x: 45, y: 105 }, { k: 'utils', x: 140, y: 105 }, { k: 'api', x: 235, y: 45 },
+    { k: 'ui', x: 235, y: 165 }, { k: 'app', x: 320, y: 105 }, { k: 'e2e', x: 400, y: 105 }
+  ];
+  const BASE = [[0, 1], [0, 2], [1, 2], [1, 3], [2, 4], [3, 4], [4, 5]];
+  const CYCLE = [5, 1];
+  const BW = 58, BH = 28;
+  let cycle = false, st;
+  const edges = () => cycle ? BASE.concat([CYCLE]) : BASE;
+  const reset = () => {
+    const indeg = N.map(() => 0);
+    edges().forEach(([, v]) => indeg[v]++);
+    st = { indeg, q: N.map((_, i) => i).filter(i => indeg[i] === 0), order: [], removed: new Set(), last: -1, done: false };
+  };
+  const clip = (a, b) => { // a の中心から b へ向かう線を、両端の箱の縁で切る
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const s = Math.min((BW / 2) / Math.abs(dx || 1e-9), (BH / 2) / Math.abs(dy || 1e-9));
+    return [a.x + dx * s, a.y + dy * s, b.x - dx * s, b.y - dy * s - 0];
+  };
+  const draw = () => {
+    svg.innerHTML = '';
+    const defs = mk('defs', {}, svg);
+    const m = mk('marker', { id: 'ah', viewBox: '0 0 10 10', refX: '9', refY: '5', markerWidth: '7', markerHeight: '7', orient: 'auto-start-reverse' }, defs);
+    mk('path', { d: 'M0,0 L10,5 L0,10 z', fill: 'var(--fg-2)' }, m);
+    const mr = mk('marker', { id: 'ahr', viewBox: '0 0 10 10', refX: '9', refY: '5', markerWidth: '7', markerHeight: '7', orient: 'auto-start-reverse' }, defs);
+    mk('path', { d: 'M0,0 L10,5 L0,10 z', fill: 'var(--c-ng)' }, mr);
+    edges().forEach(([u, v]) => {
+      const a = N[u], b = N[v];
+      const gone = st.removed.has(u);
+      const isCycle = u === CYCLE[0] && v === CYCLE[1];
+      let el;
+      if (isCycle) {
+        el = mk('path', { d: 'M' + a.x + ',' + (a.y + BH / 2) + ' Q' + 270 + ',' + 240 + ' ' + b.x + ',' + (b.y + BH / 2 + 1), fill: 'none' }, svg);
+      } else if (u === 0 && v === 2) {
+        el = mk('path', { d: 'M' + (a.x + 10) + ',' + (a.y - BH / 2) + ' Q' + 120 + ',' + 30 + ' ' + (b.x - BW / 2) + ',' + b.y, fill: 'none' }, svg);
+      } else {
+        const [x1, y1, x2, y2] = clip(a, b);
+        el = mk('line', { x1, y1, x2, y2 }, svg);
+      }
+      el.setAttribute('stroke', isCycle ? 'var(--c-ng)' : 'var(--fg-2)');
+      el.setAttribute('stroke-width', '1.5');
+      el.setAttribute('marker-end', isCycle ? 'url(#ahr)' : 'url(#ah)');
+      if (gone) el.setAttribute('opacity', '0.15');
+    });
+    N.forEach((n, i) => {
+      const done = st.removed.has(i), inq = st.q.includes(i);
+      const col = i === st.last ? 'var(--accent)' : done ? 'var(--c-b)' : inq ? 'var(--c-d)' : 'var(--line)';
+      mk('rect', { x: n.x - BW / 2, y: n.y - BH / 2, width: BW, height: BH, rx: 6, fill: done ? 'color-mix(in srgb, var(--c-b) 22%, var(--surface))' : 'var(--surface)', stroke: col, 'stroke-width': i === st.last ? 2.5 : 1.5 }, svg);
+      const t = mk('text', { x: n.x, y: n.y }, svg); t.textContent = n.k;
+      const d = mk('text', { x: n.x + BW / 2 - 2, y: n.y - BH / 2 - 7, class: 'w' }, svg); d.textContent = done ? '' : '入' + st.indeg[i];
+    });
+    document.getElementById('t-queue').innerHTML = '取り出せる（入ってくる矢印 0 本）: <b>' + (st.q.map(i => N[i].k).join(', ') || 'なし') + '</b>';
+    let msg = '並び: ' + (st.order.map(i => N[i].k).join(' → ') || '（まだなし）');
+    if (st.done) msg += st.order.length === N.length ? '　✓ 完成。どの矢印にも逆らわない順番。' : '　✗ ' + N.filter((_, i) => !st.removed.has(i)).map(n => n.k).join(', ') + ' が残った → 循環する依存がある。';
+    document.getElementById('t-stat').textContent = msg;
+  };
+  document.getElementById('t-step').onclick = () => {
+    if (st.done) return;
+    if (!st.q.length) { st.done = true; draw(); return; }
+    const u = st.q.shift();
+    st.order.push(u); st.removed.add(u); st.last = u;
+    edges().forEach(([a, v]) => { if (a === u) { st.indeg[v]--; if (st.indeg[v] === 0) st.q.push(v); } });
+    if (!st.q.length) st.done = true;
+    draw();
+  };
+  document.getElementById('t-reset').onclick = () => { reset(); draw(); };
+  document.getElementById('t-cycle').onclick = e => { cycle = !cycle; e.currentTarget.setAttribute('aria-pressed', String(cycle)); reset(); draw(); };
+  reset(); draw();
+})();
+
+// ダイクストラ法
+(() => {
+  const svg = document.getElementById('dij-svg');
+  const N = [{ k: 'A', x: 40, y: 110 }, { k: 'B', x: 150, y: 40 }, { k: 'C', x: 150, y: 180 }, { k: 'D', x: 280, y: 40 }, { k: 'E', x: 280, y: 180 }, { k: 'F', x: 390, y: 110 }];
+  const E = [[0, 1, 4], [0, 2, 2], [1, 2, 1], [1, 3, 5], [2, 3, 8], [2, 4, 10], [3, 4, 2], [3, 5, 6], [4, 5, 3]];
+  const adj = N.map(() => []);
+  E.forEach(([u, v, w], i) => { adj[u].push([v, w, i]); adj[v].push([u, w, i]); });
+  let st;
+  const reset = () => { st = { dist: N.map((_, i) => i === 0 ? 0 : Infinity), prev: N.map(() => -1), done: new Set(), cur: -1, hot: new Set(), msg: 'A からの距離を求める。最初は A だけ 0、ほかは ∞。' }; };
+  const step = () => {
+    let u = -1;
+    N.forEach((_, i) => { if (!st.done.has(i) && st.dist[i] < Infinity && (u === -1 || st.dist[i] < st.dist[u])) u = i; });
+    if (u === -1) { st.cur = -1; st.hot = new Set(); st.msg = 'すべて確定。緑の辺が A からの最短経路の木。'; return false; }
+    st.done.add(u); st.cur = u; st.hot = new Set();
+    const ups = [];
+    adj[u].forEach(([v, w, ei]) => {
+      if (st.done.has(v)) return;
+      st.hot.add(ei);
+      const nd = st.dist[u] + w;
+      if (nd < st.dist[v]) { ups.push(N[v].k + ': ' + (st.dist[v] === Infinity ? '∞' : st.dist[v]) + '→' + nd); st.dist[v] = nd; st.prev[v] = u; }
+    });
+    st.msg = '未確定でいちばん近い ' + N[u].k + '（距離 ' + st.dist[u] + '）を確定。隣を更新: ' + (ups.join('、') || 'なし（短くならない）');
+    if (st.done.size === N.length) st.msg += '。すべて確定。';
+    return true;
+  };
+  const draw = () => {
+    svg.innerHTML = '';
+    const tree = new Set();
+    if (st.done.size === N.length) st.prev.forEach((p, v) => { if (p >= 0) tree.add(E.findIndex(([a, b]) => (a === p && b === v) || (a === v && b === p))); });
+    E.forEach(([u, v, w], i) => {
+      const a = N[u], b = N[v];
+      const col = tree.has(i) ? 'var(--c-b)' : st.hot.has(i) ? 'var(--accent)' : 'var(--line)';
+      mk('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke: col, 'stroke-width': tree.has(i) || st.hot.has(i) ? 3 : 1.5 }, svg);
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      mk('rect', { x: mx - 9, y: my - 9, width: 18, height: 18, rx: 4, fill: 'var(--surface)' }, svg);
+      const t = mk('text', { x: mx, y: my, class: 'w' }, svg); t.textContent = w;
+    });
+    N.forEach((n, i) => {
+      const done = st.done.has(i);
+      mk('circle', { cx: n.x, cy: n.y, r: 17, fill: done ? 'color-mix(in srgb, var(--c-b) 25%, var(--surface))' : 'var(--chip)', stroke: i === st.cur ? 'var(--accent)' : done ? 'var(--c-b)' : 'var(--line)', 'stroke-width': i === st.cur ? 3 : 1.5 }, svg);
+      const t = mk('text', { x: n.x, y: n.y }, svg); t.textContent = n.k;
+    });
+    const box = document.getElementById('d-dist');
+    box.innerHTML = '';
+    N.forEach((n, i) => {
+      const d = document.createElement('div');
+      d.className = i === st.cur ? 'cur' : st.done.has(i) ? 'done' : '';
+      d.innerHTML = '<small>' + n.k + '</small>' + (st.dist[i] === Infinity ? '∞' : st.dist[i]);
+      box.appendChild(d);
+    });
+    document.getElementById('d-stat').textContent = st.msg;
+  };
+  document.getElementById('d-step').onclick = () => { step(); draw(); };
+  document.getElementById('d-all').onclick = () => { while (step()) {} draw(); };
+  document.getElementById('d-reset').onclick = () => { reset(); draw(); };
+  reset(); draw();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "迷路（マス目、移動コストはどこも同じ）で、スタートからゴールまでの最少の歩数を求めたい。どれを使う？",
+    "choices": ["DFS で最初に見つけた道の長さ", "BFS で、距離の近いマスから順に広げる", "ダイクストラ法でなければ求まらない"],
+    "answer": 1,
+    "explain": "重みがないなら、BFS は距離 1・2・3…の順に訪れるので、最初にゴールに着いた時点の距離が最短。DFS は遠回りの道を返すことがある。ダイクストラ法でも求まるが、BFS で十分で速い。",
+    "ref": "#bfs-dfs"
+  },
+  {
+    "q": "パッケージの依存関係から、インストールする順番を決めたい。途中で取り出せるパッケージがなくなり、いくつか残った。何が起きている？",
+    "choices": ["依存関係に循環がある", "パッケージの数が多すぎる", "BFS ではなく DFS で並べる必要がある"],
+    "answer": 0,
+    "explain": "トポロジカルソートは、入ってくる矢印が 0 本のものから取り出す。循環していると、その中のどれも 0 本にならず残る。",
+    "ref": "#topo"
+  },
+  {
+    "q": "辺の重みに負の値（例: ポイントがもらえる区間）が含まれるグラフで最短経路を求めたい。どうする？",
+    "choices": ["ダイクストラ法をそのまま使う", "重みをすべて絶対値にしてからダイクストラ法を使う", "ベルマン–フォード法を使う"],
+    "answer": 2,
+    "explain": "ダイクストラ法は「確定した距離は後から縮まない」ことを前提にしており、負の辺があると壊れる。絶対値にすると別の問題になる。ベルマン–フォード法なら負の辺を扱え、負閉路も検出できる。",
+    "ref": "#dijkstra"
+  },
+  {
+    "q": "ダイクストラ法で「次に確定する頂点」を毎回すべての頂点から探す代わりに、何を使うと速くなる？",
+    "choices": ["ハッシュ表", "ヒープ（優先度付きキュー）", "スタック"],
+    "answer": 1,
+    "explain": "必要なのは「距離が最小のもの」を何度も取り出すこと。ヒープなら取り出しと追加が O(log n) で、全体は O((V + E) log V) になる。",
+    "ref": "#dijkstra"
+  },
+  {
+    "q": "頂点が 10 万、辺が 20 万の道路網を、メモリに載せて探索したい。グラフの持ち方は？",
+    "choices": ["隣接リスト", "隣接行列", "どちらでも同じ"],
+    "answer": 0,
+    "explain": "隣接行列は V² = 100 億マスで載らない。隣接リストなら O(V + E) で済み、隣をたどるのも速い。",
+    "ref": "#repr"
+  }
+]
+</script>
+</body>
+</html>
