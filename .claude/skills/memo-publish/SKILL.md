@@ -52,7 +52,7 @@ python3 scripts/memo.py lint NAME --fix --backlink
 - `* {` が `- {` / `\*` に化けたもの（Markdown 経由のコピペで起きる）
 - `<!DOCTYPE html>` / charset / viewport の欠落
 - ページ下部フッターに「← 一覧に戻る」リンクを追加（`--backlink`）
-- ファビコン・iOS アイコン・OGP の `<head>` タグ（`<!-- memo:head -->` ブロック）を追加／更新。og:title / og:description は title / description から自動で作られる
+- 原本に紛れ込んだ自動生成ブロック（`<!-- memo:head -->`・`<!-- memo:quiz -->`）を取り除く。ファビコン・iOS アイコン・OGP の `<head>` タグは build が `dist/` のページにだけ入れる（og:title / og:description は title / description から作られる）
 
 報告だけのもの（`[要対応]`）:
 - JS 内の全角クォート疑い → `memo.py path NAME` のファイルを読み、文字列の区切りに使われていれば半角に直す。日本語の文中の使用ならそのまま。
@@ -79,7 +79,7 @@ python3 scripts/memo.py meta NAME \
   - タグは「領域」で付ける（`Linux`・`ネットワーク`・`インフラ`・`データベース`・`フロントエンド`・`セキュリティ` など）。理論寄りの内容でも、領域がはっきりしていればその領域のタグにする（例: TCP/IP は `ネットワーク`、プロセスやパーミッションは `Linux`）。
   - `CS基礎` は、どの領域にも属さない横断的な概念を主題にしたメモにだけ付ける。数値・文字の表現（浮動小数点・文字コード）、メモリ管理、並行処理、データ構造・計算量、OS のスケジューリングなど。
 - **date**: `--date` を値なしで渡すと今日（`memo.config.json` のタイムゾーン。実行環境の時計が UTC でもずれない）。登録後は `memo.py list` で日付を確認する。
-- `meta` を実行すると OGP タグも自動で更新される。`<!-- memo:head -->` 〜 `<!-- /memo:head -->` は手で編集しない。
+- OGP タグ（og:title / og:description）は、build が title / description から `dist/` のページに作る。`meta` は原本の title / description / タグ / 日付を書くだけで、`<!-- memo:head -->` ブロックは原本に書かない。
 
 ## 5.5 確認クイズを付ける
 
