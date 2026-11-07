@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ロードバランサ・リバースプロキシ・CDN</title>
+<meta name="description" content="リクエストがユーザーからアプリに届くまでに通る CDN・ロードバランサ・リバースプロキシが、それぞれ何を担当し、どこで重なるのかを図とシミュレーションで整理する。">
+<meta name="memo:tags" content="ネットワーク, インフラ">
+<meta name="memo:date" content="2026-11-07">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+p { margin: 8px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+:root { --c-ok: #1f8a50; --c-warn: #b45309; --c-ng: #c0392b; --c-sub: #7c3aed; }
+@media (prefers-color-scheme: dark) {
+  :root { --c-ok: #4ade80; --c-warn: #fbbf24; --c-ng: #f87171; --c-sub: #c4b5fd; }
+}
+a { color: var(--accent); }
+h3 { font-size: 0.98rem; margin: 22px 0 8px; }
+ul.dots { margin: 8px 0 8px 1.3em; }
+ul.dots li { margin: 3px 0; }
+pre .cm { color: var(--fg-2); }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.table-wrap { overflow-x: auto; margin: 10px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--surface); }
+th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 700; white-space: nowrap; }
+.btn {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 6px 12px;
+  font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer;
+}
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn.on { border-color: var(--accent); color: var(--accent); }
+.ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
+.stepmsg {
+  border-left: 3px solid var(--accent); background: var(--surface);
+  border-radius: 0 8px 8px 0; padding: 10px 14px; min-height: 4.6em; font-size: 0.9rem;
+}
+.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); display: block; }
+.anat { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.anat .card { padding: 10px 14px; }
+.anat b { font-size: 0.85rem; color: var(--accent); }
+.anat p { font-size: 0.8rem; margin: 2px 0 0; color: var(--fg-2); }
+.panel { margin-top: 0; }
+.panel h4 { font-size: 0.9rem; margin: 10px 0 4px; }
+.panel ul { margin: 4px 0 4px 1.2em; font-size: 0.86rem; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tag-ok { color: var(--c-ok); font-weight: 700; }
+.tag-ng { color: var(--c-ng); font-weight: 700; }
+.tag-warn { color: var(--c-warn); font-weight: 700; }
+details.myth { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
+details.myth summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
+details.myth summary::before { content: '✗ '; color: var(--c-ng); }
+details.myth p { font-size: 0.86rem; }
+.related { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.related a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font-size: 0.75rem; font-weight: 600; }
+.related a:hover { color: var(--accent); }
+/* ステップ図 */
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; }
+.node {
+  flex: 1 1 110px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; font-size: 0.75rem; transition: border-color .2s, opacity .2s, transform .2s;
+}
+.node b { display: block; font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; }
+.node span { color: var(--fg-2); }
+.node.hl { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.node.dim { opacity: .45; }
+.arrow { align-self: center; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+@media (max-width: 640px) {
+  .row2 { grid-template-columns: 1fr; }
+  .flow { flex-direction: column; }
+  .arrow { transform: rotate(90deg); }
+}
+
+/* 振り分けシミュレーション */
+.sim { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.srv { background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 0.78rem; }
+.srv b { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; }
+.srv.slow b::after { content: ' 遅い'; font: 600 0.68rem 'Noto Sans JP', sans-serif; color: var(--c-warn); }
+.srv.down { border-style: dashed; opacity: .55; }
+.srv.down b::after { content: ' 停止'; font: 600 0.68rem 'Noto Sans JP', sans-serif; color: var(--c-ng); }
+.bar { height: 8px; background: var(--chip); border-radius: 4px; margin: 6px 0 2px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.srv .stat { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); font-size: 0.72rem; }
+.srv.flash { border-color: var(--accent); }
+.simlog { font: 500 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); min-height: 1.6em; margin-top: 6px; }
+/* 層の地図 */
+.layers { display: grid; grid-template-columns: 7.5em 1fr; gap: 0; font-size: 0.82rem; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.layers > div { padding: 7px 10px; border-bottom: 1px solid var(--line); }
+.layers > div:nth-last-child(-n+2) { border-bottom: 0; }
+.layers .k { background: var(--chip); font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; }
+@media (max-width: 640px) { .sim { grid-template-columns: 1fr; } }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="ロードバランサ・リバースプロキシ・CDN">
+<meta property="og:description" content="リクエストがユーザーからアプリに届くまでに通る CDN・ロードバランサ・リバースプロキシが、それぞれ何を担当し、どこで重なるのかを図とシミュレーションで整理する。">
+<meta property="og:url" content="https://memo.taka1156.site/lb-proxy-cdn.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>LB・リバースプロキシ・CDN</h1>
+  <p class="subtitle">リクエストの通り道 / L4 と L7 / 振り分け方とヘルスチェック / TLS 終端と送信元 IP / CDN の役目</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>3 つとも「クライアントとアプリのあいだに立ち、代わりに受けて後ろへ渡す」中継役。違いは<b>何のために立っているか</b>: 分散（LB）、入口の集約と加工（リバースプロキシ）、ユーザーの近くでの応答（CDN）。</li>
+      <li>実物は 1 つのソフトが複数を兼ねる。nginx はリバースプロキシ兼 L7 LB、Cloudflare は CDN 兼リバースプロキシ兼 WAF。「名前」より「どの役割をどこでやっているか」で考える。</li>
+      <li>中継が挟まると、アプリから見た接続相手はプロキシになる。<b>TLS をどこで解くか</b>と<b>本当の送信元 IP をどう伝えるか</b>を決めておかないと、ログ・レート制限・認可が狂う。</li>
+    </ul>
+  </div>
+
+  <h2 id="path">リクエストの通り道</h2>
+  <p>よくある構成で、<code>https://shop.example.com/api/cart</code> へのリクエストが届くまでを追う。各段は省略されることもあるし、1 つの製品がまとめて担当することもある。</p>
+  <div class="flow" id="rq-flow">
+    <div class="node" data-k="client"><b>ブラウザ</b><span>名前解決して接続</span></div>
+    <div class="arrow">→</div>
+    <div class="node" data-k="dns"><b>DNS</b><span>近いエッジの IP を返す</span></div>
+    <div class="arrow">→</div>
+    <div class="node" data-k="cdn"><b>CDN エッジ</b><span>TLS・キャッシュ・WAF</span></div>
+    <div class="arrow">→</div>
+    <div class="node" data-k="l4"><b>L4 LB</b><span>TCP を各台へ</span></div>
+    <div class="arrow">→</div>
+    <div class="node" data-k="l7"><b>リバースプロキシ</b><span>パスで振り分け</span></div>
+    <div class="arrow">→</div>
+    <div class="node" data-k="app"><b>アプリ</b><span>複数台</span></div>
+  </div>
+  <div class="ctrl">
+    <button class="btn" id="rq-prev">← 前へ</button>
+    <button class="btn primary" id="rq-next">次へ →</button>
+    <button class="btn" id="rq-reset">最初から</button>
+  </div>
+  <div class="stepmsg" id="rq-msg"></div>
+
+  <h2 id="roles">3 つの役割</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="r-lb">ロードバランサ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="r-rp">リバースプロキシ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="r-cdn">CDN</button>
+  </div>
+  <div class="panel card" id="r-lb">
+    <p><b>目的: 複数台に負荷を分け、壊れた台を外す。</b>1 台のサーバーでは足りない・止められないときに置く。</p>
+    <ul>
+      <li>振り分けアルゴリズムで次の 1 台を選ぶ（<a href="#algo">下で試せる</a>）</li>
+      <li>ヘルスチェックで死んだ台を外し、戻ったら入れる</li>
+      <li>入れ替え時は新規の接続だけ止めて、処理中の接続は終わるまで待つ（ドレイニング）</li>
+    </ul>
+    <p class="muted">例: AWS の ALB（L7）・NLB（L4）、Google Cloud Load Balancing、HAProxy、nginx の <code>upstream</code>、Envoy、Kubernetes の Service（L4 相当）</p>
+  </div>
+  <div class="panel card" id="r-rp" hidden>
+    <p><b>目的: 外からの入口を 1 つにまとめ、後ろの構成を隠して加工する。</b>台数が 1 台でも置く価値がある点が LB との違い。</p>
+    <ul>
+      <li>パスやホスト名で別のサービスへ（<code>/api</code> → API サーバー、<code>/</code> → フロント）</li>
+      <li>TLS 終端・HTTP/2・HTTP/3 の受け口、圧縮、ヘッダーの付け替え</li>
+      <li>静的ファイルの配信、遅いクライアントの吸収（バッファリング）、認証の前段、レート制限</li>
+    </ul>
+    <p class="muted">「フォワードプロキシ」は逆向き: クライアント側に立って外へ出るリクエストを代理する（社内プロキシなど）。リバースプロキシはサーバー側に立つ。</p>
+  </div>
+  <div class="panel card" id="r-cdn" hidden>
+    <p><b>目的: ユーザーの近く（エッジ）で応答し、遠いオリジンまで行かせない。</b>世界中の拠点に置かれた、巨大な分散リバースプロキシと考えるとよい。</p>
+    <ul>
+      <li>キャッシュできる応答はエッジで返す（ルールは <a href="http-cache.html">HTTP キャッシュ</a>の <code>Cache-Control</code>）</li>
+      <li>キャッシュしない応答も、TLS をユーザーの近くで張り、オリジンまでは混んでいない経路・張りっぱなしの接続で運ぶので速くなる</li>
+      <li>DDoS の吸収・WAF・ボット対策・画像変換など、入口でやると得な処理が集まっている</li>
+    </ul>
+    <p class="muted">例: Cloudflare、Amazon CloudFront、Fastly、Akamai。Cloudflare の範囲は <a href="cloudflare-services.html">Cloudflare サービス</a>。</p>
+  </div>
+
+  <h3>同じソフトが兼ねる範囲</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>製品・ソフト</th><th>LB</th><th>リバースプロキシ</th><th>CDN</th><th>主な置き場所</th></tr>
+      <tr><td>nginx / Caddy</td><td class="tag-ok">○</td><td class="tag-ok">○</td><td>—</td><td>自前のサーバー・コンテナの前</td></tr>
+      <tr><td>HAProxy / Envoy</td><td class="tag-ok">○</td><td class="tag-ok">○</td><td>—</td><td>同上。Envoy はサービスメッシュの部品にも</td></tr>
+      <tr><td>AWS NLB</td><td class="tag-ok">○（L4）</td><td>—</td><td>—</td><td>VPC の入口</td></tr>
+      <tr><td>AWS ALB</td><td class="tag-ok">○（L7）</td><td class="tag-ok">○</td><td>—</td><td>VPC の入口</td></tr>
+      <tr><td>Cloudflare / CloudFront / Fastly</td><td class="tag-warn">一部</td><td class="tag-ok">○</td><td class="tag-ok">○</td><td>インターネット側のエッジ</td></tr>
+    </table>
+  </div>
+
+  <h2 id="l4l7">L4 と L7: どこまで中身を見るか</h2>
+  <div class="row2">
+    <div class="card">
+      <h4 class="mono">L4（TCP / UDP）</h4>
+      <ul class="dots">
+        <li>見えるのは IP アドレスとポートだけ。HTTP の中身は読まない</li>
+        <li>接続（コネクション）単位で 1 台に渡す。1 本の接続上のリクエストはずっと同じ台へ</li>
+        <li>速く、HTTP 以外（DB・MQTT・ゲームの UDP）にも使える</li>
+        <li>TLS は解かずにそのまま通すこともできる（パススルー）</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="mono">L7（HTTP）</h4>
+      <ul class="dots">
+        <li>TLS を解いて、パス・ホスト・ヘッダー・Cookie を読む</li>
+        <li>リクエスト単位で振り分けられる。HTTP/2 の 1 本の接続上の各リクエストを別々の台へ</li>
+        <li>パスで振り分け・ヘッダー追加・リダイレクト・リトライができる</li>
+        <li>処理は重くなり、証明書をここに置く必要がある</li>
+      </ul>
+    </div>
+  </div>
+  <p class="muted">HTTP/2 や gRPC の長い接続を L4 で分けると、接続を張った時点の 1 台に全リクエストが寄り続けて偏る。gRPC を複数台に均等に分けたいなら L7 で分ける（<a href="api-styles.html">API スタイル</a>）。</p>
+
+  <h2 id="algo">振り分け方とヘルスチェック</h2>
+  <p>3 台のうち <b>B だけ処理が遅い</b>（1 件に 3 倍かかる）状況で、リクエストを流してみる。棒は「今処理中の件数」。</p>
+  <div class="ctrl" id="algo-btns">
+    <button class="btn on" data-a="rr">ラウンドロビン</button>
+    <button class="btn" data-a="lc">最小接続数</button>
+    <button class="btn" data-a="hash">IP ハッシュ</button>
+  </div>
+  <div class="sim" id="sim"></div>
+  <div class="ctrl">
+    <button class="btn primary" id="sim-send">リクエストを 12 件流す</button>
+    <button class="btn" id="sim-down">B を停止 / 復帰</button>
+    <button class="btn" id="sim-reset">リセット</button>
+  </div>
+  <div class="simlog" id="sim-log"></div>
+  <div class="table-wrap">
+    <table>
+      <tr><th>方式</th><th>しくみ</th><th>向いている場面</th></tr>
+      <tr><td>ラウンドロビン</td><td>順番に 1 台ずつ。重み付きなら性能比で回数を変える</td><td>台の性能も 1 件の重さもそろっているとき</td></tr>
+      <tr><td>最小接続数</td><td>処理中の接続が一番少ない台へ</td><td>重さがばらつく・遅い台が混じるとき。長い接続（WebSocket）</td></tr>
+      <tr><td>ハッシュ（IP・キー）</td><td>送信元 IP やキーのハッシュで台を固定</td><td>同じユーザーを同じ台へ寄せたい（キャッシュの当たりを上げる）。台が増減してもずれを小さくするにはコンシステントハッシュ</td></tr>
+    </table>
+  </div>
+  <ul class="dots">
+    <li><b>アクティブヘルスチェック</b>: LB が定期的に <code>/healthz</code> などを叩き、連続で失敗したら外す。</li>
+    <li><b>パッシブヘルスチェック</b>: 実際のリクエストのエラーやタイムアウトを数えて外す（外れ値検出）。</li>
+    <li><b>スティッキーセッション</b>（同じ人を同じ台へ）は、セッションをサーバーのメモリに持っているときの応急処置。その台が落ちるとセッションも消えるので、本来はセッションを Redis などに外出しする（<a href="jwt-vs-session.html">JWT とセッション</a>）。</li>
+  </ul>
+
+  <h2 id="tls">TLS 終端と本当の送信元 IP</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="t1">エッジで終端</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t2">再暗号化</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t3">パススルー</button>
+  </div>
+  <div class="panel card" id="t1">
+    <p><code>ブラウザ ==TLS==&gt; CDN / LB --平文 HTTP--&gt; アプリ</code></p>
+    <p>証明書の管理は入口だけで済み、L7 の機能が全部使える。ただし入口から後ろは平文なので、後ろが同じ閉じたネットワーク内にあるときに限る。</p>
+  </div>
+  <div class="panel card" id="t2" hidden>
+    <p><code>ブラウザ ==TLS==&gt; LB ==TLS==&gt; アプリ</code></p>
+    <p>入口で一度解いて中身を見たうえで、後ろとも TLS を張り直す。クラウドの別リージョンやインターネット越しのオリジンへ渡すときはこれ。後ろ側の証明書も要る（相互に証明し合う mTLS にすることもある）。</p>
+  </div>
+  <div class="panel card" id="t3" hidden>
+    <p><code>ブラウザ ==TLS（そのまま通過）==&gt; L4 LB ==&gt; アプリ</code></p>
+    <p>LB は暗号を解かずに TCP として流すだけ。秘密鍵をアプリから出さずに済むが、パスでの振り分けやヘッダー追加などの L7 機能は使えない（TLS の SNI に入っているホスト名だけは見える）。</p>
+  </div>
+
+  <h3 id="xff">アプリから見た送信元はプロキシになる</h3>
+  <p>中継が TCP を張り直すので、アプリのソケットから見える相手の IP はプロキシのもの。本当のクライアント IP はヘッダーで伝える。</p>
+<pre>X-Forwarded-For: 203.0.113.7, 198.51.100.20   <span class="cm"># 左から: クライアント, 途中のプロキシ…（各段が右に追記）</span>
+X-Forwarded-Proto: https                       <span class="cm"># 入口でのスキーム（アプリが http:// のリンクを作らないように）</span>
+Forwarded: for=203.0.113.7;proto=https         <span class="cm"># 上 2 つを標準化したもの（RFC 7239）</span></pre>
+  <ul class="dots">
+    <li>このヘッダーはクライアントが自由に書けるので、<b>左端を信じてはいけない</b>。自分が管理するプロキシの段数（または IP の範囲）を決めておき、右から数えて最後に信頼できるプロキシが記録した 1 つ前の値を使う。nginx なら <code>set_real_ip_from</code> と <code>real_ip_header</code>、Express なら <code>trust proxy</code>。</li>
+    <li>L4 で HTTP ヘッダーを書き換えられないときは、TCP の先頭に送信元を載せる <b>PROXY プロトコル</b>を使う（受け側も対応が必要）。</li>
+  </ul>
+
+  <h2 id="cdn">CDN の中で起きていること</h2>
+  <div class="layers">
+    <div class="k">HIT</div><div>エッジにコピーがあり、まだ新しい。オリジンへは行かずにその場で返す</div>
+    <div class="k">MISS</div><div>エッジに無い。オリジン（または中間層）から取ってきて返し、キャッシュしてよければ保存</div>
+    <div class="k">REVALIDATED</div><div>古くなっていたので、オリジンに <code>If-None-Match</code> で確認し、304 なら手元のコピーを延長して返す</div>
+    <div class="k">BYPASS</div><div>キャッシュしない応答（Cookie 付き・<code>private</code>・<code>no-store</code> など）。中継だけする</div>
+  </div>
+  <ul class="dots">
+    <li><b>キャッシュキー</b>: 何が同じなら同じ応答とみなすか。基本は URL（ホスト＋パス）で、クエリを含めるかは CDN や設定による（Cloudflare は既定で含め、CloudFront は既定で含めない）。含める設定で <code>?utm_source=</code> のような無関係なクエリまでキーに入ると当たりが下がり、逆にログイン状態で変わる応答を Cookie を見ずにキャッシュすると他人のページを配ってしまう。</li>
+    <li><b>オリジンシールド（中間層）</b>: 世界中のエッジが一斉に MISS してオリジンに殺到しないよう、間に 1 段キャッシュを挟んでオリジンへの取得を 1 回にまとめる。</li>
+    <li><b>パージ</b>: デプロイで中身を変えたら消す。ファイル名にハッシュを入れて URL ごと変える方が確実（<a href="http-cache.html">HTTP キャッシュ</a>）。</li>
+  </ul>
+
+  <h2 id="myth">よくある誤解</h2>
+  <details class="myth"><summary>リバースプロキシとロードバランサは別の機械として両方置くもの</summary>
+    <p>役割の名前であって、機械の種類ではない。nginx 1 台でパス振り分け・TLS 終端（リバースプロキシ）と複数台への分散（LB）を同時にやれる。小さな構成なら 1 段で足りる。</p>
+  </details>
+  <details class="myth"><summary>CDN は画像や JS などの静的ファイル専用</summary>
+    <p>キャッシュできない API も CDN を通す価値がある。ユーザーの近くで TLS を張る・オリジンまでの経路を最適化する・DDoS や WAF で守る、はキャッシュと無関係に効く。</p>
+  </details>
+  <details class="myth"><summary>X-Forwarded-For の先頭がクライアントの IP</summary>
+    <p>クライアントが最初から偽の値を入れて送れるので、先頭は誰でも詐称できる。信頼できるのは自分のプロキシが追記した部分だけ。これを間違えると IP によるレート制限や許可リストがすり抜けられる。</p>
+  </details>
+  <details class="myth"><summary>LB を置けば落ちない</summary>
+    <p>LB 自体が 1 台なら、そこが単一障害点になる。クラウドの LB は内部で冗長化されているが、自前の場合は 2 台で仮想 IP を引き継ぐ（keepalived など）か、DNS で複数の入口を返す。</p>
+  </details>
+
+  <h2 id="cmd">確かめ方と設定例</h2>
+<pre>curl -sI https://example.com/app.js | grep -iE 'cache|age|via|server'
+<span class="cm"># cf-cache-status: HIT（Cloudflare）/ x-cache: Hit from cloudfront / age: 秒数 など</span>
+curl -s https://example.com/ -o /dev/null -w '%{remote_ip} %{time_connect} %{time_starttransfer}\n'
+<span class="cm"># 接続先の IP（エッジの IP か）と、接続・最初の 1 バイトまでの時間</span>
+dig +short example.com          <span class="cm"># 場所によって違う IP が返れば、DNS で近いエッジに寄せている</span></pre>
+<pre><span class="cm"># nginx: パスで振り分け＋2 台に分散＋送信元を伝える</span>
+upstream api {
+    least_conn;
+    server 10.0.1.11:8080 max_fails=3 fail_timeout=10s;
+    server 10.0.1.12:8080 max_fails=3 fail_timeout=10s;
+}
+server {
+    listen 443 ssl;
+    http2 on;
+    location /api/ {
+        proxy_pass http://api;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location / { root /srv/front; try_files $uri /index.html; }
+}</pre>
+  <p class="muted">オープンソース版の nginx のヘルスチェックはパッシブ（<code>max_fails</code>）だけ。定期的に叩くアクティブチェックは NGINX Plus・HAProxy・Envoy などにある。</p>
+
+  <h2>関連するメモ</h2>
+  <div class="related">
+    <a href="tcp-ip.html">TCP/IP</a><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a><a href="http-cache.html">HTTP キャッシュ</a><a href="realtime-comm.html">リアルタイム通信</a><a href="cloudflare-services.html">Cloudflare サービス</a><a href="distributed-basics.html">分散システムの基本</a>
+  </div>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+/* ステップ再生: steps = [{ hl: ['id', ...], t: '説明' }]。hl に含まれない .node は薄くする */
+function stepPlayer(prefix, steps, onRender) {
+  const msg = document.getElementById(prefix + '-msg');
+  const prev = document.getElementById(prefix + '-prev');
+  const next = document.getElementById(prefix + '-next');
+  const nodes = document.querySelectorAll('#' + prefix + '-flow .node');
+  let i = 0;
+  function render() {
+    const s = steps[i];
+    nodes.forEach(n => {
+      const on = s.hl.includes(n.dataset.k);
+      n.classList.toggle('hl', on);
+      n.classList.toggle('dim', !on && s.dim !== false);
+    });
+    msg.innerHTML = '<span class="n">STEP ' + (i + 1) + ' / ' + steps.length + '</span>' + s.t;
+    prev.disabled = i === 0;
+    next.disabled = i === steps.length - 1;
+    if (onRender) onRender(s, i);
+  }
+  next.onclick = () => { i++; render(); };
+  prev.onclick = () => { i--; render(); };
+  document.getElementById(prefix + '-reset').onclick = () => { i = 0; render(); };
+  render();
+}
+
+stepPlayer('rq', [
+  { hl: ['client', 'dns'], t: 'ブラウザが <code>shop.example.com</code> を DNS に問い合わせる。CDN を使っていると、DNS（または Anycast という同じ IP を世界中で広告する方式）によって、ユーザーに近いエッジの IP が返る。' },
+  { hl: ['client', 'cdn'], t: 'ブラウザは近くのエッジと TCP・TLS を張る。証明書はエッジが持っている。往復が短いので、ハンドシェイクが速い。' },
+  { hl: ['cdn'], t: 'エッジで WAF・ボット判定を通し、キャッシュを探す。<code>/api/cart</code> は人ごとに違う応答なのでキャッシュしない（BYPASS）。画像や JS ならここで返して終わり。' },
+  { hl: ['cdn', 'l4'], t: 'エッジがオリジン側の入口（クラウドの LB の IP）へ転送する。エッジとオリジンのあいだは張りっぱなしの接続を使い回すので、ユーザーが毎回遠くまで接続し直さずに済む。' },
+  { hl: ['l4', 'l7'], t: 'L4 LB は IP とポートだけを見て、TCP 接続ごとにリバースプロキシのどれか 1 台へ渡す。中身は読まない。' },
+  { hl: ['l7'], t: 'リバースプロキシ（nginx など）が HTTP を読み、パス <code>/api/</code> を見て API サーバー群へ。<code>X-Forwarded-For</code> にクライアントの IP を追記し、最小接続数で 1 台を選ぶ。' },
+  { hl: ['app'], t: 'アプリが処理して応答。応答は同じ道を逆にたどる。アプリのログに出る接続元はプロキシの IP なので、本当のクライアントはヘッダーから取る（<a href="#xff">下で説明</a>）。' }
+]);
+
+/* 振り分けシミュレーション */
+(() => {
+  const names = ['A', 'B', 'C'];
+  const cost = [1, 3, 1];            // 1 件の処理にかかる tick
+  let algo = 'rr', rr = 0, down = false, busy, done, timer;
+  const clients = ['203.0.113.7', '198.51.100.3', '192.0.2.44', '203.0.113.90'];
+  const sim = document.getElementById('sim');
+  const log = document.getElementById('sim-log');
+  function reset() {
+    clearInterval(timer); timer = null;
+    busy = [[], [], []]; done = [0, 0, 0]; rr = 0; log.textContent = ''; render();
+  }
+  function render(flash) {
+    sim.innerHTML = names.map((n, i) =>
+      '<div class="srv' + (i === 1 ? ' slow' : '') + (i === 1 && down ? ' down' : '') + (flash === i ? ' flash' : '') + '"><b>' + n + '</b>' +
+      '<div class="bar"><i style="width:' + Math.min(100, busy[i].length * 14) + '%"></i></div>' +
+      '<div class="stat">処理中 ' + busy[i].length + ' / 完了 ' + done[i] + '</div></div>').join('');
+  }
+  function alive() { return [0, 1, 2].filter(i => !(i === 1 && down)); }
+  function pick(ip) {
+    const a = alive();
+    if (algo === 'rr') { const s = a[rr % a.length]; rr++; return s; }
+    if (algo === 'lc') return a.reduce((m, i) => busy[i].length < busy[m].length ? i : m, a[0]);
+    let h = 0; for (const c of ip) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return a[h % a.length];
+  }
+  function tick() {
+    for (let i = 0; i < 3; i++) {
+      busy[i] = busy[i].map(t => t - 1);
+      const fin = busy[i].filter(t => t <= 0).length;
+      done[i] += fin;
+      busy[i] = busy[i].filter(t => t > 0);
+    }
+  }
+  document.getElementById('sim-send').onclick = () => {
+    if (timer) return;
+    let n = 0;
+    timer = setInterval(() => {
+      tick();
+      if (n < 12) {
+        const ip = clients[n % clients.length];
+        const s = pick(ip);
+        busy[s].push(cost[s]);
+        log.textContent = '#' + (n + 1) + ' ' + ip + ' → ' + names[s];
+        render(s); n++;
+      } else if (busy.every(b => b.length === 0)) {
+        clearInterval(timer); timer = null; render();
+        log.textContent = '完了: A ' + done[0] + ' 件 / B ' + done[1] + ' 件 / C ' + done[2] + ' 件';
+      } else render();
+    }, 260);
+  };
+  document.getElementById('sim-down').onclick = () => {
+    down = !down; render();
+    log.textContent = down ? 'B がヘルスチェックに失敗 → 振り分け先から外れた（処理中の分は最後までやる）' : 'B が復帰 → 振り分け先に戻った';
+  };
+  document.getElementById('sim-reset').onclick = reset;
+  document.getElementById('algo-btns').addEventListener('click', e => {
+    const b = e.target.closest('.btn'); if (!b) return;
+    algo = b.dataset.a;
+    document.querySelectorAll('#algo-btns .btn').forEach(x => x.classList.toggle('on', x === b));
+    reset();
+    log.textContent = { rr: '順番に配る。遅い B にも同じだけ配るので、B に処理待ちが溜まる', lc: '処理中が少ない台へ。B が詰まると自然に避けられる', hash: '同じ IP は同じ台へ。4 種類の IP しかないので偏ることがある' }[algo];
+  });
+  reset();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "gRPC のサービスを 4 台で動かし、前段の L4 ロードバランサで分散した。ところが負荷がほぼ 1 台に集中している。主な原因は？",
+    "choices": ["L4 は接続単位で振り分けるので、HTTP/2 の長い接続 1 本に乗ったリクエストがすべて同じ台に行く", "gRPC は UDP なので L4 では振り分けられない", "ラウンドロビンは台数が偶数だと偏る", "L4 LB は TLS を解けないのでリクエストを捨てている"],
+    "answer": 0,
+    "explain": "gRPC は HTTP/2 の接続を張りっぱなしで多重化する。L4 は接続を張った時点で 1 台を決めるので、リクエスト単位で分けたいなら L7 で振り分ける。",
+    "ref": "#l4l7"
+  },
+  {
+    "q": "API で送信元 IP ごとのレート制限をかけたい。アプリは CDN とリバースプロキシの後ろにある。IP はどう取るのがよい？",
+    "choices": ["X-Forwarded-For の左端の値を使う", "ソケットの接続元 IP をそのまま使う", "自分が管理するプロキシの段数を決め、X-Forwarded-For を右から数えて最後に信頼できるプロキシが記録した値を使う", "User-Agent と組み合わせれば左端の値でも安全"],
+    "answer": 2,
+    "explain": "左端はクライアントが自由に書ける。ソケットの接続元はプロキシの IP になる。信頼できるのは自分のプロキシが追記した部分だけ。",
+    "ref": "#xff"
+  },
+  {
+    "q": "3 台のうち 1 台だけスペックが低く、リクエストごとの処理時間もばらつく。振り分け方式として合うのは？",
+    "choices": ["単純なラウンドロビン", "最小接続数（処理中が少ない台へ）", "送信元 IP のハッシュ", "DNS ラウンドロビン"],
+    "answer": 1,
+    "explain": "最小接続数なら、遅い台に処理待ちが溜まると自然にそこを避ける。単純なラウンドロビンは遅い台にも同じだけ配ってしまう。",
+    "ref": "#algo"
+  },
+  {
+    "q": "ログイン中のユーザー名をヘッダーに表示する HTML を CDN でキャッシュしたら、他人の名前が表示されるという報告が来た。何が起きている？",
+    "choices": ["CDN の TLS 終端で Cookie が消えた", "オリジンシールドが古いコピーを返している", "キャッシュキーに人ごとの違い（Cookie）が入っておらず、最初の人向けの応答が全員に配られた", "パージが遅れているだけで、時間が経てば直る"],
+    "answer": 2,
+    "explain": "人ごとに変わる応答は Cache-Control: private にするか、キャッシュしない設定にする。キャッシュキーが URL だけだと、最初に取得した人の応答を他の人にも返す。",
+    "ref": "#cdn"
+  },
+  {
+    "q": "秘密鍵を LB に置きたくないので、TLS を解かずにアプリまで通したい。その代わりに諦めることは？",
+    "choices": ["パス（/api など）での振り分けや、HTTP ヘッダーの追加", "複数台への分散そのもの", "HTTP/2 の利用", "ヘルスチェック"],
+    "answer": 0,
+    "explain": "パススルーでは LB は TCP として流すだけなので、HTTP の中身を見る L7 の機能は使えない。台への分散や TCP レベルのヘルスチェックはできる。",
+    "ref": "#tls"
+  }
+]
+</script>
+</body>
+</html>

@@ -6,11 +6,15 @@
 
 - [仮想メモリとページング](https://memo.taka1156.site/md/virtual-memory.md): OS がプロセスごとに専用のメモリ空間を見せるしくみ。ページとページテーブルによるアドレス変換、TLB と huge page、ページフォルトの種類、オーバーコミットと OOM killer、fork の copy-on-write、mmap と共有、VIRT と RES の読み方までを図解。（CS基礎, Linux / 2026-11-07）
 - [OS のスケジューリング](https://memo.taka1156.site/md/os-scheduling.md): OS が限られた CPU を多くのプロセス・スレッドに配るしくみ。実行・待ち・ブロックの状態、コンテキストスイッチのコスト、ラウンドロビンなどのアルゴリズム、Linux の nice と公平スケジューラ、優先度逆転、コンテナの CPU 制限までを図解。（CS基礎, Linux / 2026-11-07）
+- [NoSQL の種類](https://memo.taka1156.site/md/nosql-types.md): キーバリュー・ドキュメント・ワイドカラム・グラフの 4 種類の NoSQL が、同じデータをどんな形で持ち、どんな問い合わせが得意で何が苦手かを、同じ EC サイトの例と分散の図で比べる。（データベース / 2026-11-07）
+- [Linux のファイルシステムと権限](https://memo.taka1156.site/md/linux-filesystem.md): Linux のファイルが「名前 → inode → データ」の 3 段でできていることから、ハードリンクとシンボリックリンク、rwx と特殊ビットの判定順、umask、マウントによる 1 本のツリーまでを図と操作で整理する。（Linux / 2026-11-07）
+- [ロードバランサ・リバースプロキシ・CDN](https://memo.taka1156.site/md/lb-proxy-cdn.md): リクエストがユーザーからアプリに届くまでに通る CDN・ロードバランサ・リバースプロキシが、それぞれ何を担当し、どこで重なるのかを図とシミュレーションで整理する。（ネットワーク, インフラ / 2026-11-07）
 - [Kubernetes の全体像](https://memo.taka1156.site/md/kubernetes.md): Kubernetes が「あるべき状態」を宣言して保ち続ける仕組みを、コントロールプレーンとノードの部品、Pod・Deployment・Service・Ingress / Gateway の関係、ヘルスチェックとリソース指定まで図で整理する。（インフラ, Linux / 2026-11-07）
 - [グラフ探索と最短経路](https://memo.taka1156.site/md/graph-algorithms.md): グラフの表し方、BFS と DFS の違い、依存関係を並べるトポロジカルソート、ダイクストラ法の動きを迷路や手順の図で解説し、問題ごとの使い分けをまとめる。（CS基礎 / 2026-11-07）
 - [動的計画法（DP）](https://memo.taka1156.site/md/dynamic-programming.md): 動的計画法の組み立て方（状態・遷移・初期値）、メモ化再帰とボトムアップの違い、ナップサックと編集距離の表が埋まる様子、典型パターンを図解。（CS基礎 / 2026-11-07）
 - [データ構造と計算量の早見表](https://memo.taka1156.site/md/data-structures.md): O 記法の読み方と増え方の違い、配列・連結リスト・ハッシュ表・木・ヒープなど主なデータ構造の操作ごとの計算量、場面ごとの選び方と、計算量だけでは決まらない速さ（キャッシュ）を図解。（CS基礎 / 2026-11-07）
 - [アルゴリズム設計手法の全体像](https://memo.taka1156.site/md/algorithm-paradigms.md): 全探索・貪欲法・分割統治法・動的計画法・二分探索の考え方と使い分けを、入力サイズの目安、マージソートやフィボナッチの呼び出し木などの図で比べて解説。（CS基礎 / 2026-11-07）
+- [AI エージェントとツール呼び出し](https://memo.taka1156.site/md/ai-agents.md): LLM がツールを「呼ぶ」とは実際に何が起きているのか、エージェントのループ、ワークフローとの違い、コンテキストの管理、権限とプロンプトインジェクション、評価のしかたまでを、やり取りの再生と図で整理する。（AI / 2026-11-07）
 - [文字コードと Unicode](https://memo.taka1156.site/md/unicode-text.md): コードポイント・UTF-8・UTF-16 の関係、絵文字や結合文字で「1 文字」が数え方によって変わる理由、正規化（NFC / NFKC）と文字化け・utf8mb4 などの実務の落とし穴を、入力して確かめながら整理する（言語, フロントエンド, バックエンド / 2026-11-06）
 - [RAG とベクトル検索](https://memo.taka1156.site/md/rag-vector-search.md): 埋め込みの類似度・チャンク分割・近似最近傍検索（HNSW・IVF）・ハイブリッド検索と RRF・再ランキング・権限フィルタ・評価のしかたまで、RAG の検索側を詳しく整理する（AI, データベース / 2026-11-06）
 - [オブザーバビリティと OpenTelemetry](https://memo.taka1156.site/md/observability.md): ログ・メトリクス・トレースがそれぞれ何に答えるか、トレース ID でどうつなぐか、OpenTelemetry の SDK・Collector・OTLP の役割を図で整理する（インフラ, バックエンド, 開発ツール / 2026-11-06）

@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NoSQL の種類</title>
+<meta name="description" content="キーバリュー・ドキュメント・ワイドカラム・グラフの 4 種類の NoSQL が、同じデータをどんな形で持ち、どんな問い合わせが得意で何が苦手かを、同じ EC サイトの例と分散の図で比べる。">
+<meta name="memo:tags" content="データベース">
+<meta name="memo:date" content="2026-11-07">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+p { margin: 8px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+:root { --c-ok: #1f8a50; --c-warn: #b45309; --c-ng: #c0392b; --c-sub: #7c3aed; }
+@media (prefers-color-scheme: dark) {
+  :root { --c-ok: #4ade80; --c-warn: #fbbf24; --c-ng: #f87171; --c-sub: #c4b5fd; }
+}
+a { color: var(--accent); }
+h3 { font-size: 0.98rem; margin: 22px 0 8px; }
+ul.dots { margin: 8px 0 8px 1.3em; }
+ul.dots li { margin: 3px 0; }
+pre .cm { color: var(--fg-2); }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.table-wrap { overflow-x: auto; margin: 10px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--surface); }
+th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 700; white-space: nowrap; }
+.btn {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 6px 12px;
+  font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer;
+}
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn.on { border-color: var(--accent); color: var(--accent); }
+.ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
+.stepmsg {
+  border-left: 3px solid var(--accent); background: var(--surface);
+  border-radius: 0 8px 8px 0; padding: 10px 14px; min-height: 4.6em; font-size: 0.9rem;
+}
+.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); display: block; }
+.anat { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.anat .card { padding: 10px 14px; }
+.anat b { font-size: 0.85rem; color: var(--accent); }
+.anat p { font-size: 0.8rem; margin: 2px 0 0; color: var(--fg-2); }
+.panel { margin-top: 0; }
+.panel h4 { font-size: 0.9rem; margin: 10px 0 4px; }
+.panel ul { margin: 4px 0 4px 1.2em; font-size: 0.86rem; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tag-ok { color: var(--c-ok); font-weight: 700; }
+.tag-ng { color: var(--c-ng); font-weight: 700; }
+.tag-warn { color: var(--c-warn); font-weight: 700; }
+details.myth { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
+details.myth summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
+details.myth summary::before { content: '✗ '; color: var(--c-ng); }
+details.myth p { font-size: 0.86rem; }
+.related { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.related a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font-size: 0.75rem; font-weight: 600; }
+.related a:hover { color: var(--accent); }
+/* ステップ図 */
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; }
+.node {
+  flex: 1 1 110px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; font-size: 0.75rem; transition: border-color .2s, opacity .2s, transform .2s;
+}
+.node b { display: block; font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; }
+.node span { color: var(--fg-2); }
+.node.hl { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.node.dim { opacity: .45; }
+.arrow { align-self: center; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+@media (max-width: 640px) {
+  .row2 { grid-template-columns: 1fr; }
+  .flow { flex-direction: column; }
+  .arrow { transform: rotate(90deg); }
+}
+
+.shape { font: 500 0.78rem/1.65 'JetBrains Mono', ui-monospace, monospace; white-space: pre; overflow-x: auto; background: var(--chip); border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
+.shape .k { color: var(--accent); font-weight: 700; }
+.shape .c { color: var(--fg-2); }
+.fit { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.fit > div { font-size: 0.84rem; }
+.fit h4 { font-size: 0.82rem; margin-bottom: 2px; }
+.ex { font-size: 0.78rem; color: var(--fg-2); margin-top: 6px; }
+/* 問い合わせ診断 */
+.qlist { display: flex; flex-direction: column; gap: 6px; }
+.qlist .btn { text-align: left; }
+.score { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 10px; }
+.score > div { background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px; padding: 8px; text-align: center; font-size: 0.75rem; transition: border-color .2s; }
+.score b { display: block; font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; }
+.score .mark { font-size: 1.1rem; font-weight: 700; display: block; margin: 2px 0; }
+.score .s2 { border-color: var(--c-ok); } .score .s2 .mark { color: var(--c-ok); }
+.score .s1 .mark { color: var(--c-warn); }
+.score .s0 { opacity: .6; } .score .s0 .mark { color: var(--c-ng); }
+/* パーティション */
+.ring { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.pn { background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px; padding: 8px; min-height: 120px; }
+.pn > b { font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace; display: block; margin-bottom: 4px; }
+.pn.hot { border-color: var(--c-ng); }
+.pn.hot > b::after { content: ' ホット'; color: var(--c-ng); font: 600 0.7rem 'Noto Sans JP', sans-serif; }
+.chipk { display: inline-block; font: 500 0.66rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); border-radius: 4px; padding: 1px 5px; margin: 2px; animation: pop .2s ease-out; }
+@keyframes pop { from { transform: scale(.8); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (max-width: 640px) {
+  .fit, .ring { grid-template-columns: 1fr; }
+  .score { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="NoSQL の種類">
+<meta property="og:description" content="キーバリュー・ドキュメント・ワイドカラム・グラフの 4 種類の NoSQL が、同じデータをどんな形で持ち、どんな問い合わせが得意で何が苦手かを、同じ EC サイトの例と分散の図で比べる。">
+<meta property="og:url" content="https://memo.taka1156.site/nosql-types.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>NoSQL の種類</h1>
+  <p class="subtitle">キーバリュー / ドキュメント / ワイドカラム / グラフ / 問い合わせから設計する / 分散と整合性</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>NoSQL は「SQL でない」ではなく「RDB の表と JOIN 以外の形」の総称。4 種類は<b>データの形と、得意な問い合わせ</b>がまるで違うので、ひとまとめに比べても意味がない。</li>
+      <li>多くの NoSQL は、JOIN や自由な検索を諦める代わりに、<b>キーで台を決めて横に増やせる</b>ようにしている。だから先に「どんな問い合わせをするか」を決め、それに合わせてデータを置く。</li>
+      <li>迷ったらまず RDB（PostgreSQL の JSONB も含む）。NoSQL は、規模・アクセスの形・データのつながり方が RDB と合わないとはっきりしたときに選ぶ。</li>
+    </ul>
+  </div>
+
+  <p class="muted">前提: RDB の中身（B-Tree・WAL・MVCC）は <a href="db-internals.html">DB のしくみ</a>、インデックスとトランザクションは <a href="db-index-transaction.html">インデックスとトランザクション</a>。</p>
+
+  <h2 id="types">同じデータを 4 つの形で持つ</h2>
+  <p>EC サイトの「ユーザー u1、その注文 2 件、フォローしているユーザー」を、それぞれの種類で持つとこうなる。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="t-rdb">RDB（比較用）</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-kv">キーバリュー</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-doc">ドキュメント</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-wide">ワイドカラム</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-graph">グラフ</button>
+  </div>
+  <div class="panel card" id="t-rdb">
+    <div class="shape"><span class="k">users</span>    (id, name)            u1 | 佐藤
+<span class="k">orders</span>   (id, user_id, total)  o1 | u1 | 3200     o2 | u1 | 980
+<span class="k">follows</span>  (from, to)            u1 | u2     u1 | u3
+<span class="c">-- 表に分けて重複なく持ち、問い合わせのときに JOIN でつなぐ</span></div>
+    <p>どんな切り口の問い合わせにも後から対応でき、トランザクションで複数の表を一度に正しく更新できる。苦手なのは、1 台に収まらない書き込み量を横に分けることと、何段も続くつながりをたどること。</p>
+  </div>
+  <div class="panel card" id="t-kv" hidden>
+    <div class="shape"><span class="k">user:u1</span>          → {"name":"佐藤"}
+<span class="k">user:u1:orders</span>   → ["o1","o2"]
+<span class="k">order:o1</span>         → {"total":3200}
+<span class="k">session:9f2c…</span>    → {"uid":"u1"}   <span class="c">TTL 30 分</span>
+<span class="c"># 値の中身は DB からは見えない（Redis はリストやハッシュなどの型を持つ）</span></div>
+    <div class="fit">
+      <div><h4 class="tag-ok">得意</h4>キーが分かっている 1 件の読み書き。とにかく速く、台を増やすのも簡単。期限付きのデータ（TTL）。</div>
+      <div><h4 class="tag-ng">苦手</h4>値の中身での検索（「3000 円以上の注文」）、範囲や並べ替え、複数キーにまたがる一貫した更新。</div>
+    </div>
+    <p class="ex">例: Redis / Valkey（<a href="redis-valkey.html">メモ</a>）、Memcached、etcd、Cloudflare Workers KV。用途: キャッシュ、セッション、レート制限のカウンタ、設定値。</p>
+  </div>
+  <div class="panel card" id="t-doc" hidden>
+    <div class="shape">{ <span class="k">"_id"</span>: "u1", "name": "佐藤",
+  <span class="k">"orders"</span>: [                      <span class="c">// 一緒に読むものは埋め込む</span>
+    { "id": "o1", "total": 3200, "items": [...] },
+    { "id": "o2", "total": 980 } ],
+  <span class="k">"following"</span>: ["u2", "u3"] }         <span class="c">// 別のドキュメントは ID で参照</span></div>
+    <div class="fit">
+      <div><h4 class="tag-ok">得意</h4>画面 1 枚分のまとまりを 1 回で読み書き。項目がものによって違うデータ。中のフィールドにインデックスを張って検索もできる。</div>
+      <div><h4 class="tag-ng">苦手</h4>ドキュメントをまたぐ JOIN（できるが遅く、設計の前提にしない）。埋め込んだデータが際限なく増える形（注文が何万件にもなる人）。</div>
+    </div>
+    <p class="ex">例: MongoDB、Firestore、Couchbase、Amazon DocumentDB。PostgreSQL の JSONB 列でも近いことができる。用途: CMS、商品カタログ、ユーザープロフィール、モバイルアプリの同期。</p>
+  </div>
+  <div class="panel card" id="t-wide" hidden>
+    <div class="shape"><span class="c">-- テーブル orders_by_user：「ユーザーの注文を新しい順に」専用</span>
+<span class="k">partition key</span> = user_id   <span class="k">clustering key</span> = ordered_at DESC
+u1 │ 2026-11-05 o2 980  │ 2026-10-21 o1 3200 │ …（行が横に何百万でも伸びる）
+u2 │ 2026-11-06 o7 1500 │ …
+<span class="c">-- 別の問い合わせ（日付ごとの売上など）には、同じデータを別のテーブルにもう一度書く</span></div>
+    <div class="fit">
+      <div><h4 class="tag-ok">得意</h4>大量の書き込み（ログ・センサー・メッセージ）。パーティションキーを指定した範囲読み出し。台を足すだけで容量も書き込み性能も伸びる。</div>
+      <div><h4 class="tag-ng">苦手</h4>パーティションキーを指定しない検索、JOIN、集計、後から問い合わせを増やすこと（テーブルを作り直す）。</div>
+    </div>
+    <p class="ex">例: Apache Cassandra、ScyllaDB、HBase、Google Cloud Bigtable。Amazon DynamoDB も「パーティションキー＋ソートキー」で同じ考え方をする。用途: 時系列、チャット履歴、アクティビティフィード、IoT。</p>
+  </div>
+  <div class="panel card" id="t-graph" hidden>
+    <div class="shape">(<span class="k">u1</span>:User {name:"佐藤"}) -[:FOLLOWS]-&gt; (<span class="k">u2</span>:User)
+(u1) -[:FOLLOWS]-&gt; (<span class="k">u3</span>:User) -[:BOUGHT]-&gt; (<span class="k">p9</span>:Product)
+<span class="c">// 「u1 がフォローしている人が買った商品のうち、u1 がまだ買っていないもの」</span>
+MATCH (me:User {id:'u1'})-[:FOLLOWS]-&gt;(:User)-[:BOUGHT]-&gt;(p)
+WHERE NOT (me)-[:BOUGHT]-&gt;(p) RETURN p, count(*) ORDER BY count(*) DESC</div>
+    <div class="fit">
+      <div><h4 class="tag-ok">得意</h4>つながりを何段もたどる問い合わせ。ノードが隣へのつながりを直接持つので、段数が増えても JOIN のように爆発しにくい。経路・影響範囲・推薦。</div>
+      <div><h4 class="tag-ng">苦手</h4>全件の集計や大量の単純な読み書き。データを多数の台に分けること（つながりが台をまたぐと遅い）。</div>
+    </div>
+    <p class="ex">例: Neo4j（Cypher）、Amazon Neptune、Memgraph。問い合わせ言語の国際標準として GQL がある。用途: SNS の関係、不正検知、権限のつながり（<a href="authorization-models.html">ReBAC</a>）、依存関係、ナレッジグラフ。</p>
+  </div>
+
+  <h2 id="fit">問い合わせ別の向き不向き</h2>
+  <p>やりたい問い合わせを選ぶと、どの種類が素直に応えられるかを表示する（○ 得意 / △ できるが工夫が要る / × 向かない）。</p>
+  <div class="qlist" id="qlist"></div>
+  <div class="score" id="score"></div>
+  <p class="muted" id="q-note"></p>
+
+  <h2 id="design">問い合わせから設計する</h2>
+  <div class="row2">
+    <div class="card">
+      <h4>RDB の進め方</h4>
+      <ol style="margin-left:1.2em;font-size:.86rem">
+        <li>実体と関係を洗い出す</li>
+        <li>正規化して表に分ける（重複させない）</li>
+        <li>問い合わせは後から SQL で自由に書く</li>
+        <li>遅いものにインデックスを足す</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h4>NoSQL（特にワイドカラム・KV）の進め方</h4>
+      <ol style="margin-left:1.2em;font-size:.86rem">
+        <li>アプリがする問い合わせを先に全部書き出す</li>
+        <li>問い合わせ 1 つにつき、1 回で読める置き方を決める</li>
+        <li>必要なら同じデータを複数の場所に重複して書く</li>
+        <li>新しい問い合わせが増えたら、置き方を足す</li>
+      </ol>
+    </div>
+  </div>
+  <p>重複して書くので、更新はアプリ（または DB のストリーム機能）が複数箇所を書き換えることになる。読み出しを速くする代わりに、書き込みと整合性の手間を自分で持つ、という取引。</p>
+
+  <h3 id="partition">パーティションキーで台が決まる</h3>
+  <p>キーをハッシュして、どのノード（パーティション）に置くかを決める。キーの選び方で負荷の偏りが決まる。</p>
+  <div class="ctrl" id="pk-btns">
+    <button class="btn on" data-k="user">キー = user_id</button>
+    <button class="btn" data-k="date">キー = 日付</button>
+    <button class="btn" data-k="bucket">キー = 日付 + 番号(0〜5)</button>
+  </div>
+  <div class="ring" id="ring"></div>
+  <div class="ctrl"><button class="btn primary" id="pk-send">今日の書き込みを 24 件流す</button></div>
+  <p class="muted" id="pk-note"></p>
+
+  <h2 id="consistency">分散と整合性</h2>
+  <ul class="dots">
+    <li>複数の台にコピーを持つので、「書いた直後に別の台から読むと古い値が見える」ことがある（結果整合性）。多くの NoSQL は、読み書きのたびにどこまで整合性を求めるかを選べる（Cassandra は <code>ONE</code> / <code>QUORUM</code> / <code>ALL</code> で何台の応答を待つかまで指定でき、DynamoDB は読み込みごとに「強力な整合性のある読み込み」にするかを選ぶ）。強い整合性を求めるほど新しく正確になり、遅く・落ちやすくなる。考え方は <a href="distributed-basics.html">分散システムの基本</a>。</li>
+    <li>「NoSQL はトランザクションが無い」は今は不正確。1 件（1 ドキュメント・1 パーティション）の中の更新はたいてい原子的で、MongoDB や DynamoDB は複数件にまたがるトランザクションも持つ。ただし台をまたぐほど遅く、制限も多いので、<b>1 件の中で完結するように置く</b>のが基本。</li>
+    <li>RDB のまま横に広げる NewSQL（Spanner・CockroachDB・TiDB）という選択肢もある。SQL とトランザクションを残したまま台を増やせる代わりに、仕組みが重く遅延も増える。</li>
+  </ul>
+
+  <h3 id="others">4 種類以外によく並べられるもの</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>種類</th><th>得意なこと</th><th>例</th></tr>
+      <tr><td>全文検索エンジン</td><td>文章のあいまい検索、関連度順、絞り込みの件数集計</td><td>Elasticsearch、OpenSearch、Meilisearch</td></tr>
+      <tr><td>時系列 DB</td><td>時刻つきの数値の大量書き込みと、期間での集計・間引き</td><td>Prometheus、InfluxDB、TimescaleDB</td></tr>
+      <tr><td>ベクトル DB</td><td>意味の近さでの検索（埋め込みベクトル）</td><td>pgvector、Qdrant など（<a href="rag-vector-search.html">RAG とベクトル検索</a>）</td></tr>
+      <tr><td>列指向の分析 DB</td><td>大量の行の集計（OLAP）</td><td>BigQuery、ClickHouse（<a href="bigquery-bi.html">BigQuery と BI</a>）</td></tr>
+    </table>
+  </div>
+
+  <h2 id="myth">よくある誤解</h2>
+  <details class="myth"><summary>スキーマレスだから設計しなくていい</summary>
+    <p>DB がスキーマを強制しないだけで、どのフィールドがどんな型で入っているかの約束は、アプリのコードが持つことになる。古い形のドキュメントと新しい形が混ざると、読む側が全部の形に対応しなければならない。MongoDB のスキーマ検証や、アプリ側のスキーマ（Zod など）で縛るのが普通。</p>
+  </details>
+  <details class="myth"><summary>NoSQL は RDB より速い</summary>
+    <p>速いのは、設計どおりのキーで読むときだけ。想定していない問い合わせは全件走査になり、RDB よりはるかに遅いか、そもそもできない。1 台に収まる規模なら、インデックスを張った RDB で十分速いことが多い。</p>
+  </details>
+  <details class="myth"><summary>ドキュメント DB なら、関連するものは全部 1 つに埋め込むのが正解</summary>
+    <p>一緒に読むものは埋め込み、際限なく増えるもの・単独で更新されるもの・多くの場所から参照されるものは別のドキュメントにして ID で参照する。注文を全部ユーザーに埋め込むと、ドキュメントの上限サイズ（MongoDB は 16MB）に当たったり、毎回巨大なドキュメントを読み書きすることになる。</p>
+  </details>
+  <details class="myth"><summary>グラフ DB は SNS のためのもの</summary>
+    <p>「つながりを何段もたどる」問い合わせがあれば対象になる。不正検知（同じ端末・同じ住所でつながった口座）、権限（グループの中のグループ）、マイクロサービスの依存関係、部品表など。逆に SNS でも、タイムラインの表示はワイドカラムや KV の方が向くことが多い。</p>
+  </details>
+
+  <h2>関連するメモ</h2>
+  <div class="related">
+    <a href="db-internals.html">DB のしくみ</a><a href="db-index-transaction.html">インデックスとトランザクション</a><a href="redis-valkey.html">Redis と Valkey</a><a href="cloudflare-databases.html">D1 と Hyperdrive</a><a href="distributed-basics.html">分散システムの基本</a><a href="rag-vector-search.html">RAG とベクトル検索</a><a href="data-structures.html">データ構造</a>
+  </div>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+/* ステップ再生: steps = [{ hl: ['id', ...], t: '説明' }]。hl に含まれない .node は薄くする */
+function stepPlayer(prefix, steps, onRender) {
+  const msg = document.getElementById(prefix + '-msg');
+  const prev = document.getElementById(prefix + '-prev');
+  const next = document.getElementById(prefix + '-next');
+  const nodes = document.querySelectorAll('#' + prefix + '-flow .node');
+  let i = 0;
+  function render() {
+    const s = steps[i];
+    nodes.forEach(n => {
+      const on = s.hl.includes(n.dataset.k);
+      n.classList.toggle('hl', on);
+      n.classList.toggle('dim', !on && s.dim !== false);
+    });
+    msg.innerHTML = '<span class="n">STEP ' + (i + 1) + ' / ' + steps.length + '</span>' + s.t;
+    prev.disabled = i === 0;
+    next.disabled = i === steps.length - 1;
+    if (onRender) onRender(s, i);
+  }
+  next.onclick = () => { i++; render(); };
+  prev.onclick = () => { i--; render(); };
+  document.getElementById(prefix + '-reset').onclick = () => { i = 0; render(); };
+  render();
+}
+
+/* 問い合わせ診断: [RDB, KV, Doc, Wide, Graph] 2=○ 1=△ 0=× */
+(() => {
+  const types = ['RDB', 'KV', 'ドキュメント', 'ワイドカラム', 'グラフ'];
+  const qs = [
+    { q: 'セッション ID からログイン中のユーザーを 1 ms 以内で引く', s: [1, 2, 2, 1, 0], n: 'キーが分かっている 1 件の取得は KV の本領。期限（TTL）も付けられる。' },
+    { q: 'ユーザーのプロフィール画面を 1 回の読み出しで表示する（住所・設定・最近の注文 5 件）', s: [1, 1, 2, 1, 0], n: '画面単位のまとまりを 1 つに埋め込めるドキュメントが素直。RDB は JOIN で、KV は複数キーを読んで組み立てる。' },
+    { q: '毎秒 10 万件のセンサー値を書き込み、機器ごとに直近 1 時間を読む', s: [0, 1, 1, 2, 0], n: '機器 ID をパーティションキー、時刻をクラスタリングキーにするワイドカラムの典型。時系列 DB も候補。' },
+    { q: '「友達の友達」のうち、共通の友達が多い順におすすめを出す', s: [1, 0, 0, 0, 2], n: '2 段・3 段とつながりをたどる問い合わせ。RDB でも再帰 CTE で書けるが、段数が増えると急に重くなる。' },
+    { q: '月ごと・商品カテゴリごとの売上を、条件を変えながら集計する', s: [2, 0, 1, 0, 0], n: '後から切り口を変える集計は RDB（大きければ列指向の分析 DB）。NoSQL は想定外の切り口に弱い。' },
+    { q: '在庫を減らすと同時に注文を作り、どちらか失敗したら両方取り消す', s: [2, 0, 1, 1, 0], n: '複数件をまたぐトランザクションは RDB が一番素直。MongoDB・DynamoDB にもあるが、制限とコストを理解して使う。' }
+  ];
+  const list = document.getElementById('qlist'), score = document.getElementById('score'), note = document.getElementById('q-note');
+  list.innerHTML = qs.map((x, i) => '<button class="btn" data-i="' + i + '">' + x.q + '</button>').join('');
+  function show(i) {
+    list.querySelectorAll('.btn').forEach(b => b.classList.toggle('on', +b.dataset.i === i));
+    score.innerHTML = types.map((t, j) => {
+      const v = qs[i].s[j];
+      return '<div class="s' + v + '"><b>' + t + '</b><span class="mark">' + ['×', '△', '○'][v] + '</span>' + ['向かない', '工夫が要る', '得意'][v] + '</div>';
+    }).join('');
+    note.textContent = qs[i].n;
+  }
+  list.addEventListener('click', e => { const b = e.target.closest('.btn'); if (b) show(+b.dataset.i); });
+  show(0);
+})();
+
+/* パーティション */
+(() => {
+  const ring = document.getElementById('ring'), note = document.getElementById('pk-note');
+  let mode = 'user', parts, timer;
+  const notes = {
+    user: 'ユーザーごとにハッシュが散るので、3 台に均等に分かれる。「あるユーザーの注文」はキーを指定して 1 台から読める。',
+    date: '今日の書き込みは全部同じキー「2026-11-07」なので、1 台に集中する（ホットパーティション）。台を増やしても助けにならない。',
+    bucket: 'キーの末尾に 0〜5 の番号を付けて散らす（書き込みシャーディング）。代わりに「今日の全件」を読むときは 6 つのキーを読んで合わせる。'
+  };
+  function hash(s) { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; }
+  function render() {
+    const max = Math.max(...parts.map(p => p.length));
+    ring.innerHTML = parts.map((p, i) => '<div class="pn' + (max >= 16 && p.length === max ? ' hot' : '') + '"><b>node-' + (i + 1) + ' (' + p.length + ')</b>' + p.map(k => '<span class="chipk">' + k + '</span>').join('') + '</div>').join('');
+  }
+  function reset() { clearInterval(timer); timer = null; parts = [[], [], []]; render(); note.textContent = notes[mode]; }
+  document.getElementById('pk-btns').addEventListener('click', e => {
+    const b = e.target.closest('.btn'); if (!b) return;
+    mode = b.dataset.k;
+    document.querySelectorAll('#pk-btns .btn').forEach(x => x.classList.toggle('on', x === b));
+    reset();
+  });
+  document.getElementById('pk-send').onclick = () => {
+    reset();
+    let n = 0;
+    timer = setInterval(() => {
+      const key = mode === 'user' ? 'u' + (100 + n * 37) : mode === 'date' ? '11-07' : '11-07_' + (n % 6);
+      parts[hash(key) % 3].push(key);
+      render();
+      if (++n >= 24) { clearInterval(timer); timer = null; }
+    }, 90);
+  };
+  reset();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "DynamoDB や Cassandra でアクセスログを保存するとき、パーティションキーを「日付」だけにした。書き込みが増えると何が起きやすい？",
+    "choices": ["古い日付のデータが自動で消える", "その日の書き込みがすべて同じパーティションに集中し、台を増やしても性能が伸びない", "日付の範囲検索ができなくなる", "日付ごとにテーブルが自動で分割され、速くなる"],
+    "answer": 1,
+    "explain": "同じキーは同じ台に置かれるので、今日のキーに書き込みが集中する（ホットパーティション）。キーに番号を足して散らすなどの対策をとる。",
+    "ref": "#partition"
+  },
+  {
+    "q": "「ある社員が属するグループ、その親グループ…をたどって、最終的にアクセスできるフォルダ」を高速に求めたい。素直に合うのは？",
+    "choices": ["キーバリューストア", "ワイドカラム", "グラフ DB", "全文検索エンジン"],
+    "answer": 2,
+    "explain": "段数の決まっていないつながりをたどる問い合わせはグラフ DB の得意分野。RDB でも再帰 CTE で書けるが、段数が深いと重くなる。",
+    "ref": "#types"
+  },
+  {
+    "q": "ドキュメント DB でユーザーのドキュメントに注文履歴をすべて埋め込んでいたら、ヘビーユーザーで書き込みが極端に遅くなった。どう直すのがよい？",
+    "choices": ["インデックスを増やす", "注文は別のコレクションに分け、ユーザー ID で参照する（直近の数件だけ埋め込むのはあり）", "ドキュメントを圧縮して保存する", "ユーザーごとに別のデータベースを作る"],
+    "answer": 1,
+    "explain": "際限なく増えるものを埋め込むと、ドキュメントが巨大になって毎回の読み書きが重くなり、上限サイズにも当たる。増え続けるものは別ドキュメントにする。",
+    "ref": "#myth"
+  },
+  {
+    "q": "ワイドカラム DB で「ユーザーごとの注文一覧」用のテーブルを作って運用中に、「商品ごとの注文一覧」も必要になった。基本的な対応は？",
+    "choices": ["既存のテーブルを商品 ID の条件で全件走査する", "商品 ID をパーティションキーにした別のテーブルを作り、注文を両方に書く", "既存テーブルのパーティションキーを商品 ID に変更する", "JOIN を使って商品テーブルと結合する"],
+    "answer": 1,
+    "explain": "ワイドカラムは問い合わせごとにテーブルを用意し、同じデータを重複して書くのが基本。全件走査は台数分のデータを読むことになる。",
+    "ref": "#design"
+  },
+  {
+    "q": "売上を「月別」「地域別」「キャンペーン別」など、毎週のように新しい切り口で集計したい。データ量は 1 台に収まる。まず選ぶのは？",
+    "choices": ["RDB（必要なら分析用の列指向 DB）", "キーバリューストア", "ワイドカラム", "グラフ DB"],
+    "answer": 0,
+    "explain": "後から切り口を変える集計は、SQL で自由に書ける RDB が得意。NoSQL は想定した問い合わせに合わせて置き方を決めるので、新しい切り口に弱い。",
+    "ref": "#fit"
+  }
+]
+</script>
+</body>
+</html>
