@@ -94,6 +94,13 @@ h1 {
 .tag small { color: var(--fg-2); font-weight: 500; margin-left: 4px; }
 .tag:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .tag:disabled { opacity: .4; cursor: default; }
+.tag[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.tag[aria-pressed="true"]:hover { color: var(--bg); filter: brightness(1.08); }
+.tag[aria-pressed="true"] small { color: var(--bg); opacity: .8; }
+.pick { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+.pick .count { color: var(--fg-2); font-size: 0.8rem; }
+.clear { background: none; border: 0; color: var(--fg-2); font: 600 0.75rem 'JetBrains Mono', monospace; cursor: pointer; }
+.clear:hover { color: var(--accent); }
 .sub { color: var(--fg-2); font-size: 0.78rem; font-weight: 700; margin: 14px 0 8px; }
 
 /* タイムアタックの制限時間 */
@@ -192,8 +199,13 @@ footer a { color: var(--accent); }
     </div>
     <div class="panel">
       <h2>🏷 カテゴリを選んで 10 問</h2>
-      <p class="note">数字はそのカテゴリの問題数。10 問未満なら全問を出します</p>
+      <p class="note">複数選べます（どれかのカテゴリに入る問題から出題）。数字はそのカテゴリの問題数。10 問未満なら全問を出します</p>
       <div class="tags" id="tag-list"></div>
+      <div class="pick">
+        <button class="btn primary" id="start-cat" type="button" disabled>選んだカテゴリではじめる</button>
+        <span class="count" id="cat-count"></span>
+        <button class="clear" id="clear-cat" type="button" hidden>選択を解除</button>
+      </div>
     </div>
     <div class="panel">
       <h2>⏱ タイムアタック</h2>
@@ -204,8 +216,13 @@ footer a { color: var(--accent); }
         <button type="button" role="radio" data-sec="180">3 分</button>
       </div>
       <div><button class="btn primary" id="ta-random" type="button">🎲 ランダムではじめる</button></div>
-      <p class="sub">または、カテゴリを選んではじめる</p>
+      <p class="sub">または、カテゴリを選んではじめる（複数選べます）</p>
       <div class="tags" id="ta-tag-list"></div>
+      <div class="pick">
+        <button class="btn primary" id="start-ta-cat" type="button" disabled>選んだカテゴリではじめる</button>
+        <span class="count" id="ta-cat-count"></span>
+        <button class="clear" id="clear-ta-cat" type="button" hidden>選択を解除</button>
+      </div>
     </div>
     <p class="empty" id="no-quiz" hidden>まだクイズがありません。各メモにクイズを追加すると、ここで解けるようになります。</p>
   </section>
@@ -272,7 +289,7 @@ const shuffle = a => {
 };
 const show = name => ['setup', 'play', 'result'].forEach(s => { $(s).hidden = s !== name; });
 
-let cond = null;   // { tag: null | 'JavaScript', ta: 0 | 制限時間（秒） }
+let cond = null;   // { tags: [] (= ランダム) | ['JavaScript', 'Linux'], ta: 0 | 制限時間（秒） }
 let set = [];      // 出題する問題
 let picks = [];    // 選んだ選択肢の番号
 let pos = 0;
@@ -284,6 +301,10 @@ let deadline = 0;  // performance.now() 基準の終了時刻
 let timerId = null;
 let taEnd = null;  // { reason: 'time' | 'all', left: 残り秒 }
 
+// 選んでいるカテゴリ（10 問用とタイムアタック用で別々。条件を選び直すときは残す）
+const picked = { cat: new Set(), ta: new Set() };
+let tagCounts = {};
+
 // 本文の該当箇所へのリンク（別タブで開き、クイズの進み具合を残す）
 function refLink(q, label) {
   const a = document.createElement('a');
@@ -294,11 +315,17 @@ function refLink(q, label) {
   a.textContent = label;
   return a;
 }
-const condLabel = c => (c.ta ? `⏱ ${secLabel(c.ta)}・` : '') + (c.tag || 'ランダム');
+// 選んだカテゴリのどれかに入る問題（カテゴリなしなら全問）
+const poolFor = tags => tags.length
+  ? QUIZZES.filter(q => (tagsOf[q.file] || []).some(t => tags.includes(t)))
+  : QUIZZES;
+const tagsLabel = tags => !tags.length ? 'ランダム'
+  : tags.length <= 2 ? tags.join('・') : `${tags.slice(0, 2).join('・')} ほか ${tags.length - 2}`;
+const condLabel = c => (c.ta ? `⏱ ${secLabel(c.ta)}・` : '') + tagsLabel(c.tags);
 const secLabel = sec => sec % 60 ? `${sec} 秒` : `${sec / 60} 分`;
 
 // 自己ベスト（タイムアタックの条件ごと。ブラウザに保存できないときは出さない）
-const bestKey = c => `memo-quiz-ta:${c.ta}:${c.tag || '*'}`;
+const bestKey = c => `memo-quiz-ta:${c.ta}:${c.tags.length ? c.tags.slice().sort().join(',') : '*'}`;
 function getBest(c) {
   try { const v = localStorage.getItem(bestKey(c)); return v == null ? null : +v; } catch (e) { return null; }
 }
@@ -307,20 +334,30 @@ function setBest(c, n) {
 }
 
 // ---- 条件選択
-function renderTags(box, counts, onPick) {
+// カテゴリのボタン。押すと選択・解除を切り替える
+function renderTags(kind) {
+  const ids = { cat: ['tag-list', 'start-cat', 'cat-count', 'clear-cat'], ta: ['ta-tag-list', 'start-ta-cat', 'ta-cat-count', 'clear-ta-cat'] }[kind];
+  const sel = picked[kind];
+  const box = $(ids[0]);
   box.textContent = '';
-  for (const t of Object.keys(counts).sort()) {
+  for (const t of Object.keys(tagCounts).sort()) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'tag';
     b.textContent = t;
+    b.setAttribute('aria-pressed', String(sel.has(t)));
     const n = document.createElement('small');
-    n.textContent = counts[t];
+    n.textContent = tagCounts[t];
     b.appendChild(n);
-    b.onclick = () => onPick(t);
+    b.onclick = () => { sel.has(t) ? sel.delete(t) : sel.add(t); renderTags(kind); };
     box.appendChild(b);
   }
+  const n = sel.size ? poolFor([...sel]).length : 0;
+  $(ids[1]).disabled = !n;
+  $(ids[2]).textContent = sel.size ? `${sel.size} カテゴリ・${n} 問から出題` : 'カテゴリを選んでください';
+  $(ids[3]).hidden = !sel.size;
 }
+const selected = kind => Object.keys(tagCounts).sort().filter(t => picked[kind].has(t));
 function renderTimes() {
   for (const b of $('ta-time').children) {
     b.setAttribute('aria-checked', String(+b.dataset.sec === taTime));
@@ -338,10 +375,10 @@ function setup() {
     return;
   }
   $('all-note').textContent = `全 ${QUIZZES.length} 問（${new Set(QUIZZES.map(q => q.file)).size} ページ）から出題`;
-  const counts = {};
-  for (const q of QUIZZES) for (const t of tagsOf[q.file] || []) counts[t] = (counts[t] || 0) + 1;
-  renderTags($('tag-list'), counts, t => start({ tag: t, ta: 0 }));
-  renderTags($('ta-tag-list'), counts, t => start({ tag: t, ta: taTime }));
+  tagCounts = {};
+  for (const q of QUIZZES) for (const t of tagsOf[q.file] || []) tagCounts[t] = (tagCounts[t] || 0) + 1;
+  renderTags('cat');
+  renderTags('ta');
   renderTimes();
   show('setup');
 }
@@ -350,7 +387,7 @@ function setup() {
 function start(c, questions) {
   stopTimer();
   cond = c;
-  const pool = c.tag ? QUIZZES.filter(q => (tagsOf[q.file] || []).includes(c.tag)) : QUIZZES;
+  const pool = poolFor(c.tags);
   // タイムアタックは対象の全問をシャッフルして、時間か問題が尽きるまで出す
   set = questions || (c.ta ? shuffle(pool) : shuffle(pool).slice(0, COUNT));
   if (!set.length) return setup();
@@ -359,9 +396,9 @@ function start(c, questions) {
   taEnd = null;
   const url = new URL(location.href);
   const params = new URLSearchParams();
-  if (c.tag) params.set('tag', c.tag);
+  for (const t of c.tags) params.append('tag', t);
   if (c.ta) { params.set('mode', 'timeattack'); params.set('time', c.ta); }
-  else if (!c.tag) params.set('mode', 'random');
+  else if (!c.tags.length) params.set('mode', 'random');
   url.search = '?' + params;
   history.replaceState(null, '', url);
   $('cond').textContent = condLabel(c);
@@ -511,7 +548,7 @@ function result() {
   } else {
     $('score-msg').textContent = ok === set.length
       ? '全問正解！'
-      : `${cond.tag || 'ランダム'}・正答率 ${Math.round(ok / set.length * 100)}%　間違えた問題は本文で確認できます`;
+      : `${tagsLabel(cond.tags)}・正答率 ${Math.round(ok / set.length * 100)}%　間違えた問題は本文で確認できます`;
   }
   const list = $('review');
   list.textContent = '';
@@ -546,18 +583,22 @@ function result() {
   $('retry-wrong').hidden = !wrong.length;
   $('retry-wrong').textContent = cond.ta ? '間違えた問題を解説つきで解き直す' : '間違えた問題だけもう一度';
   // 解き直しは 1 問ずつ解説が出る通常のモードで
-  $('retry-wrong').onclick = () => start({ tag: cond.tag, ta: 0 }, shuffle(wrong));
+  $('retry-wrong').onclick = () => start({ tags: cond.tags, ta: 0 }, shuffle(wrong));
   $('retry').textContent = cond.ta ? 'もう一度タイムアタック' : '同じ条件でもう一度';
   show('result');
   window.scrollTo({ top: 0 });
 }
-$('retry').onclick = () => start({ tag: cond.tag, ta: cond.ta });
+$('retry').onclick = () => start({ tags: cond.tags, ta: cond.ta });
 $('reset').onclick = () => { history.replaceState(null, '', location.pathname); setup(); };
-$('start-random').onclick = () => start({ tag: null, ta: 0 });
-$('ta-random').onclick = () => start({ tag: null, ta: taTime });
+$('start-random').onclick = () => start({ tags: [], ta: 0 });
+$('ta-random').onclick = () => start({ tags: [], ta: taTime });
+$('start-cat').onclick = () => start({ tags: selected('cat'), ta: 0 });
+$('start-ta-cat').onclick = () => start({ tags: selected('ta'), ta: taTime });
+$('clear-cat').onclick = () => { picked.cat.clear(); renderTags('cat'); };
+$('clear-ta-cat').onclick = () => { picked.ta.clear(); renderTags('ta'); };
 
 // ---- 読み込んではじめる。URL から直接はじめることもできる
-// （quiz.html?tag=JavaScript / quiz.html?mode=random / quiz.html?mode=timeattack&time=60&tag=JavaScript）
+// （quiz.html?tag=JavaScript&tag=Linux / quiz.html?mode=random / quiz.html?mode=timeattack&time=60&tag=JavaScript）
 (async () => {
   try {
     [MEMOS, QUIZZES] = await Promise.all([loadJSON('memos.json'), loadJSON('quizzes.json')]);
@@ -569,12 +610,15 @@ $('ta-random').onclick = () => start({ tag: null, ta: taTime });
   tagsOf = Object.fromEntries(MEMOS.map(m => [m.file, m.tags || []]));
   const params = new URLSearchParams(location.search);
   if (TA_TIMES.includes(+params.get('time'))) taTime = +params.get('time');
+  const known = new Set(Object.values(tagsOf).flat());
+  const tags = [...new Set(params.getAll('tag'))].filter(t => known.has(t)).sort();
+  const ta = params.get('mode') === 'timeattack';
+  for (const t of tags) picked[ta ? 'ta' : 'cat'].add(t);
   setup();
   if (QUIZZES.length) {
-    const tag = params.get('tag') || null;
-    if (params.get('mode') === 'timeattack') start({ tag, ta: taTime });
-    else if (tag) start({ tag, ta: 0 });
-    else if (params.get('mode') === 'random') start({ tag: null, ta: 0 });
+    if (ta) start({ tags, ta: taTime });
+    else if (tags.length) start({ tags, ta: 0 });
+    else if (params.get('mode') === 'random') start({ tags: [], ta: 0 });
   }
 })();
 </script>
