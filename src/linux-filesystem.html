@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux のファイルシステムと権限</title>
+<meta name="description" content="Linux のファイルが「名前 → inode → データ」の 3 段でできていることから、ハードリンクとシンボリックリンク、rwx と特殊ビットの判定順、umask、マウントによる 1 本のツリーまでを図と操作で整理する。">
+<meta name="memo:tags" content="Linux">
+<meta name="memo:date" content="2026-11-07">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+p { margin: 8px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+:root { --c-ok: #1f8a50; --c-warn: #b45309; --c-ng: #c0392b; --c-sub: #7c3aed; }
+@media (prefers-color-scheme: dark) {
+  :root { --c-ok: #4ade80; --c-warn: #fbbf24; --c-ng: #f87171; --c-sub: #c4b5fd; }
+}
+a { color: var(--accent); }
+h3 { font-size: 0.98rem; margin: 22px 0 8px; }
+ul.dots { margin: 8px 0 8px 1.3em; }
+ul.dots li { margin: 3px 0; }
+pre .cm { color: var(--fg-2); }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.table-wrap { overflow-x: auto; margin: 10px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--surface); }
+th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 700; white-space: nowrap; }
+.btn {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 6px 12px;
+  font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer;
+}
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn.on { border-color: var(--accent); color: var(--accent); }
+.ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
+.stepmsg {
+  border-left: 3px solid var(--accent); background: var(--surface);
+  border-radius: 0 8px 8px 0; padding: 10px 14px; min-height: 4.6em; font-size: 0.9rem;
+}
+.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); display: block; }
+.anat { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.anat .card { padding: 10px 14px; }
+.anat b { font-size: 0.85rem; color: var(--accent); }
+.anat p { font-size: 0.8rem; margin: 2px 0 0; color: var(--fg-2); }
+.panel { margin-top: 0; }
+.panel h4 { font-size: 0.9rem; margin: 10px 0 4px; }
+.panel ul { margin: 4px 0 4px 1.2em; font-size: 0.86rem; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tag-ok { color: var(--c-ok); font-weight: 700; }
+.tag-ng { color: var(--c-ng); font-weight: 700; }
+.tag-warn { color: var(--c-warn); font-weight: 700; }
+details.myth { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
+details.myth summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
+details.myth summary::before { content: '✗ '; color: var(--c-ng); }
+details.myth p { font-size: 0.86rem; }
+.related { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.related a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font-size: 0.75rem; font-weight: 600; }
+.related a:hover { color: var(--accent); }
+/* ステップ図 */
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; }
+.node {
+  flex: 1 1 110px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; font-size: 0.75rem; transition: border-color .2s, opacity .2s, transform .2s;
+}
+.node b { display: block; font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; }
+.node span { color: var(--fg-2); }
+.node.hl { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.node.dim { opacity: .45; }
+.arrow { align-self: center; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+@media (max-width: 640px) {
+  .row2 { grid-template-columns: 1fr; }
+  .flow { flex-direction: column; }
+  .arrow { transform: rotate(90deg); }
+}
+
+/* 3 段の図 */
+.three { display: grid; grid-template-columns: 1fr 24px 1.2fr 24px 1fr; gap: 6px; align-items: center; }
+.three .card { padding: 10px 12px; font-size: 0.78rem; }
+.three .card > b { display: block; font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); margin-bottom: 4px; }
+.three .arrow { text-align: center; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.72rem; }
+.kv dt { color: var(--fg-2); }
+.kv dd.no { color: var(--c-ng); }
+/* リンクの実験 */
+.lab { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dirtab, .inodes { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 140px; }
+.dirtab .zt, .inodes .zt { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-bottom: 4px; }
+.ent { display: flex; justify-content: space-between; gap: 8px; font: 500 0.78rem 'JetBrains Mono', ui-monospace, monospace; padding: 3px 6px; border-radius: 4px; animation: pop .25s ease-out; }
+.ent:nth-child(odd) { background: var(--chip); }
+.ent .sym { color: var(--c-sub); }
+.ent.broken { color: var(--c-ng); text-decoration: line-through; }
+.ino { border: 1.5px solid var(--line); border-radius: 6px; padding: 4px 8px; margin: 4px 0; font: 500 0.74rem 'JetBrains Mono', ui-monospace, monospace; animation: pop .25s ease-out; }
+.ino b { color: var(--accent); }
+.ino.free { border-style: dashed; opacity: .5; }
+@keyframes pop { from { transform: scale(.94); opacity: 0; } to { transform: none; opacity: 1; } }
+.term { font: 500 0.78rem 'JetBrains Mono', ui-monospace, monospace; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-top: 8px; min-height: 2.4em; white-space: pre-wrap; }
+/* chmod 計算機 */
+.perm { display: grid; grid-template-columns: 5.5em repeat(3, 1fr); gap: 4px; max-width: 460px; }
+.perm > div { text-align: center; font-size: 0.8rem; padding: 4px; }
+.perm .h { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.perm .rl { text-align: left; font-weight: 700; }
+.perm label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.special { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0; font-size: 0.8rem; }
+.special label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+.permout { display: flex; flex-wrap: wrap; gap: 14px; align-items: baseline; margin: 8px 0; }
+.permout .big { font: 700 1.4rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.permout .sy { font: 700 1.1rem 'JetBrains Mono', ui-monospace, monospace; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+/* 判定フロー */
+.decide { display: flex; flex-direction: column; gap: 6px; }
+.decide .card { padding: 8px 12px; font-size: 0.84rem; display: flex; gap: 10px; align-items: baseline; }
+.decide .q { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); white-space: nowrap; }
+/* マウント */
+.mtree { font: 500 0.8rem/1.8 'JetBrains Mono', ui-monospace, monospace; white-space: pre; overflow-x: auto; }
+.mtree .m { color: var(--accent); font-weight: 700; }
+.mtree .c { color: var(--fg-2); }
+@media (max-width: 640px) {
+  .three { grid-template-columns: 1fr; }
+  .three .arrow { transform: rotate(90deg); }
+  .lab { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Linux のファイルシステムと権限</h1>
+  <p class="subtitle">名前・inode・データ / ハードリンクとシンボリックリンク / rwx の判定順と特殊ビット / umask / マウント</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>ファイルは<b>名前 → inode → データ</b>の 3 段。名前はディレクトリが持つ「名前と inode 番号の対応表」の 1 行にすぎず、権限・所有者・サイズなどは inode が持つ。</li>
+      <li>権限は「所有者・グループ・その他」の 3 組の rwx。カーネルは<b>最初に当てはまった 1 組だけ</b>を見る。ディレクトリの rwx はファイルとは意味が違い、ファイルを消せるかはディレクトリの w で決まる。</li>
+      <li>ディスクが何本あっても見えるのは <code>/</code> から始まる 1 本のツリー。各ファイルシステムを途中のディレクトリに<b>マウント</b>（接ぎ木）してできている。</li>
+    </ul>
+  </div>
+
+  <h2 id="inode">名前・inode・データ</h2>
+  <div class="three">
+    <div class="card"><b>ディレクトリ /home/u</b>
+      <dl class="kv"><dt>.</dt><dd>1201</dd><dt>..</dt><dd>1100</dd><dt>memo.txt</dt><dd>4711</dd><dt>photo.jpg</dt><dd>4820</dd></dl>
+      <p class="muted" style="font-size:.72rem;margin-top:4px">ディレクトリも「名前 → inode 番号」の表を中身に持つファイル</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="card"><b>inode 4711</b>
+      <dl class="kv">
+        <dt>種類</dt><dd>通常ファイル</dd>
+        <dt>mode</dt><dd>0644 (rw-r--r--)</dd>
+        <dt>uid/gid</dt><dd>1000 / 1000</dd>
+        <dt>size</dt><dd>2,315</dd>
+        <dt>links</dt><dd>1（この inode を指す名前の数）</dd>
+        <dt>mtime</dt><dd>中身を変えた時刻</dd>
+        <dt>ctime</dt><dd>inode を変えた時刻</dd>
+        <dt>atime</dt><dd>読んだ時刻</dd>
+        <dt>blocks</dt><dd>データの場所</dd>
+        <dt>名前</dt><dd class="no">持っていない</dd>
+      </dl>
+    </div>
+    <div class="arrow">→</div>
+    <div class="card"><b>データブロック</b>
+      <p>ファイルの中身そのもの。ext4 なら連続した範囲（extent）単位で管理する。</p>
+    </div>
+  </div>
+  <ul class="dots">
+    <li><code>ls -i</code> で inode 番号、<code>stat</code> で inode の中身が見える。inode 番号はファイルシステムの中でだけ一意。</li>
+    <li><b>ctime は作成時刻ではない</b>。権限や所有者を変えても更新される「inode の変更時刻」。作成時刻（birth）は ext4・XFS・Btrfs などが持っていれば <code>stat</code> の Birth に出る。</li>
+    <li>inode の数はファイルシステムを作るときに決まることが多い（ext4）。小さいファイルを大量に作ると、容量が空いていても inode が尽きて書けなくなる（<code>df -i</code>）。</li>
+    <li>そのファイルを開いたままのプロセスがあると、<code>rm</code> しても inode とデータは残る（<a href="#links">下で試せる</a>）。</li>
+  </ul>
+
+  <h2 id="links">ハードリンクとシンボリックリンク</h2>
+  <p>ボタンを順に押して、ディレクトリの表と inode がどう変わるかを見る。</p>
+  <div class="ctrl" id="ln-btns">
+    <button class="btn" data-op="hard">ln a.txt b.txt</button>
+    <button class="btn" data-op="sym">ln -s a.txt c.txt</button>
+    <button class="btn" data-op="open">tail -f a.txt &amp;</button>
+    <button class="btn" data-op="rm">rm a.txt</button>
+    <button class="btn" data-op="rmb">rm b.txt</button>
+    <button class="btn" data-op="kill">kill %1</button>
+    <button class="btn" data-op="reset">最初から</button>
+  </div>
+  <div class="lab">
+    <div class="dirtab"><div class="zt">ディレクトリ /tmp/demo（名前 → inode）</div><div id="ln-dir"></div></div>
+    <div class="inodes"><div class="zt">inode</div><div id="ln-ino"></div></div>
+  </div>
+  <div class="term" id="ln-term"></div>
+  <div class="table-wrap">
+    <table>
+      <tr><th></th><th>ハードリンク</th><th>シンボリックリンク</th></tr>
+      <tr><td>正体</td><td>同じ inode を指す、もう 1 つの名前</td><td>「パス文字列」を中身に持つ別の小さなファイル</td></tr>
+      <tr><td>元を消すと</td><td>残る（リンク数が 0 になるまでデータは消えない）</td><td>壊れる（指す先が無いリンクになる）</td></tr>
+      <tr><td>別のファイルシステムへ</td><td>作れない（inode 番号はファイルシステム内でしか通じない）</td><td>作れる</td></tr>
+      <tr><td>ディレクトリに</td><td>作れない（ツリーに輪ができるため）</td><td>作れる</td></tr>
+      <tr><td>権限</td><td>inode が同じなので共通</td><td>リンク自体は常に <code>rwxrwxrwx</code> と表示され、判定は指す先のもので行う</td></tr>
+    </table>
+  </div>
+  <p class="muted">同じファイルシステム内の <code>mv</code> はディレクトリの表の書き換え（rename）だけで、inode もデータも動かない。だから巨大なファイルでも一瞬で終わる。別のファイルシステムへの <code>mv</code> はコピーして消す処理になる。</p>
+
+  <h2 id="perm">rwx と 8 進数</h2>
+  <div class="perm" id="perm-grid">
+    <div></div><div class="h">r (4)</div><div class="h">w (2)</div><div class="h">x (1)</div>
+  </div>
+  <div class="special">
+    <label><input type="checkbox" id="sp-suid"> setuid (4000)</label>
+    <label><input type="checkbox" id="sp-sgid"> setgid (2000)</label>
+    <label><input type="checkbox" id="sp-sticky"> sticky (1000)</label>
+  </div>
+  <div class="permout"><span class="big" id="perm-oct">0644</span><span class="sy" id="perm-sym">-rw-r--r--</span><code id="perm-cmd">chmod 644 file</code></div>
+  <div class="presets" id="perm-presets">
+    <button class="btn" data-v="644">644 普通のファイル</button>
+    <button class="btn" data-v="755">755 実行ファイル・ディレクトリ</button>
+    <button class="btn" data-v="600">600 秘密鍵</button>
+    <button class="btn" data-v="1777">1777 /tmp</button>
+    <button class="btn" data-v="2775">2775 共有ディレクトリ</button>
+    <button class="btn" data-v="4755">4755 passwd コマンド</button>
+  </div>
+  <p class="muted" id="perm-note"></p>
+
+  <h3 id="dir">ディレクトリの rwx は意味が違う</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>ビット</th><th>ファイルに対して</th><th>ディレクトリに対して</th></tr>
+      <tr><td class="mono">r</td><td>中身を読める</td><td>中にある<b>名前の一覧</b>を読める（<code>ls</code>）</td></tr>
+      <tr><td class="mono">w</td><td>中身を書き換えられる</td><td>中に<b>作る・消す・名前を変える</b>（表の行を書き換える）。x も必要</td></tr>
+      <tr><td class="mono">x</td><td>プログラムとして実行できる</td><td><b>通り抜けられる</b>。中の名前を使って inode にたどり着ける（<code>cd</code>・パスの途中に使う）</td></tr>
+    </table>
+  </div>
+  <ul class="dots">
+    <li><code>r</code> だけで <code>x</code> が無いディレクトリは、名前の一覧は見えても、中のファイルを開くことも <code>ls -l</code> で詳細を見ることもできない。逆に <code>x</code> だけなら、名前を知っているファイルは開ける（一覧は見えない）。</li>
+    <li><b>ファイルを消せるかはファイル自身ではなく、親ディレクトリの w と x で決まる</b>。読み取り専用のファイルでも、ディレクトリに書ければ消せる（<code>rm</code> は確認を出すだけ）。</li>
+    <li>パスの途中のディレクトリ全部に <code>x</code> が要る。<code>/home/u/site/index.html</code> が Web サーバーから読めないときは、<code>namei -l</code> で途中のどこが閉じているかを見る。</li>
+  </ul>
+
+  <h3 id="decide">カーネルの判定順</h3>
+  <div class="decide">
+    <div class="card"><span class="q">0</span><span>プロセスが root（正確には <code>CAP_DAC_OVERRIDE</code> を持つ）なら、読み書きはほぼ素通り。ただし実行は、x がどこにも立っていないファイルは root でもできない。</span></div>
+    <div class="card"><span class="q">1</span><span>プロセスの UID がファイルの所有者と同じ → <b>所有者の rwx だけ</b>を見て決める。</span></div>
+    <div class="card"><span class="q">2</span><span>そうでなく、プロセスのグループ（補助グループを含む）にファイルのグループがある → <b>グループの rwx だけ</b>を見る。</span></div>
+    <div class="card"><span class="q">3</span><span>どちらでもない → <b>その他の rwx</b>を見る。</span></div>
+  </div>
+  <p class="muted">「最初に当てはまった組だけ」なので、<code>chmod 077 file</code> にすると、所有者だけが読めない（グループと他人は読める）という逆転が起きる。ACL（<code>getfacl</code>、<code>ls -l</code> で末尾に <code>+</code>）を使うと、特定のユーザーやグループを個別に追加できる。</p>
+
+  <h3 id="special">特殊ビット</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>ビット</th><th>ファイル</th><th>ディレクトリ</th><th>ls での表示</th></tr>
+      <tr><td>setuid</td><td>実行すると<b>ファイルの所有者の権限</b>で動く（<code>passwd</code> が root 所有の <code>/etc/shadow</code> を書ける理由）。Linux ではスクリプトには効かない</td><td>（ふつう使わない）</td><td>所有者の x が <code>s</code></td></tr>
+      <tr><td>setgid</td><td>実行するとファイルのグループの権限で動く</td><td>中に作ったファイルが<b>ディレクトリのグループを継ぐ</b>。チームの共有フォルダに使う</td><td>グループの x が <code>s</code></td></tr>
+      <tr><td>sticky</td><td>（今は意味なし）</td><td>w があっても、<b>自分のファイルしか消せない</b>（<code>/tmp</code>）</td><td>その他の x が <code>t</code></td></tr>
+    </table>
+  </div>
+  <p class="muted">x が立っていないのに特殊ビットだけ立っていると大文字（<code>S</code>・<code>T</code>）で表示される。たいてい設定ミス。</p>
+
+  <h3 id="umask">umask: 新しく作るときの既定</h3>
+  <p>プログラムは普通、ファイルを <code>666</code>、ディレクトリを <code>777</code> で作ろうとし、そこから umask のビットを落としたものが実際の権限になる。umask はプロセスの属性で、子プロセスに引き継がれる（<a href="linux-process.html">Linux プロセス</a>）。</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>umask</th><th>新しいファイル</th><th>新しいディレクトリ</th><th>使われ方</th></tr>
+      <tr><td class="mono">022</td><td class="mono">644</td><td class="mono">755</td><td>システム全体や root の既定。他人も読める</td></tr>
+      <tr><td class="mono">002</td><td class="mono">664</td><td class="mono">775</td><td>ユーザーごとに専用グループがある環境（Ubuntu・Fedora の一般ユーザーの既定）。グループで共同編集</td></tr>
+      <tr><td class="mono">077</td><td class="mono">600</td><td class="mono">700</td><td>自分しか触れない。秘密情報を扱うスクリプト</td></tr>
+    </table>
+  </div>
+
+  <h2 id="mount">マウント: 1 本のツリーへの接ぎ木</h2>
+  <div class="card mtree"><span class="m">/</span>                 <span class="c">← ext4 (/dev/nvme0n1p2)</span>
+├─ <span class="m">boot/efi</span>      <span class="c">← vfat (/dev/nvme0n1p1)</span>
+├─ etc/  usr/  var/
+├─ <span class="m">home</span>          <span class="c">← btrfs (/dev/nvme1n1)  ここから下は別のディスク</span>
+├─ <span class="m">proc</span>          <span class="c">← proc   プロセスの情報をカーネルがその場で見せる</span>
+├─ <span class="m">sys</span>           <span class="c">← sysfs  デバイス・カーネルの設定</span>
+├─ <span class="m">dev</span>           <span class="c">← devtmpfs  デバイスファイル（/dev/null, /dev/sda…）</span>
+├─ <span class="m">run</span>, <span class="m">tmp</span>     <span class="c">← tmpfs  メモリ上。再起動で消える（/tmp はディストリによる）</span>
+└─ <span class="m">mnt/nas</span>       <span class="c">← nfs    ネットワーク越し</span></div>
+  <ul class="dots">
+    <li><code>mount /dev/sdb1 /mnt/usb</code> で、<code>/mnt/usb</code> から下がそのディスクの中身に差し替わる。元の <code>/mnt/usb</code> にあったファイルは消えたのではなく、隠れて見えないだけ（外すと戻る）。</li>
+    <li>ハードリンクや <code>mv</code> の速さは「同じマウントの中か」で決まる。<code>/home</code> が別ディスクなら、<code>/tmp</code> から <code>/home</code> への mv はコピーになる。</li>
+    <li><b>バインドマウント</b>はディレクトリを別の場所にもう 1 つ見せる（<code>mount --bind</code>）。Docker の <code>-v ./src:/app</code> はこれ。</li>
+    <li>Docker のイメージのレイヤーは <b>overlayfs</b> で重ねて 1 つに見せ、コンテナごとにマウントの名前空間を分けて別の <code>/</code> を見せている（<a href="docker.html">Docker 動作原理</a>）。</li>
+  </ul>
+
+  <h2 id="myth">よくある誤解</h2>
+  <details class="myth"><summary>読み取り専用（444）のファイルは消せない</summary>
+    <p>消すのはディレクトリの表から 1 行を取り除く操作なので、必要なのは親ディレクトリの w と x。ファイル自身の権限は関係ない。他人のファイルを消されたくない共有ディレクトリには sticky ビットを立てる。</p>
+  </details>
+  <details class="myth"><summary>大きなログを rm したのに、df の空き容量が増えない</summary>
+    <p>まだそのファイルを開いているプロセスがあると、名前が消えても inode とデータは残る（<code>du</code> には出ないが <code>df</code> には残る）。<code>lsof +L1</code> で見つけて、そのプロセスを再起動するか、ファイルを <code>: &gt; file</code> で空にしてから消す。</p>
+  </details>
+  <details class="myth"><summary>困ったら chmod 777 にすれば動く</summary>
+    <p>誰でも書き換えられるファイルは、他のユーザーや侵入したプロセスが中身を差し替えられる。たいていの原因は所有者の違いかパスの途中の x 不足なので、<code>namei -l</code> と <code>ls -l</code> で見て、所有者（<code>chown</code>）かグループで解決する。</p>
+  </details>
+  <details class="myth"><summary>ctime はファイルを作った日時</summary>
+    <p>ctime は inode を最後に変えた時刻（change）。<code>chmod</code> でも <code>mv</code> でも変わる。作成時刻が欲しいときは <code>stat</code> の Birth を見る（ファイルシステムが記録していれば出る）。</p>
+  </details>
+
+  <h2 id="cmd">コマンド例</h2>
+<pre>ls -li                        <span class="cm"># 先頭が inode 番号、権限の次がリンク数</span>
+stat memo.txt                 <span class="cm"># inode の中身（mode・uid・3 つの時刻・Birth）</span>
+find . -samefile memo.txt     <span class="cm"># 同じ inode を指す名前（ハードリンク）を探す</span>
+namei -l /home/u/site/index.html   <span class="cm"># パスの途中の各ディレクトリの権限</span>
+id                            <span class="cm"># 自分の UID と所属グループ（判定に使われる）</span>
+chmod u+x,go-w script.sh      <span class="cm"># 記号で足し引き</span>
+chmod 2775 /srv/share && chgrp team /srv/share   <span class="cm"># チームの共有ディレクトリ</span>
+umask                         <span class="cm"># 今のシェルの umask</span>
+df -h; df -i                  <span class="cm"># 容量と inode の空き</span>
+lsof +L1                      <span class="cm"># 消されたのに開かれたままのファイル</span>
+findmnt                       <span class="cm"># マウントのツリー（種類とオプション付き）</span></pre>
+
+  <h2>関連するメモ</h2>
+  <div class="related">
+    <a href="linux-process-signal.html">Linux 全体像</a><a href="linux-process.html">Linux プロセス</a><a href="linux-terminal.html">端末とシェル</a><a href="docker.html">Docker 動作原理</a><a href="virtual-memory.html">仮想メモリ</a>
+  </div>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+/* ステップ再生: steps = [{ hl: ['id', ...], t: '説明' }]。hl に含まれない .node は薄くする */
+function stepPlayer(prefix, steps, onRender) {
+  const msg = document.getElementById(prefix + '-msg');
+  const prev = document.getElementById(prefix + '-prev');
+  const next = document.getElementById(prefix + '-next');
+  const nodes = document.querySelectorAll('#' + prefix + '-flow .node');
+  let i = 0;
+  function render() {
+    const s = steps[i];
+    nodes.forEach(n => {
+      const on = s.hl.includes(n.dataset.k);
+      n.classList.toggle('hl', on);
+      n.classList.toggle('dim', !on && s.dim !== false);
+    });
+    msg.innerHTML = '<span class="n">STEP ' + (i + 1) + ' / ' + steps.length + '</span>' + s.t;
+    prev.disabled = i === 0;
+    next.disabled = i === steps.length - 1;
+    if (onRender) onRender(s, i);
+  }
+  next.onclick = () => { i++; render(); };
+  prev.onclick = () => { i--; render(); };
+  document.getElementById(prefix + '-reset').onclick = () => { i = 0; render(); };
+  render();
+}
+
+/* リンクの実験 */
+(() => {
+  const dirEl = document.getElementById('ln-dir'), inoEl = document.getElementById('ln-ino'), term = document.getElementById('ln-term');
+  let dir, ino, opened;
+  function reset() {
+    dir = [{ n: 'a.txt', i: 4711 }];
+    ino = { 4711: { links: 1, kind: 'file', data: 'hello' } };
+    opened = false;
+    term.textContent = '$ echo hello > a.txt   # inode 4711 が作られ、a.txt という名前が付く';
+    render();
+  }
+  function render() {
+    dirEl.innerHTML = dir.map(e => {
+      const broken = e.sym && !dir.find(d => d.n === e.sym);
+      return '<div class="ent' + (broken ? ' broken' : '') + '"><span>' + e.n + (e.sym ? ' <span class="sym">→ ' + e.sym + '</span>' : '') + '</span><span>' + e.i + '</span></div>';
+    }).join('') || '<div class="muted">（空）</div>';
+    inoEl.innerHTML = Object.entries(ino).map(([k, v]) => {
+      const free = v.kind === 'file' && v.links === 0 && !opened;
+      const desc = v.kind === 'sym' ? 'シンボリックリンク / 中身 "' + v.data + '"' : '通常ファイル / 中身 "' + v.data + '"';
+      return '<div class="ino' + (free ? ' free' : '') + '"><b>' + k + '</b> links=' + v.links + (v.kind === 'file' && opened ? ' / 開いているプロセス 1' : '') + '<br>' + desc + (free ? '<br>→ 解放された' : '') + '</div>';
+    }).join('');
+  }
+  const has = n => dir.find(d => d.n === n);
+  const ops = {
+    hard() {
+      if (!has('a.txt')) return '$ ln a.txt b.txt\nln: a.txt: そのようなファイルはありません';
+      if (has('b.txt')) return 'b.txt はもうある';
+      dir.push({ n: 'b.txt', i: 4711 }); ino[4711].links++;
+      return '$ ln a.txt b.txt   # 同じ inode 4711 に 2 つ目の名前。links が 2 になる。どちらが「本物」ということはない';
+    },
+    sym() {
+      if (has('c.txt')) return 'c.txt はもうある';
+      dir.push({ n: 'c.txt', i: 5002, sym: 'a.txt' }); ino[5002] = { links: 1, kind: 'sym', data: 'a.txt' };
+      return '$ ln -s a.txt c.txt   # 新しい inode 5002 ができ、中身は "a.txt" という文字列だけ';
+    },
+    open() {
+      if (!has('a.txt')) return 'a.txt が無いので開けない';
+      opened = true; return '$ tail -f a.txt &   # プロセスが inode 4711 を開いた（fd が inode を直接つかむ）';
+    },
+    rm() {
+      if (!has('a.txt')) return 'a.txt はもう無い';
+      dir = dir.filter(d => d.n !== 'a.txt'); ino[4711].links--;
+      const l = ino[4711].links;
+      return '$ rm a.txt   # 表から a.txt の行を消し links を 1 減らすだけ。' + (l > 0 ? 'b.txt が残っているのでデータは無事。c.txt は "a.txt" という名前を探すので壊れた' : opened ? 'links=0 だが開いているプロセスがいるので、まだ消えない（df の容量も減らない）' : 'links=0 で誰も開いていないので解放');
+    },
+    rmb() {
+      if (!has('b.txt')) return 'b.txt は無い';
+      dir = dir.filter(d => d.n !== 'b.txt'); ino[4711].links--;
+      return '$ rm b.txt   # ' + (ino[4711].links === 0 ? (opened ? '名前は 0 個になったが、tail が開いているのでデータは残る' : '最後の名前が消え、誰も開いていないので解放') : 'まだ別の名前がある');
+    },
+    kill() {
+      if (!opened) return 'tail は動いていない';
+      opened = false;
+      return '$ kill %1   # 最後の fd が閉じられた。' + (ino[4711].links === 0 ? 'links=0 なので、ここでやっと解放される' : 'まだ名前があるので inode は残る');
+    }
+  };
+  document.getElementById('ln-btns').addEventListener('click', e => {
+    const b = e.target.closest('.btn'); if (!b) return;
+    if (b.dataset.op === 'reset') return reset();
+    term.textContent = ops[b.dataset.op](); render();
+  });
+  reset();
+})();
+
+/* chmod 計算機 */
+(() => {
+  const grid = document.getElementById('perm-grid');
+  const roles = [['所有者 u', 'u'], ['グループ g', 'g'], ['その他 o', 'o']];
+  roles.forEach(([lab, k]) => {
+    grid.insertAdjacentHTML('beforeend', '<div class="rl">' + lab + '</div>' +
+      ['r', 'w', 'x'].map(p => '<div><label><input type="checkbox" data-r="' + k + '" data-p="' + p + '"> ' + p + '</label></div>').join(''));
+  });
+  const boxes = grid.querySelectorAll('input');
+  const sp = { suid: document.getElementById('sp-suid'), sgid: document.getElementById('sp-sgid'), sticky: document.getElementById('sp-sticky') };
+  const notes = {
+    '644': '所有者は読み書き、他は読むだけ。ドキュメントや設定ファイル。',
+    '755': 'ファイルなら誰でも実行でき、ディレクトリなら誰でも中に入って一覧を見られる。書けるのは所有者だけ。',
+    '600': '所有者だけが読み書き。ssh は秘密鍵がこれより緩いと使うのを拒む。',
+    '1777': '誰でも作れるが、sticky により自分のファイルしか消せない。',
+    '2775': 'setgid のディレクトリ。中に作ったファイルがディレクトリのグループを継ぐので、チームで共有しやすい。',
+    '4755': 'setuid。誰が実行しても所有者（root）の権限で動く。脆弱性があると権限昇格に直結するので、数を絞る。'
+  };
+  function update() {
+    let o = [0, 0, 0];
+    boxes.forEach(b => { if (b.checked) o['ugo'.indexOf(b.dataset.r)] += { r: 4, w: 2, x: 1 }[b.dataset.p]; });
+    const s = (sp.suid.checked ? 4 : 0) + (sp.sgid.checked ? 2 : 0) + (sp.sticky.checked ? 1 : 0);
+    const oct = String(s) + o.join('');
+    const sym = ['u', 'g', 'o'].map((r, i) => {
+      const has = p => grid.querySelector('[data-r="' + r + '"][data-p="' + p + '"]').checked;
+      let x = has('x') ? 'x' : '-';
+      if (i === 0 && sp.suid.checked) x = has('x') ? 's' : 'S';
+      if (i === 1 && sp.sgid.checked) x = has('x') ? 's' : 'S';
+      if (i === 2 && sp.sticky.checked) x = has('x') ? 't' : 'T';
+      return (has('r') ? 'r' : '-') + (has('w') ? 'w' : '-') + x;
+    }).join('');
+    document.getElementById('perm-oct').textContent = oct;
+    document.getElementById('perm-sym').textContent = '-' + sym;
+    document.getElementById('perm-cmd').textContent = 'chmod ' + (s ? oct : o.join('')) + ' file';
+    const key = s ? oct : o.join('');
+    document.getElementById('perm-note').textContent = notes[key] || (/[ST]/.test(sym) ? '大文字の S / T は、x が無いのに特殊ビットだけ立っている状態。たいてい設定ミス。' : (o[0] < o[1] || o[0] < o[2]) ? '所有者が他より弱い。判定は最初に当てはまった組だけなので、所有者は自分の権限しか使えない。' : '');
+  }
+  function set(v) {
+    v = v.padStart(4, '0');
+    const s = +v[0];
+    sp.suid.checked = !!(s & 4); sp.sgid.checked = !!(s & 2); sp.sticky.checked = !!(s & 1);
+    boxes.forEach(b => { const d = +v[1 + 'ugo'.indexOf(b.dataset.r)]; b.checked = !!(d & { r: 4, w: 2, x: 1 }[b.dataset.p]); });
+    update();
+  }
+  grid.addEventListener('change', update);
+  Object.values(sp).forEach(c => c.addEventListener('change', update));
+  document.getElementById('perm-presets').addEventListener('click', e => { const b = e.target.closest('.btn'); if (b) set(b.dataset.v); });
+  set('644');
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "共有ディレクトリ /srv/share（権限 777）で、他のユーザーが自分のファイルを勝手に消せてしまう。ファイルの権限は 644。どう対処する？",
+    "choices": ["自分のファイルを 444 にする", "ディレクトリに sticky ビットを立てる（1777 など）", "ファイルに setuid を立てる", "ファイルの所有者を root にする"],
+    "answer": 1,
+    "explain": "消せるかどうかは親ディレクトリの w で決まり、ファイル自身の権限は関係ない。sticky を立てると、w があっても自分のファイルしか消せなくなる。",
+    "ref": "#dir"
+  },
+  {
+    "q": "nginx が /home/u/site/index.html（644）を読めず 403 になる。/home/u は 700。原因は？",
+    "choices": ["index.html に x が無い", "nginx のユーザーが /home/u を通り抜けられない（その他に x が無い）", "index.html の所有者が nginx ではない", "644 では Web サーバーは読めず、755 が必要"],
+    "answer": 1,
+    "explain": "パスの途中のディレクトリ全部に x が要る。namei -l で途中のどこが閉じているかを確かめる。",
+    "ref": "#dir"
+  },
+  {
+    "q": "app.log を ln でハードリンクして backup.log を作り、その後 app.log を rm した。backup.log はどうなる？",
+    "choices": ["壊れたリンクになり、読めなくなる", "中身ごと消える", "同じ inode を指すので、そのまま読める", "app.log の削除前の内容のコピーになり、以降は別物になる"],
+    "answer": 2,
+    "explain": "ハードリンクは同じ inode の別名。rm は名前を 1 つ消してリンク数を減らすだけなので、もう 1 つの名前が残っていればデータは残る。シンボリックリンクなら壊れる。",
+    "ref": "#links"
+  },
+  {
+    "q": "10GB のログを rm したのに df の空き容量が変わらない。du ではもう見えない。何が起きている？",
+    "choices": ["ゴミ箱に移動しただけ", "ファイルシステムの更新が次の再起動まで反映されない", "そのファイルを開いたままのプロセスがいて、inode とデータが解放されていない", "inode が尽きている"],
+    "answer": 2,
+    "explain": "名前が消えても、開いている fd がある間は inode とデータは残る。lsof +L1 でプロセスを見つけて再起動する。",
+    "ref": "#myth"
+  },
+  {
+    "q": "ファイルの権限が 074 で、所有者は自分、グループにも自分が入っている。自分はこのファイルを読める？",
+    "choices": ["読める。グループに r があるから", "読めない。所有者に当てはまった時点で所有者の組（0）だけが使われる", "読める。その他に r があるから", "読めるかはグループの並び順で変わる"],
+    "answer": 1,
+    "explain": "カーネルは所有者 → グループ → その他の順に調べ、最初に当てはまった 1 組だけを見る。所有者に当てはまれば、グループの権限は使われない。",
+    "ref": "#decide"
+  }
+]
+</script>
+</body>
+</html>
