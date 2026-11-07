@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>動的計画法（DP）</title>
+<meta name="description" content="動的計画法の組み立て方（状態・遷移・初期値）、メモ化再帰とボトムアップの違い、ナップサックと編集距離の表が埋まる様子、典型パターンを図解。">
+<meta name="memo:tags" content="CS基礎">
+<meta name="memo:date" content="2026-11-07">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-a: #c2410c;
+  --c-b: #15803d;
+  --c-c: #7c3aed;
+  --c-d: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-a: #fb923c;
+    --c-b: #4ade80;
+    --c-c: #c4b5fd;
+    --c-d: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 20px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.dots, ol.dots { margin: 6px 0 6px 1.3em; }
+ul.dots li, ol.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+.table-wrap { overflow-x: auto; }
+table.t { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 560px; }
+table.t th, table.t td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+table.t th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+table.t td:first-child { font-weight: 700; white-space: nowrap; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.myth { margin-bottom: 10px; }
+.myth p { margin: 4px 0; }
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
+.series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
+.series span { background: var(--accent); color: var(--bg); font-weight: 700; }
+.o { font: 700 0.78rem 'JetBrains Mono', monospace; white-space: nowrap; }
+.steps3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.steps3 .card { margin: 0; }
+.steps3 .num { font: 700 1.3rem 'JetBrains Mono', monospace; color: var(--accent); }
+.btns { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+.btn { border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 8px; padding: 5px 12px; font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace; cursor: pointer; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.grid { border-collapse: separate; border-spacing: 2px; font: 600 0.74rem 'JetBrains Mono', monospace; margin: 6px auto; }
+.grid th { color: var(--fg-2); font-weight: 600; padding: 2px 4px; text-align: center; font-size: 0.68rem; }
+.grid th.rh { text-align: right; white-space: nowrap; }
+.grid td { width: 30px; height: 28px; text-align: center; border-radius: 4px; background: var(--chip); border: 1px solid transparent; transition: background .15s; }
+.grid td.empty { color: transparent; background: color-mix(in srgb, var(--chip) 45%, transparent); }
+.grid td.base { color: var(--fg-2); }
+.grid td.cur { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--surface)); }
+.grid td.src { border-color: var(--c-d); background: color-mix(in srgb, var(--c-d) 22%, var(--surface)); }
+.grid td.path { border-color: var(--c-b); background: color-mix(in srgb, var(--c-b) 25%, var(--surface)); }
+.explain { font: 500 0.8rem 'JetBrains Mono', monospace; background: var(--chip); border-radius: 8px; padding: 8px 10px; min-height: 2.4em; overflow-x: auto; }
+.items { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; font-size: 0.78rem; }
+.items span { border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; background: var(--chip); }
+.items span.pick { border-color: var(--c-b); color: var(--c-b); font-weight: 700; }
+.row-in { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 0.85rem; margin-bottom: 6px; }
+.row-in input[type="text"] { width: 130px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: 600 0.9rem 'JetBrains Mono', monospace; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.75rem; color: var(--fg-2); margin-top: 4px; }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; border: 1px solid; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>動的計画法（DP）</h1>
+  <p class="subtitle">状態・遷移・初期値の決め方 / メモ化再帰とボトムアップ / 典型パターン</p>
+
+  <nav class="series" aria-label="アルゴリズムのシリーズ">
+    <a href="data-structures.html">データ構造と計算量</a>
+    <a href="algorithm-paradigms.html">設計手法の全体像</a>
+    <span aria-current="page">動的計画法</span>
+    <a href="graph-algorithms.html">グラフ探索と最短経路</a>
+  </nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>動的計画法 (dynamic programming) は、<b>何度も出てくる部分問題の答えを表に覚えて使い回す</b>方法。分割統治との違いは <a href="algorithm-paradigms.html#dp">設計手法の全体像</a>。</li>
+      <li>決めることは 3 つ。<b>状態</b>（<code>dp[i]</code> が何を表すか）、<b>遷移</b>（どの小さい答えから作るか）、<b>初期値と計算の順番</b>。</li>
+      <li>計算量はおおよそ<b>「状態の数 × 1 つの状態の遷移の数」</b>。型（ナップサック・文字列・区間・bit など）を知っていると状態を見つけやすい。</li>
+    </ul>
+  </div>
+
+  <h2 id="steps">組み立て方 — 状態・遷移・初期値</h2>
+  <p>例: 階段を 1 段か 2 段ずつ上る。n 段目まで上る方法は何通り？</p>
+  <div class="steps3">
+    <div class="card"><div class="num">1</div><b>状態を決める</b><p class="muted"><code>dp[i]</code> ＝「i 段目にちょうど着く方法の数」。<b>答えが表のどこかに入る</b>ように、しかも小さい問題から順に作れるように決める。</p></div>
+    <div class="card"><div class="num">2</div><b>遷移を書く</b><p class="muted">i 段目の直前は i−1 段目か i−2 段目のどちらか。<code>dp[i] = dp[i−1] + dp[i−2]</code>。「最後の 1 手で場合分け」が基本の発想。</p></div>
+    <div class="card"><div class="num">3</div><b>初期値と順番</b><p class="muted"><code>dp[0] = 1</code>（何もしない 1 通り）、<code>dp[1] = 1</code>。i の小さい順に埋めれば、使う値はいつも計算済み。答えは <code>dp[n]</code>。</p></div>
+  </div>
+  <p class="muted">同じ問題でも状態の決め方は 1 つではない。状態が多すぎて間に合わないときは、「本当に区別する必要がある情報は何か」を考えて状態を減らす。</p>
+
+  <h2 id="styles">2 つの書き方 — メモ化再帰とボトムアップ</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="p-memo">メモ化再帰（トップダウン）</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-bu">ボトムアップ（表を埋める）</button>
+  </div>
+  <div class="panel" id="p-memo">
+<pre><code>from functools import cache
+
+@cache                      <span class="cm"># 同じ引数の結果を覚えておく</span>
+def ways(i):
+    if i &lt;= 1:
+        return 1
+    return ways(i - 1) + ways(i - 2)
+
+print(ways(50))</code></pre>
+    <p class="muted">漸化式をそのまま書いて、結果を覚えるだけ。計算の順番を考えなくてよく、<b>実際に必要になった状態だけ</b>を計算する。再帰が深くなると Python では上限（既定は 1000 段）に当たるので、<code>sys.setrecursionlimit</code> で上げるかボトムアップに書き直す。</p>
+  </div>
+  <div class="panel" id="p-bu" hidden>
+<pre><code>dp = [0] * (n + 2)          <span class="cm"># n = 0 でも dp[1] に書けるよう 1 つ多めに取る</span>
+dp[0] = dp[1] = 1
+for i in range(2, n + 1):   <span class="cm"># 小さい方から順に埋める</span>
+    dp[i] = dp[i - 1] + dp[i - 2]
+print(dp[n])
+
+<span class="cm"># 直前の 2 つしか使わないので、変数 2 つでも書ける（メモリ O(1)）</span>
+a, b = 1, 1
+for _ in range(n - 1):
+    a, b = b, a + b
+print(b)                    <span class="cm"># 答えは b</span></code></pre>
+    <p class="muted">表を小さい方から埋める。関数呼び出しがない分速く、再帰の深さの心配もない。<b>使い終わった行を捨てて</b>メモリを減らせる。ただし「どの順番なら使う値が計算済みか」を自分で決める必要がある。</p>
+  </div>
+
+  <h2 id="knapsack">ナップサック — 表が埋まる様子</h2>
+  <p>重さの上限 7 のナップサックに、品物を<b>それぞれ 1 個まで</b>入れる。価値の合計の最大は？　品物を 1 つずつ増やしながら、<code>dp[i][w]</code> ＝「最初の i 個から選び、重さ合計が w 以下のときの最大価値」を埋めていく。</p>
+  <div class="card">
+    <div class="items" id="ks-items"></div>
+    <div class="btns">
+      <button class="btn" id="ks-step">1 マス進む</button>
+      <button class="btn" id="ks-row">1 行進む</button>
+      <button class="btn" id="ks-all">全部埋める</button>
+      <button class="btn" id="ks-reset">最初から</button>
+    </div>
+    <div class="table-wrap"><table class="grid" id="ks-grid"></table></div>
+    <div class="explain" id="ks-explain"></div>
+    <div class="legend"><span><i style="border-color:var(--accent);background:color-mix(in srgb, var(--accent) 22%, var(--surface))"></i>いま計算するマス</span><span><i style="border-color:var(--c-d);background:color-mix(in srgb, var(--c-d) 22%, var(--surface))"></i>使う値</span><span><i style="border-color:var(--c-b);background:color-mix(in srgb, var(--c-b) 25%, var(--surface))"></i>答えをたどった道</span></div>
+  </div>
+<pre><code><span class="cm"># i 個目を「入れない」か「入れる」かの 2 通りを比べる</span>
+dp[i][w] = max(dp[i-1][w],                       <span class="cm"># 入れない</span>
+               dp[i-1][w - wt[i]] + val[i])      <span class="cm"># 入れる（w ≥ wt[i] のとき）</span></code></pre>
+  <ul class="dots">
+    <li>計算量は <span class="o">O(n × W)</span>。品物を全部の組み合わせで試す <span class="o">O(2ⁿ)</span> から、表の大きさまで減った。</li>
+    <li>ただし W（重さの上限）が 10⁹ のように大きいと表が作れない。そのときは「価値の合計 v を達成する最小の重さ」と、<b>状態の軸を入れ替える</b>。</li>
+    <li>1 次元の配列で書くときは、w を<b>大きい方から</b>回す。小さい方から回すと、同じ行で更新したばかりの値を使ってしまい「同じ品物を何個でも入れてよい」問題（個数制限なしナップサック）の答えになる。</li>
+  </ul>
+
+  <h2 id="edit">文字列の DP — 編集距離と diff</h2>
+  <p>文字列 A を B に変えるのに必要な、1 文字の<b>挿入・削除・置換</b>の最小回数を<b>編集距離</b>（レーベンシュタイン距離）という。<code>d[i][j]</code> ＝「A の先頭 i 文字を B の先頭 j 文字に変える最小回数」。</p>
+  <div class="card">
+    <div class="row-in">
+      <label for="ed-a">A</label><input type="text" id="ed-a" value="kitten" maxlength="10">
+      <label for="ed-b">B</label><input type="text" id="ed-b" value="sitting" maxlength="10">
+    </div>
+    <div class="table-wrap"><table class="grid" id="ed-grid"></table></div>
+    <div class="explain" id="ed-explain"></div>
+  </div>
+<pre><code>d[i][j] = min(d[i-1][j] + 1,                         <span class="cm"># A の i 文字目を削除（上から）</span>
+              d[i][j-1] + 1,                         <span class="cm"># B の j 文字目を挿入（左から）</span>
+              d[i-1][j-1] + (0 if A[i]==B[j] else 1)) <span class="cm"># 一致 or 置換（斜め）</span></code></pre>
+  <ul class="dots">
+    <li>2 つの文字列（長さ n・m）の DP は <span class="o">O(nm)</span>。<b>最長共通部分列 (LCS)</b> も同じ形の表で解ける。</li>
+    <li><code>diff</code> は「2 つのファイルの行の並びの共通部分を最大にする」問題。<code>git diff</code> が既定で使う Myers のアルゴリズムは、表を全部は埋めずに、差分が少ないほど速く終わるよう工夫した方法。</li>
+    <li>入力ミスの候補（「もしかして」）やあいまい検索も、編集距離が小さい語を探すことが多い。</li>
+  </ul>
+
+  <h2 id="patterns">典型パターン</h2>
+  <div class="table-wrap">
+  <table class="t">
+    <tr><th>型</th><th>状態の例</th><th>問題の例</th><th>計算量の目安</th></tr>
+    <tr><td>1 次元</td><td><code>dp[i]</code>: i 番目まで見たとき</td><td>階段、最大部分配列問題（連続する区間の和の最大）、最長増加部分列 (LIS)</td><td><span class="o">O(n)</span>〜<span class="o">O(n²)</span>（LIS は二分探索で <span class="o">O(n log n)</span>）</td></tr>
+    <tr><td>ナップサック</td><td><code>dp[i][w]</code>: i 個目まで・重さ w</td><td>部分和問題、予算内の最大価値</td><td><span class="o">O(nW)</span></td></tr>
+    <tr><td>2 つの列</td><td><code>dp[i][j]</code>: A の i 文字目・B の j 文字目まで</td><td>LCS、編集距離</td><td><span class="o">O(nm)</span></td></tr>
+    <tr><td>区間</td><td><code>dp[l][r]</code>: 区間 [l, r) をまとめたとき</td><td>隣どうしを合体させる最小コスト、連鎖行列積（行列の掛け算の順番）</td><td><span class="o">O(n³)</span></td></tr>
+    <tr><td>bit</td><td><code>dp[S][v]</code>: 訪れた集合 S・今いる v</td><td>巡回セールスマン問題（n ≤ 20 程度）</td><td><span class="o">O(2ⁿ n²)</span></td></tr>
+    <tr><td>桁</td><td><code>dp[桁][N より小さいと確定したか][…]</code></td><td>N 以下で「各桁の和が K の倍数」の個数</td><td><span class="o">O(桁数 × 状態)</span></td></tr>
+    <tr><td>木</td><td><code>dp[v][…]</code>: v を根とする部分木</td><td>部分木の大きさ、隣り合わない頂点を選ぶ最大数</td><td><span class="o">O(n)</span></td></tr>
+  </table>
+  </div>
+
+  <h2 id="dag">DP が使える条件 — 状態のつながりがループしない</h2>
+  <ul class="dots">
+    <li>状態を点、「この答えからあの答えを作る」を矢印にすると、DP は<b>ループのない有向グラフ (DAG)</b> を矢印の順にたどる計算になる。ループがあると「先に計算すべきもの」が決まらない。</li>
+    <li>最大・最小を求める DP では、さらに<b>部分問題の最適解を組み合わせると全体の最適解になる</b>（最適部分構造）ことが前提。最短経路の一部も最短経路になる、など。</li>
+    <li>ループがある最短経路は、DP の表を「確定した順」に埋めるダイクストラ法などで解く（<a href="graph-algorithms.html">グラフ探索と最短経路</a>）。</li>
+  </ul>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✗</span> DP は表（配列）を作るもの</p><p><span class="ok">✓</span> メモ化再帰も DP。本質は「部分問題の答えを 1 回だけ計算して使い回す」こと。辞書でメモしてもよい。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> メモ化すればどんな再帰も速くなる</p><p><span class="ok">✓</span> 速さは状態の数で決まる。引数に「選んだものの一覧」を丸ごと入れると状態が 2ⁿ 通りになり、メモしても速くならない。状態に入れる情報を絞るのが設計の中心。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> 2 次元の表を 1 次元にしても、ループの向きは同じでよい</p><p><span class="ok">✓</span> 1 個までのナップサックは w を大きい方から回す。向きを間違えると、同じ品物を何度も使った答えになる。</p></div>
+
+  <p class="related">関連: <a href="algorithm-paradigms.html">設計手法の全体像</a><a href="data-structures.html">データ構造と計算量</a><a href="graph-algorithms.html">グラフ探索と最短経路</a><a href="git-internals.html">Git の内部構造</a></p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+// ナップサックの表
+(() => {
+  const items = [{ w: 2, v: 3 }, { w: 3, v: 4 }, { w: 4, v: 5 }, { w: 5, v: 6 }];
+  const W = 7, n = items.length;
+  const grid = document.getElementById('ks-grid');
+  const explain = document.getElementById('ks-explain');
+  const itemBox = document.getElementById('ks-items');
+  const full = Array.from({ length: n + 1 }, () => new Array(W + 1).fill(0));
+  for (let i = 1; i <= n; i++) for (let w = 0; w <= W; w++) {
+    const it = items[i - 1];
+    full[i][w] = full[i - 1][w];
+    if (w >= it.w) full[i][w] = Math.max(full[i][w], full[i - 1][w - it.w] + it.v);
+  }
+  // 答えから入れた品物をたどる
+  const picks = new Set(), path = new Set();
+  let w = W;
+  for (let i = n; i >= 1; i--) {
+    path.add(i + ',' + w);
+    if (full[i][w] !== full[i - 1][w]) { picks.add(i - 1); w -= items[i - 1].w; }
+  }
+  path.add('0,' + w);
+  let k = 0; // 埋めたマスの数（1 行目以降）
+  const total = n * (W + 1);
+  const cells = [];
+  const head = document.createElement('tr');
+  head.innerHTML = '<th class="rh">i ＼ w</th>';
+  for (let c = 0; c <= W; c++) { const th = document.createElement('th'); th.textContent = c; head.appendChild(th); }
+  grid.appendChild(head);
+  for (let i = 0; i <= n; i++) {
+    const tr = document.createElement('tr');
+    const th = document.createElement('th');
+    th.className = 'rh';
+    th.textContent = i === 0 ? '0（なし）' : i + '（' + items[i - 1].w + 'kg/' + items[i - 1].v + '）';
+    tr.appendChild(th);
+    cells.push([]);
+    for (let c = 0; c <= W; c++) { const td = document.createElement('td'); tr.appendChild(td); cells[i].push(td); }
+    grid.appendChild(tr);
+  }
+  const draw = () => {
+    itemBox.innerHTML = '';
+    items.forEach((it, idx) => {
+      const s = document.createElement('span');
+      s.textContent = '品物' + (idx + 1) + ': ' + it.w + 'kg・価値 ' + it.v;
+      if (k === total && picks.has(idx)) s.className = 'pick';
+      itemBox.appendChild(s);
+    });
+    const ci = Math.floor((k - 1) / (W + 1)) + 1, cw = (k - 1) % (W + 1);
+    for (let i = 0; i <= n; i++) for (let c = 0; c <= W; c++) {
+      const td = cells[i][c];
+      const idx = (i - 1) * (W + 1) + c; // 0 始まり
+      td.className = '';
+      if (i === 0) { td.textContent = 0; td.className = 'base'; }
+      else if (idx < k) td.textContent = full[i][c];
+      else { td.textContent = '·'; td.className = 'empty'; }
+    }
+    if (k === 0) { explain.textContent = '0 行目（品物なし）はすべて 0。「1 マス進む」で 1 行目から埋める。'; return; }
+    if (k === total) {
+      path.forEach(key => { const [i, c] = key.split(',').map(Number); cells[i][c].classList.add('path'); });
+      const names = [...picks].sort().map(x => '品物' + (x + 1)).join(' と ');
+      explain.textContent = '答え dp[' + n + '][' + W + '] = ' + full[n][W] + '。上の行と値が違う行で「入れた」とわかる → ' + names + ' を入れる。';
+      return;
+    }
+    const it = items[ci - 1];
+    cells[ci][cw].classList.add('cur');
+    cells[ci - 1][cw].classList.add('src');
+    let msg = 'dp[' + ci + '][' + cw + '] = ';
+    if (cw >= it.w) {
+      cells[ci - 1][cw - it.w].classList.add('src');
+      msg += 'max(入れない dp[' + (ci - 1) + '][' + cw + ']=' + full[ci - 1][cw] + ', 入れる dp[' + (ci - 1) + '][' + (cw - it.w) + ']+' + it.v + '=' + (full[ci - 1][cw - it.w] + it.v) + ') = ' + full[ci][cw];
+    } else {
+      msg += '入れない dp[' + (ci - 1) + '][' + cw + '] = ' + full[ci][cw] + '（品物' + ci + 'は ' + it.w + 'kg で入らない）';
+    }
+    explain.textContent = msg;
+  };
+  document.getElementById('ks-step').onclick = () => { if (k < total) k++; draw(); };
+  document.getElementById('ks-row').onclick = () => { k = Math.min(total, (Math.floor(k / (W + 1)) + 1) * (W + 1)); draw(); };
+  document.getElementById('ks-all').onclick = () => { k = total; draw(); };
+  document.getElementById('ks-reset').onclick = () => { k = 0; draw(); };
+  draw();
+})();
+
+// 編集距離の表
+(() => {
+  const ia = document.getElementById('ed-a'), ib = document.getElementById('ed-b');
+  const grid = document.getElementById('ed-grid'), explain = document.getElementById('ed-explain');
+  const draw = () => {
+    const A = [...ia.value.slice(0, 10)], B = [...ib.value.slice(0, 10)];
+    const n = A.length, m = B.length;
+    const d = Array.from({ length: n + 1 }, (_, i) => Array.from({ length: m + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
+    for (let i = 1; i <= n; i++) for (let j = 1; j <= m; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (A[i - 1] === B[j - 1] ? 0 : 1));
+    // 右下から道をたどる
+    const path = new Set(['0,0']), ops = [];
+    let i = n, j = m;
+    while (i > 0 || j > 0) {
+      path.add(i + ',' + j);
+      if (i > 0 && j > 0 && d[i][j] === d[i - 1][j - 1] + (A[i - 1] === B[j - 1] ? 0 : 1)) {
+        if (A[i - 1] !== B[j - 1]) ops.unshift('置換 ' + A[i - 1] + '→' + B[j - 1]);
+        i--; j--;
+      } else if (i > 0 && d[i][j] === d[i - 1][j] + 1) { ops.unshift('削除 ' + A[i - 1]); i--; }
+      else { ops.unshift('挿入 ' + B[j - 1]); j--; }
+    }
+    grid.innerHTML = '';
+    const head = document.createElement('tr');
+    head.appendChild(document.createElement('th'));
+    ['ε', ...B].forEach(ch => { const th = document.createElement('th'); th.textContent = ch; head.appendChild(th); });
+    grid.appendChild(head);
+    for (let r = 0; r <= n; r++) {
+      const tr = document.createElement('tr');
+      const th = document.createElement('th'); th.className = 'rh'; th.textContent = r === 0 ? 'ε' : A[r - 1]; tr.appendChild(th);
+      for (let c = 0; c <= m; c++) {
+        const td = document.createElement('td');
+        td.textContent = d[r][c];
+        if (path.has(r + ',' + c)) td.className = 'path';
+        else if (r === 0 || c === 0) td.className = 'base';
+        tr.appendChild(td);
+      }
+      grid.appendChild(tr);
+    }
+    explain.textContent = '編集距離 = ' + d[n][m] + (ops.length ? '（' + ops.join('、') + '）' : '（同じ文字列）') + '。緑は右下から最小の選び方を逆にたどった道。ε は空文字列。';
+  };
+  ia.addEventListener('input', draw); ib.addEventListener('input', draw);
+  draw();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "DP を設計するとき、最初に決めるべきことは？",
+    "choices": ["配列を 1 次元にするか 2 次元にするか", "dp[i] が何を表すか（状態）。答えがその表のどこかに入るように決める", "再帰で書くかループで書くか"],
+    "answer": 1,
+    "explain": "状態が決まれば、遷移（どの小さい答えから作るか）と初期値・計算順が決まる。配列の形や書き方はその後の話。",
+    "ref": "#steps"
+  },
+  {
+    "q": "メモ化再帰で書いた DP を Python で n = 10 万にして実行したら RecursionError になった。どう直す？",
+    "choices": ["表を小さい方から埋めるボトムアップに書き直す（または再帰の上限を上げる）", "@cache を @lru_cache(maxsize=None) に変える", "メモの辞書を配列に変える"],
+    "answer": 0,
+    "explain": "Python の再帰の深さには上限（既定 1000）があり、メモ化しても呼び出しの深さは減らない。ループで表を埋めれば深さの問題がなくなる。",
+    "ref": "#styles"
+  },
+  {
+    "q": "品物を各 1 個まで入れる 0/1 ナップサックを、1 次元配列 dp[w] で書く。重さ w のループの向きは？",
+    "choices": ["小さい方から回す", "どちらでもよい", "大きい方から回す"],
+    "answer": 2,
+    "explain": "小さい方から回すと、同じ品物で更新したばかりの dp[w − 重さ] を使ってしまい、同じ品物を何度も入れた答えになる（個数制限なしナップサックの解き方）。",
+    "ref": "#knapsack"
+  },
+  {
+    "q": "ナップサックで、品物は 100 個だが重さの上限 W が 10⁹ ある（価値はそれぞれ 1000 以下）。dp[i][w] の表が大きすぎる。どうする？",
+    "choices": ["状態を「価値の合計 v を達成する最小の重さ」に入れ替える", "2^100 通りを全探索する", "価値の高い順に入れる貪欲法にする"],
+    "answer": 0,
+    "explain": "価値の合計は最大 10 万なので、価値を軸にした表なら 100 × 10 万で収まる。大きい値を状態の添字にしないよう、軸を入れ替えるのが定番。",
+    "ref": "#knapsack"
+  },
+  {
+    "q": "長さ n と m の 2 つの文字列の編集距離を DP で求めるときの計算量は？",
+    "choices": ["O(n + m)", "O(nm)", "O(2^(n+m))"],
+    "answer": 1,
+    "explain": "d[i][j] の表が (n+1)×(m+1) マスあり、各マスは上・左・斜めの 3 つから O(1) で決まる。",
+    "ref": "#edit"
+  }
+]
+</script>
+</body>
+</html>
