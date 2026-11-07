@@ -5,7 +5,7 @@
 > 0.1 + 0.2 が 0.3 にならない理由を IEEE 754 のビットから確かめ、安全な整数の上限・NaN・お金の扱い・丸め・整数オーバーフローまで実務で困る点を整理する
 
 - URL: https://memo.taka1156.site/floating-point.html
-- タグ: 言語, JavaScript
+- タグ: CS基礎, 言語, JavaScript
 - 日付: 2026-11-06
 
 ---

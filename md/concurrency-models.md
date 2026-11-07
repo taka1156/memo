@@ -5,7 +5,7 @@
 > スレッド＋ロック・イベントループ・goroutine・アクターの 4 方式を、状態の共有のしかたと切り替えの単位で比べ、Durable Objects がアクターであることまでつなげる
 
 - URL: https://memo.taka1156.site/concurrency-models.html
-- タグ: 言語, 設計, バックエンド
+- タグ: CS基礎, 言語, 設計, バックエンド
 - 日付: 2026-11-06
 
 ---

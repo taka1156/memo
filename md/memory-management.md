@@ -5,7 +5,7 @@
 > スタックとヒープの違い、手動管理・ガベージコレクション・参照カウント・所有権という 4 つの解放方式、GC の到達可能性と世代別 GC、GC 言語でも起きるメモリリークの原因と調べ方までを図解。
 
 - URL: https://memo.taka1156.site/memory-management.html
-- タグ: 言語, JavaScript
+- タグ: CS基礎, 言語, JavaScript
 - 日付: 2026-11-04
 
 ---
