@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>実装起因の脆弱性</title>
-<meta name="description" content="XSS・CSRF・SQL インジェクション・OS コマンドインジェクション・セッションハイジャック・ReDoS に、パストラバーサル・SSRF・オープンリダイレクト・認可不備を加えて、攻撃の流れと NG/OK コードで図解。">
-<meta name="memo:tags" content="セキュリティ, バックエンド">
+<title>実装起因の脆弱性（入力の扱い）</title>
+<meta name="description" content="XSS・SQL インジェクション・OS コマンドインジェクション・ReDoS・パストラバーサルを、攻撃の流れと NG/OK コードで図解。データとコードを分ける・出す先に合わせる・許可リストの 3 つの考え方で防ぐ。">
+<meta name="memo:tags" content="セキュリティ, バックエンド, フロントエンド">
 <meta name="memo:date" content="2026-11-03">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
 <style>
@@ -286,17 +286,18 @@ footer#memo-backlink a:hover { color: var(--accent); }
 </head>
 <body>
 <div class="wrap">
-  <h1>実装起因の脆弱性</h1>
+  <h1>実装起因の脆弱性（入力の扱い）</h1>
   <p class="subtitle">攻撃の多くは「信頼できない入力が、それを解釈する何かにそのまま届く」場所で起きる</p>
 
   <div class="card summary">
     <strong>ざっくり言うと</strong>
     <ul>
-      <li><b>インジェクション系</b>（XSS・SQL・OS コマンド・パス）は、データが<b>コードとして解釈される</b>ことが原因。対策は「入力を消毒」より、<b>出力先ごとにデータとコードを分ける</b>（プレースホルダ・エスケープ・引数配列）</li>
-      <li><b>CSRF・セッションハイジャック</b>は、ブラウザが<b>自動で送る Cookie</b> を悪用する。SameSite・トークン・ログイン時の ID 再生成で防ぐ</li>
-      <li><b>ReDoS・SSRF・認可不備</b>は、計算量・サーバーの置き場所・権限チェック漏れの問題。ライブラリ任せにできず<b>設計で防ぐ</b></li>
+      <li><b>インジェクション系</b>（XSS・SQL・OS コマンド）と<b>パストラバーサル</b>は、データが<b>コードやパスの構文として解釈される</b>ことが原因。対策は「入力を消毒」より、<b>出力先ごとにデータとコードを分ける</b>（プレースホルダ・エスケープ・引数配列）</li>
+      <li><b>ReDoS</b> は、正規表現の書き方しだいで計算量が爆発する問題。危険な形を書かない・入力長に上限・線形時間のエンジンで防ぐ</li>
+      <li>どれも共通の考え方（データとコードを分ける・出す先に合わせる・許可リスト）で防げる</li>
     </ul>
   </div>
+  <p class="note">リクエストや権限が原因のもの（CSRF・セッションハイジャック・SSRF・オープンリダイレクト・IDOR）は <a href="request-vulnerabilities.html">実装起因の脆弱性（リクエストと権限）</a> にまとめています。</p>
 
   <!-- ======================== Map ======================== -->
   <h2 id="map">全体マップ</h2>
@@ -321,31 +322,18 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <a class="sink" href="#oscmd"><div class="to">シェル</div><div class="v">OS コマンド</div></a>
         <a class="sink" href="#path"><div class="to">ファイルパス</div><div class="v">パストラバーサル</div></a>
         <a class="sink" href="#redos"><div class="to">正規表現エンジン</div><div class="v">ReDoS</div></a>
-        <a class="sink" href="#ssrf"><div class="to">サーバーからの URL 取得</div><div class="v">SSRF</div></a>
-        <a class="sink" href="#redirect"><div class="to">リダイレクト先</div><div class="v">オープンリダイレクト</div></a>
       </div>
     </div>
-  </div>
-  <p class="note">入力の中身ではなく、仕組みの穴を突くもの:</p>
-  <div class="map2">
-    <a class="sink" href="#csrf"><div class="to">ブラウザが Cookie を自動で付ける</div><div class="v">CSRF</div></a>
-    <a class="sink" href="#session"><div class="to">セッション ID ＝ ログインの鍵</div><div class="v">セッションハイジャック</div></a>
-    <a class="sink" href="#idor"><div class="to">「誰のデータか」の確認漏れ</div><div class="v">認可不備 (IDOR)</div></a>
   </div>
 
   <div class="tbl"><table>
     <thead><tr><th>脆弱性</th><th>何が起きる</th><th>根本対策</th><th>補助・多層防御</th></tr></thead>
     <tbody>
       <tr><td><a href="#xss">XSS</a></td><td>他人のブラウザで攻撃者の JS が動く</td><td>出力先の文脈に合ったエスケープ（テンプレートの自動エスケープ）</td><td>CSP、HttpOnly Cookie</td></tr>
-      <tr><td><a href="#csrf">CSRF</a></td><td>ログイン中のユーザーに、意図しない操作をさせる</td><td>SameSite Cookie ＋ トークン or Origin / Sec-Fetch-Site 検証</td><td>重要操作の再認証</td></tr>
       <tr><td><a href="#sqli">SQLi</a></td><td>DB の読み出し・改ざん・認証回避</td><td>プレースホルダ（パラメータ化クエリ）</td><td>DB ユーザーの権限最小化</td></tr>
       <tr><td><a href="#oscmd">OS コマンド</a></td><td>サーバー上で任意のコマンド実行</td><td>シェルを通さない（引数配列）、そもそも外部コマンドを使わない</td><td>入力の許可リスト、実行ユーザーの権限最小化</td></tr>
-      <tr><td><a href="#session">セッションハイジャック</a></td><td>他人としてログインされる</td><td>推測不能な ID、ログイン時に再生成、Secure / HttpOnly</td><td>有効期限、重要操作の再認証</td></tr>
       <tr><td><a href="#redos">ReDoS</a></td><td>1 リクエストで CPU を占有しサービス停止</td><td>危険な正規表現を書かない、線形時間のエンジン</td><td>入力長の上限</td></tr>
       <tr><td><a href="#path">パストラバーサル</a></td><td>公開ディレクトリ外のファイルを読まれる・書かれる</td><td>正規化してから基準ディレクトリ内か確認、ID で引く</td><td>実行ユーザーの権限</td></tr>
-      <tr><td><a href="#ssrf">SSRF</a></td><td>サーバー経由で内部ネットワークやクラウドのメタデータにアクセス</td><td>接続先の許可リスト</td><td>内部宛ての遮断、IMDSv2</td></tr>
-      <tr><td><a href="#redirect">オープンリダイレクト</a></td><td>正規ドメインを踏み台にフィッシングへ誘導</td><td>自サイト内のパスだけ許可</td><td>—</td></tr>
-      <tr><td><a href="#idor">IDOR</a></td><td>ID を書き換えて他人のデータを見る・変える</td><td>毎回「このユーザーの持ち物か」を確認</td><td>推測しにくい ID（それだけでは不十分）</td></tr>
     </tbody>
   </table></div>
 
@@ -430,62 +418,6 @@ if (<span class="good">['https:', 'http:'].includes(u.protocol)</span>) link.hre
     <div class="aux"><div class="lv">補助</div><ul><li><a href="security-headers.html#csp">CSP</a>（nonce 方式）で注入スクリプトを止める</li><li>Cookie に HttpOnly</li><li>Trusted Types で危険な API を封じる</li></ul></div>
   </div>
 
-  <!-- ======================== CSRF ======================== -->
-  <h2 id="csrf">CSRF<span class="en">Cross-Site Request Forgery</span></h2>
-  <p>ブラウザは、どのサイトから送られたリクエストでも、<b>宛先サイトの Cookie を自動で付けてきた</b>。これを利用して、ログイン中のユーザーに罠サイトから「送金」「パスワード変更」などのリクエストを送らせる攻撃です。攻撃者はレスポンスを読めませんが、<b>操作が実行されれば十分</b>です。</p>
-  <ol class="flow">
-    <li>被害者は <code>bank.example</code> にログイン中（Cookie あり）</li>
-    <li>罠サイト <code>evil.example</code> を開く</li>
-    <li class="x">罠ページの隠しフォームが <code>bank.example/transfer</code> に自動 POST</li>
-    <li class="x">ブラウザが bank の Cookie を付けて送信 → 正規の操作として処理される</li>
-  </ol>
-<pre><code><span class="cm">&lt;!-- evil.example 上の罠 --&gt;</span>
-&lt;form action="https://bank.example/transfer" method="POST"&gt;
-  &lt;input type="hidden" name="to" value="attacker"&gt;
-  &lt;input type="hidden" name="amount" value="100000"&gt;
-&lt;/form&gt;
-&lt;script&gt;document.forms[0].submit()&lt;/script&gt;</code></pre>
-
-  <div class="vs">
-    <div><span class="code-head ng">NG</span>
-<pre><code><span class="cm">// Cookie があればそのまま実行</span>
-app.post('/transfer', requireLogin, transfer);
-
-<span class="cm">// GET で状態を変える（リンク 1 つで発火）</span>
-app.<span class="bad">get</span>('/account/delete', requireLogin, del);
-
-res.cookie('sid', id); <span class="cm">// SameSite 未指定</span></code></pre></div>
-    <div><span class="code-head ok">OK</span>
-<pre><code>res.cookie('__Host-sid', id, {
-  secure: true, httpOnly: true, path: '/',
-  <span class="good">sameSite: 'lax'</span>,
-});
-
-<span class="cm">// 状態を変えるリクエストは送信元を確認</span>
-app.use((req, res, next) =&gt; {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-  const site = req.get('<span class="good">Sec-Fetch-Site</span>');
-  if (site) {
-    if (site === 'same-origin' || site === 'none') return next();
-    return res.status(403).end();
-  }
-  <span class="cm">// 古いブラウザ向け: Origin ヘッダーで確認</span>
-  if (req.get('Origin') === 'https://bank.example') return next();
-  return res.status(403).end();
-});</code></pre></div>
-  </div>
-
-  <div class="tbl"><table>
-    <thead><tr><th>対策</th><th>仕組み</th><th>注意点</th></tr></thead>
-    <tbody>
-      <tr><td><code>SameSite=Lax</code> / <code>Strict</code></td><td>別サイトからの POST・iframe・fetch に Cookie を付けない</td><td>Lax は<b>トップレベルの GET 遷移では送る</b>ので、GET で状態を変えると防げない。SameSite の「サイト」は登録ドメイン単位なので、<b>脆弱なサブドメイン</b>からは同一サイト扱いで送られる</td></tr>
-      <tr><td>CSRF トークン</td><td>フォームにセッションと紐づく乱数を埋め、送信時に照合。罠サイトはその値を読めない</td><td>フレームワークの仕組みを使う。トークンを URL に載せない</td></tr>
-      <tr><td><code>Sec-Fetch-Site</code> / <code>Origin</code> の検証</td><td>ブラウザが付ける送信元情報で、別サイトからのリクエストを拒否</td><td>主要ブラウザが対応。Go 1.25 の <code>http.CrossOriginProtection</code> もこの方式</td></tr>
-      <tr><td>JSON API ＋ カスタムヘッダー必須</td><td>独自ヘッダー付きのクロスオリジン要求はプリフライトが必要になり、CORS で許可しない限り送れない</td><td><code>Content-Type: text/plain</code> などの単純リクエストを受け付けてしまわないこと（<a href="cors-sop.html">CORS</a>）</td></tr>
-    </tbody>
-  </table></div>
-  <p class="note">Cookie ではなく <code>Authorization: Bearer</code> ヘッダーでトークンを送る API は、ブラウザが自動で付けないので CSRF の対象になりにくい（その代わり XSS でトークンを読まれる。<a href="jwt-vs-session.html">JWT とセッション</a>）。</p>
-
   <!-- ======================== SQLi ======================== -->
   <h2 id="sqli">SQL インジェクション</h2>
   <p>入力を文字列連結で SQL に埋めると、入力中の <code>'</code> で文字列が閉じられ、<b>後ろが SQL の命令として解釈</b>されます。</p>
@@ -569,70 +501,6 @@ if (<span class="good">!net.isIP(host)</span>) return res.status(400).end();
     <div class="aux"><div class="lv">補助</div><ul><li>引数配列でも、<code>-</code> 始まりの値は<b>オプションとして解釈</b>される（引数インジェクション）。許可リストで検証し、対応コマンドなら <code>--</code> で区切る</li><li>Windows で <code>.bat</code> / <code>.cmd</code> を起動すると cmd.exe が引数を解釈する。避ける</li><li>実行ユーザーの権限を最小に、コンテナで隔離</li></ul></div>
   </div>
 
-  <!-- ======================== Session ======================== -->
-  <h2 id="session">セッションハイジャック</h2>
-  <p>ログイン後のユーザーは、Cookie の<b>セッション ID だけ</b>で識別されます。ID を手に入れれば、パスワードなしでそのユーザーになりすませます。手に入れる方法ごとに対策が違います。</p>
-
-  <div class="tabs" role="tablist">
-    <button class="tab" role="tab" aria-selected="true" data-panel="ses-ways">盗む方法と対策</button>
-    <button class="tab" role="tab" aria-selected="false" data-panel="ses-fix">セッション固定</button>
-  </div>
-  <div class="panel" id="ses-ways">
-    <div class="tbl"><table>
-      <thead><tr><th>手口</th><th>対策</th></tr></thead>
-      <tbody>
-        <tr><td><b>盗聴</b>: http 通信や SSL ストリップで Cookie を見る</td><td>全ページ https、Cookie に <code>Secure</code>、<a href="security-headers.html#hsts">HSTS</a></td></tr>
-        <tr><td><b>XSS</b>: <code>document.cookie</code> を外部へ送る</td><td><code>HttpOnly</code>、そもそも XSS を潰す</td></tr>
-        <tr><td><b>推測</b>: 連番・時刻・ユーザー ID から ID を当てる</td><td>暗号論的乱数で 128 ビット以上（自作せずフレームワークに任せる）</td></tr>
-        <tr><td><b>固定</b>: 攻撃者が用意した ID でログインさせる</td><td><b>ログイン成功時に ID を作り直す</b>、<code>__Host-</code> 接頭辞</td></tr>
-        <tr><td><b>漏えい</b>: URL に ID が載り、Referer・ログ・共有で漏れる</td><td>ID は Cookie だけで扱い、URL に載せない</td></tr>
-        <tr><td><b>放置</b>: 共有 PC でログアウトし忘れ、盗まれた ID がずっと使える</td><td>無操作タイムアウト・絶対的な有効期限、ログアウトでサーバー側のセッションを破棄</td></tr>
-      </tbody>
-    </table></div>
-  </div>
-  <div class="panel" id="ses-fix" hidden>
-    <ol class="flow">
-      <li>攻撃者がサイトにアクセスし、未ログインのセッション ID <code>ABC</code> を手に入れる</li>
-      <li>被害者のブラウザに <code>ABC</code> を仕込む（脆弱なサブドメインからの Cookie 設定など）</li>
-      <li class="x">被害者がログイン。サーバーが<b>同じ ID <code>ABC</code> のまま</b>ログイン状態にする</li>
-      <li class="x">攻撃者も <code>ABC</code> を持っているので、被害者としてログイン済み</li>
-    </ol>
-    <p class="note">ログイン時に ID を新しく作れば、攻撃者の持つ <code>ABC</code> は無効になる。</p>
-  </div>
-
-  <div class="vs">
-    <div><span class="code-head ng">NG</span>
-<pre><code>app.post('/login', async (req, res) =&gt; {
-  const user = await verify(req.body);
-  if (!user) return res.status(401).end();
-  <span class="cm">// 同じセッション ID のままログイン状態にする</span>
-  <span class="bad">req.session.userId = user.id;</span>
-  res.redirect(<span class="bad">`/home?sid=${req.sessionID}`</span>);
-});</code></pre></div>
-    <div><span class="code-head ok">OK</span>
-<pre><code>app.use(session({
-  name: '__Host-sid',
-  secret: process.env.SESSION_SECRET,
-  cookie: { secure: true, httpOnly: true, sameSite: 'lax',
-            path: '/', maxAge: 30 * 60 * 1000 },
-  rolling: true, <span class="cm">// 操作のたびに期限を延長（無操作 30 分で失効）</span>
-}));
-
-app.post('/login', async (req, res, next) =&gt; {
-  const user = await verify(req.body);
-  if (!user) return res.status(401).end();
-  req.session.<span class="good">regenerate</span>(err =&gt; {  <span class="cm">// 新しい ID を発行</span>
-    if (err) return next(err);
-    req.session.userId = user.id;
-    res.redirect('/home');
-  });
-});
-
-app.post('/logout', (req, res) =&gt;
-  req.session.<span class="good">destroy</span>(() =&gt; res.redirect('/')));</code></pre></div>
-  </div>
-  <p class="note">パスワード変更・メールアドレス変更・送金などの重要操作では、セッションがあっても<b>パスワードやパスキーで再確認</b>すると、ID を盗まれたときの被害を限定できます。</p>
-
   <!-- ======================== ReDoS ======================== -->
   <h2 id="redos">ReDoS<span class="en">Regular expression Denial of Service</span></h2>
   <p>多くの言語の正規表現エンジン（JavaScript・Python・Java・PHP など）は、失敗すると別の分け方を試し直す<b>バックトラック</b>方式です。<code>(a+)+</code> のように<b>量指定子が入れ子</b>になっていると、マッチに失敗する入力で分け方の組み合わせが<b>指数関数的</b>に増えます。</p>
@@ -701,116 +569,11 @@ const [file] = await db.select().from(files)
   </div>
   <p class="note"><code>startsWith(BASE)</code> だけだと <code>uploads-secret/</code> のような隣のディレクトリが通るので、末尾に区切り文字を付けて比べます。シンボリックリンクを置ける環境では <code>fs.realpath</code> で実体を確認します。アップロード時の保存名は、ユーザーのファイル名を使わずサーバーで生成します。</p>
 
-  <!-- ======================== SSRF ======================== -->
-  <h2 id="ssrf">SSRF<span class="en">Server-Side Request Forgery</span></h2>
-  <p>「URL を入れると OGP を取ってくる」「Webhook の送信先を登録」「画像を URL から取り込む」など、<b>サーバーが利用者の指定した URL にアクセスする</b>機能を悪用し、外から届かない内部の宛先を叩かせる攻撃です。</p>
-  <ol class="flow">
-    <li>攻撃者が URL に <code>http://169.254.169.254/latest/meta-data/…</code> を指定</li>
-    <li class="x">サーバーがその URL を取得（サーバーからはクラウドのメタデータサービスに届く）</li>
-    <li class="x">一時認証情報などがレスポンスとして攻撃者に返る / 内部の管理画面や DB を操作される</li>
-  </ol>
-  <div class="vs">
-    <div><span class="code-head ng">NG</span>
-<pre><code>app.post('/preview', async (req, res) =&gt; {
-  const r = await fetch(<span class="bad">req.body.url</span>);
-  res.send(await r.text());
-});
-
-<span class="cm">// 文字列チェックは回避される
-// http://127.1/ 、http://[::1]/ 、http://0x7f000001/
-// 外部ドメインが 127.0.0.1 に解決される、
-// 外部 URL から内部へリダイレクトする…</span></code></pre></div>
-    <div><span class="code-head ok">OK</span>
-<pre><code>const ALLOWED = new Set(['api.partner.example', 'cdn.example.com']);
-
-const url = new URL(req.body.url);
-if (url.protocol !== 'https:' || <span class="good">!ALLOWED.has(url.hostname)</span>) {
-  return res.status(400).end();
-}
-const r = await fetch(url, { <span class="good">redirect: 'error'</span> });</code></pre></div>
-  </div>
-  <p>任意の URL を受けるしかない機能（Webhook など）では、許可リストの代わりに次を重ねます。</p>
-  <ul class="list">
-    <li>DNS を解決して得た IP が、プライベート・ループバック・リンクローカル（<code>10/8</code>・<code>127/8</code>・<code>169.254/16</code>・<code>::1</code> など）なら拒否</li>
-    <li>チェックした IP にそのまま接続する（チェック後に再解決させない＝ DNS リバインディング対策）。リダイレクトは追わないか、追うたびに再チェック</li>
-    <li>ネットワーク側で、取得用のサーバー・プロキシから内部への通信を遮断。AWS ならメタデータを IMDSv2（トークン必須）にする</li>
-    <li>取得したレスポンスをそのまま返さない（必要な項目だけ取り出す）</li>
-  </ul>
-
-  <!-- ======================== Open redirect ======================== -->
-  <h2 id="redirect">オープンリダイレクト<span class="en">Open Redirect</span></h2>
-  <p>ログイン後の戻り先 <code>?next=</code> などで、<b>外部サイトへ転送できてしまう</b>問題です。リンクの見た目は正規ドメインなので、フィッシングに使われます。OAuth の <code>redirect_uri</code> と組み合わさると、認可コードやトークンが攻撃者に流れることもあります。</p>
-  <div class="vs">
-    <div><span class="code-head ng">NG</span>
-<pre><code>res.redirect(<span class="bad">req.query.next</span>);
-
-<span class="cm">// 「/ で始まるか」だけでは不十分</span>
-if (next.<span class="bad">startsWith('/')</span>) res.redirect(next);
-<span class="cm">// //evil.example  → プロトコル相対 URL で外部へ
-// /\evil.example  → ブラウザは \ を / と読む</span></code></pre></div>
-    <div><span class="code-head ok">OK</span>
-<pre><code>const ORIGIN = 'https://app.example.com';
-
-function safeNext(next) {
-  if (typeof next !== 'string') return '/';
-  try {
-    const u = new URL(next, ORIGIN);   <span class="cm">// ブラウザと同じ規則で解釈</span>
-    if (<span class="good">u.origin !== ORIGIN</span>) return '/';
-    return u.pathname + u.search + u.hash;
-  } catch {
-    return '/';
-  }
-}
-res.redirect(safeNext(req.query.next));</code></pre></div>
-  </div>
-  <p class="note"><code>new URL()</code> で解釈すると、<code>//evil.example</code> も <code>/\evil.example</code> もオリジンが evil.example になり、<code>javascript:</code> はオリジンが <code>null</code> になるので、まとめて弾けます。</p>
-
-  <!-- ======================== IDOR ======================== -->
-  <h2 id="idor">認可不備 / IDOR<span class="en">Insecure Direct Object Reference</span></h2>
-  <p>ログインしているか（認証）は確認しているのに、<b>そのデータがこのユーザーのものか（認可）</b>を確認していない問題です。URL や JSON の ID を書き換えるだけで、他人の注文・請求書・個人情報が見えます。ツールでは見つけにくく、実際の事故で最も多い種類の 1 つです。</p>
-  <div class="vs">
-    <div><span class="code-head ng">NG</span>
-<pre><code><span class="cm">// GET /api/orders/1024 → 1025 に変えると他人の注文</span>
-app.get('/api/orders/:id', requireLogin, async (req, res) =&gt; {
-  const [order] = await db.select().from(orders)
-    .where(<span class="bad">eq(orders.id, req.params.id)</span>);
-  res.json(order);
-});
-
-<span class="cm">// 受け取った値をそのまま更新に渡す（Mass Assignment）
-// req.body は any なので型チェックも素通りする</span>
-await db.update(users).set(<span class="bad">req.body</span>).where(eq(users.id, me));
-<span class="cm">// → { "role": "admin" } も通る</span></code></pre></div>
-    <div><span class="code-head ok">OK</span>
-<pre><code>import { and, eq } from 'drizzle-orm';
-
-app.get('/api/orders/:id', requireLogin, async (req, res) =&gt; {
-  const [order] = await db.select().from(orders).where(and(
-    eq(orders.id, req.params.id),
-    <span class="good">eq(orders.userId, req.user.id)</span>,
-  ));
-  <span class="cm">// 他人のものは「存在しない」と同じ扱い</span>
-  if (!order) return res.status(404).end();
-  res.json(order);
-});
-
-<span class="cm">// 更新してよい項目だけ取り出す</span>
-const { name, bio } = req.body;
-await db.update(users).set(<span class="good">{ name, bio }</span>).where(eq(users.id, me));</code></pre></div>
-  </div>
-  <ul class="list">
-    <li>ID を UUID にすると推測は難しくなるが、URL の共有やログから漏れれば読める。<b>認可チェックの代わりにはならない</b></li>
-    <li>チェックをハンドラーごとに書くと漏れるので、「必ず所有者で絞るリポジトリ関数」やポリシー層にまとめる</li>
-    <li>一覧・検索・エクスポート・管理用 API など、<b>画面に出ていないエンドポイント</b>も同じ確認が必要</li>
-  </ul>
-
   <!-- ======================== Myths ======================== -->
   <h2 id="myths">よくある誤解</h2>
   <div class="myth">
     <div class="card"><p class="q">入力時に危険な文字を消しておけば、どこに出しても安全</p><p class="a">安全な形は出力先（HTML・SQL・シェル・URL）ごとに違う。入力では形式の検証、出力では文脈に合わせた分離・エスケープ。</p></div>
     <div class="card"><p class="q">ORM を使っているので SQL インジェクションはない</p><p class="a">Drizzle なら <code>sql.raw()</code> のように文字列をそのまま埋め込む API に外からの値を渡したときや、並び替え列の受け取りで起きる。</p></div>
-    <div class="card"><p class="q">POST にしたので CSRF は大丈夫</p><p class="a">罠サイトのフォームから POST は送れる。SameSite・トークン・送信元の検証が必要。</p></div>
-    <div class="card"><p class="q">https なのでセッションは盗まれない</p><p class="a">XSS・固定・URL への ID 漏れ・推測しやすい ID は https と関係ない。</p></div>
     <div class="card"><p class="q">正規表現は小さな処理なので DoS とは無関係</p><p class="a">入れ子の量指定子があると、数十文字の入力で数秒〜数分 CPU を占有する。</p></div>
   </div>
 
@@ -896,38 +659,63 @@ document.querySelectorAll('.tabs').forEach(group => {
 [
   {
     "q": "一覧 API で ?sort=price のように並び替え列を受け取り、SQL の ORDER BY に入れたい。安全なのは？",
-    "choices": ["ORDER BY $1 としてプレースホルダで渡す", "受け取った値から ' と ; を取り除いてから埋め込む", "受け取った値をキーに、許可した列名と並び順の対応表から選んで埋め込む", "ORM を使っているので、そのまま渡してよい"],
+    "choices": [
+      "ORDER BY $1 としてプレースホルダで渡す",
+      "受け取った値から ' と ; を取り除いてから埋め込む",
+      "受け取った値をキーに、許可した列名と並び順の対応表から選んで埋め込む",
+      "ORM を使っているので、そのまま渡してよい"
+    ],
     "answer": 2,
     "explain": "列名や ASC/DESC はプレースホルダにできない（値として扱われる）。拒否リストでの除去は回避されうるので、許可リストから選ぶ。",
     "ref": "#sqli"
   },
   {
-    "q": "攻撃者が用意したセッション ID のまま被害者にログインさせ、乗っ取る攻撃を防ぐには？",
-    "choices": ["ログイン成功時にセッション ID を新しく作り直す", "セッション Cookie に HttpOnly を付ける", "セッション ID を URL にも載せて照合する", "ログイン画面だけ https にする"],
-    "answer": 0,
-    "explain": "セッション固定攻撃は、ログイン前後で ID が変わらないことを利用する。再生成すれば攻撃者の持つ ID は無効になる。",
-    "ref": "#session"
-  },
-  {
     "q": "Node.js で exec(`ping -c 1 ${host}`) を execFile('ping', ['-c', '1', host]) に変えると安全になる主な理由は？",
-    "choices": ["execFile は非同期なので攻撃の影響が小さい", "execFile は自動で入力をエスケープしてくれる", "execFile は実行時間に上限がある", "シェルを起動しないので、; や | や $() がコマンドの区切りとして解釈されない"],
+    "choices": [
+      "execFile は非同期なので攻撃の影響が小さい",
+      "execFile は自動で入力をエスケープしてくれる",
+      "execFile は実行時間に上限がある",
+      "シェルを起動しないので、; や | や $() がコマンドの区切りとして解釈されない"
+    ],
     "answer": 3,
     "explain": "exec は sh -c で文字列を解釈する。execFile は引数を配列のまま渡すので、シェルの記号はただの文字になる。ただし - で始まる値のオプション解釈は別途検証が必要。",
     "ref": "#oscmd"
   },
   {
     "q": "Node.js の API でユーザー入力を /^(\\w+\\s?)*$/ で検証していて、短い入力でサーバー全体が固まった。有効な対策は？",
-    "choices": ["正規表現の呼び出しを try/catch で囲む", "量指定子の入れ子をなくすよう書き換え、入力長に上限を設ける（必要なら線形時間のエンジンを使う）", "検証処理を async 関数にする", "g フラグを付けて最初の一致で止める"],
+    "choices": [
+      "正規表現の呼び出しを try/catch で囲む",
+      "量指定子の入れ子をなくすよう書き換え、入力長に上限を設ける（必要なら線形時間のエンジンを使う）",
+      "検証処理を async 関数にする",
+      "g フラグを付けて最初の一致で止める"
+    ],
     "answer": 1,
     "explain": "ReDoS は例外ではなく、バックトラックで CPU を使い続けるのが原因。JS の正規表現は同期実行なので async でも止まる。パターンの修正・長さ制限・線形エンジンで防ぐ。",
     "ref": "#redos"
   },
   {
-    "q": "セッション Cookie を SameSite=Lax にした。それでも CSRF の被害が残るのはどんな実装？",
-    "choices": ["状態を変える操作（削除など）を GET リクエストで受け付けている", "POST のフォームで CSRF トークンを使っている", "Cookie に HttpOnly を付けている", "API が Authorization ヘッダーのトークンで認証している"],
-    "answer": 0,
-    "explain": "Lax の Cookie は、別サイトからのトップレベルの GET 遷移（リンククリック）では送られる。GET で状態を変えるとリンク 1 つで操作させられる。",
-    "ref": "#csrf"
+    "q": "プロフィールに登録された URL を <a href> に入れて表示したい。javascript: の URL で JS を動かされないための対策は？",
+    "choices": [
+      "HTML エスケープしてから href に入れる",
+      "new URL() で解釈し、protocol が https: か http: のときだけ href に入れる",
+      "文字列から javascript: という部分を取り除いてから入れる",
+      "innerHTML ではなく setAttribute で href を設定する"
+    ],
+    "answer": 1,
+    "explain": "エスケープしても javascript: のスキームはそのまま実行される。文字列の除去は大文字や空白で回避される。解釈したうえでスキームを許可リストで確かめる。",
+    "ref": "#xss"
+  },
+  {
+    "q": "?name= で受け取ったファイル名を uploads/ から返したい。../ で外のファイルを読まれないための確認は？",
+    "choices": [
+      "受け取った名前から ../ という文字列を取り除く",
+      "正規化したパスが「uploads」という文字列で始まるか確かめる",
+      "名前の拡張子が .txt か .png のときだけ返す",
+      "正規化したパスが「uploads のパス＋区切り文字」で始まるか確かめる"
+    ],
+    "answer": 3,
+    "explain": "../ の除去は ....// や、デコードの順番のずれ（%2e%2e%2f・二重エンコード）で回避される。区切り文字を付けずに比べると uploads-secret/ のような隣のフォルダが通る。より良いのは名前ではなく ID で引くこと。",
+    "ref": "#path"
   }
 ]
 </script>
