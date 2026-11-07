@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>実装起因の脆弱性（リクエストと権限）</title>
+<meta name="description" content="CSRF・セッションハイジャック・SSRF・オープンリダイレクト・認可不備（IDOR）を、攻撃の流れと NG/OK コードで図解。Cookie の自動送信・サーバーからの URL 取得・権限の確認漏れを突く攻撃の防ぎ方。">
+<meta name="memo:tags" content="セキュリティ, バックエンド">
+<meta name="memo:date" content="2026-11-08">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ng: #b91c1c;
+  --c-ok: #15803d;
+  --c-warn: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ng: #f87171;
+    --c-ok: #4ade80;
+    --c-warn: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+a { color: var(--accent); }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 44px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h2 .en { font: 500 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-left: 6px; }
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.76rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+.cm { color: var(--fg-2); }
+.bad { background: color-mix(in srgb, var(--c-ng) 20%, transparent); border-radius: 3px; }
+.good { background: color-mix(in srgb, var(--c-ok) 20%, transparent); border-radius: 3px; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 12px 0;
+}
+.summary { border-left: 3px solid var(--accent); }
+.summary li, ul.list li { margin-left: 1.2em; }
+ul.list { margin: 8px 0; }
+ul.list li { margin-bottom: 4px; }
+.note { font-size: 0.83rem; color: var(--fg-2); }
+.warn-box {
+  border-left: 3px solid var(--c-warn);
+  background: color-mix(in srgb, var(--c-warn) 8%, var(--surface));
+}
+.warn-box strong { color: var(--c-warn); }
+
+/* 全体マップ */
+.map {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 2.2fr);
+  gap: 12px;
+  align-items: center;
+  margin: 14px 0;
+}
+.map .col-title { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-bottom: 6px; letter-spacing: .05em; }
+.map .inputs { display: grid; gap: 6px; }
+.map .inputs span {
+  background: var(--chip);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+.map .app {
+  writing-mode: vertical-rl;
+  background: var(--accent);
+  color: var(--bg);
+  font: 700 0.85rem 'Noto Sans JP', sans-serif;
+  border-radius: 10px;
+  padding: 14px 8px;
+  letter-spacing: .2em;
+}
+.map .app::after { content: ' →'; }
+.sinks { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 8px; }
+.sink {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--c-ng);
+  border-radius: 8px;
+  padding: 8px 10px;
+  transition: border-color .15s;
+}
+.sink:hover { border-color: var(--accent); }
+.sink .to { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.sink .v { font-weight: 700; font-size: 0.88rem; color: var(--accent); }
+.map2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px; }
+.map2 .sink { border-left-color: var(--c-warn); }
+@media (max-width: 640px) {
+  .map { grid-template-columns: 1fr; }
+  .map .inputs { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .map .app { writing-mode: horizontal-tb; text-align: center; padding: 8px; }
+  .map .app::after { content: ' ↓'; }
+}
+
+/* 表 */
+.tbl { overflow-x: auto; margin: 10px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.83rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th {
+  font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--fg-2);
+  letter-spacing: .04em;
+}
+td a { font-weight: 700; }
+
+/* ステップ */
+ol.flow {
+  list-style: none;
+  counter-reset: s;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+ol.flow li {
+  counter-increment: s;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.83rem;
+}
+ol.flow li::before {
+  content: counter(s);
+  display: inline-grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace;
+  margin-right: 6px;
+}
+ol.flow li.x { border-color: var(--c-ng); }
+ol.flow li.x::before { background: var(--c-ng); }
+
+/* NG / OK */
+.vs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.vs > div { min-width: 0; display: flex; flex-direction: column; }
+.vs > div .code-head { align-self: flex-start; }
+.code-head {
+  display: inline-block;
+  font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace;
+  padding: 3px 12px;
+  border-radius: 8px 8px 0 0;
+}
+.code-head.ng { background: var(--c-ng); color: var(--bg); }
+.code-head.ok { background: var(--c-ok); color: var(--bg); }
+.vs pre { margin: 0; border-top-left-radius: 0; flex: 1; }
+
+/* 対策 */
+.def { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; margin: 12px 0; }
+.def > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; }
+.def .lv { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .05em; }
+.def .root .lv { color: var(--c-ok); }
+.def .aux .lv { color: var(--fg-2); }
+.def ul { margin-top: 4px; }
+.def li { margin-left: 1.1em; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 10px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* ReDoS デモ */
+.demo-ctrl { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 8px 0; font-size: 0.85rem; }
+.demo-ctrl input[type=range] { flex: 1 1 160px; accent-color: var(--accent); }
+.demo-ctrl output { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; min-width: 4.5em; }
+.btn {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.btn:disabled { opacity: .5; cursor: wait; }
+.bars { display: grid; gap: 4px; margin: 10px 0; }
+.bar-row { display: grid; grid-template-columns: 4.2em minmax(0, 1fr) 5.6em; gap: 8px; align-items: center; font: 0.72rem 'JetBrains Mono', ui-monospace, monospace; }
+.bar-row .track { background: var(--chip); border-radius: 4px; height: 14px; overflow: hidden; }
+.bar-row .fill { height: 100%; background: var(--c-ng); width: 0; transition: width .3s; }
+.bar-row.safe .fill { background: var(--c-ok); }
+.bar-row .ms { text-align: right; color: var(--fg-2); }
+#redos-extra { font-size: 0.85rem; }
+
+.myth { display: grid; gap: 10px; }
+.myth .card { margin: 0; }
+.myth .q { font-weight: 700; }
+.myth .q::before { content: '✗ '; color: var(--c-ng); }
+.myth .a::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>実装起因の脆弱性（リクエストと権限）</h1>
+  <p class="subtitle">ブラウザが自動で送るもの・サーバーが代わりに取りに行くもの・権限の確認漏れを突く攻撃</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li><b>CSRF</b> はブラウザが<b>自動で送る Cookie</b> を、<b>セッションハイジャック</b>は Cookie の中の<b>セッション ID（ログインの鍵）を盗む・固定する</b>ことを悪用する。SameSite・トークン・ログイン時の ID 再生成で防ぐ</li>
+      <li><b>SSRF・オープンリダイレクト</b>は、外から来た URL をサーバーが取りに行く・そのまま転送するのが原因。接続先・転送先を<b>許可リストで決める</b></li>
+      <li><b>認可不備（IDOR）</b>は、「このユーザーのデータか」の確認漏れ。ライブラリ任せにできず、毎回の確認を<b>設計に組み込む</b></li>
+    </ul>
+  </div>
+  <p class="note">入力をそのまま解釈させるもの（XSS・SQL インジェクション・OS コマンドインジェクション・ReDoS・パストラバーサル）と、対策の共通の考え方は <a href="web-vulnerabilities.html">実装起因の脆弱性（入力の扱い）</a> にまとめています。</p>
+
+  <!-- ======================== Map ======================== -->
+  <h2 id="map">全体マップ</h2>
+  <p>入力の中身そのものより、ブラウザ・サーバー・権限の仕組みの穴を突く攻撃です。カードを押すと各セクションへ。</p>
+  <div class="map2">
+    <a class="sink" href="#csrf"><div class="to">ブラウザが Cookie を自動で付ける</div><div class="v">CSRF</div></a>
+    <a class="sink" href="#session"><div class="to">セッション ID ＝ ログインの鍵</div><div class="v">セッションハイジャック</div></a>
+    <a class="sink" href="#ssrf"><div class="to">サーバーが、外から来た URL を取りに行く</div><div class="v">SSRF</div></a>
+    <a class="sink" href="#redirect"><div class="to">外から来た URL へ、そのまま転送する</div><div class="v">オープンリダイレクト</div></a>
+    <a class="sink" href="#idor"><div class="to">「誰のデータか」の確認漏れ</div><div class="v">認可不備 (IDOR)</div></a>
+  </div>
+
+  <div class="tbl"><table>
+    <thead><tr><th>脆弱性</th><th>何が起きる</th><th>根本対策</th><th>補助・多層防御</th></tr></thead>
+    <tbody>
+      <tr><td><a href="#csrf">CSRF</a></td><td>ログイン中のユーザーに、意図しない操作をさせる</td><td>SameSite Cookie ＋ トークン or Origin / Sec-Fetch-Site 検証</td><td>重要操作の再認証</td></tr>
+      <tr><td><a href="#session">セッションハイジャック</a></td><td>他人としてログインされる</td><td>推測不能な ID、ログイン時に再生成、Secure / HttpOnly</td><td>有効期限、重要操作の再認証</td></tr>
+      <tr><td><a href="#ssrf">SSRF</a></td><td>サーバー経由で内部ネットワークやクラウドのメタデータにアクセス</td><td>接続先の許可リスト</td><td>内部宛ての遮断、IMDSv2</td></tr>
+      <tr><td><a href="#redirect">オープンリダイレクト</a></td><td>正規ドメインを踏み台にフィッシングへ誘導</td><td>自サイト内のパスだけ許可</td><td>—</td></tr>
+      <tr><td><a href="#idor">IDOR</a></td><td>ID を書き換えて他人のデータを見る・変える</td><td>毎回「このユーザーの持ち物か」を確認</td><td>推測しにくい ID（それだけでは不十分）</td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- ======================== CSRF ======================== -->
+  <h2 id="csrf">CSRF<span class="en">Cross-Site Request Forgery</span></h2>
+  <p>ブラウザは、どのサイトから送られたリクエストでも、<b>宛先サイトの Cookie を自動で付けてきた</b>。これを利用して、ログイン中のユーザーに罠サイトから「送金」「パスワード変更」などのリクエストを送らせる攻撃です。攻撃者はレスポンスを読めませんが、<b>操作が実行されれば十分</b>です。</p>
+  <ol class="flow">
+    <li>被害者は <code>bank.example</code> にログイン中（Cookie あり）</li>
+    <li>罠サイト <code>evil.example</code> を開く</li>
+    <li class="x">罠ページの隠しフォームが <code>bank.example/transfer</code> に自動 POST</li>
+    <li class="x">ブラウザが bank の Cookie を付けて送信 → 正規の操作として処理される</li>
+  </ol>
+<pre><code><span class="cm">&lt;!-- evil.example 上の罠 --&gt;</span>
+&lt;form action="https://bank.example/transfer" method="POST"&gt;
+  &lt;input type="hidden" name="to" value="attacker"&gt;
+  &lt;input type="hidden" name="amount" value="100000"&gt;
+&lt;/form&gt;
+&lt;script&gt;document.forms[0].submit()&lt;/script&gt;</code></pre>
+
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code><span class="cm">// Cookie があればそのまま実行</span>
+app.post('/transfer', requireLogin, transfer);
+
+<span class="cm">// GET で状態を変える（リンク 1 つで発火）</span>
+app.<span class="bad">get</span>('/account/delete', requireLogin, del);
+
+res.cookie('sid', id); <span class="cm">// SameSite 未指定</span></code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code>res.cookie('__Host-sid', id, {
+  secure: true, httpOnly: true, path: '/',
+  <span class="good">sameSite: 'lax'</span>,
+});
+
+<span class="cm">// 状態を変えるリクエストは送信元を確認</span>
+app.use((req, res, next) =&gt; {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  const site = req.get('<span class="good">Sec-Fetch-Site</span>');
+  if (site) {
+    if (site === 'same-origin' || site === 'none') return next();
+    return res.status(403).end();
+  }
+  <span class="cm">// 古いブラウザ向け: Origin ヘッダーで確認</span>
+  if (req.get('Origin') === 'https://bank.example') return next();
+  return res.status(403).end();
+});</code></pre></div>
+  </div>
+
+  <div class="tbl"><table>
+    <thead><tr><th>対策</th><th>仕組み</th><th>注意点</th></tr></thead>
+    <tbody>
+      <tr><td><code>SameSite=Lax</code> / <code>Strict</code></td><td>別サイトからの POST・iframe・fetch に Cookie を付けない</td><td>Lax は<b>トップレベルの GET 遷移では送る</b>ので、GET で状態を変えると防げない。SameSite の「サイト」は登録ドメイン単位なので、<b>脆弱なサブドメイン</b>からは同一サイト扱いで送られる</td></tr>
+      <tr><td>CSRF トークン</td><td>フォームにセッションと紐づく乱数を埋め、送信時に照合。罠サイトはその値を読めない</td><td>フレームワークの仕組みを使う。トークンを URL に載せない</td></tr>
+      <tr><td><code>Sec-Fetch-Site</code> / <code>Origin</code> の検証</td><td>ブラウザが付ける送信元情報で、別サイトからのリクエストを拒否</td><td>主要ブラウザが対応。Go 1.25 の <code>http.CrossOriginProtection</code> もこの方式</td></tr>
+      <tr><td>JSON API ＋ カスタムヘッダー必須</td><td>独自ヘッダー付きのクロスオリジン要求はプリフライトが必要になり、CORS で許可しない限り送れない</td><td><code>Content-Type: text/plain</code> などの単純リクエストを受け付けてしまわないこと（<a href="cors-sop.html">CORS</a>）</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Cookie ではなく <code>Authorization: Bearer</code> ヘッダーでトークンを送る API は、ブラウザが自動で付けないので CSRF の対象になりにくい（その代わり XSS でトークンを読まれる。<a href="jwt-vs-session.html">JWT とセッション</a>）。</p>
+
+  <!-- ======================== Session ======================== -->
+  <h2 id="session">セッションハイジャック</h2>
+  <p>ログイン後のユーザーは、Cookie の<b>セッション ID だけ</b>で識別されます。ID を手に入れれば、パスワードなしでそのユーザーになりすませます。手に入れる方法ごとに対策が違います。</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="ses-ways">盗む方法と対策</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="ses-fix">セッション固定</button>
+  </div>
+  <div class="panel" id="ses-ways">
+    <div class="tbl"><table>
+      <thead><tr><th>手口</th><th>対策</th></tr></thead>
+      <tbody>
+        <tr><td><b>盗聴</b>: http 通信や SSL ストリップで Cookie を見る</td><td>全ページ https、Cookie に <code>Secure</code>、<a href="security-headers.html#hsts">HSTS</a></td></tr>
+        <tr><td><b>XSS</b>: <code>document.cookie</code> を外部へ送る</td><td><code>HttpOnly</code>、そもそも XSS を潰す</td></tr>
+        <tr><td><b>推測</b>: 連番・時刻・ユーザー ID から ID を当てる</td><td>暗号論的乱数で 128 ビット以上（自作せずフレームワークに任せる）</td></tr>
+        <tr><td><b>固定</b>: 攻撃者が用意した ID でログインさせる</td><td><b>ログイン成功時に ID を作り直す</b>、<code>__Host-</code> 接頭辞</td></tr>
+        <tr><td><b>漏えい</b>: URL に ID が載り、Referer・ログ・共有で漏れる</td><td>ID は Cookie だけで扱い、URL に載せない</td></tr>
+        <tr><td><b>放置</b>: 共有 PC でログアウトし忘れ、盗まれた ID がずっと使える</td><td>無操作タイムアウト・絶対的な有効期限、ログアウトでサーバー側のセッションを破棄</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="panel" id="ses-fix" hidden>
+    <ol class="flow">
+      <li>攻撃者がサイトにアクセスし、未ログインのセッション ID <code>ABC</code> を手に入れる</li>
+      <li>被害者のブラウザに <code>ABC</code> を仕込む（脆弱なサブドメインからの Cookie 設定など）</li>
+      <li class="x">被害者がログイン。サーバーが<b>同じ ID <code>ABC</code> のまま</b>ログイン状態にする</li>
+      <li class="x">攻撃者も <code>ABC</code> を持っているので、被害者としてログイン済み</li>
+    </ol>
+    <p class="note">ログイン時に ID を新しく作れば、攻撃者の持つ <code>ABC</code> は無効になる。</p>
+  </div>
+
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code>app.post('/login', async (req, res) =&gt; {
+  const user = await verify(req.body);
+  if (!user) return res.status(401).end();
+  <span class="cm">// 同じセッション ID のままログイン状態にする</span>
+  <span class="bad">req.session.userId = user.id;</span>
+  res.redirect(<span class="bad">`/home?sid=${req.sessionID}`</span>);
+});</code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code>app.use(session({
+  name: '__Host-sid',
+  secret: process.env.SESSION_SECRET,
+  cookie: { secure: true, httpOnly: true, sameSite: 'lax',
+            path: '/', maxAge: 30 * 60 * 1000 },
+  rolling: true, <span class="cm">// 操作のたびに期限を延長（無操作 30 分で失効）</span>
+}));
+
+app.post('/login', async (req, res, next) =&gt; {
+  const user = await verify(req.body);
+  if (!user) return res.status(401).end();
+  req.session.<span class="good">regenerate</span>(err =&gt; {  <span class="cm">// 新しい ID を発行</span>
+    if (err) return next(err);
+    req.session.userId = user.id;
+    res.redirect('/home');
+  });
+});
+
+app.post('/logout', (req, res) =&gt;
+  req.session.<span class="good">destroy</span>(() =&gt; res.redirect('/')));</code></pre></div>
+  </div>
+  <p class="note">パスワード変更・メールアドレス変更・送金などの重要操作では、セッションがあっても<b>パスワードやパスキーで再確認</b>すると、ID を盗まれたときの被害を限定できます。</p>
+
+  <!-- ======================== SSRF ======================== -->
+  <h2 id="ssrf">SSRF<span class="en">Server-Side Request Forgery</span></h2>
+  <p>「URL を入れると OGP を取ってくる」「Webhook の送信先を登録」「画像を URL から取り込む」など、<b>サーバーが利用者の指定した URL にアクセスする</b>機能を悪用し、外から届かない内部の宛先を叩かせる攻撃です。</p>
+  <ol class="flow">
+    <li>攻撃者が URL に <code>http://169.254.169.254/latest/meta-data/…</code> を指定</li>
+    <li class="x">サーバーがその URL を取得（サーバーからはクラウドのメタデータサービスに届く）</li>
+    <li class="x">一時認証情報などがレスポンスとして攻撃者に返る / 内部の管理画面や DB を操作される</li>
+  </ol>
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code>app.post('/preview', async (req, res) =&gt; {
+  const r = await fetch(<span class="bad">req.body.url</span>);
+  res.send(await r.text());
+});
+
+<span class="cm">// 文字列チェックは回避される
+// http://127.1/ 、http://[::1]/ 、http://0x7f000001/
+// 外部ドメインが 127.0.0.1 に解決される、
+// 外部 URL から内部へリダイレクトする…</span></code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code>const ALLOWED = new Set(['api.partner.example', 'cdn.example.com']);
+
+const url = new URL(req.body.url);
+if (url.protocol !== 'https:' || <span class="good">!ALLOWED.has(url.hostname)</span>) {
+  return res.status(400).end();
+}
+const r = await fetch(url, { <span class="good">redirect: 'error'</span> });</code></pre></div>
+  </div>
+  <p>任意の URL を受けるしかない機能（Webhook など）では、許可リストの代わりに次を重ねます。</p>
+  <ul class="list">
+    <li>DNS を解決して得た IP が、プライベート・ループバック・リンクローカル（<code>10/8</code>・<code>127/8</code>・<code>169.254/16</code>・<code>::1</code> など）なら拒否</li>
+    <li>チェックした IP にそのまま接続する（チェック後に再解決させない＝ DNS リバインディング対策）。リダイレクトは追わないか、追うたびに再チェック</li>
+    <li>ネットワーク側で、取得用のサーバー・プロキシから内部への通信を遮断。AWS ならメタデータを IMDSv2（トークン必須）にする</li>
+    <li>取得したレスポンスをそのまま返さない（必要な項目だけ取り出す）</li>
+  </ul>
+
+  <!-- ======================== Open redirect ======================== -->
+  <h2 id="redirect">オープンリダイレクト<span class="en">Open Redirect</span></h2>
+  <p>ログイン後の戻り先 <code>?next=</code> などで、<b>外部サイトへ転送できてしまう</b>問題です。リンクの見た目は正規ドメインなので、フィッシングに使われます。OAuth の <code>redirect_uri</code> と組み合わさると、認可コードやトークンが攻撃者に流れることもあります。</p>
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code>res.redirect(<span class="bad">req.query.next</span>);
+
+<span class="cm">// 「/ で始まるか」だけでは不十分</span>
+if (next.<span class="bad">startsWith('/')</span>) res.redirect(next);
+<span class="cm">// //evil.example  → プロトコル相対 URL で外部へ
+// /\evil.example  → ブラウザは \ を / と読む</span></code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code>const ORIGIN = 'https://app.example.com';
+
+function safeNext(next) {
+  if (typeof next !== 'string') return '/';
+  try {
+    const u = new URL(next, ORIGIN);   <span class="cm">// ブラウザと同じ規則で解釈</span>
+    if (<span class="good">u.origin !== ORIGIN</span>) return '/';
+    return u.pathname + u.search + u.hash;
+  } catch {
+    return '/';
+  }
+}
+res.redirect(safeNext(req.query.next));</code></pre></div>
+  </div>
+  <p class="note"><code>new URL()</code> で解釈すると、<code>//evil.example</code> も <code>/\evil.example</code> もオリジンが evil.example になり、<code>javascript:</code> はオリジンが <code>null</code> になるので、まとめて弾けます。</p>
+
+  <!-- ======================== IDOR ======================== -->
+  <h2 id="idor">認可不備 / IDOR<span class="en">Insecure Direct Object Reference</span></h2>
+  <p>ログインしているか（認証）は確認しているのに、<b>そのデータがこのユーザーのものか（認可）</b>を確認していない問題です。URL や JSON の ID を書き換えるだけで、他人の注文・請求書・個人情報が見えます。ツールでは見つけにくく、実際の事故で最も多い種類の 1 つです。</p>
+  <div class="vs">
+    <div><span class="code-head ng">NG</span>
+<pre><code><span class="cm">// GET /api/orders/1024 → 1025 に変えると他人の注文</span>
+app.get('/api/orders/:id', requireLogin, async (req, res) =&gt; {
+  const [order] = await db.select().from(orders)
+    .where(<span class="bad">eq(orders.id, req.params.id)</span>);
+  res.json(order);
+});
+
+<span class="cm">// 受け取った値をそのまま更新に渡す（Mass Assignment）
+// req.body は any なので型チェックも素通りする</span>
+await db.update(users).set(<span class="bad">req.body</span>).where(eq(users.id, me));
+<span class="cm">// → { "role": "admin" } も通る</span></code></pre></div>
+    <div><span class="code-head ok">OK</span>
+<pre><code>import { and, eq } from 'drizzle-orm';
+
+app.get('/api/orders/:id', requireLogin, async (req, res) =&gt; {
+  const [order] = await db.select().from(orders).where(and(
+    eq(orders.id, req.params.id),
+    <span class="good">eq(orders.userId, req.user.id)</span>,
+  ));
+  <span class="cm">// 他人のものは「存在しない」と同じ扱い</span>
+  if (!order) return res.status(404).end();
+  res.json(order);
+});
+
+<span class="cm">// 更新してよい項目だけ取り出す</span>
+const { name, bio } = req.body;
+await db.update(users).set(<span class="good">{ name, bio }</span>).where(eq(users.id, me));</code></pre></div>
+  </div>
+  <ul class="list">
+    <li>ID を UUID にすると推測は難しくなるが、URL の共有やログから漏れれば読める。<b>認可チェックの代わりにはならない</b></li>
+    <li>チェックをハンドラーごとに書くと漏れるので、「必ず所有者で絞るリポジトリ関数」やポリシー層にまとめる</li>
+    <li>一覧・検索・エクスポート・管理用 API など、<b>画面に出ていないエンドポイント</b>も同じ確認が必要</li>
+  </ul>
+
+  <!-- ======================== Myths ======================== -->
+  <h2 id="myths">よくある誤解</h2>
+  <div class="myth">
+    <div class="card"><p class="q">POST にしたので CSRF は大丈夫</p><p class="a">罠サイトのフォームから POST は送れる。SameSite・トークン・送信元の検証が必要。</p></div>
+    <div class="card"><p class="q">https なのでセッションは盗まれない</p><p class="a">XSS・固定・URL への ID 漏れ・推測しやすい ID は https と関係ない。</p></div>
+  </div>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<!-- 確認クイズ（問題データだけ書く。表示は memo.py がページ末尾に自動で入れる） -->
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "セッション Cookie を SameSite=Lax にした。それでも CSRF の被害が残るのはどんな実装？",
+    "choices": [
+      "状態を変える操作（削除など）を GET リクエストで受け付けている",
+      "POST のフォームで CSRF トークンを使っている",
+      "Cookie に HttpOnly を付けている",
+      "API が Authorization ヘッダーのトークンで認証している"
+    ],
+    "answer": 0,
+    "explain": "Lax の Cookie は、別サイトからのトップレベルの GET 遷移（リンククリック）では送られる。GET で状態を変えるとリンク 1 つで操作させられる。",
+    "ref": "#csrf"
+  },
+  {
+    "q": "攻撃者が用意したセッション ID のまま被害者にログインさせ、乗っ取る攻撃を防ぐには？",
+    "choices": [
+      "ログイン成功時にセッション ID を新しく作り直す",
+      "セッション Cookie に HttpOnly を付ける",
+      "セッション ID を URL にも載せて照合する",
+      "ログイン画面だけ https にする"
+    ],
+    "answer": 0,
+    "explain": "セッション固定攻撃は、ログイン前後で ID が変わらないことを利用する。再生成すれば攻撃者の持つ ID は無効になる。",
+    "ref": "#session"
+  },
+  {
+    "q": "「URL を入れると OGP を取ってくる」機能で、内部の宛先を叩かせる SSRF を防ぎたい。接続先が決まっているときの対策は？",
+    "choices": [
+      "URL の文字列に 127.0.0.1 や localhost が入っていたら拒否する",
+      "取得したレスポンスを、エスケープしてから利用者に返す",
+      "https で、ホスト名が許可リストにある URL だけ取得し、リダイレクトは追わない",
+      "取得の処理を、別のスレッドで非同期に動かす"
+    ],
+    "answer": 2,
+    "explain": "文字列チェックは 127.1 や [::1]、内部へ解決されるドメイン、リダイレクトで回避される。接続先を許可リストで決め、リダイレクトは追わない。",
+    "ref": "#ssrf"
+  },
+  {
+    "q": "ログイン後の戻り先 ?next= を安全にしたい。//evil.example のような外部への転送を防ぐ方法は？",
+    "choices": [
+      "next が / で始まるときだけ、そのまま転送する",
+      "new URL(next, 自サイトのオリジン) で解釈し、オリジンが自サイトのときだけ転送する",
+      "next に http という文字が含まれていなければ転送する",
+      "next を URL エンコードしてから転送する"
+    ],
+    "answer": 1,
+    "explain": "/ で始まるかだけだと、//evil.example（プロトコル相対）や /\\evil.example が外部へ飛ぶ。ブラウザと同じ規則で解釈して、オリジンを比べる。",
+    "ref": "#redirect"
+  },
+  {
+    "q": "GET /api/orders/:id でログインは確認している。ID を書き換えて他人の注文を見られないようにするには？",
+    "choices": [
+      "注文 ID を推測しにくい UUID にする",
+      "注文 ID を URL ではなくリクエストの本文で受け取る",
+      "ログインの確認を、セッションから JWT に変える",
+      "注文 ID とログイン中のユーザー ID の両方で絞って取得し、無ければ 404 を返す"
+    ],
+    "answer": 3,
+    "explain": "UUID は推測を難しくするだけで、共有やログから漏れれば読める。毎回「このユーザーの持ち物か」を確かめる。",
+    "ref": "#idor"
+  }
+]
+</script>
+</body>
+</html>
