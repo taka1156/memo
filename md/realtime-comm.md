@@ -120,7 +120,7 @@ Alice と Bob が別のサーバーにつながっていると、Server 1 は Bo
 
 ## 関連メモ
 
-[HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) [Redis と Valkey](https://memo.taka1156.site/md/redis-valkey.md) [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) [実装起因の脆弱性](https://memo.taka1156.site/md/web-vulnerabilities.md)
+[HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) [Redis と Valkey](https://memo.taka1156.site/md/redis-valkey.md) [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) [実装起因の脆弱性（入力の扱い）](https://memo.taka1156.site/md/web-vulnerabilities.md) [実装起因の脆弱性（リクエストと権限）](https://memo.taka1156.site/md/request-vulnerabilities.md)
 
 ## 参考
 

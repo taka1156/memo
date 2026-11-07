@@ -150,7 +150,7 @@ if (navigator.storage?.persist) {
 
 ## 関連メモ
 
-[JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) [PWA](https://memo.taka1156.site/md/pwa.md) [セキュリティヘッダー](https://memo.taka1156.site/md/security-headers.md) [実装起因の脆弱性](https://memo.taka1156.site/md/web-vulnerabilities.md) [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) [Core Web Vitals](https://memo.taka1156.site/md/web-performance.md)
+[JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) [PWA](https://memo.taka1156.site/md/pwa.md) [セキュリティヘッダー](https://memo.taka1156.site/md/security-headers.md) [実装起因の脆弱性（入力の扱い）](https://memo.taka1156.site/md/web-vulnerabilities.md) [実装起因の脆弱性（リクエストと権限）](https://memo.taka1156.site/md/request-vulnerabilities.md) [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) [Core Web Vitals](https://memo.taka1156.site/md/web-performance.md)
 
 ## 参考
 

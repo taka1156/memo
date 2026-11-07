@@ -141,7 +141,7 @@ app.get('/invoices/:id', requireLogin, async (req) => {
 });
 ```
 
-URL の ID を書き換えるだけで他人のデータが見える脆弱性は IDOR（API では BOLA）と呼ばれ、API の脆弱性で最も多いものの 1 つです（ [実装起因の脆弱性](https://memo.taka1156.site/md/web-vulnerabilities.md) ）。存在を知られたくないリソースは 403 ではなく 404 を返すこともあります。
+URL の ID を書き換えるだけで他人のデータが見える脆弱性は IDOR（API では BOLA）と呼ばれ、API の脆弱性で最も多いものの 1 つです（ [実装起因の脆弱性（リクエストと権限）](https://memo.taka1156.site/md/request-vulnerabilities.md) ）。存在を知られたくないリソースは 403 ではなく 404 を返すこともあります。
 
 ### マルチテナント：行レベルセキュリティ
 

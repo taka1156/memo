@@ -376,7 +376,7 @@ app.get('/invoices/:id', requireLogin, async (req) =&gt; {
   if (!inv || !(await can(req.user, 'view', inv))) return notFound();
   return inv;
 });</code></pre>
-  <p>URL の ID を書き換えるだけで他人のデータが見える脆弱性は IDOR（API では BOLA）と呼ばれ、API の脆弱性で最も多いものの 1 つです（<a href="web-vulnerabilities.html">実装起因の脆弱性</a>）。存在を知られたくないリソースは 403 ではなく 404 を返すこともあります。</p>
+  <p>URL の ID を書き換えるだけで他人のデータが見える脆弱性は IDOR（API では BOLA）と呼ばれ、API の脆弱性で最も多いものの 1 つです（<a href="request-vulnerabilities.html#idor">実装起因の脆弱性（リクエストと権限）</a>）。存在を知られたくないリソースは 403 ではなく 404 を返すこともあります。</p>
 
   <h3 id="tenant">マルチテナント：行レベルセキュリティ</h3>
   <p>SaaS では「他社のデータが見えない」が最重要の認可です。全クエリに <code>WHERE tenant_id = ?</code> を書き忘れないよう、PostgreSQL の行レベルセキュリティ (RLS) で DB 側に強制する方法があります。ただしスーパーユーザーとテーブル所有者には通常ポリシーが効かないので、アプリは所有者でないロールで接続するか、<code>FORCE ROW LEVEL SECURITY</code> も設定します。</p>

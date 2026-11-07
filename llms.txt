@@ -4,6 +4,7 @@
 
 ## Memos
 
+- [実装起因の脆弱性（リクエストと権限）](https://memo.taka1156.site/md/request-vulnerabilities.md): CSRF・セッションハイジャック・SSRF・オープンリダイレクト・認可不備（IDOR）を、攻撃の流れと NG/OK コードで図解。Cookie の自動送信・サーバーからの URL 取得・権限の確認漏れを突く攻撃の防ぎ方。（セキュリティ, バックエンド / 2026-11-08）
 - [仮想メモリとページング](https://memo.taka1156.site/md/virtual-memory.md): OS がプロセスごとに専用のメモリ空間を見せるしくみ。ページとページテーブルによるアドレス変換、TLB と huge page、ページフォルトの種類、オーバーコミットと OOM killer、fork の copy-on-write、mmap と共有、VIRT と RES の読み方までを図解。（CS基礎, Linux / 2026-11-07）
 - [OS のスケジューリング](https://memo.taka1156.site/md/os-scheduling.md): OS が限られた CPU を多くのプロセス・スレッドに配るしくみ。実行・待ち・ブロックの状態、コンテキストスイッチのコスト、ラウンドロビンなどのアルゴリズム、Linux の nice と公平スケジューラ、優先度逆転、コンテナの CPU 制限までを図解。（CS基礎, Linux / 2026-11-07）
 - [NoSQL の種類](https://memo.taka1156.site/md/nosql-types.md): キーバリュー・ドキュメント・ワイドカラム・グラフの 4 種類の NoSQL が、同じデータをどんな形で持ち、どんな問い合わせが得意で何が苦手かを、同じ EC サイトの例と分散の図で比べる。（データベース / 2026-11-07）
@@ -37,7 +38,7 @@
 - [CI/CD と GitHub Actions](https://memo.taka1156.site/md/ci-cd.md): CI と CD の役割、パイプラインの組み方、GitHub Actions のワークフロー・ジョブ・ステップの構造、速くする工夫、シークレットと権限の安全な扱い、デプロイ戦略までを図解。（開発ツール, インフラ / 2026-11-04）
 - [BigQuery と BI の SQL](https://memo.taka1156.site/md/bigquery-bi.md): BigQuery を BI でどう使うか、データの流れ・コスト・SQL・GA4 エクスポート・Looker を図解。（データベース / 2026-11-04）
 - [WebAssembly](https://memo.taka1156.site/md/webassembly.md): Wasm が何で、どうやって JS から呼ばれ、なぜ速い場面と速くない場面があるのかを、線形メモリ・サンドボックス・境界のコストで図解。WasmGC、WASI とコンポーネントモデルによるブラウザ外での利用まで。（フロントエンド, 言語, JavaScript / 2026-11-03）
-- [実装起因の脆弱性](https://memo.taka1156.site/md/web-vulnerabilities.md): XSS・CSRF・SQL インジェクション・OS コマンドインジェクション・セッションハイジャック・ReDoS に、パストラバーサル・SSRF・オープンリダイレクト・認可不備を加えて、攻撃の流れと NG/OK コードで図解。（セキュリティ, バックエンド / 2026-11-03）
+- [実装起因の脆弱性（入力の扱い）](https://memo.taka1156.site/md/web-vulnerabilities.md): XSS・SQL インジェクション・OS コマンドインジェクション・ReDoS・パストラバーサルを、攻撃の流れと NG/OK コードで図解。データとコードを分ける・出す先に合わせる・許可リストの 3 つの考え方で防ぐ。（セキュリティ, バックエンド, フロントエンド / 2026-11-03）
 - [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md): URL を入れてから最初のバイトが届くまでの DNS・TCP・TLS・HTTP の流れと、HTTP/1.1→2→3 で何が解決されたか（多重化・ヘッドオブライン・QUIC）を図解。（ネットワーク, インフラ, フロントエンド / 2026-11-03）
 - [Core Web Vitals](https://memo.taka1156.site/md/web-performance.md): LCP・INP・CLS の意味と基準値、それぞれを分解して遅い原因を見つける方法、画像・フォント・JS の具体的な改善策と、ラボデータとフィールドデータの違いを図解。（フロントエンド, JavaScript / 2026-11-03）
 - [Web Components](https://memo.taka1156.site/md/web-components.md): Custom Elements・Shadow DOM・slot・template の 4 つの部品と、スタイルの通り方（CSS 変数・::part）、イベントの伝わり方、Declarative Shadow DOM による SSR、フォーム連携とアクセシビリティの注意点を、動くコピーボタン部品で図解。（フロントエンド, JavaScript, 設計 / 2026-11-03）
@@ -62,7 +63,7 @@
 - [Dockerfile と Compose の書き方](https://memo.taka1156.site/md/docker-files.md): Dockerfile・マルチステージビルド・compose.yaml・devcontainer.json の書き方を、注釈付きの例と落とし穴で整理。（インフラ, 開発ツール / 2026-11-03）
 - [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md): CAP 定理・整合性モデル・冪等性・リトライを、ネットワークが切れる／遅れる前提で図解し、Cloudflare の KV・D1・Durable Objects がどこに当たるかも整理する（設計, インフラ, バックエンド / 2026-11-03）
 - [デザイントークン](https://memo.taka1156.site/md/design-tokens.md): 色・余白・文字サイズなどの決定を名前付きの変数（デザイントークン）で管理する考え方を、3 階層の構造・CSS 変数での実装・テーマ切り替えのデモで説明する（デザイン, フロントエンド / 2026-11-03）
-- [DDD とオニオンアーキテクチャ](https://memo.taka1156.site/md/ddd-onion.md): DDD の要素と依存の向きを図解し、Hono・Void での構成例と AI 時代向けの軽量版を比較。（設計, バックエンド / 2026-11-03）
+- [DDD とオニオンアーキテクチャ](https://memo.taka1156.site/md/ddd-onion.md): DDD の要素（ユビキタス言語・境界づけられたコンテキスト・エンティティ・値オブジェクトなど）とオニオンアーキテクチャの依存の向きを、タスク管理 API の例で図解。（設計, バックエンド / 2026-11-03）
 - [DB のしくみ](https://memo.taka1156.site/md/db-internals.md): SQL が結果になるまでの流れ、ページとバッファプール、WAL によるクラッシュ復旧、行指向と列指向、そして D1 などクラウドでも使われるようになった SQLite を図解。（データベース / 2026-11-03）
 - [インデックスとトランザクション](https://memo.taka1156.site/md/db-index-transaction.md): B木インデックスが効く条件・効かない条件（複合インデックスの順序、関数、LIKE）と、分離レベルで防げる異常、MVCC、更新の取りこぼし対策までを図解。（データベース / 2026-11-03）
 - [CSS レイアウト](https://memo.taka1156.site/md/css-layout.md): Flexbox（1 次元）と Grid（2 次元）の使い分けを触って比べられるデモつきで整理し、subgrid・コンテナクエリ・カスケードレイヤー・:has()・論理プロパティなど今どきの CSS と定番レシピをまとめる。（フロントエンド, デザイン / 2026-11-03）
