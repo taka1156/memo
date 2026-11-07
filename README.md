@@ -10,7 +10,7 @@ Claude に作ってもらった解説ページ (HTML) を貯めておくリポ�
 - 公開 URL: https://memo.taka1156.site/  
   （`src/CNAME` の独自ドメイン。OGP の URL もここから自動で決まります）
 - 公開のしくみ: `main` には原本（HTML・スクリプト）だけを置き、push すると GitHub Actions（Deploy MEMO）が `memo.py build` で `dist/` に公開用のサイト一式を作って **dist ブランチ**にコミットします。GitHub Pages の公開元は dist ブランチです（生成物が `main` に混ざらない）
-- 設定: `memo.config.json`（サイト名・説明・リポジトリ・ブランチ・タイムゾーン・アクセント色とアイコン/OGP 画像の文字。コードやスキルには直接書かない）
+- 設定: `memo.config.json`（サイト名・説明・リポジトリ・ブランチ・タイムゾーン・クイズとロードマップを使うか・アクセント色とアイコン/OGP 画像の文字。コードやスキルには直接書かない。このサイトは `"quiz": true`・`"roadmap": true`）
 - アイコン・OGP 画像: `memo.config.json` の `branding`（`icon: "lines"` で今の横線のアイコン）から `branding/render.py` で作る。設定ページから色を固定すると、Actions が画像も同じ色で作り直す
 
 ## Claude に頼むとき
