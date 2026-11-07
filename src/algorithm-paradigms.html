@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アルゴリズム設計手法の全体像</title>
+<meta name="description" content="全探索・貪欲法・分割統治法・動的計画法・二分探索の考え方と使い分けを、入力サイズの目安、マージソートやフィボナッチの呼び出し木などの図で比べて解説。">
+<meta name="memo:tags" content="CS基礎">
+<meta name="memo:date" content="2026-11-07">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+  --c-ok: #15803d;
+  --c-ng: #b91c1c;
+  --c-a: #c2410c;
+  --c-b: #15803d;
+  --c-c: #7c3aed;
+  --c-d: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-ok: #4ade80;
+    --c-ng: #f87171;
+    --c-a: #fb923c;
+    --c-b: #4ade80;
+    --c-c: #c4b5fd;
+    --c-d: #fbbf24;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 20px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.dots, ol.dots { margin: 6px 0 6px 1.3em; }
+ul.dots li, ol.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.card + .card { margin-top: 12px; }
+.summary { border-left: 3px solid var(--accent); }
+.summary li { margin-left: 1.2em; }
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+.myth { margin-bottom: 10px; }
+.myth p { margin: 4px 0; }
+.related a { display: inline-block; margin: 4px 10px 4px 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
+.series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
+.series span { background: var(--accent); color: var(--bg); font-weight: 700; }
+.o { font: 700 0.78rem 'JetBrains Mono', monospace; white-space: nowrap; }
+.flow { display: grid; gap: 8px; }
+.step { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.step .qq { font-size: 0.88rem; }
+.step .go { font: 700 0.78rem 'JetBrains Mono', monospace; color: var(--accent); white-space: nowrap; }
+.step .go a { text-decoration: none; }
+.arrow { text-align: center; color: var(--fg-2); font-size: 0.75rem; line-height: 1; }
+@media (max-width: 480px) { .step { grid-template-columns: 1fr; } }
+.ms { display: grid; gap: 6px; font: 600 0.74rem 'JetBrains Mono', monospace; }
+.ms .lv { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ms .grp { display: inline-flex; gap: 2px; padding: 2px; border-radius: 5px; border: 1px solid var(--line); }
+.ms .grp.m { border-color: var(--c-b); }
+.ms .c { min-width: 20px; text-align: center; padding: 1px 3px; border-radius: 3px; background: var(--chip); }
+.ms .tag { font-size: 0.66rem; color: var(--fg-2); text-align: center; }
+.ms .tag.m { color: var(--c-b); }
+.coin-out { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 10px; }
+.coin-out .card { margin: 0; }
+.coin-out .big { font: 700 1.1rem 'JetBrains Mono', monospace; }
+.coins { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.coins span { min-width: 28px; height: 28px; padding: 0 4px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font: 700 0.7rem 'JetBrains Mono', monospace; background: color-mix(in srgb, var(--c-d) 25%, transparent); border: 1px solid var(--c-d); }
+.row-in { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 0.85rem; }
+.row-in input[type="number"] { width: 90px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: 600 0.9rem 'JetBrains Mono', monospace; }
+#fib-svg { width: 100%; max-width: 460px; height: auto; display: block; margin: 8px auto 0; }
+#fib-svg text { font: 700 11px 'JetBrains Mono', monospace; fill: var(--fg); text-anchor: middle; dominant-baseline: central; }
+.toggle { display: inline-flex; gap: 6px; align-items: center; font-size: 0.85rem; cursor: pointer; }
+.toggle input { accent-color: var(--accent); width: 16px; height: 16px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.75rem; color: var(--fg-2); margin-top: 6px; }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+.calls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.calls div { background: var(--chip); border-radius: 8px; padding: 8px 10px; }
+.calls b { font: 700 1rem 'JetBrains Mono', monospace; display: block; }
+.calls small { color: var(--fg-2); font-size: 0.72rem; }
+.cmp { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.cmp .card { margin: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>アルゴリズム設計手法の全体像</h1>
+  <p class="subtitle">全探索 / 貪欲法 / 分割統治法 / 動的計画法 / 二分探索 — どの考え方をいつ使うか</p>
+
+  <nav class="series" aria-label="アルゴリズムのシリーズ">
+    <a href="data-structures.html">データ構造と計算量</a>
+    <span aria-current="page">設計手法の全体像</span>
+    <a href="dynamic-programming.html">動的計画法</a>
+    <a href="graph-algorithms.html">グラフ探索と最短経路</a>
+  </nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>まず<b>入力の大きさ</b>から、使える計算量を見積もる。小さければ<b>全探索</b>で十分。</li>
+      <li>大きいときは「問題をどう小さくするか」で手法が分かれる。<b>その場の最善を選び続ける＝貪欲法</b>、<b>分けて解いて合わせる＝分割統治法</b>、<b>重なる部分問題の答えを覚えて使い回す＝動的計画法</b>。</li>
+      <li>「この値なら条件を満たすか」が値の大小で一方向に切り替わるなら、<b>答えそのものを二分探索</b>できる。</li>
+    </ul>
+  </div>
+
+  <h2 id="map">手法の地図 — 上から順に考える</h2>
+  <div class="flow">
+    <div class="step"><div class="qq">入力が小さく、全部の候補を試しても間に合う？（<a href="#size">目安の表</a>）</div><div class="go"><a href="#brute">→ 全探索</a></div></div>
+    <div class="arrow">↓ 間に合わない</div>
+    <div class="step"><div class="qq">「いま最も良さそうなもの」を選び続けても最適だと言える？</div><div class="go"><a href="#greedy">→ 貪欲法</a></div></div>
+    <div class="arrow">↓ 言えない（反例がある）</div>
+    <div class="step"><div class="qq">小さな問題に分けられて、分けた問題同士が<b>重ならない</b>？</div><div class="go"><a href="#divide">→ 分割統治法</a></div></div>
+    <div class="arrow">↓ 同じ部分問題が何度も出てくる</div>
+    <div class="step"><div class="qq">部分問題の答えを表に覚えれば、使い回せる？</div><div class="go"><a href="#dp">→ 動的計画法</a></div></div>
+    <div class="arrow">↓ 別の角度から</div>
+    <div class="step"><div class="qq">「答えが x なら条件を満たすか」を判定でき、x を大きくすると<b>不可→可</b>が一度だけ切り替わる？</div><div class="go"><a href="#binary">→ 答えで二分探索</a></div></div>
+  </div>
+  <p class="muted">実際の問題では組み合わせて使う。たとえば「二分探索の判定の中身が貪欲法」「グラフの最短経路（ダイクストラ法）は貪欲法」など。データの持ち方は <a href="data-structures.html">データ構造と計算量</a>。</p>
+
+  <h2 id="size">入力の大きさから計算量を見積もる</h2>
+  <p>単純な処理なら 1 秒に<b>およそ 10⁸ 回（1 億回）</b>が目安。入力の上限 n を見れば、使える計算量の形がおおよそ決まる。</p>
+  <div class="table-wrap">
+  <table>
+    <tr><th>n の上限（目安）</th><th>間に合う計算量</th><th>よく使う手法</th></tr>
+    <tr><td>〜10</td><td><span class="o">O(n!)</span></td><td>順列をすべて試す</td></tr>
+    <tr><td>〜20</td><td><span class="o">O(2ⁿ)</span>・<span class="o">O(2ⁿ·n)</span></td><td>部分集合をすべて試す（bit 全探索）、bit DP</td></tr>
+    <tr><td>〜40</td><td><span class="o">O(2^(n/2))</span></td><td>半分全列挙（半分ずつ全部試して突き合わせる）</td></tr>
+    <tr><td>〜500</td><td><span class="o">O(n³)</span></td><td>三重ループ、区間 DP、ワーシャル–フロイド法</td></tr>
+    <tr><td>〜5,000</td><td><span class="o">O(n²)</span></td><td>二重ループ、2 次元の DP</td></tr>
+    <tr><td>〜10⁶</td><td><span class="o">O(n log n)</span></td><td>ソート、二分探索、ヒープ、ダイクストラ法</td></tr>
+    <tr><td>〜10⁸</td><td><span class="o">O(n)</span></td><td>1 回なめる、累積和、しゃくとり法</td></tr>
+    <tr><td>それ以上</td><td><span class="o">O(log n)</span>・<span class="o">O(1)</span></td><td>二分探索、繰り返し二乗法、式で直接求める</td></tr>
+  </table>
+  </div>
+  <p class="muted">あくまで目安。言語（Python は C++ より数十倍遅いことがある）や、1 回の処理の重さで変わる。</p>
+
+  <h2 id="brute">全探索 — まず「全部試すといくつか」を数える</h2>
+  <ul class="dots">
+    <li>候補をすべて列挙して、条件を満たすか・どれが最良かを調べる。<b>正しさの心配がいちばん少ない</b>ので、間に合うならこれが最善。</li>
+    <li><b>bit 全探索</b>: n 個それぞれを「選ぶ / 選ばない」の 2 通りで、全部で 2ⁿ 通り。0 から 2ⁿ−1 までの整数の各ビットを「選ぶかどうか」に対応させて回す。</li>
+    <li><b>バックトラッキング</b>: 1 つずつ決めながら、途中で条件を破ったらそれ以上進まず戻る（枝刈り）。数独や N クイーン。最悪は全探索と同じだが、実際にはかなり減る。</li>
+    <li>速い解法を書いたら、小さい入力で全探索の答えと突き合わせると、間違いを見つけやすい（ランダムテスト）。</li>
+  </ul>
+<pre><code><span class="cm"># bit 全探索: 重さの上限 W 以内で価値の合計を最大にする（n ≤ 20 くらいまで）</span>
+best = 0
+for mask in range(1 &lt;&lt; n):          <span class="cm"># 2^n 通り</span>
+    w = v = 0
+    for i in range(n):
+        if mask &gt;&gt; i &amp; 1:             <span class="cm"># i 番目を選ぶ</span>
+            w += weight[i]; v += value[i]
+    if w &lt;= W:
+        best = max(best, v)</code></pre>
+
+  <h2 id="greedy">貪欲法 — その場の最善を選び続ける</h2>
+  <p>毎回「今いちばん良く見えるもの」を選び、後から選び直さない。速くて書きやすいが、<b>最適になることを示せる問題でしか正しくない</b>。</p>
+  <div class="cmp">
+    <div class="card"><span class="label" style="color:var(--c-ok)">最適になる例</span><p><b>区間スケジューリング</b>: 会議室に入る予定の数を最大にするなら、<b>終了時刻が早い順</b>に、重ならないものを取っていく。</p><p class="muted">ほかに、ダイクストラ法・クラスカル法（<a href="graph-algorithms.html">グラフ</a>）、ハフマン符号。「最適解の選択を貪欲の選択に入れ替えても悪くならない」（交換論法）で正しさを示せる。</p></div>
+    <div class="card"><span class="label" style="color:var(--c-ng)">最適にならない例</span><p><b>開始時刻が早い順</b>や<b>短い順</b>に取ると、区間スケジューリングでも反例がある。</p><p class="muted">硬貨の枚数を最小にする問題も、硬貨の種類によっては大きい順に取ると失敗する（下で試せる）。</p></div>
+  </div>
+  <h3 id="coin">試す: 硬貨の最小枚数</h3>
+  <div class="card">
+    <div class="tabs" role="tablist" id="coin-tabs">
+      <button class="tab" role="tab" aria-selected="true" data-set="odd">1・3・4 円</button>
+      <button class="tab" role="tab" aria-selected="false" data-set="jp">1・5・10・50・100・500 円</button>
+    </div>
+    <div class="row-in"><label for="coin-amt">金額</label><input type="number" id="coin-amt" min="1" max="999" value="6"><span class="muted">（1〜999）</span></div>
+    <div class="coin-out">
+      <div class="card"><span class="label">貪欲（大きい順）</span><div class="big" id="g-cnt"></div><div class="coins" id="g-coins"></div></div>
+      <div class="card"><span class="label">最適（動的計画法）</span><div class="big" id="d-cnt"></div><div class="coins" id="d-coins"></div></div>
+    </div>
+    <p class="muted" id="coin-note"></p>
+  </div>
+
+  <h2 id="divide">分割統治法 — 分けて解いて、合わせる</h2>
+  <p>問題を<b>重ならない</b>小さな問題に分け、それぞれを（再帰的に）解き、結果を合わせる。代表はマージソート。</p>
+  <div class="card">
+    <span class="label">MERGE SORT</span>
+    <div class="ms" id="ms"></div>
+    <p class="muted">分けるのは log₂8 = 3 段。各段で合わせる手間は合計 n。全体で <b>n × log n</b>、つまり <span class="o">O(n log n)</span>。</p>
+  </div>
+  <ul class="dots">
+    <li>計算量は「1 回で何個に分けるか・どれだけ小さくなるか・合わせる手間」で決まる。マージソートは「2 つに・半分に・n」で <code>T(n) = 2T(n/2) + O(n)</code> → <span class="o">O(n log n)</span>（マスター定理）。</li>
+    <li><b>クイックソート</b>も分割統治。基準値で「小さい側・大きい側」に分け、合わせる手間はほぼない代わりに、分け方が偏ると <span class="o">O(n²)</span> になる。</li>
+    <li><b>繰り返し二乗法</b>: xⁿ = (x^(n/2))² と半分にしていき、<span class="o">O(log n)</span> 回の掛け算で求める。RSA などで使う「大きな数のべき乗の余り」の計算もこの方法（<a href="crypto-basics.html">暗号の基礎</a>）。</li>
+    <li>二分探索も、半分を捨てて片方だけ解く分割統治の一種と見なせる。</li>
+  </ul>
+
+  <h2 id="dp">分割統治と動的計画法の違い — 部分問題が重なるか</h2>
+  <p>フィボナッチ数 <code>fib(n) = fib(n−1) + fib(n−2)</code> をそのまま再帰で書くと、<b>同じ fib(k) を何度も計算する</b>。分けた問題同士が重なっているので、分割統治のままでは指数的に遅い。一度計算した答えを覚えておく（<b>メモ化</b>）と、各 fib(k) は 1 回ずつで済む。これが動的計画法。</p>
+  <div class="card">
+    <label class="toggle"><input type="checkbox" id="fib-memo"> メモ化する（2 回目以降は覚えた値を返す）</label>
+    <svg id="fib-svg" viewBox="0 0 340 250" role="img" aria-label="fib(5) の呼び出し木"></svg>
+    <div class="legend"><span><i style="background:color-mix(in srgb, var(--c-a) 35%, transparent);border:1px solid var(--c-a)"></i>2 回目以降の同じ計算</span><span><i style="background:color-mix(in srgb, var(--c-b) 35%, transparent);border:1px solid var(--c-b)"></i>覚えた値を返すだけ</span><span><i style="background:var(--chip);border:1px solid var(--line)"></i>実際に計算する</span></div>
+    <h3>n を増やすと呼び出し回数は</h3>
+    <div class="row-in"><span>n = <b id="fn-val" class="o">30</b></span></div>
+    <input type="range" id="fn-range" min="5" max="45" value="30" aria-label="フィボナッチの n">
+    <div class="calls">
+      <div><small>素直な再帰</small><b id="c-naive"></b><small id="c-naive-t"></small></div>
+      <div><small>メモ化あり</small><b id="c-memo"></b><small>n に比例（O(n)）</small></div>
+    </div>
+  </div>
+  <div class="table-wrap" style="margin-top:12px">
+  <table>
+    <tr><th></th><th>分割統治法</th><th>動的計画法</th></tr>
+    <tr><td>部分問題</td><td>重ならない（左半分と右半分）</td><td>重なる（同じものが何度も出る）</td></tr>
+    <tr><td>覚えておくもの</td><td>なし</td><td>部分問題の答えの表（メモ）</td></tr>
+    <tr><td>代表例</td><td>マージソート、クイックソート、繰り返し二乗法</td><td>ナップサック、最長共通部分列（diff）、編集距離</td></tr>
+  </table>
+  </div>
+  <p>表の作り方（メモ化再帰とボトムアップ）や典型的なパターンは <a href="dynamic-programming.html">動的計画法</a> で詳しく扱う。</p>
+
+  <h2 id="binary">答えで二分探索 — 「x なら間に合うか」を判定する</h2>
+  <p>二分探索はソート済み配列を探すだけのものではない。「答えが x なら条件を満たすか」を判定する関数があり、x を大きくすると<b>不可 → 可</b>が一度だけ切り替わる（単調）なら、その境目を二分探索で探せる。</p>
+  <div class="card">
+    <p><b>例</b>: 重さ <code>weights</code> の荷物を、この順番のまま D 日以内に運びたい。1 日に積める重さの上限 W を最小でいくつにすればよいか。</p>
+    <p class="muted">W を決めれば「何日かかるか」は前から貪欲に積むだけで分かる。W を大きくするほど日数は減る（単調）ので、W を二分探索する。</p>
+  </div>
+<pre><code>def can(W):                       <span class="cm"># 上限 W で D 日以内に運べるか</span>
+    days, load = 1, 0
+    for w in weights:
+        if load + w &gt; W:          <span class="cm"># 今日はもう積めない → 次の日へ</span>
+            days += 1; load = 0
+        load += w
+    return days &lt;= D
+
+ng, ok = max(weights) - 1, sum(weights)   <span class="cm"># ng: 必ず不可 / ok: 必ず可</span>
+while ok - ng &gt; 1:
+    mid = (ng + ok) // 2
+    if can(mid): ok = mid
+    else:        ng = mid
+print(ok)                         <span class="cm"># 可になる最小の W。O(n log(合計))</span></code></pre>
+  <ul class="dots">
+    <li>「ng は常に不可、ok は常に可」を保ったまま幅を縮めると、境目のずれ（±1 のバグ）を起こしにくい。</li>
+    <li>実務でも同じ形がある。<code>git bisect</code> は「このコミットでは壊れているか」を判定しながら、壊れ始めたコミットを二分探索する（<a href="git-internals.html">Git の内部構造</a>）。</li>
+  </ul>
+
+  <h2 id="others">ほかによく使う考え方</h2>
+  <ul class="dots">
+    <li><b>しゃくとり法 (two pointers)</b>: 区間の左端と右端を前にだけ動かして、「合計が K 以下の連続部分列」などを <span class="o">O(n)</span> で数える。</li>
+    <li><b>累積和</b>: 先頭からの合計を前もって作っておき、区間の合計を引き算 1 回で求める。</li>
+    <li><b>半分全列挙 (meet in the middle)</b>: 2ⁿ 通りを、半分ずつの 2^(n/2) 通り × 2 に分けて突き合わせる。n ≤ 40 くらいの全探索に使う。</li>
+  </ul>
+
+  <h2 id="myths">よくある誤解</h2>
+  <div class="card myth"><p><span class="ng">✗</span> 再帰で書けば分割統治法</p><p><span class="ok">✓</span> 再帰は書き方で、分割統治は「重ならない部分に分けて合わせる」という設計。動的計画法も再帰（メモ化）で書けるし、マージソートはループでも書ける。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> 貪欲法は近似なので、正しい答えは出ない</p><p><span class="ok">✓</span> 最適になることを示せる問題（区間スケジューリング、ダイクストラ法、クラスカル法）では正確な答えが出る。示せないのに使うと、反例で間違う。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> 二分探索はソート済み配列専用</p><p><span class="ok">✓</span> 「条件が一方向に切り替わる」ものなら何でもよい。答えの値、時刻、コミットの並びなど。</p></div>
+
+  <p class="related">関連: <a href="data-structures.html">データ構造と計算量</a><a href="dynamic-programming.html">動的計画法</a><a href="graph-algorithms.html">グラフ探索と最短経路</a><a href="crypto-basics.html">暗号の基礎</a><a href="git-internals.html">Git の内部構造</a></p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+// マージソートの図
+(() => {
+  const el = document.getElementById('ms');
+  const levels = [
+    [[5,2,8,1,9,3,7,4]],
+    [[5,2,8,1],[9,3,7,4]],
+    [[5,2],[8,1],[9,3],[7,4]],
+    [[5],[2],[8],[1],[9],[3],[7],[4]],
+    [[2,5],[1,8],[3,9],[4,7]],
+    [[1,2,5,8],[3,4,7,9]],
+    [[1,2,3,4,5,7,8,9]]
+  ];
+  const tags = ['', '↓ 分ける', '↓ 分ける', '↓ 分ける（1 個になったら並んでいる）', '↓ 合わせる（小さい方から取り出す）', '↓ 合わせる', '↓ 合わせる'];
+  levels.forEach((lv, i) => {
+    if (tags[i]) {
+      const t = document.createElement('div');
+      t.className = 'tag' + (i >= 4 ? ' m' : '');
+      t.textContent = tags[i];
+      el.appendChild(t);
+    }
+    const row = document.createElement('div');
+    row.className = 'lv';
+    lv.forEach(g => {
+      const grp = document.createElement('span');
+      grp.className = 'grp' + (i >= 4 ? ' m' : '');
+      g.forEach(v => { const c = document.createElement('span'); c.className = 'c'; c.textContent = v; grp.appendChild(c); });
+      row.appendChild(grp);
+    });
+    el.appendChild(row);
+  });
+})();
+
+// 硬貨: 貪欲と動的計画法
+(() => {
+  const SETS = { jp: [500, 100, 50, 10, 5, 1], odd: [4, 3, 1] };
+  let set = 'odd';
+  const amt = document.getElementById('coin-amt');
+  const tabs = document.getElementById('coin-tabs');
+  const greedy = (coins, x) => { const r = []; for (const c of coins) while (x >= c) { r.push(c); x -= c; } return r; };
+  const dp = (coins, x) => {
+    const best = new Array(x + 1).fill(Infinity), from = new Array(x + 1).fill(0);
+    best[0] = 0;
+    for (let v = 1; v <= x; v++) for (const c of coins) if (c <= v && best[v - c] + 1 < best[v]) { best[v] = best[v - c] + 1; from[v] = c; }
+    const r = []; let v = x; while (v > 0) { r.push(from[v]); v -= from[v]; }
+    return r.sort((a, b) => b - a);
+  };
+  const show = (id, list) => {
+    const box = document.getElementById(id);
+    box.innerHTML = '';
+    list.forEach(c => { const s = document.createElement('span'); s.textContent = c; box.appendChild(s); });
+  };
+  const draw = () => {
+    let x = Math.round(Number(amt.value));
+    if (!Number.isFinite(x) || x < 1) x = 1;
+    if (x > 999) x = 999;
+    const g = greedy(SETS[set], x), d = dp(SETS[set], x);
+    document.getElementById('g-cnt').textContent = g.length + ' 枚';
+    document.getElementById('d-cnt').textContent = d.length + ' 枚';
+    show('g-coins', g); show('d-coins', d);
+    document.getElementById('coin-note').textContent = g.length === d.length
+      ? (set === 'jp' ? '日本の硬貨の組み合わせでは、大きい順に取る貪欲法が常に最適になる。' : 'この金額では貪欲法でも最適。6 などを試すと差が出る。')
+      : '貪欲法は最初に大きい硬貨を取ったせいで、全体では枚数が増えた。硬貨の種類が自由なら動的計画法で解く。';
+  };
+  tabs.addEventListener('click', e => {
+    const t = e.target.closest('.tab'); if (!t) return;
+    tabs.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', String(b === t)));
+    set = t.dataset.set;
+    if (set === 'odd' && Number(amt.value) > 60) amt.value = 6;
+    draw();
+  });
+  amt.addEventListener('input', draw);
+  draw();
+})();
+
+// フィボナッチの呼び出し木
+(() => {
+  const svg = document.getElementById('fib-svg');
+  const memoBox = document.getElementById('fib-memo');
+  const NS = 'http://www.w3.org/2000/svg';
+  const build = n => ({ n, kids: n < 2 ? [] : [build(n - 1), build(n - 2)] });
+  const root = build(5);
+  let leaf = 0;
+  const layout = (node, d) => {
+    node.d = d;
+    if (!node.kids.length) { node.x = leaf++; return; }
+    node.kids.forEach(k => layout(k, d + 1));
+    node.x = node.kids.reduce((s, k) => s + k.x, 0) / node.kids.length;
+  };
+  layout(root, 0);
+  const sx = x => 20 + x * (300 / (leaf - 1));
+  const sy = d => 22 + d * 50;
+  const draw = () => {
+    const memo = memoBox.checked;
+    svg.innerHTML = '';
+    const seen = new Set();
+    // 呼び出し順（左から深さ優先）で、各ノードの状態を決める
+    const visit = (node, pruned) => {
+      let state;
+      if (pruned) state = 'pruned';
+      else if (node.n >= 2 && seen.has(node.n)) state = memo ? 'hit' : 'dup';
+      else state = 'calc';
+      node.state = state;
+      node.kids.forEach(k => visit(k, state === 'pruned' || state === 'hit'));
+      if (!pruned && node.n >= 2) seen.add(node.n);
+    };
+    visit(root, false);
+    const all = [];
+    const walk = n => { all.push(n); n.kids.forEach(walk); };
+    walk(root);
+    all.forEach(n => n.kids.forEach(k => {
+      const l = document.createElementNS(NS, 'line');
+      l.setAttribute('x1', sx(n.x)); l.setAttribute('y1', sy(n.d));
+      l.setAttribute('x2', sx(k.x)); l.setAttribute('y2', sy(k.d));
+      l.setAttribute('stroke', 'var(--line)'); l.setAttribute('stroke-width', '1.5');
+      if (k.state === 'pruned') l.setAttribute('opacity', '0.25');
+      svg.appendChild(l);
+    }));
+    let calls = 0;
+    all.forEach(n => {
+      if (n.state !== 'pruned') calls++;
+      const g = document.createElementNS(NS, 'g');
+      const c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', sx(n.x)); c.setAttribute('cy', sy(n.d)); c.setAttribute('r', '14');
+      const col = n.state === 'dup' ? 'var(--c-a)' : n.state === 'hit' ? 'var(--c-b)' : null;
+      c.setAttribute('fill', col ? 'color-mix(in srgb, ' + col + ' 35%, var(--surface))' : 'var(--chip)');
+      c.setAttribute('stroke', col || 'var(--line)');
+      c.setAttribute('stroke-width', '1.5');
+      const t = document.createElementNS(NS, 'text');
+      t.setAttribute('x', sx(n.x)); t.setAttribute('y', sy(n.d));
+      t.textContent = 'f' + n.n;
+      if (n.state === 'pruned') g.setAttribute('opacity', '0.18');
+      g.appendChild(c); g.appendChild(t); svg.appendChild(g);
+    });
+    const cap = document.createElementNS(NS, 'text');
+    cap.setAttribute('x', '170'); cap.setAttribute('y', '240');
+    cap.setAttribute('style', 'font-weight:500;fill:var(--fg-2)');
+    cap.textContent = 'fib(5) の呼び出し: ' + calls + ' 回' + (memo ? '（メモ化なしは 15 回）' : '');
+    svg.appendChild(cap);
+  };
+  memoBox.addEventListener('change', draw);
+  draw();
+
+  const range = document.getElementById('fn-range');
+  const naiveCalls = n => { let a = 1, b = 1; for (let i = 2; i <= n; i++) { const c = 1 + a + b; a = b; b = c; } return n < 1 ? 1 : b; };
+  const t = v => { const s = v / 1e8; return s < 1e-3 ? '一瞬' : s < 1 ? '約 ' + Math.round(s * 1000) + ' ms' : '約 ' + s.toFixed(1) + ' 秒'; };
+  const upd = () => {
+    const n = Number(range.value);
+    document.getElementById('fn-val').textContent = n;
+    const c = naiveCalls(n);
+    document.getElementById('c-naive').textContent = c.toLocaleString() + ' 回';
+    document.getElementById('c-naive-t').textContent = 'n が 1 増えるごとに約 1.6 倍（1 秒に 1 億回として ' + t(c) + '）';
+    document.getElementById('c-memo').textContent = (2 * n - 1).toLocaleString() + ' 回';
+  };
+  range.addEventListener('input', upd);
+  upd();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "硬貨の種類が入力で自由に与えられ（例: 1・3・4 円）、ちょうど X 円を払う最小枚数を求めたい。どの方法で解く？",
+    "choices": ["大きい硬貨から順に取れるだけ取る（貪欲法）", "金額 0〜X それぞれの最小枚数を小さい方から表に埋める（動的計画法）", "枚数を二分探索する"],
+    "answer": 1,
+    "explain": "1・3・4 円で 6 円だと、貪欲法は 4+1+1 の 3 枚だが最適は 3+3 の 2 枚。種類が自由なら貪欲法の正しさは保証されないので、部分問題（より小さい金額）の答えを使い回す動的計画法で解く。",
+    "ref": "#greedy"
+  },
+  {
+    "q": "マージソートが O(n log n) で済むのはなぜ？",
+    "choices": ["分けるたびに半分のデータを捨てるから", "要素同士の比較が 1 回ずつで済むから", "半分に分ける段が log n 段あり、各段で合わせる手間が合計 n だから"],
+    "answer": 2,
+    "explain": "マージソートは捨てずに両方を解いて合わせる。段数 log n × 各段 n で n log n。半分を捨てるのは二分探索。",
+    "ref": "#divide"
+  },
+  {
+    "q": "fib(n) = fib(n−1) + fib(n−2) をそのまま再帰で書いたら、n = 45 で何秒もかかった。いちばん効く直し方は？",
+    "choices": ["一度計算した fib(k) を覚えておき、2 回目からはそれを返す", "再帰をやめて、同じ式を二重ループで書く", "n を半分に分けて並列に計算する"],
+    "answer": 0,
+    "explain": "遅いのは同じ fib(k) を何度も計算しているから。部分問題が重なっているので、答えを覚える（メモ化＝動的計画法）と呼び出しは n に比例する回数で済む。",
+    "ref": "#dp"
+  },
+  {
+    "q": "品物が最大 18 個あり、重さの上限以内で価値の合計が最大になる選び方を求めたい。まず考えるのは？",
+    "choices": ["価値の高い順に入るだけ入れる", "すべての選び方（2^18 ≈ 26 万通り）を試す", "18 個は多すぎるので近似で妥協する"],
+    "answer": 1,
+    "explain": "n ≤ 20 くらいなら 2ⁿ 通りの全探索が十分間に合う。価値の高い順の貪欲は、重さを考えないので最適にならないことがある。",
+    "ref": "#size"
+  },
+  {
+    "q": "荷物を順番どおり D 日以内に運ぶとき、1 日の積載上限 W の最小値を求めたい。効率のよい方針は？",
+    "choices": ["荷物を重い順にソートしてから、荷物を二分探索する", "W を 1 から 1 ずつ増やして、間に合うかを毎回調べる", "「W なら D 日以内に運べるか」を判定する関数を作り、W を二分探索する"],
+    "answer": 2,
+    "explain": "W を大きくするほど日数は減るので、判定結果は「不可 → 可」と一度だけ切り替わる。その境目を二分探索すれば、判定を log(合計) 回呼ぶだけで済む。1 ずつ試しても答えは出るが遅い。",
+    "ref": "#binary"
+  }
+]
+</script>
+</body>
+</html>
