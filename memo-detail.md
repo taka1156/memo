@@ -291,7 +291,7 @@ flowchart LR
   qj -- "fetch" --> idx["index.html<br/>ランダムクイズ"]
   qj -- "fetch" --> qp["quiz.html<br/>10 問クイズ・タイムアタック"]
   idx -- "本文で確認する（ref）" --> memo
-  qp -- "本文で確認する（ref）" --> memo
+  qp -- "メモを開く（ref）" --> memo
 ```
 
 - `ref`（`"#見出しのid"`）があると、間違えたときに本文の該当箇所へのリンクが出ます。飛び先が閉じたタブや `<details>` の中にあれば、`memo-quiz.js` が開いてから移動します。

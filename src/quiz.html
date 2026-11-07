@@ -480,7 +480,7 @@ function answer(k) {
   v.className = ok ? 'ok' : 'ng';
   v.textContent = ok ? '⭕ 正解' : '❌ 不正解';
   fb.append(v, (ok ? ' ' : `（正解: ${q.choices[q.answer]}） `) + (q.explain || ''));
-  if (!ok) fb.append(' ', refLink(q, '本文で確認する ↗'));
+  if (!ok) fb.append(' ', refLink(q, 'メモを開く ↗'));
   fb.hidden = false;
   $('bar').style.width = ((pos + 1) / set.length * 100) + '%';
   const next = $('next');
@@ -531,7 +531,7 @@ function result() {
   } else {
     $('score-msg').textContent = ok === set.length
       ? '全問正解！'
-      : `${tagsLabel(cond.tags)}・正答率 ${Math.round(ok / set.length * 100)}%　間違えた問題は本文で確認できます`;
+      : `${tagsLabel(cond.tags)}・正答率 ${Math.round(ok / set.length * 100)}%　間違えた問題はメモで確認できます`;
   }
   const list = $('review');
   list.textContent = '';
@@ -550,7 +550,7 @@ function result() {
     const src = document.createElement('div');
     src.className = 'rs';
     src.textContent = q.title + '　';
-    src.appendChild(refLink(q, good ? 'メモを開く ↗' : '本文で確認する ↗'));
+    src.appendChild(refLink(q, 'メモを開く ↗'));
     li.append(head, ans);
     // タイムアタックは解き中に解説を出していないので、正解した問題にも解説を付ける
     if ((!good || cond.ta) && q.explain) {
