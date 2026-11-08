@@ -311,7 +311,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <tr><td>Worker からの接続</td><td>バインディングで呼ぶだけ</td><td>Hyperdrive の接続文字列を普通のドライバに渡す</td></tr>
       <tr><td>Workers 以外から</td><td>HTTP API（主に管理・バッチ向け）</td><td>普通の DB としてどこからでも</td></tr>
       <tr><td>遅延の考え方</td><td>DB の場所＋読み取りレプリカ</td><td>DB のリージョン＋Placement で Worker を近くに＋キャッシュ</td></tr>
-      <tr><td>復旧</td><td>Time Travel（直近 30 日の任意の分）</td><td>PlanetScale のバックアップ・ブランチ</td></tr>
+      <tr><td>復旧</td><td>Time Travel（直近 30 日の任意の分。有料プラン）</td><td>PlanetScale のバックアップ・ブランチ</td></tr>
       <tr><td>料金の入口</td><td>無料枠あり</td><td>Postgres 単一ノードで月 $5〜（Cloudflare の請求にまとめられる）</td></tr>
       <tr><td>持ち出しやすさ</td><td>SQLite なのでファイルとしては持ち出せるが、サービスは Cloudflare 専用</td><td>標準の Postgres / MySQL なので他へ移しやすい</td></tr>
     </table>
@@ -337,7 +337,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="myths">よくある誤解</h2>
   <div class="card myth"><p><span class="ng">✕</span> Hyperdrive は Cloudflare の Postgres サービス</p><p><span class="ok">○</span> Hyperdrive 自体はデータを持たない。外にある Postgres / MySQL へのつなぎ役（接続プール＋キャッシュ）。DB 本体は PlanetScale などで別に用意する。</p></div>
-  <div class="card myth"><p><span class="ng">✕</span> Hyperdrive を挟めば書き込みも速くなる</p><p><span class="ok">○</span> 速くなるのは接続の確立と、キャッシュできる読み取り。書き込みは毎回 DB まで届く。DB のリージョンが遠いなら、Placement で Worker を DB の近くで動かす方が効く。キャッシュは書き込みで消えず、既定で最大 60 秒ほど古い値を返し得る。書いた直後の読み取りや認証・権限まわりは、<b>キャッシュを無効にした別の Hyperdrive 設定（バインディング）</b>から読む。</p></div>
+  <div class="card myth"><p><span class="ng">✕</span> Hyperdrive を挟めば書き込みも速くなる</p><p><span class="ok">○</span> 速くなるのは接続の確立と、キャッシュできる読み取り。書き込みは毎回 DB まで届く。DB のリージョンが遠いなら、Placement で Worker を DB の近くで動かす方が効く。キャッシュは書き込みで消えない。既定では <code>max_age</code> 60 秒に再検証中の 15 秒が加わり、最長で 75 秒ほど古い値を返し得る。書いた直後の読み取りや認証・権限まわりは、<b>キャッシュを無効にした別の Hyperdrive 設定（バインディング）</b>から読む。</p></div>
   <div class="card myth"><p><span class="ng">✕</span> D1 は Postgres と同じように使える</p><p><span class="ok">○</span> SQL の方言は SQLite。型がゆるい、使えない関数や構文がある、などの違いがあり、Postgres 向けの ORM 設定やマイグレーションはそのまま流用できないことが多い。</p></div>
   <div class="card myth"><p><span class="ng">✕</span> D1 も読み取りレプリカを増やせば書き込みが捌ける</p><p><span class="ok">○</span> レプリカは読み取り専用。書き込みが詰まるなら DB を分ける。</p></div>
 
