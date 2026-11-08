@@ -299,7 +299,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <div class="phases">
     <div class="phase ph-r"><b>① Render</b>コンポーネント関数を呼び、新しい要素の木（仮想 DOM）を作る。純粋な計算で、DOM には触らない</div>
     <div class="phase ph-c"><b>② Commit</b>前回との差分（reconciliation）を本物の DOM に反映する。ここは中断しない</div>
-    <div class="phase ph-e"><b>③ Effects</b>描画後に <code>useLayoutEffect</code>、続いて <code>useEffect</code> を実行する</div>
+    <div class="phase ph-e"><b>③ Effects</b>DOM への反映直後（画面の描画前）に <code>useLayoutEffect</code>、画面の描画後に <code>useEffect</code> を実行する</div>
   </div>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-panel="r1">Fiber</button>
@@ -389,7 +389,7 @@ function Counter() {
   </div>
   <div class="panel card pit" id="p1">
     <ul>
-      <li><b>古いクロージャ</b>：<code>setInterval</code> の中の <code>count</code> は、その回のレンダーの値で固定される。更新関数 <code>setCount(c =&gt; c + 1)</code> を使う</li>
+      <li><b>古いクロージャ（stale closure）</b>：<code>setInterval</code> の中の <code>count</code> は、その回のレンダーの値で固定される。更新関数 <code>setCount(c =&gt; c + 1)</code> を使う</li>
       <li><b>useEffect の依存配列</b>：書き漏れると古い値を使い、多すぎると無限ループ。そもそも effect が要らない場面も多い</li>
       <li><b>Hooks の呼び出し順</b>：条件分岐の中で呼ぶと壊れる</li>
     </ul>
@@ -483,7 +483,7 @@ document.getElementById('sb').addEventListener('click', () => {
       "count を const から let に変える"
     ],
     "answer": 1,
-    "explain": "interval の中の count は、そのレンダー時点の値で固定されている（古いクロージャ）。",
+    "explain": "interval の中の count は、そのレンダー時点の値で固定されている（古いクロージャ＝stale closure）。",
     "ref": "#p1"
   },
   {

@@ -206,7 +206,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <strong>ざっくり言うと</strong>
     <ul>
       <li><code>*.tf</code> ファイル（設定）に「あるべき状態」を書く。手順ではなく結果を書く点が Ansible と違う</li>
-      <li><code>tofu plan</code> は State（前回の実行結果の記録）と設定を比べて変更点だけを洗い出す</li>
+      <li><code>tofu plan</code> は State（前回の実行結果の記録）を実体の現状で更新したうえで設定と比べ、変更点だけを洗い出す</li>
       <li>実際のクラウド API を叩くのは Provider（プラグイン）。<code>tofu apply</code> が Provider 経由でインフラに反映する</li>
     </ul>
   </div>
@@ -310,7 +310,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
 
   <h2 id="files">役割ごとのファイル名</h2>
-  <p class="lead">ファイル名は 1 ファイルにまとめても動くが、慣例として役割ごとに分けることが多い。同じディレクトリ内の <code>.tf</code> ファイルはすべてまとめて 1 つの「設定」として読み込まれる。</p>
+  <p class="lead">ファイル名は 1 ファイルにまとめても動くが、慣例として役割ごとに分けることが多い。同じディレクトリ内の <code>.tf</code>（OpenTofu 1.8 以降は <code>.tofu</code> も）ファイルはすべてまとめて 1 つの「設定」として読み込まれる。</p>
   <div class="card table-wrap">
   <table>
     <thead><tr><th>概念</th><th>種別</th><th>ファイル / 場所</th><th>役割</th></tr></thead>
@@ -448,7 +448,7 @@ env = "staging"</pre>
   </div>
   <div class="card" style="margin-top:10px">
     <h3>State <span class="tag">今の状態の記録</span></h3>
-    <p>OpenTofu が「前回自分が何を作ったか」を知っている唯一の手がかり。plan はこの State と設定ファイルを比較して差分を出す。壊れたり他人と競合したりすると大きな事故につながるため、チームでは Backend（S3 など）で共有しロックをかける。</p>
+    <p>OpenTofu が「前回自分が何を作ったか」を知っている唯一の手がかり。plan はこの State を実体の現状で更新（refresh）してから設定ファイルと比較して差分を出す。壊れたり他人と競合したりすると大きな事故につながるため、チームでは Backend（S3 など）で共有しロックをかける。</p>
   </div>
   <div class="card" style="margin-top:10px">
     <h3>Provider <span class="tag">誰が実行するか</span></h3>
@@ -467,7 +467,7 @@ env = "staging"</pre>
   <p class="lead">初めてのディレクトリで <code>tofu apply</code> までを行う場合の順序。</p>
   <div class="flow">
     <div><b>tofu init</b><span class="d">設定を解析し、必要な Provider と Module をダウンロードする。<code>.terraform.lock.hcl</code> を書く（または検証する）。</span></div>
-    <div><b>tofu plan</b><span class="d">State（なければ空として扱う）と設定ファイルを比較し、作成・変更・削除される Resource の一覧（実行計画）を作る。</span></div>
+    <div><b>tofu plan</b><span class="d">まず Provider 経由で実際のリソースの現状を読んで State を最新にし（refresh。State ファイル自体は書き換えない）、それと設定ファイルを比較して（State がなければ空として扱う）、作成・変更・削除される Resource の一覧（実行計画）を作る。</span></div>
     <div><b>内容を確認する</b><span class="d">plan の出力（+ 追加 / ~ 変更 / - 削除）を見て、意図通りか確認する。</span></div>
     <div><b>tofu apply</b><span class="d">承認後、計画どおりに Provider 経由で API を呼び、実際にインフラを作成・変更する。</span></div>
     <div><b>State を更新する</b><span class="d">成功した Resource の情報を State に書き込む。次回の plan はこの新しい State を基準にする。</span></div>
@@ -480,7 +480,7 @@ env = "staging"</pre>
     <div><span><code>.terraform/</code> は Git にコミットする？</span><span class="n">しない</span></div>
     <div><span><code>.terraform.lock.hcl</code> は Git にコミットする？</span><span class="n">する</span></div>
   </div>
-  <p class="lead" style="margin-top:14px">OpenTofu は Terraform からオープンソースの運営団体（Linux Foundation 配下）としてフォークされたプロジェクトで、HCL 構文・State 形式・Provider エコシステムに高い互換性がある。コマンド名が <code>terraform</code> から <code>tofu</code> に変わる点が主な違い。State を直接編集したい場合は <code>tofu state</code> コマンド群（<code>mv</code> / <code>rm</code> / <code>import</code> など）を使う。</p>
+  <p class="lead" style="margin-top:14px">OpenTofu は、Terraform のライセンスが BSL に変わったことを受けて、最後のオープンソース版（1.5 系）からフォークされたプロジェクトで、現在は Linux Foundation 配下の CNCF でホストされている。HCL 構文・State 形式・Provider エコシステムに高い互換性がある。コマンド名が <code>terraform</code> から <code>tofu</code> に変わるほか、State の暗号化など OpenTofu 独自の機能も追加されている。State を直接編集したい場合は <code>tofu state</code> コマンド群（<code>mv</code> / <code>rm</code> など）や <code>tofu import</code> を使う。</p>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">
@@ -551,7 +551,7 @@ document.querySelectorAll('.tabs').forEach(group => {
       "terraform.tfstate をエディタで直接書き換える"
     ],
     "answer": 0,
-    "explain": "State の手動編集は非推奨。mv / rm / import などの tofu state コマンドで操作する。",
+    "explain": "State の手動編集は非推奨。tofu state mv / rm などのコマンド（取り込みは tofu import）で操作する。",
     "ref": "#myths"
   },
   {

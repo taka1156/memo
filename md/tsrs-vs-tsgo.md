@@ -17,7 +17,7 @@ TypeScript コンパイラのネイティブ移植 2 系統 ― Go 版と Rust �
 **ざっくり言うと**
 
 - tsgo は Microsoft 公式の Go 移植で、 **TypeScript 7 の正式な `tsc` ** 。旧 JS 版より約 10 倍速い。
-- tsrs はその Go 実装を **関数単位で Rust に移植** した実験版（Oxc 傘下、Cloudflare / VoidZero ほか）。同じワーカー数で最大 8 倍速・メモリ約 70% 減と主張。
+- tsrs はその Go 実装を **関数単位で Rust に移植** した実験版（Oxc 傘下、Cloudflare / VoidZero ほか）。同じワーカー数で最大 8 倍速・メモリ約 70% 減と主張（下の「速さの比較」の 3 例はおよそ 5 倍）。
 - どちらも型チェックを **省略しない** 本物のコンパイラ。違いは主に **メモリ管理（GC か所有権＋アリーナか）** と **Wasm 適性** 、そして成熟度。
 
 ## 系譜: 同じ設計を言語ごとに写している
@@ -131,25 +131,25 @@ h.ts i.ts j.ts
 
 tsgo の関数を 1 つずつ Rust に写しているので、パイプラインや checker プールの考え方は同じ。そのうえで次を足している。
 
-checker × 16（既定例）
+checker × 4（既定）
 
-マシンに応じて適応的に設定。メモリを多めに使う代わりに速い
+0.20 から既定は tsgo と同じ 4 個。 `--fast` を付けるとマシンに応じて増やす（最大 16〜32）。メモリを多めに使う代わりに速い
 
 ポインタ圧縮
 
 参照をアリーナ内の小さな番号（ハンドル）にして、参照だらけの構造を縮める。番号→アドレス変換のコストとのトレードオフ
 
-葉ファイルの早期解放
+末端（leaf）ファイルの早期解放
 
-もう誰も参照しない「葉」のファイルの構文データを途中で捨てる（import・宣言マージ等の条件付き）
+（ `--fast` 時）もう誰も参照しない末端のファイルの構文データを途中で捨てる（import・宣言マージ等の条件付き）
 
 PGO ビルド
 
 実行プロファイルを使った最適化でリリースバイナリをビルド
 
-- 独自フラグ: `--maxMemory` （目標値）、 `--checkerCostCache` 、Go と割り当てを揃える `--checkerAssignment go` など。
+- 独自フラグ: `--maxMemory` （目標値）、 `--checkerCostCache` 、 `--fast` （高速プリセット）、 `--fast` の割り当てを Go 方式に戻す `--checkerAssignment go` など。
 - メモリは所有権 + アリーナで管理し、 **GC が無い** 。
-- tsc-rs（ping.gg 発）と統合予定。LSP や content mapper（Vue/Svelte 等）を統合版で整える計画。
+- tsc-rs（ping.gg 発）と統合予定。content mapper（Vue/Svelte 等）は LSP・API でも対応済みで、自動型取得など残りの欠落を埋めていく計画。
 
 #### tsgo: GC 付きヒープ
 
@@ -209,7 +209,7 @@ tsrs
 
 0.29s
 
-tsrs 側が出した初期の数字で、ワークロード次第。参考までに tsgo 自体は旧 JS 版 tsc 比で 8〜12 倍（VS Code: 125.7s → 10.6s）。TS 7.1 beta は 7.0 比で最大 2.5 倍速くなっており、差は縮みつつある。
+tsrs 側が出した初期の数字で、ワークロード次第。参考までに tsgo 自体は旧 JS 版 tsc 比で 8〜12 倍（VS Code: 125.7s → 10.6s）。TS 7.1 beta は 7.0 比で最大 2.5 倍速くなっており、差は縮みつつある（tsrs の現行のベンチ表では、既定設定どうしで TS 7.1 beta 比おおむね 2〜4 倍）。
 
 ## 比較表
 
@@ -220,9 +220,9 @@ tsrs 側が出した初期の数字で、ワークロード次第。参考まで
 | 移植元 | JS 版 tsc | Go 版 tsgo（関数単位） |
 | 位置づけ | 正式版。 `npm i -D typescript` で入る | 実験版。 `npm i -D tsrs` |
 | メモリ管理 | GC | 所有権 + アリーナ、ポインタ圧縮、早期解放 |
-| checker 既定数 | 4 | マシン適応（ベンチ例 16） |
+| checker 既定数 | 4 | 4（tsgo と同じ）。 `--fast` でマシン適応 |
 | LSP | あり（マルチスレッド） | `--lsp` はあるが既知の欠落あり |
-| プログラム API | 7.0 は安定 API なし → 7.1 で予定 | 統合版で整備予定 |
+| プログラム API | 7.0 は安定 API なし → 7.1 で予定 | ベータ版 Node API（ `--api` 、 `tsrs/sync` 等）あり。欠落あり |
 | Wasm | 不向き（GC 同梱） | `@tsrs/wasm` あり（単一スレッド） |
 | 互換性 | 基準そのもの（差分は CHANGES.md） | 診断の順序・位置などに差異あり。差は「バグ」扱い。目標は 7.1 完全準拠 |
 
@@ -238,7 +238,7 @@ fork ではない。言語設計は TypeScript チームが握り、tsrs は ups
 
 swc / esbuild / Biome の仲間
 
-それらは型を剥がすだけで型チェックはしない。tsgo も tsrs も **型チェックまでやる本物の tsc** 。
+swc / esbuild は型を剥がして変換するだけ、Biome はリンター・フォーマッターで、どれも tsc と同じ型チェックはしない。tsgo も tsrs も **型チェックまでやる本物の tsc** 。
 
 Wasm 版ならブラウザでも本番同等に動く
 
@@ -271,7 +271,7 @@ npx tsc -p . --noEmit --checkers 8
 # tsrs
 npm i -D tsrs
 npx tsrs -p . --noEmit
-npx tsrs -p . --noEmit --checkerAssignment go   # Go 版と割り当てを揃えて比較
+npx tsrs -p . --noEmit --fast   # 高速プリセット（結果は既定モードと突き合わせる）
 npx tsrs --lsp -stdio                            # 言語サーバー（実験的）
 ```
 

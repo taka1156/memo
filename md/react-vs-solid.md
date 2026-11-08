@@ -88,7 +88,7 @@ React ではクリックのたびに「Counter 実行」が出る。Solid では
 
 **② Commit** 前回との差分（reconciliation）を本物の DOM に反映する。ここは中断しない
 
-**③ Effects** 描画後に `useLayoutEffect` 、続いて `useEffect` を実行する
+**③ Effects** DOM への反映直後（画面の描画前）に `useLayoutEffect` 、画面の描画後に `useEffect` を実行する
 
 Fiber
 
@@ -184,7 +184,7 @@ React
 
 Solid
 
-- **古いクロージャ** ： `setInterval` の中の `count` は、その回のレンダーの値で固定される。更新関数 `setCount(c => c + 1)` を使う
+- **古いクロージャ（stale closure）** ： `setInterval` の中の `count` は、その回のレンダーの値で固定される。更新関数 `setCount(c => c + 1)` を使う
 - **useEffect の依存配列** ：書き漏れると古い値を使い、多すぎると無限ループ。そもそも effect が要らない場面も多い
 - **Hooks の呼び出し順** ：条件分岐の中で呼ぶと壊れる
 - **props の分割代入** ： `function Row({ item })` と書くと、その瞬間の値を取り出して追跡が切れる。 `props.item` のまま使うか `splitProps` （2.0 では `omit` に改名）を使う。2.0 では開発時に警告が出る

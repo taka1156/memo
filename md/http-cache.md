@@ -85,7 +85,7 @@ stale
 | `stale-while-revalidate=N` | 古くなってから N 秒間は、古いものを即返しつつ裏で更新する。 |
 | `stale-if-error=N` | オリジンがエラーのとき、古くなってから N 秒間は古いものを返してよい。 |
 
-古い `Expires` （日時指定）や `Pragma: no-cache` もあるが、 `Cache-Control: max-age` があればそちらが優先。新規に書くなら Cache-Control だけでよい。
+古い `Expires` （日時指定）もあるが、 `Cache-Control: max-age` があればそちらが優先される。 `Pragma: no-cache` は HTTP/1.0 時代のリクエスト用ヘッダーで、レスポンスに付けたときの動作は決まっていない（非推奨）。新しく書くなら Cache-Control だけでよい。
 
 ## 用途別のおすすめ
 

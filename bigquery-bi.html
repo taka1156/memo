@@ -694,7 +694,7 @@ items      ARRAY&lt;STRUCT&lt;sku STRING, qty INT64, price NUMERIC&gt;&gt;
   <div class="panel card" id="l3" hidden>
     <ul class="list">
       <li><strong>対称集計 (symmetric aggregates)</strong>: <code>primary_key</code> と <code>relationship</code> を正しく書くと、JOIN で行が増えても SUM・COUNT が二重計上されないよう SQL を工夫してくれる（<a href="#p-fanout">ファンアウト</a>対策）</li>
-      <li><strong>PDT（永続派生テーブル）</strong>: 重い集計を BigQuery 上のテーブルとして作っておき、datagroup のタイミングで作り直す</li>
+      <li><strong>PDT（永続的な派生テーブル）</strong>: 重い集計を BigQuery 上のテーブルとして作っておき、datagroup（データグループ）のタイミングで作り直す</li>
       <li><strong>集計認識 (aggregate awareness)</strong>: 粗い粒度で足りる質問は自動で小さい集計テーブルを読み、スキャン量を減らす</li>
       <li><strong>キャッシュと datagroup</strong>: 「データが更新されるまでは同じ結果を使う」を定義できる</li>
       <li><strong>行レベルの権限</strong>: <code>access_filter</code> などで「自分の地域の数字だけ見える」を実現</li>

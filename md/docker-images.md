@@ -35,7 +35,7 @@ slim / alpine / bookworm / trixie / distroless … タグの意味と glibc・mu
 
 **slim** バリアント（削った版）
 
-`node:24` OS 省略 → その時点の Debian 安定版（いまは trixie）のフル版
+`node:24` OS 省略 → イメージ側が決めた Debian のフル版（node:24 はいまも bookworm。trixie は `-trixie` で明示）
 
 `node:24-slim` 同じ Debian の slim 版
 
@@ -43,7 +43,7 @@ slim / alpine / bookworm / trixie / distroless … タグの意味と glibc・mu
 
 `python:3.13-trixie` Debian 13 を明示。省略すると Debian の世代交代で中身が変わる
 
-Debian のコードネームは映画『トイ・ストーリー』のキャラ名。 **bullseye** = 11、 **bookworm** = 12（2026 年 6 月から LTS 期間）、 **trixie** = 13（現行の安定版）。
+Debian のコードネームは映画『トイ・ストーリー』のキャラ名。 **bullseye** = 11、 **bookworm** = 12（2026 年 7 月から LTS 期間。2028 年 6 月まで）、 **trixie** = 13（現行の安定版）。
 
 ## 全体の構造：みんな同じカーネルの上、違うのは libc から上
 
@@ -234,7 +234,7 @@ Ubuntu のパッケージを「スライス」単位で削り出した distroles
 
 glibc apt なし シェルなし
 
-ベース ≈ 12MB / .NET ≈ 116MB
+自己完結型 .NET 向けベース ＜ 6MB（圧縮）
 
 - .NET（Microsoft 公式の chiseled 版）・Java（ `ubuntu/jre` ）で特に定番
 - Ubuntu LTS のセキュリティ更新をそのまま受けられる
@@ -325,7 +325,7 @@ glibc vs musl
 | 動的ローダー | `/lib64/ld-linux-x86-64.so.2` | `/lib/ld-musl-x86_64.so.1` |
 | シンボルのバージョン | あり（ `GLIBC_2.34` など）。 古い glibc では新しい glibc 向けバイナリが動かない | なし |
 | 静的リンク | 非推奨（NSS などで問題） | 得意。単一バイナリ配布に向く |
-| malloc 性能 | マルチスレッドで速い | 遅めと言われがち（mallocng で改善中）。jemalloc 等で回避されることも |
+| malloc 性能 | マルチスレッドで速い | 遅めと言われがち（1.2.1 で入った mallocng は堅牢性と省メモリ重視で、速さが目的ではない）。jemalloc や mimalloc に差し替えて回避されることも |
 | スレッドの既定スタック | 8MB 程度（ulimit 依存） | 128KB と小さい → 深い再帰でクラッシュすることがある |
 | DNS 解決 | NSS / `/etc/nsswitch.conf` に従う | 独自実装。昔は TCP フォールバックなし（1.2.4 で対応）、search の扱いに差 |
 | ロケール / iconv | 充実 | 最小限 |
@@ -376,7 +376,8 @@ COPY . .
 FROM gcr.io/distroless/nodejs24-debian13:nonroot
 WORKDIR /app
 COPY --from=build /app /app
-CMD ["server.js"]   # ENTRYPOINT が node なのでファイル名だけ渡す
+# ENTRYPOINT が node なのでファイル名だけ渡す
+CMD ["server.js"]
 ```
 
 ```
@@ -391,7 +392,7 @@ CMD ["npx", "wrangler", "dev", "--ip", "0.0.0.0"]
 
 ```
 # ビルドはフル版、実行は distroless で最小に
-FROM golang:1.25-trixie AS build
+FROM golang:1.27-trixie AS build
 WORKDIR /src
 COPY . .
 RUN CGO_ENABLED=0 go build -o /app ./cmd/server

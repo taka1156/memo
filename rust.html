@@ -447,7 +447,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="ar">→</div>
     <div class="st"><b>機械語</b><span>実行ファイル</span></div>
   </div>
-  <p class="note">太枠が「Rust らしい安全性」を保証する段階。ここで弾かれたコードは実行ファイルにならないので、実行時のコスト（GC やチェック処理）がかからない。</p>
+  <p class="note">太枠が「Rust らしい安全性」を保証する段階。ここで弾かれたコードは実行ファイルにならない。所有権・借用の検査はコンパイル時に終わるので、そのぶんの実行時コスト（GC など）はかからない（配列の範囲チェックなど、一部のチェックは実行時に残る）。</p>
 
   <h2 id="ownership">仕組み 2: 所有権 — スタックとヒープで見る</h2>
   <p><code>String</code> の中身（文字列データ）はヒープ、変数はスタックにある「ポインタ・長さ・容量」の組。代入したときに何が起きるかを比べる。</p>
@@ -546,7 +546,7 @@ println!("{s1} {n}");  <span class="ok">// ○ s1 はまだ使える</span></cod
 <pre><code>let a: i32 = 5;
 let b = a;             <span class="cm">// i32 は Copy 型 → ビットごと複製</span>
 println!("{a} {b}");   <span class="ok">// ○ 両方使える</span></code></pre>
-    <p>整数・浮動小数点・<code>bool</code>・<code>char</code>・それらだけのタプルなど、<b>スタックだけで完結する小さな型</b>は <code>Copy</code> トレイトを持ち、代入してもムーブではなくコピーになる。ヒープを持つ <code>String</code> や <code>Vec</code> は Copy にならない。</p>
+    <p>整数・浮動小数点・<code>bool</code>・<code>char</code>・それらだけのタプルなどは <code>Copy</code> トレイトを実装しており、代入してもムーブではなくコピーになる（自作の struct も、中身がすべて Copy なら <code>#[derive(Clone, Copy)]</code> で Copy にできる）。ヒープを持つ <code>String</code> や <code>Vec</code> は Copy にできない。</p>
     <p class="note">スコープを抜けた値は、所有者が自動で <code>drop</code> して解放する（RAII）。手動の <code>free</code> は不要。</p>
   </div>
 
@@ -598,7 +598,7 @@ match read_config() {
     Ok(t)  =&gt; println!("{t}"),
     Err(e) =&gt; eprintln!("読めなかった: {e}"),
 }</code></pre>
-    <p>例外 (exception) はない。失敗の可能性は<b>戻り値の型に現れる</b>ので、呼び出し側は無視できない（match しないと値を取り出せない）。</p>
+    <p>例外 (exception) はない。失敗の可能性は<b>戻り値の型に現れる</b>ので、呼び出し側は見落としにくい（成功時の値を使うには match や ? などで取り出す必要があり、結果を使わずに捨てるとコンパイラが警告する）。</p>
   </div>
 
   <h2 id="memory">メモリ管理の比較</h2>
@@ -607,7 +607,7 @@ match read_config() {
       <thead><tr><th>方式</th><th>代表言語</th><th>解放のタイミング</th><th>安全性</th><th>実行時コスト</th></tr></thead>
       <tbody>
         <tr><td>手動管理</td><td>C</td><td>プログラマが <code>free</code></td><td>解放忘れ・二重解放が起き得る</td><td>なし</td></tr>
-        <tr><td>GC</td><td>Java, Go, Python</td><td>GC が不要と判断したとき</td><td>高い</td><td>GC の停止・メモリ余分</td></tr>
+        <tr><td>GC</td><td>Java, Go, C#</td><td>GC が不要と判断したとき</td><td>高い</td><td>GC の停止・メモリ余分</td></tr>
         <tr><td>所有権 + 借用</td><td>Rust</td><td>所有者がスコープを抜けたとき（コンパイル時に決定）</td><td>高い（safe Rust の範囲で）</td><td>ほぼなし</td></tr>
       </tbody>
     </table>
@@ -628,7 +628,7 @@ match read_config() {
   </div>
   <div class="card myth">
     <p>unsafe はバグだらけの危険なコード</p>
-    <p>「借用チェッカが証明できない部分を、人間が責任を持って保証する」という印。範囲を小さく閉じ込め、safe な API で包むのが作法。</p>
+    <p>「コンパイラが安全性を確かめられない操作（生ポインタの参照外しや FFI 呼び出しなど）を、人間が責任を持って保証する」という印。範囲を小さく閉じ込め、safe な API で包むのが作法。</p>
   </div>
   <div class="card myth">
     <p>コンパイルエラーが多い ＝ 書きにくい言語</p>
@@ -696,7 +696,7 @@ document.querySelectorAll('.tabs').forEach(group => {
     "ref": "#ownership"
   },
   {
-    "q": "let first = &v[0]; のあとに v.push(4); を書き、その後で first を使うとコンパイルエラーになる。なぜ禁止されている？",
+    "q": "let mut v = vec![1, 2, 3]; let first = &v[0]; のあとに v.push(4); を書き、その後で first を使うとコンパイルエラーになる。なぜ禁止されている？",
     "choices": [
       "push で再確保されると、first が解放済みのメモリを指すから",
       "first を let mut で宣言していないから",

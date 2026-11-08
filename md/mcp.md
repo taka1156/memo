@@ -72,7 +72,7 @@ stdio（同じマシンの子プロセス） Streamable HTTP（ネットワー�
 
 ### 拡張 任意
 
-2026-07-28 版から「拡張」の枠組みができ、長時間処理の **Tasks** 、ツールから UI を返す **MCP Apps** 、企業向け認可などは本体から分けて扱われる。
+本体とは別に、任意で使える「拡張」の枠組みがある。ツールから UI を返す **MCP Apps** （2026 年 1 月に最初の公式拡張になった）や企業向け認可がこれにあたる。2026-07-28 版では長時間処理の **Tasks** も本体から拡張に移った。
 
 ## 通信方式（トランスポート）
 
@@ -80,7 +80,7 @@ stdio（同じマシンの子プロセス） Streamable HTTP（ネットワー�
 | --- | --- | --- |
 | どこで動く | 同じマシン。ホストがサーバーを子プロセスとして起動する | ネットワーク越し（社内・クラウド） |
 | やり取り | 標準入出力に JSON-RPC のメッセージを1行ずつ流す | HTTP POST。応答は単発の JSON か、SSE のストリーム |
-| 認証 | 不要（OS のユーザー権限で動く） | OAuth 2.1 ベース。MCP サーバーは「リソースサーバー」になる |
+| 認証 | MCP の認可は不要（OS のユーザー権限で動く。API キーなどは環境変数で渡す） | OAuth 2.1 ベース。MCP サーバーは「リソースサーバー」になる |
 | 向いているもの | ローカルファイル、Git、開発ツール | SaaS 連携、複数人で共有するサーバー |
 | 設定例 | `"command": "npx", "args": ["-y", "some-mcp"]` | `"url": "https://mcp.example.com/mcp"` |
 
@@ -106,6 +106,7 @@ stdio（同じマシンの子プロセス） Streamable HTTP（ネットワー�
       "required": ["repo", "title"]
     }
   }],
+  "resultType": "complete",
   "ttlMs": 300000,
   "cacheScope": "private"
 }
@@ -122,7 +123,11 @@ stdio（同じマシンの子プロセス） Streamable HTTP（ネットワー�
 { "jsonrpc": "2.0", "id": 7, "method": "tools/call",
   "params": {
     "name": "create_issue",
-    "arguments": { "repo": "taka1156/memo", "title": "MCP のメモを追加" }
+    "arguments": { "repo": "taka1156/memo", "title": "MCP のメモを追加" },
+    "_meta": {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientCapabilities": {}
+    }
   } }
 ```
 
@@ -135,7 +140,7 @@ stdio（同じマシンの子プロセス） Streamable HTTP（ネットワー�
 
 - **セッションの廃止** ：接続直後の initialize ハンドシェイクと Mcp-Session-Id ヘッダーがなくなり、各リクエストがプロトコルバージョンや機能を `_meta` に持つ **ステートレス** な形になった。状態が要るサーバーは、ツールが「ハンドル」を発行し、モデルがそれを次の引数で渡し返す
 - ** `server/discover` ** ：サーバーの対応バージョンや機能を事前に問い合わせる仕組み（呼ぶかどうかはクライアント次第）
-- **MRTR（複数往復リクエスト）** ：サーバーがユーザーに質問したいときは、結果として「入力が必要」を返し、クライアントが答えを付けて同じリクエストをやり直す。サーバー側から呼びかける elicitation/create などはこれに置き換え
+- **MRTR（Multi Round-Trip Requests）** ：サーバーがユーザーに質問したいときは、結果として「入力が必要」を返し、クライアントが答えを付けて同じリクエストをやり直す。サーバー側から呼びかける elicitation/create などはこれに置き換え
 - **非推奨** ：Sampling（サーバーがホストの LLM を借りる）、Roots、Logging、HTTP+SSE。最低12か月は動き続ける
 - **ルーティング用ヘッダー** ：HTTP では `Mcp-Method` と `Mcp-Name` が必須になり、ゲートウェイが本文を読まずに振り分け・認可できる
 - **認可** ：クライアントの登録方式が、動的登録 (DCR) から Client ID Metadata Documents (CIMD) に移行中
@@ -190,7 +195,7 @@ stdio のサーバーは任意のコードを実行できる。 `npx` 1行で入
 
 ✕ 「MCP は Anthropic 専用」
 
-○ Anthropic が公開したオープンな仕様で、他社の AI アプリや IDE も対応している。SDK も TypeScript、Python、Go、C# などがある。
+○ Anthropic が 2024 年に公開したオープンな仕様で、2025 年 12 月からは Linux Foundation 傘下の Agentic AI Foundation が管理している。他社の AI アプリや IDE も対応している。SDK も TypeScript、Python、Go、C# などがある。
 
 ## 関連メモ
 

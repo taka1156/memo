@@ -350,7 +350,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </div>
     <div class="card">
       <h3>拡張 <span class="who">任意</span></h3>
-      <p>2026-07-28 版から「拡張」の枠組みができ、長時間処理の <b>Tasks</b>、ツールから UI を返す <b>MCP Apps</b>、企業向け認可などは本体から分けて扱われる。</p>
+      <p>本体とは別に、任意で使える「拡張」の枠組みがある。ツールから UI を返す <b>MCP Apps</b>（2026 年 1 月に最初の公式拡張になった）や企業向け認可がこれにあたる。2026-07-28 版では長時間処理の <b>Tasks</b> も本体から拡張に移った。</p>
     </div>
   </div>
 
@@ -360,7 +360,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <tr><th>方式</th><th>stdio</th><th>Streamable HTTP</th></tr>
       <tr><td>どこで動く</td><td>同じマシン。ホストがサーバーを子プロセスとして起動する</td><td>ネットワーク越し（社内・クラウド）</td></tr>
       <tr><td>やり取り</td><td>標準入出力に JSON-RPC のメッセージを1行ずつ流す</td><td>HTTP POST。応答は単発の JSON か、SSE のストリーム</td></tr>
-      <tr><td>認証</td><td>不要（OS のユーザー権限で動く）</td><td>OAuth 2.1 ベース。MCP サーバーは「リソースサーバー」になる</td></tr>
+      <tr><td>認証</td><td>MCP の認可は不要（OS のユーザー権限で動く。API キーなどは環境変数で渡す）</td><td>OAuth 2.1 ベース。MCP サーバーは「リソースサーバー」になる</td></tr>
       <tr><td>向いているもの</td><td>ローカルファイル、Git、開発ツール</td><td>SaaS 連携、複数人で共有するサーバー</td></tr>
       <tr><td>設定例</td><td><code>"command": "npx", "args": ["-y", "some-mcp"]</code></td><td><code>"url": "https://mcp.example.com/mcp"</code></td></tr>
     </table>
@@ -386,6 +386,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       "required": ["repo", "title"]
     }
   }],
+  "resultType": "complete",
   "ttlMs": 300000,
   "cacheScope": "private"
 }</code></pre>
@@ -404,7 +405,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <pre><code>{ "jsonrpc": "2.0", "id": 7, "method": "tools/call",
   "params": {
     "name": "create_issue",
-    "arguments": { "repo": "taka1156/memo", "title": "MCP のメモを追加" }
+    "arguments": { "repo": "taka1156/memo", "title": "MCP のメモを追加" },
+    "_meta": {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientCapabilities": {}
+    }
   } }</code></pre>
     </li>
     <li>
@@ -419,7 +424,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <ul>
       <li><b>セッションの廃止</b>：接続直後の <span class="tag-old">initialize</span> ハンドシェイクと <span class="tag-old">Mcp-Session-Id</span> ヘッダーがなくなり、各リクエストがプロトコルバージョンや機能を <code>_meta</code> に持つ<b>ステートレス</b>な形になった。状態が要るサーバーは、ツールが「ハンドル」を発行し、モデルがそれを次の引数で渡し返す</li>
       <li><b><code>server/discover</code></b>：サーバーの対応バージョンや機能を事前に問い合わせる仕組み（呼ぶかどうかはクライアント次第）</li>
-      <li><b>MRTR（複数往復リクエスト）</b>：サーバーがユーザーに質問したいときは、結果として「入力が必要」を返し、クライアントが答えを付けて同じリクエストをやり直す。サーバー側から呼びかける <span class="tag-old">elicitation/create</span> などはこれに置き換え</li>
+      <li><b>MRTR（Multi Round-Trip Requests）</b>：サーバーがユーザーに質問したいときは、結果として「入力が必要」を返し、クライアントが答えを付けて同じリクエストをやり直す。サーバー側から呼びかける <span class="tag-old">elicitation/create</span> などはこれに置き換え</li>
       <li><b>非推奨</b>：Sampling（サーバーがホストの LLM を借りる）、Roots、Logging、HTTP+SSE。最低12か月は動き続ける</li>
       <li><b>ルーティング用ヘッダー</b>：HTTP では <code>Mcp-Method</code> と <code>Mcp-Name</code> が必須になり、ゲートウェイが本文を読まずに振り分け・認可できる</li>
       <li><b>認可</b>：クライアントの登録方式が、動的登録 (DCR) から Client ID Metadata Documents (CIMD) に移行中</li>
@@ -463,7 +468,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <div class="card myth">
     <p><span class="ng">✕</span> 「MCP は Anthropic 専用」</p>
-    <p><span class="ok">○</span> Anthropic が公開したオープンな仕様で、他社の AI アプリや IDE も対応している。SDK も TypeScript、Python、Go、C# などがある。</p>
+    <p><span class="ok">○</span> Anthropic が 2024 年に公開したオープンな仕様で、2025 年 12 月からは Linux Foundation 傘下の Agentic AI Foundation が管理している。他社の AI アプリや IDE も対応している。SDK も TypeScript、Python、Go、C# などがある。</p>
   </div>
 
   <h2>関連メモ</h2>

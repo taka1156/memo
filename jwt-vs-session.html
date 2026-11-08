@@ -286,12 +286,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="card">
       <span class="label">HS256（共通鍵）</span>
       <p>同じ秘密鍵で署名も検証もする。発行元と検証側が同じサーバーなら手軽。</p>
-      <p class="muted">検証する側全員に秘密鍵を配る必要があり、誰でも偽造できるようになる。</p>
+      <p class="muted">検証する側全員に秘密鍵を配る必要があり、鍵を持つ検証側の誰もがトークンを偽造できてしまう。</p>
     </div>
     <div class="card">
       <span class="label">RS256 / ES256（公開鍵）</span>
       <p>秘密鍵で署名し、公開鍵で検証する。検証側は署名を作れない。</p>
-      <p class="muted">OIDC の ID トークンはこちら。公開鍵は JWKS（<code>/.well-known/jwks.json</code> など）で配り、ヘッダーの <code>kid</code> でどの鍵かを指す。</p>
+      <p class="muted">OIDC の ID トークンは RS256 が既定（HS256 も仕様上は使える）。公開鍵は JWKS（<code>/.well-known/jwks.json</code> など）で配り、ヘッダーの <code>kid</code> でどの鍵かを指す。</p>
     </div>
   </div>
 
@@ -326,7 +326,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <table>
       <tr><th>観点</th><th>セッション</th><th>JWT</th></tr>
       <tr><td>状態の置き場所</td><td>サーバー（ストア）</td><td>トークン自身</td></tr>
-      <tr><td>即時ログアウト・権限剥奪</td><td>◎ ストアから消すだけ</td><td>△ 期限まで有効。拒否リストを持つと結局ステートフルに</td></tr>
+      <tr><td>即時ログアウト・権限剥奪</td><td>◎ ストアから消すだけ</td><td>△ 期限まで有効。失効リスト（denylist）を持つと結局ステートフルに</td></tr>
       <tr><td>スケール</td><td>○ 共有ストア（Redis など）があれば問題なし</td><td>◎ 鍵さえあればどこでも検証</td></tr>
       <tr><td>サービスをまたぐ</td><td>△ ストアを共有する必要がある</td><td>◎ 別サービス・別組織にも渡せる</td></tr>
       <tr><td>サイズ</td><td>◎ 数十バイト</td><td>△ 数百バイト〜。毎リクエスト送る</td></tr>
@@ -375,7 +375,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <button class="tab" role="tab" aria-selected="false" data-panel="u3">サービス間・API</button>
   </div>
   <div class="panel card" id="u1">
-    <p><b>セッション ＋ HttpOnly Cookie</b> で十分。フレームワーク（Rails、Django、Laravel など）の標準機能をそのまま使うのが一番安全。</p>
+    <p><b>セッション ＋ HttpOnly Cookie</b> で十分。フレームワーク（Django、Laravel など）の標準機能をそのまま使うのが一番安全。Rails は既定でセッションの中身を暗号化 Cookie に入れる方式なので、即時失効が必要なら DB や Redis のストアに切り替える。</p>
   </div>
   <div class="panel card" id="u2" hidden>
     <p>同じドメインに API があるなら、<b>セッション Cookie</b> でよい。外部 IdP の OAuth/OIDC を使うなら <b>BFF</b> に寄せる。JWT を localStorage に置くのは、XSS 対策に自信がある場合に限る。</p>
@@ -387,7 +387,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <h2 id="verify">JWT を検証するときのチェックリスト</h2>
   <div class="card">
     <ul class="check">
-      <li><b>アルゴリズムを固定する</b>：ヘッダーの <code>alg</code> を信用しない。<code>alg: none</code> や、公開鍵を HMAC の秘密鍵として使わせる「アルゴリズム混同」攻撃がある</li>
+      <li><b>アルゴリズムを固定する</b>：ヘッダーの <code>alg</code> を信用しない。<code>alg: none</code> や、公開鍵を HMAC の秘密鍵として使わせる「アルゴリズム混同（algorithm confusion）」攻撃がある</li>
       <li><b>署名を検証する</b>：デコードしただけで中身を信じない（<code>decode</code> と <code>verify</code> は別の関数のことが多い）</li>
       <li><b>期限を確認する</b>：<code>exp</code>（期限）、<code>nbf</code>（これより前は無効）。時計のずれを数十秒許容</li>
       <li><b>発行者と宛先を確認する</b>：<code>iss</code> が想定の発行元か、<code>aud</code> に自分が含まれるか</li>
@@ -457,7 +457,7 @@ function render() {
     '<span class="seg-s" data-seg="s">' + SIG + '</span>';
   el('dh').textContent = JSON.stringify(HEADER, null, 2);
   el('dp').textContent = JSON.stringify(payload, null, 2);
-  el('ds').textContent = 'RSASSA(\n  SHA256(header + "." + payload),\n  発行者の秘密鍵\n)';
+  el('ds').textContent = 'RSASSA-PKCS1-v1_5 + SHA-256(\n  base64url(header) + "." + base64url(payload),\n  発行者の秘密鍵\n)';
   const v = el('verdict');
   if (tampered) {
     v.className = 'verdict ng';

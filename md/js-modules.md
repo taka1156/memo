@@ -31,7 +31,7 @@ export default load;
 - **静的** ：import はファイルの先頭で決まり、実行前に依存関係がわかる → 未使用コードを削れる（tree shaking）
 - 読み込みは **非同期** 。トップレベル `await` が使える
 - ブラウザ・Node.js・Deno・Bun・Workers の **どこでも動く**
-- import は **生きた参照** （元のモジュールで値が変わると見える）
+- import は **ライブバインディング** （export 元への読み取り専用の参照。元のモジュールで値が変わると見える）
 
 CommonJS（Node.js 由来）
 
@@ -85,7 +85,7 @@ Cloudflare Workers
 
 ## import maps：ブラウザで「名前だけ」の import を解決する
 
-ブラウザは `import { h } from 'preact'` のような **パッケージ名だけの指定（ベア指定子）を解決できない** 。バンドラーがない環境では、import map で名前と URL の対応を教える。
+ブラウザは `import { h } from 'preact'` のような **パッケージ名だけの指定（ベアモジュール指定子、bare specifier）を解決できない** 。バンドラーがない環境では、import map で名前と URL の対応を教える。
 
 ```
 <script type="importmap">
@@ -114,11 +114,11 @@ Bun
 
 node_modules/ ├── my-app が使う express/ ├── express が使う body-parser/ ← 依存の依存も「平らに」並ぶ └── …
 
-依存の依存までなるべく **平らに** （hoisting）並べる。そのため package.json に書いていないパッケージも import できてしまう（ **幽霊依存** ）。ある日、間接依存が外れて壊れる原因になる。ロックファイルは `package-lock.json` 。
+依存の依存までなるべく **平らに** （hoisting）並べる。そのため package.json に書いていないパッケージも import できてしまう（ **ファントム依存** 、phantom dependency。幽霊依存とも）。ある日、間接依存が外れて壊れる原因になる。ロックファイルは `package-lock.json` 。
 
 node_modules/ ├── react → .pnpm/react@19…/node_modules/react ← 直接の依存だけ見える └── .pnpm/ ← 実体。ストアからハードリンク ~/.local/share/pnpm/store ← 全プロジェクト共通の置き場
 
-ファイルの実体は PC に 1 つだけ置き（内容で管理するストア）、各プロジェクトにはハードリンクとシンボリックリンクで見せる。 **ディスクと時間を節約** でき、 **package.json に書いたものしか import できない** ので幽霊依存が起きない。ロックファイルは `pnpm-lock.yaml` 。
+ファイルの実体は PC に 1 つだけ置き（内容で管理するストア）、各プロジェクトにはハードリンクとシンボリックリンクで見せる。 **ディスクと時間を節約** でき、 **package.json に書いたものしか import できない** のでファントム依存が起きない。ロックファイルは `pnpm-lock.yaml` 。
 
 Bun のランタイムに付いてくるパッケージマネージャー。npm と互換の `node_modules` を作り、インストールが速い。ロックファイルは現在テキスト形式の `bun.lock` （以前はバイナリの `bun.lockb` ）。Bun で実行しないプロジェクトでも、インストーラーとしてだけ使える。
 

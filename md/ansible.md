@@ -106,7 +106,7 @@ all:
 
 ### Control Node 実行する側
 
-Ansible をインストールしてコマンドを打つマシン。管理対象側には Ansible 不要で、SSH と Python があれば動く（エージェントレス）。
+Ansible をインストールしてコマンドを打つマシン。管理対象側には Ansible 不要で、Linux なら SSH と Python があれば動く（エージェントレス）。Windows は WinRM と PowerShell を使い、ネットワーク機器では Python が要らないモジュールもある。
 
 ### Inventory 誰に
 
@@ -118,7 +118,7 @@ Playbook はファイル、Play はその中の 1 ブロック。対象ごとに
 
 ### Tasks と Modules どうやって
 
-Task は「nginx をインストールする」という 1 つの操作、Module はそれを実行する部品。モジュールは「あるべき状態」を宣言する作りなので、何度実行しても結果が同じになる（冪等性）。
+Task は「nginx をインストールする」という 1 つの操作、Module はそれを実行する部品。ほとんどのモジュールは「あるべき状態」を宣言する作りなので、何度実行しても結果が同じになる（冪等性）。ただし `command` / `shell` は任意のコマンドを実行するだけなので、 `creates` などで条件を付けないと冪等にならない。
 
 ### Roles まとめて使い回す
 
@@ -138,7 +138,7 @@ Control Node と管理対象の間の通信方法。Ansible はモジュール�
 
 **Playbook を解析する** Play ごとに対象ホストを決め、Roles を展開して Task 一覧を作る。
 
-**事実情報を集める** gather_facts で OS や IP などを取得する。
+**ファクト（facts）を集める** gather_facts で OS や IP などのホスト情報を取得する。
 
 **Task を順に実行する** Connection Plugin で接続し、モジュールを送って実行する。
 

@@ -406,8 +406,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <div class="card" style="margin-top:12px">
     <span class="label">CLOUDFLARE D1 の場合</span>
     <ul class="list">
-      <li>Workers から SQL を投げるサーバーレス DB で、中身は SQLite。<b>1つの DB はシングルスレッドで、最大 10GB</b>。大きくするより DB を分けて増やす（アカウントあたり最大 100 万 DB）。</li>
-      <li>読み取りレプリカ（ベータ）や、直近 30 日の任意の時点に戻せる Time Travel をサービス側が用意している。</li>
+      <li>Workers から SQL を投げるサーバーレス DB で、中身は SQLite。<b>1つの DB はシングルスレッドで、最大 10GB（Workers Paid。無料プランは 500MB）</b>。大きくするより DB を分けて増やす（Workers Paid ではアカウントあたり最大 100 万 DB）。</li>
+      <li>読み取りレプリカ（ベータ）や、直近 30 日（無料プランは 7 日）の任意の時点に戻せる Time Travel をサービス側が用意している。</li>
     </ul>
     <p class="note">Hyperdrive＋PlanetScale（Postgres / MySQL）との比較は <a href="cloudflare-databases.html">D1 と Hyperdrive＋PlanetScale</a> にまとめた。</p>
   </div>
@@ -415,7 +415,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <span class="label">TURSO（libSQL）の場合</span>
     <ul class="list">
       <li>SQLite フォークの libSQL をサーバーとして動かし、HTTP・WebSocket 越しに提供する。</li>
-      <li><b>埋め込みレプリカ</b>：アプリの手元に SQLite ファイルのコピーを持ち、読み込みはローカルの速さ、書き込みはリモートのプライマリへ送って同期する。①と②のいいとこ取り。</li>
+      <li><b>埋め込みレプリカ</b>：アプリの手元に SQLite ファイルのコピーを持ち、読み込みはローカルの速さ、書き込みはリモートのプライマリへ送って同期する。①と②のいいとこ取り。新規プロジェクトには、変更単位で同期する後継の Turso Sync が勧められている。</li>
       <li>「エージェントごとに DB」を売りにしていて、2026年10月に Supabase が買収に合意した。</li>
     </ul>
   </div>

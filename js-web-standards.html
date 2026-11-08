@@ -356,7 +356,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="tc39">TC39：提案が仕様になるまで</h2>
   <p>新しい機能は「提案（proposal）」として出され、ステージを 1 つずつ進みます。ステージを押すと条件が出ます。</p>
-  <p class="muted">Strawperson・Candidate・Finished などの英語の呼び名は旧版のもので、今の公式プロセス文書は番号と目的で説明しています。</p>
+  <p class="muted">Candidate・Finished などの英語の呼び名は旧版のもので、今の公式プロセス文書は主に番号と目的で説明しています（Stage 0 だけは今も strawperson と呼ばれます）。</p>
   <div class="stages" id="stages"></div>
   <div class="card" id="stage-detail" aria-live="polite"></div>
 
@@ -407,7 +407,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <p>準拠するランタイムはこれらをすべて実装する決まりです。出どころの団体ごとに分けると、ほとんどが WHATWG と W3C の API だとわかります。</p>
   <div class="apis">
     <div class="apigrp k-whatwg">
-      <div class="h"><span class="org">WHATWG</span>Fetch・URL・Streams・Encoding・DOM・HTML・Console</div>
+      <div class="h"><span class="org">WHATWG</span>Fetch・URL・URL Pattern・Streams・Encoding・Compression・XHR（FormData）・DOM・HTML・Console</div>
       <div class="chips"><code>fetch</code><code>Request</code><code>Response</code><code>Headers</code><code>FormData</code><code>URL</code><code>URLSearchParams</code><code>URLPattern</code><code>ReadableStream</code><code>TransformStream</code><code>TextEncoder</code><code>TextDecoder</code><code>CompressionStream</code><code>AbortController</code><code>EventTarget</code><code>setTimeout</code><code>queueMicrotask</code><code>structuredClone</code><code>atob</code><code>console</code></div>
     </div>
     <div class="apigrp k-w3c">
@@ -431,7 +431,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h3>実際のコードでの意味</h3>
   <p>複数のランタイムで動かしたいライブラリは、<b>Minimum Common API の範囲で書く</b>のが目安になります。Hono のように <code>Request</code> を受けて <code>Response</code> を返す形のフレームワークが Node.js でも Workers でも動くのは、この共通部分の上に乗っているからです。</p>
-  <p class="muted">TC55 に参加しているのは Cloudflare・Node.js・Bloomberg・Igalia などです。Bun は正式なメンバーではありません。Bun にも <code>fetch</code> や <code>Response</code> はありますが、ECMA-429 に沿うことを約束しているわけではないので、Bun でも動くかは個別に確かめます。</p>
+  <p class="muted">TC55 には Deno・Igalia（共同議長）、Cloudflare、Bloomberg などが関わっています。Bun は正式なメンバーではありません。Bun にも <code>fetch</code> や <code>Response</code> はありますが、ECMA-429 に沿うことを約束しているわけではないので、Bun でも動くかは個別に確かめます。</p>
 
   <h2 id="myths">よくある誤解</h2>
   <div class="card myth"><span class="ng">✗</span> <code>setTimeout</code> や <code>console</code> は JavaScript の言語機能<br><span class="ok">○</span> HTML Standard と Console Standard（WHATWG）で決まっている。ECMAScript には入っていない</div>

@@ -22,7 +22,7 @@
 
 Redis / Valkey のサーバー 1 台（1 プロセス）の中はこうなっています。クライアントは RESP というプロトコルで話しかけ、Redis 用のクライアントライブラリや `redis-cli` はそのまま Valkey にも繋がります。
 
-（図: App A / App B / redis-cli / クライアント（多数） / redis-server / valkey-server（1 プロセス） / I/O スレッド / ソケット読み書き / RESP の解析 / 応答の送信 / （任意・複数本） / io-threads N / メインスレッド / イベントループ / コマンドを / 1 つずつ実行 / 期限切れ掃除・退避も / メモリ（データセット） / 巨大なハッシュテーブル / key → 値（String / Hash / / List / Set / ZSet / Stream…） / ＋ 期限 (TTL) の表 / ディスク / RDB（スナップ）/ AOF（ログ） / fork した子 / 追記 / レプリカ / 書き込みを非同期で複製 → https://memo.taka1156.site/redis-valkey.html#overview）
+（図: App A / App B / redis-cli / クライアント（多数） / redis-server / valkey-server（1 プロセス） / I/O スレッド / ソケット読み書き / RESP の解析 / 応答の送信 / （任意・複数本） / io-threads N / メインスレッド / イベントループ / コマンドを / 1 つずつ実行 / 期限切れ掃除・エビクションも / メモリ（データセット） / 巨大なハッシュテーブル / key → 値（String / Hash / / List / Set / ZSet / Stream…） / ＋ 期限 (TTL) の表 / ディスク / RDB（スナップ）/ AOF（ログ） / fork した子 / 追記 / レプリカ / 書き込みを非同期で複製 → https://memo.taka1156.site/redis-valkey.html#overview）
 
 ## なぜ速い？ ─ シングルスレッドのイベントループ
 
@@ -114,7 +114,7 @@ uv:today ≈ 12,034
 
 内部では件数が少ないうちは詰め込み形式（listpack など）でメモリを節約し、増えたら本格的な構造（ハッシュテーブル、スキップリストなど）に自動で切り替わります。
 
-## メモリが有限 ─ 期限切れ (TTL) と退避 (eviction)
+## メモリが有限 ─ 期限切れ (TTL) とエビクション (eviction)
 
 期限切れの消し方
 
@@ -126,7 +126,7 @@ uv:today ≈ 12,034
 
 「期限ちょうどにメモリが空く」わけではありません。一時的に期限切れキーがメモリに残ることがあります。
 
-`maxmemory` に達したときの動きは `maxmemory-policy` で決まります。
+`maxmemory` に達したときの動き（キーを追い出して削除する＝エビクションをするか、どれを追い出すか）は `maxmemory-policy` で決まります。
 
 | ポリシー | 動き | 向いている用途 |
 | --- | --- | --- |
@@ -219,7 +219,7 @@ Redis が次版（7.4）以降を RSALv2 / SSPLv1 のデュアルライセンス
 
 2024-03
 
-ライセンス変更直前の BSD 版 Redis 7.2.4 から Valkey がフォーク（7.2 系のパッチ版はその後も BSD で提供）。Linux Foundation の下、AWS・Google Cloud・Oracle などのメンテナーが参加。ライセンスは BSD 3-Clause のまま
+ライセンス変更直前の BSD 版 Redis 7.2.4 から Valkey がフォーク（重大なセキュリティ修正は一定期間 BSD で提供）。Linux Foundation の下、AWS・Google Cloud・Oracle などのメンテナーが参加。ライセンスは BSD 3-Clause のまま
 
 2024-09
 
@@ -284,5 +284,5 @@ ZADD rank 90 bob 75 ann                        # ランキング
 ZREVRANGE rank 0 9 WITHSCORES                  # 上位 10 件
 CLUSTER KEYSLOT user:1000                      # どのスロットか
 INFO memory                                    # メモリ使用量
-CONFIG SET maxmemory-policy allkeys-lfu        # キャッシュ用の退避方針
+CONFIG SET maxmemory-policy allkeys-lfu        # キャッシュ用のエビクション方針
 ```

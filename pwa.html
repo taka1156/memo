@@ -446,7 +446,7 @@ self.addEventListener('fetch', e =&gt; {
 
     <h3>更新</h3>
     <ul class="checklist">
-      <li><label><input type="checkbox"><span class="txt"><span class="badge rec">推奨</span><code>sw.js</code> 自体を HTTP キャッシュさせていない<small>例: <code>Cache-Control: no-cache</code></small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt"><span class="badge rec">推奨</span><code>sw.js</code> と <code>importScripts</code> で読むファイルに <code>Cache-Control: no-cache</code>（または <code>max-age=0</code>）を付けている<small>今のブラウザは既定で sw.js 本体の更新確認に HTTP キャッシュを使わないが、importScripts で読むファイルには HTTP キャッシュが効く。古いブラウザ向けにも sw.js に付けておく</small></span></label></li>
       <li><label><input type="checkbox"><span class="txt"><span class="badge rec">推奨</span>新しい版を検知したら「更新があります」と知らせ、<code>skipWaiting()</code> で切り替えられる</span></label></li>
     </ul>
 
@@ -463,7 +463,7 @@ self.addEventListener('fetch', e =&gt; {
     <ul class="checklist">
       <li><label><input type="checkbox"><span class="txt"><span class="badge rec">推奨</span>DevTools の Application タブで Manifest・SW・Cache を確認した</span></label></li>
       <li><label><input type="checkbox"><span class="txt"><span class="badge rec">推奨</span>Network タブを Offline にして動作を確認した</span></label></li>
-      <li><label><input type="checkbox"><span class="txt"><span class="badge rec">推奨</span>Lighthouse で問題点を確認した</span></label></li>
+      <li><label><input type="checkbox"><span class="txt"><span class="badge rec">推奨</span>DevTools の Application タブ → Manifest で、インストールできない理由（エラー・警告）がないか確認した<small>Lighthouse の PWA 監査は v12 で廃止</small></span></label></li>
     </ul>
   </div>
 
@@ -535,7 +535,7 @@ update();
       "新しい SW が waiting で止まっている。skipWaiting() で切り替える"
     ],
     "answer": 2,
-    "explain": "旧 SW が動いている間、新しい SW はタブをすべて閉じるか skipWaiting() を呼ぶまで有効にならない。 sw.js 自体を HTTP キャッシュさせないことも大事。",
+    "explain": "旧 SW が動いている間、新しい SW はタブをすべて閉じるか skipWaiting() を呼ぶまで有効にならない。なお今のブラウザは既定で sw.js 本体の更新確認に HTTP キャッシュを使わないので、原因はたいてい waiting のほう。",
     "ref": "#lifecycle"
   },
   {

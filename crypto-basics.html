@@ -299,7 +299,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <ul class="dots">
     <li>Webhook（GitHub, Stripe など）の署名ヘッダーは HMAC。受信側は共有シークレットで再計算して比べる。</li>
-    <li>比較は<b>一定時間比較</b>（<code>crypto.timingSafeEqual</code> など）で行う。<code>===</code> だと一致した長さで処理時間が変わり、推測の手がかりになる。</li>
+    <li>比較は<b>定数時間比較</b>（constant-time comparison。<code>crypto.timingSafeEqual</code> など）で行う。<code>===</code> だと一致した長さで処理時間が変わり、推測の手がかりになる。</li>
     <li>弱点: 検証する側も同じ鍵を持つので「誰が作ったか」を第三者に証明できない。それが要るなら署名を使う。</li>
   </ul>
 
@@ -315,7 +315,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </ul>
 
   <h2 id="asymmetric">公開鍵の仕組み — 鍵交換と署名</h2>
-  <p><span class="key k-pub">公開鍵</span> は誰に見せてもよく、<span class="key k-priv">秘密鍵</span> は持ち主だけが持つ。ペアの片方からもう片方は計算できない。用途は大きく 2 つ。</p>
+  <p><span class="key k-pub">公開鍵</span> は誰に見せてもよく、<span class="key k-priv">秘密鍵</span> は持ち主だけが持つ。公開鍵は秘密鍵から計算できるが、公開鍵から秘密鍵を求めることは現実的にはできない。用途は大きく 2 つ。</p>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-panel="pk1">鍵交換</button>
     <button class="tab" role="tab" aria-selected="false" data-panel="pk2">署名</button>

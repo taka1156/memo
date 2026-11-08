@@ -342,16 +342,16 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
         <marker id="m2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-acc" d="M0,0 L10,5 L0,10 z"/></marker>
       </defs>
-      <!-- 上段：正規化リクエスト -->
+      <!-- 上段：正規リクエスト -->
       <rect class="box" x="10" y="16" width="200" height="88" rx="10"/>
-      <text x="110" y="38" text-anchor="middle" font-size="12.5" font-weight="700">① 正規化リクエスト</text>
+      <text x="110" y="38" text-anchor="middle" font-size="12.5" font-weight="700">① 正規リクエスト</text>
       <text x="110" y="58" text-anchor="middle" class="sub mono">メソッド / パス / クエリ</text>
       <text x="110" y="74" text-anchor="middle" class="sub mono">署名するヘッダー</text>
       <text x="110" y="90" text-anchor="middle" class="sub mono">本文の SHA-256</text>
       <line class="arrow" x1="210" y1="60" x2="256" y2="60" marker-end="url(#m1)"/>
       <text x="233" y="52" text-anchor="middle" class="sub mono">SHA256</text>
       <rect class="box" x="258" y="16" width="200" height="88" rx="10"/>
-      <text x="358" y="38" text-anchor="middle" font-size="12.5" font-weight="700">② 署名対象文字列</text>
+      <text x="358" y="38" text-anchor="middle" font-size="12.5" font-weight="700">② 署名文字列</text>
       <text x="358" y="58" text-anchor="middle" class="sub mono">AWS4-HMAC-SHA256</text>
       <text x="358" y="74" text-anchor="middle" class="sub mono">日時 / スコープ</text>
       <text x="358" y="90" text-anchor="middle" class="sub mono">①のハッシュ</text>
@@ -506,7 +506,7 @@ response_checksum_validation = when_required</code></pre>
   </details>
   <details>
     <summary>「S3 にファイルを置けばファイルサーバーの代わりになる」</summary>
-    <p>部分書き換え・追記・原子的なリネーム・ファイルロックがありません。FUSE でマウントするツールもありますが、ログ追記や DB ファイルの置き場には向きません。大量の小さなオブジェクトは 1 リクエストごとの課金・遅延が効いてくるので、まとめて置く設計にします。</p>
+    <p>部分書き換え・追記・原子的なリネーム・ファイルロックがありません（S3 Express One Zone など一部のストレージクラスは追記・リネームに対応）。FUSE でマウントするツールもありますが、ログ追記や DB ファイルの置き場には向きません。大量の小さなオブジェクトは 1 リクエストごとの課金・遅延が効いてくるので、まとめて置く設計にします。</p>
   </details>
 
   <!-- ================= 製品 ================= -->

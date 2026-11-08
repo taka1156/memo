@@ -235,12 +235,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="row head"><div></div><div>Next.js（本家）</div><div>vinext</div></div>
     <div class="row"><div>作り</div><div>Vercel によるオリジナル実装</div><div>公開 API をゼロから再実装（フォークではない）</div></div>
     <div class="row"><div>ビルドツール</div><div>Turbopack / webpack</div><div>Vite 8（Rolldown・Oxc）</div></div>
-    <div class="row"><div>互換範囲</div><div>全機能（基準）</div><div>Next.js 16 API の約 94%。16.x のみ対象、古い非推奨 API は非対応</div></div>
+    <div class="row"><div>互換範囲</div><div>全機能（基準）</div><div>Next.js 16 API の約 94%（公開時点の数字）。16.x のみ対象、古い非推奨 API は非対応</div></div>
     <div class="row"><div>描画の既定</div><div>静的ページはビルド時に事前生成</div><div>リクエスト時描画＋キャッシュ寄り（SSG・ISR も可）</div></div>
-    <div class="row"><div>画像・フォント</div><div>ビルド時に最適化・自己ホスト</div><div>実行時最適化（Workers）、フォントは CDN／実行時注入</div></div>
+    <div class="row"><div>画像・フォント</div><div>画像はリクエスト時に最適化（静的 import はビルド時に寸法・プレースホルダーを生成）、フォントはビルド時に自己ホスト</div><div>実行時最適化（Workers）、フォントは CDN／実行時注入</div></div>
     <div class="row"><div>新機能</div><div>Cache Components・PPR が完全</div><div><code>"use cache"</code> は部分対応、PPR は未完</div></div>
     <div class="row"><div>設定・周辺</div><div>webpack 設定、<code>next/jest</code>、create-next-app</div><div>Vite プラグイン、Vitest、create-vinext-app</div></div>
-    <div class="row"><div>成熟度</div><div>本番実績が豊富</div><div>開発中。「注意して本番利用可」という公式見解</div></div>
+    <div class="row"><div>成熟度</div><div>本番実績が豊富</div><div>2026 年 9 月に 1.0 を公開し、公式は本番利用可としている。ただし README は今も互換性の差に注意して評価するよう求めている</div></div>
   </div>
 
   <h3>公式ベンチマーク（33 ルートの App Router アプリ、公開時の数値）</h3>
@@ -278,7 +278,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="rl"></div>
       <div class="c cf hd"><b>Cloudflare Workers</b><span>第一級のネイティブ統合</span></div>
       <div class="c node hd"><b>Node.js サーバー</b><span>standalone か Nitro</span></div>
-      <div class="c ssg hd"><b>SSG（静的書き出し）</b><span>サーバーなしでファイル配信</span></div>
+      <div class="c ssg hd"><b>SSG（静的エクスポート）</b><span>サーバーなしでファイル配信</span></div>
 
       <div class="rl">設定</div>
       <div class="c cf"><b>vinext init</b><span>--platform=cloudflare</span></div>
@@ -315,7 +315,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="c node"><b>SSR・Server Actions</b><span>middleware・ISR すべて可</span></div>
       <div class="c ssg"><b>静的ページのみ</b><span>SSR・ISR・Server Actions・middleware は不可</span></div>
     </div>
-    <p class="muted" style="margin-top:12px">※ SSG で追加プラグイン不要という点は、README の記述からの推論（静的書き出しのみでの動作は未検証）。</p>
+    <p class="muted" style="margin-top:12px">※ SSG で追加プラグイン不要という点は、README の記述からの推論（静的エクスポートのみでの動作は未検証）。</p>
   </div>
 
   <h2 id="myths">よくある誤解</h2>
@@ -327,7 +327,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <dd>ベンチはビルドとバンドルだけ。配信速度は、本家が事前生成する静的ページではむしろ本家が有利な場面もある。</dd>
       <dt>Cloudflare で Next.js を動かすなら vinext 一択</dt>
       <dd>README 自身が「成熟していて安全なのは OpenNext」と書いている。互換性重視なら OpenNext、軽さと Vite 系ツールを取るなら vinext。</dd>
-      <dt>静的書き出しでも Server Actions が使える</dt>
+      <dt>静的エクスポートでも Server Actions が使える</dt>
       <dd>使えない。サーバーが無い構成なので、フォーム送信などは外部 API に向ける必要がある（上の表の SSG 列参照）。</dd>
     </dl>
   </div>
@@ -389,7 +389,7 @@ document.querySelectorAll('.mtabs').forEach(group => {
     "q": "vinext で output: \"export\"（SSG）にしたサイトで、フォーム送信を Server Actions で処理しようとした。どうなる？",
     "choices": ["ビルド時に実行されて結果が HTML に固定される", "静的ホストの CDN が代わりに実行する", "実行時のサーバーが無いので使えない。外部 API などに送る必要がある"],
     "answer": 2,
-    "explain": "Server Actions も middleware もリクエスト時に動くサーバーが必要。静的書き出しでは SSR・ISR とあわせて使えない。",
+    "explain": "Server Actions も middleware もリクエスト時に動くサーバーが必要。静的エクスポートでは SSR・ISR とあわせて使えない。",
     "ref": "#deploy"
   },
   {

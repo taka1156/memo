@@ -99,7 +99,7 @@ Deno・Bun は `.ts` を直接実行できる。Node.js も最近のバージョ
 node app.ts   # 型を削って実行（チェックはしない）
 ```
 
-Node の型除去は「消すだけ」なので、 `enum` など JS コードを生成する構文は既定では使えない。 `erasableSyntaxOnly` オプションで事前に検出できる。
+Node の型除去は「消すだけ」なので、 `enum` など JS コードを生成する構文は使えない（以前あった `--experimental-transform-types` フラグは Node 26 で削除された）。 `erasableSyntaxOnly` オプションで事前に検出できる。
 
 ## 型チェックの考え方：構造的型付け
 
@@ -174,7 +174,7 @@ first(["a"]);       // string | undefined
    **目安：** 新規プロジェクトを `strict` で立ち上げ、CI で型チェックを回せる。
 6. 5
    **型レベルプログラミング** 上級 型で型を計算する。ライブラリ作者向け
-   Conditional Types infer Mapped Types Template Literal Types satisfies 型の分配
+   Conditional Types infer Mapped Types Template Literal Types satisfies ユニオン型の分配（Distributive Conditional Types）
 
 ```
 type Unwrap<T> = T extends Promise<infer U> ? U : T;

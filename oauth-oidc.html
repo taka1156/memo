@@ -410,7 +410,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <span class="arrow">→</span>
       <div class="box">認可サーバーがハッシュして照合<small>一致したときだけトークン発行</small></div>
     </div>
-    <p class="muted">コードを盗んでも、verifier を知らない攻撃者はトークンに交換できない。セキュリティのベストプラクティス（RFC 9700）や策定中の OAuth 2.1 では、client_secret を持つサーバー側アプリにも PKCE を使うよう求めている。</p>
+    <p class="muted">コードを盗んでも、verifier を知らない攻撃者はトークンに交換できない。セキュリティのベストプラクティス（RFC 9700）は client_secret を持つサーバー側アプリにも PKCE を推奨しており、策定中の OAuth 2.1 では原則として必須になっている。</p>
   </div>
 
   <h3>state と nonce の違い</h3>
@@ -581,7 +581,7 @@ const STEPS = [
   {
     t: 'アクセストークンで API を呼ぶ',
     c: 'back',
-    d: 'アクセストークンを <code>Authorization</code> ヘッダーに付けて送る。持っている人なら誰でも使える「持参人（Bearer）」トークンなので、漏らさないことが前提。',
+    d: 'アクセストークンを <code>Authorization</code> ヘッダーに付けて送る。持っている人なら誰でも使える「Bearer（持参人）トークン」なので、漏らさないことが前提。',
     code: 'GET /v1/me/photos\nAuthorization: Bearer eyJhbGciOi...'
   },
   {
@@ -688,7 +688,7 @@ show(-1);
       "付ける（今はすべてのクライアントで推奨）"
     ],
     "answer": 2,
-    "explain": "PKCE は認可コードの横取りを防ぐ。RFC 9700 や OAuth 2.1 ではサーバー側アプリにも求めている。",
+    "explain": "PKCE は認可コードの横取りを防ぐ。RFC 9700 はサーバー側アプリにも推奨し、策定中の OAuth 2.1 では原則必須になっている。",
     "ref": "#pkce"
   }
 ]

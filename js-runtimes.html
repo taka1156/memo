@@ -247,7 +247,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="stack k-node">
       <div class="name">Node.js</div>
       <div class="ly app">あなたのコード</div>
-      <div class="ly api">Node API<small>fs、http、stream、Buffer ＋ fetch など Web 標準</small></div>
+      <div class="ly api">Node.js のコア API<small>fs、http、stream、Buffer ＋ fetch など Web 標準</small></div>
       <div class="ly">C++ のバインディング</div>
       <div class="ly">libuv<small>イベントループ・非同期 I/O・スレッドプール</small></div>
       <div class="ly eng">V8<small>Chrome と同じエンジン</small></div>
@@ -257,13 +257,13 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="ly app">あなたのコード</div>
       <div class="ly api">Bun API ＋ Node 互換 ＋ Web 標準<small>Bun.serve、Bun.file、node:fs など</small></div>
       <div class="ly">Rust 製の本体<small>1.4 から。それ以前は Zig</small></div>
-      <div class="ly">独自のイベントループ<small>OS の epoll / kqueue を直接使う</small></div>
+      <div class="ly">独自のイベントループ<small>Linux は epoll、macOS は kqueue を直接使う（Windows では libuv）</small></div>
       <div class="ly eng">JavaScriptCore<small>Safari と同じエンジン</small></div>
     </div>
     <div class="stack k-cf">
       <div class="name">Workers</div>
       <div class="ly app">あなたのコード</div>
-      <div class="ly api">Web 標準 ＋ バインディング<small>fetch、Request / Response、env.KV など。Node API は互換フラグで一部</small></div>
+      <div class="ly api">Web 標準 ＋ バインディング<small>fetch、Request / Response、env.KV など。Node.js の API は互換性日付 2026-08-04 以降なら標準で有効（それより前は <code>nodejs_compat</code> フラグが必要）</small></div>
       <div class="ly">workerd<small>C++ 製。オープンソース</small></div>
       <div class="ly">isolate ごとのサンドボックス<small>1プロセスに多数のテナント</small></div>
       <div class="ly eng">V8<small>Chrome と同じエンジン</small></div>
@@ -342,7 +342,7 @@ createServer((req, res) =&gt; {
 };</code></pre>
     <p class="muted">ポートを listen しない。リクエストが来たら <code>fetch</code> が呼ばれるだけ。<code>env</code> から KV・R2・D1 などのリソースにアクセスする。</p>
   </div>
-  <p>Bun と Workers は <b>Request → Response</b> という Web 標準の形に揃っている。Hono のようなフレームワークは、この共通の形の上に作られているので、同じコードがどのランタイムでも動く。</p>
+  <p>Bun と Workers は <b>Request → Response</b> という Web 標準の形に揃っている。Hono のようなフレームワークは、この共通の形の上に作られているので、アプリ本体のコードはどのランタイムでも共通にできる（Node.js では <code>@hono/node-server</code> などのアダプターを使う）。</p>
 
   <h2 id="compare">比較表</h2>
   <div class="table-wrap">
@@ -354,7 +354,7 @@ createServer((req, res) =&gt; {
       <tr><td>TypeScript</td><td>型注釈を取り除いて直接実行（enum など一部の構文は不可）</td><td>そのまま実行</td><td>wrangler がビルド時に変換</td></tr>
       <tr><td>パッケージ管理</td><td>npm（pnpm、yarn も）</td><td><code>bun install</code> を内蔵</td><td>npm などで入れて、ビルド時にバンドル</td></tr>
       <tr><td>付属ツール</td><td>テストランナー、ウォッチモード</td><td>バンドラー、テストランナー、SQLite など全部入り</td><td>wrangler（開発・デプロイ CLI）</td></tr>
-      <tr><td>Node 互換性</td><td>本家</td><td>高い（大半の npm パッケージが動く）</td><td><code>nodejs_compat</code> フラグで主要モジュールに対応</td></tr>
+      <tr><td>Node 互換性</td><td>本家</td><td>高い（大半の npm パッケージが動く）</td><td>主要モジュールに対応（互換性日付 2026-08-04 以降は標準で有効。それより前は <code>nodejs_compat</code> フラグが必要）</td></tr>
       <tr><td>ファイルシステム</td><td>あり</td><td>あり</td><td>メモリ上の仮想ファイルシステムだけ（<code>node:fs</code> で読み書きできるが、<code>/tmp</code> に書いた内容はそのリクエストが終わると消える。残すなら R2・KV などを使う）</td></tr>
       <tr><td>制限</td><td>サーバー次第</td><td>サーバー次第</td><td>メモリ 128 MB／リクエストあたり CPU 時間：無料 10 ms、有料は既定 30 秒（最大 5 分）</td></tr>
       <tr><td>どこで動く</td><td>自分で用意したサーバー、コンテナ、Lambda など</td><td>同左</td><td>Cloudflare のエッジ（ローカルでは workerd で再現）</td></tr>
@@ -426,7 +426,7 @@ createServer((req, res) =&gt; {
   </div>
   <div class="card myth">
     <p><span class="ng">✕</span> 「Workers でも npm のパッケージは何でも動く」</p>
-    <p><span class="ok">○</span> ディスクにファイルが残ることを前提にしたものや、子プロセス、ネイティブアドオンに依存するものは動かない。<code>nodejs_compat</code> で動く範囲は広がったが、すべてではない。</p>
+    <p><span class="ok">○</span> ディスクにファイルが残ることを前提にしたものや、子プロセス、ネイティブアドオンに依存するものは動かない。Node 互換（2026-08-04 以降の互換性日付では標準で有効）で動く範囲は広がったが、すべてではない。</p>
   </div>
   <div class="card myth">
     <p><span class="ng">✕</span> 「Node はシングルスレッドだから CPU を1つしか使えない」</p>
@@ -495,7 +495,7 @@ document.querySelectorAll('.tabs').forEach(group => {
       "Bun.serve など、一番速いランタイムの独自 API で書く"
     ],
     "answer": 0,
-    "explain": "Bun と Workers は Request → Response に揃っており、Hono のようなフレームワークはこの共通の形の上で動く。",
+    "explain": "Bun と Workers は Request → Response に揃っており、Hono のようなフレームワークはこの共通の形の上で動く（Node.js ではアダプター経由）。",
     "ref": "#code"
   },
   {

@@ -402,7 +402,7 @@ nc -zv 10.0.1.5 5432         <span class="cm"># そのポートで TCP 接続で
 ss -tlnp                     <span class="cm"># （サーバー側）どのアドレス・ポートで待ち受けているか</span>
 curl -v https://api.example.com/health   <span class="cm"># TLS と HTTP まで通るか</span></code></pre>
   <div class="grid2">
-    <div class="card"><span class="label">Connection refused</span><p>相手のホストまでは届いたが、そのポートで待ち受けているプロセスがない（または 127.0.0.1 でしか待っていない）。</p></div>
+    <div class="card"><span class="label">Connection refused</span><p>たいていは、相手のホストまでは届いたが、そのポートで待ち受けているプロセスがない（または 127.0.0.1 でしか待っていない）。途中のファイアウォールが拒否応答（REJECT）を返している場合も同じ表示になる。</p></div>
     <div class="card"><span class="label">タイムアウト</span><p>返事自体が来ない。ファイアウォール・セキュリティグループで落とされている、ルートがない、相手が落ちている、など。</p></div>
   </div>
 
@@ -503,7 +503,7 @@ calc();
     "q": "DB サーバーに nc -zv で接続すると、すぐに「Connection refused」が返る。まず疑うのは？",
     "choices": ["途中のファイアウォールでパケットが黙って破棄されている", "DNS で名前が解決できていない", "相手には届いているが、そのポートで待ち受けているプロセスがない（または待ち受けアドレスが違う）"],
     "answer": 2,
-    "explain": "refused は相手のホストが「そのポートは誰も聞いていない」と即座に拒否した応答。黙って破棄される場合はタイムアウトになる。",
+    "explain": "refused は多くの場合、相手のホストが「そのポートは誰も聞いていない」と即座に拒否した応答（ファイアウォールが REJECT で拒否しても同じ表示になる）。黙って破棄（DROP）される場合はタイムアウトになる。",
     "ref": "#debug"
   },
   {

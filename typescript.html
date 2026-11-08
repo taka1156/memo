@@ -379,7 +379,7 @@ CI    : tsc --noEmit      ← ここで型を検査</code></pre>
     <h3>ランタイムがそのまま実行</h3>
     <p>Deno・Bun は <code>.ts</code> を直接実行できる。Node.js も最近のバージョンでは<strong>型注釈を取り除いて</strong>そのまま実行できる（type stripping）。</p>
 <pre><code>node app.ts   # 型を削って実行（チェックはしない）</code></pre>
-    <p class="muted">Node の型除去は「消すだけ」なので、<code>enum</code> など JS コードを生成する構文は既定では使えない。<code>erasableSyntaxOnly</code> オプションで事前に検出できる。</p>
+    <p class="muted">Node の型除去は「消すだけ」なので、<code>enum</code> など JS コードを生成する構文は使えない（以前あった <code>--experimental-transform-types</code> フラグは Node 26 で削除された）。<code>erasableSyntaxOnly</code> オプションで事前に検出できる。</p>
   </div>
 
   <h2 id="structural">型チェックの考え方：構造的型付け</h2>
@@ -493,7 +493,7 @@ first(["a"]);       // string | undefined</code></pre>
       <details class="card">
         <summary><strong>型レベルプログラミング</strong><span class="lv">上級</span><span class="goal">型で型を計算する。ライブラリ作者向け</span></summary>
         <div class="body">
-          <div class="chips"><span>Conditional Types</span><span>infer</span><span>Mapped Types</span><span>Template Literal Types</span><span>satisfies</span><span>型の分配</span></div>
+          <div class="chips"><span>Conditional Types</span><span>infer</span><span>Mapped Types</span><span>Template Literal Types</span><span>satisfies</span><span>ユニオン型の分配（Distributive Conditional Types）</span></div>
 <pre><code>type Unwrap&lt;T&gt; = T extends Promise&lt;infer U&gt; ? U : T;
 type A = Unwrap&lt;Promise&lt;string&gt;&gt;; // string</code></pre>
           <p><strong>目安：</strong>必要になってから学べば十分。アプリ開発ではステップ 4 までで大半が足りる。</p>

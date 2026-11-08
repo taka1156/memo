@@ -24,7 +24,7 @@ Node.js
 
 あなたのコード
 
-Node API fs、http、stream、Buffer ＋ fetch など Web 標準
+Node.js のコア API fs、http、stream、Buffer ＋ fetch など Web 標準
 
 C++ のバインディング
 
@@ -40,7 +40,7 @@ Bun API ＋ Node 互換 ＋ Web 標準 Bun.serve、Bun.file、node:fs など
 
 Rust 製の本体 1.4 から。それ以前は Zig
 
-独自のイベントループ OS の epoll / kqueue を直接使う
+独自のイベントループ Linux は epoll、macOS は kqueue を直接使う（Windows では libuv）
 
 JavaScriptCore Safari と同じエンジン
 
@@ -48,7 +48,7 @@ Workers
 
 あなたのコード
 
-Web 標準 ＋ バインディング fetch、Request / Response、env.KV など。Node API は互換フラグで一部
+Web 標準 ＋ バインディング fetch、Request / Response、env.KV など。Node.js の API は互換性日付 2026-08-04 以降なら標準で有効（それより前は `nodejs_compat` フラグが必要）
 
 workerd C++ 製。オープンソース
 
@@ -135,7 +135,7 @@ export default {
 
 ポートを listen しない。リクエストが来たら `fetch` が呼ばれるだけ。 `env` から KV・R2・D1 などのリソースにアクセスする。
 
-Bun と Workers は **Request → Response** という Web 標準の形に揃っている。Hono のようなフレームワークは、この共通の形の上に作られているので、同じコードがどのランタイムでも動く。
+Bun と Workers は **Request → Response** という Web 標準の形に揃っている。Hono のようなフレームワークは、この共通の形の上に作られているので、アプリ本体のコードはどのランタイムでも共通にできる（Node.js では `@hono/node-server` などのアダプターを使う）。
 
 （元のページで操作できます → https://memo.taka1156.site/js-runtimes.html#code）
 
@@ -149,7 +149,7 @@ Bun と Workers は **Request → Response** という Web 標準の形に揃っ
 | TypeScript | 型注釈を取り除いて直接実行（enum など一部の構文は不可） | そのまま実行 | wrangler がビルド時に変換 |
 | パッケージ管理 | npm（pnpm、yarn も） | `bun install` を内蔵 | npm などで入れて、ビルド時にバンドル |
 | 付属ツール | テストランナー、ウォッチモード | バンドラー、テストランナー、SQLite など全部入り | wrangler（開発・デプロイ CLI） |
-| Node 互換性 | 本家 | 高い（大半の npm パッケージが動く） | `nodejs_compat` フラグで主要モジュールに対応 |
+| Node 互換性 | 本家 | 高い（大半の npm パッケージが動く） | 主要モジュールに対応（互換性日付 2026-08-04 以降は標準で有効。それより前は `nodejs_compat` フラグが必要） |
 | ファイルシステム | あり | あり | メモリ上の仮想ファイルシステムだけ（ `node:fs` で読み書きできるが、 `/tmp` に書いた内容はそのリクエストが終わると消える。残すなら R2・KV などを使う） |
 | 制限 | サーバー次第 | サーバー次第 | メモリ 128 MB／リクエストあたり CPU 時間：無料 10 ms、有料は既定 30 秒（最大 5 分） |
 | どこで動く | 自分で用意したサーバー、コンテナ、Lambda など | 同左 | Cloudflare のエッジ（ローカルでは workerd で再現） |
@@ -214,7 +214,7 @@ Workers
 
 ✕ 「Workers でも npm のパッケージは何でも動く」
 
-○ ディスクにファイルが残ることを前提にしたものや、子プロセス、ネイティブアドオンに依存するものは動かない。 `nodejs_compat` で動く範囲は広がったが、すべてではない。
+○ ディスクにファイルが残ることを前提にしたものや、子プロセス、ネイティブアドオンに依存するものは動かない。Node 互換（2026-08-04 以降の互換性日付では標準で有効）で動く範囲は広がったが、すべてではない。
 
 ✕ 「Node はシングルスレッドだから CPU を1つしか使えない」
 

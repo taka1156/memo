@@ -114,12 +114,10 @@ Vue 3.6 では、このリアクティブの仕組みが alien-signals という
 Vue の仮想 DOM は「素朴に全部比べる」わけではない。テンプレートをコンパイルするときに、動的な部分に **パッチフラグ** を付け、静的な部分は使い回す。
 
 ```
-// <div><h1>Todo</h1><p>{{ count }}</p></div> のコンパイル結果（簡略）
-const _hoisted = createVNode("h1", null, "Todo")      // 静的：一度だけ作って使い回す
-
-function render(ctx) {
+// <div><h1>Todo</h1><p>{{ count }}</p></div> のコンパイル結果（Vue 3.5、簡略）
+function render(ctx, _cache) {
   return (openBlock(), createElementBlock("div", null, [
-    _hoisted,
+    _cache[0] || (_cache[0] = createElementVNode("h1", null, "Todo", -1 /* CACHED */)), // 静的：初回だけ作ってキャッシュ
     createElementVNode("p", null, toDisplayString(ctx.count), 1 /* TEXT */)
   ]))
 }
@@ -137,7 +135,7 @@ function render(ctx) {
 </script>
 ```
 
-Vue 3.6 で導入。2026年9月にリリース候補 (RC) の機能凍結段階に入った。従来のコンポーネントと混在でき、少しずつ移行できるのが特徴。 `<script setup>` 専用で、Options API や `<Suspense>` には対応しない。
+Vue 3.6 で導入。2026年7月にリリース候補 (RC) 段階に入り、Vapor Mode に予定していた機能がそろった。従来のコンポーネントと混在でき、少しずつ移行できるのが特徴。 `<script setup>` （または template だけの SFC）で使い、Options API や `v-memo` には対応しない。
 
 ## Svelte の内部
 
@@ -171,7 +169,7 @@ export let title            // export let で props
 ```
 // Counter.svelte → JS（Svelte 5、簡略化）
 import * as $ from 'svelte/internal/client'
-const root = $.template(`<button> </button>`)
+const root = $.from_html(`<button> </button>`)
 
 export default function Counter($$anchor) {
   let count = $.state(0)                              // シグナルに変換
@@ -179,11 +177,12 @@ export default function Counter($$anchor) {
 
   const button = root()
   const text = button.firstChild
-  button.onclick = () => $.set(count, $.get(count) + 1)
+  $.delegated('click', button, () => $.set(count, $.get(count) + 1))  // クリックは document に委譲
   $.template_effect(() =>                             // このテキストだけを更新する effect
     $.set_text(text, `${$.get(count)}（×2 = ${$.get(doubled)}）`))
   $.append($$anchor, button)
 }
+$.delegate(['click'])
 ```
 
 普通の変数に見えた `count` が、コンパイル後はシグナルの読み書き（ `$.get` / `$.set` ）になっている。構造は [Solid のコンパイル結果](https://memo.taka1156.site/md/react-vs-solid.md) とほぼ同じ。

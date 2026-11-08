@@ -367,7 +367,7 @@ LIMIT 500
 SQL は毎回 BigQuery で実行されるので、 スキャン量 の話がそのまま効く。Looker の下に置くテーブルこそパーティション・クラスタ・集計済み mart を整える。
 
 - **対称集計 (symmetric aggregates)** : `primary_key` と `relationship` を正しく書くと、JOIN で行が増えても SUM・COUNT が二重計上されないよう SQL を工夫してくれる（ ファンアウト 対策）
-- **PDT（永続派生テーブル）** : 重い集計を BigQuery 上のテーブルとして作っておき、datagroup のタイミングで作り直す
+- **PDT（永続的な派生テーブル）** : 重い集計を BigQuery 上のテーブルとして作っておき、datagroup（データグループ）のタイミングで作り直す
 - **集計認識 (aggregate awareness)** : 粗い粒度で足りる質問は自動で小さい集計テーブルを読み、スキャン量を減らす
 - **キャッシュと datagroup** : 「データが更新されるまでは同じ結果を使う」を定義できる
 - **行レベルの権限** : `access_filter` などで「自分の地域の数字だけ見える」を実現

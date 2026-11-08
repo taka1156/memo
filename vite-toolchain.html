@@ -234,7 +234,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
         </div>
         <div class="layer l-lcss">
           <span class="name">Lightning CSS</span><span class="role">CSS 処理系</span>
-          <div class="does"><span>CSS 解析</span><span>圧縮 (minify)</span><span>ベンダープレフィックス</span><span>ネスト等の下位変換</span><span>CSS Modules</span></div>
+          <div class="does"><span>CSS 解析</span><span>圧縮 (minify)</span><span>ベンダープレフィックス</span><span>ネスト等を古いブラウザー向けに変換（トランスパイル）</span><span>CSS Modules</span></div>
         </div>
       </div>
       <div class="arrow-down">▼ Rolldown が言語処理を委託</div>
@@ -521,7 +521,7 @@ export default defineConfig({
     <div class="card"><strong><span class="x">✕</span>Oxc はリンター（Oxlint）のこと</strong>Oxlint は Oxc の一部。本体はパーサー・変換器・圧縮器などの部品集で、Rolldown の言語処理を支えている。</div>
     <div class="card"><strong><span class="x">✕</span>Lightning CSS が入ったので PostCSS は不要</strong>Vite 8 で Lightning CSS が担当するのは主に CSS 圧縮。<code>css.transformer</code> の既定は PostCSS のままで、Tailwind などの PostCSS プラグインもそのまま動く。</div>
     <div class="card"><strong><span class="x">✕</span>Oxlint・Oxfmt・Vitest を使うには Vite+ が必須</strong>どれも単体で使える。Vite+ は「まとめて入れて、設定を 1 枚にする」ための選択肢。Oxlint／Oxfmt は Vite を使っていないプロジェクトでも動く。</div>
-    <div class="card"><strong><span class="x">✕</span>Oxlint が入れば ESLint のプラグインは全部捨てる</strong>ネイティブルールに加えて ESLint 互換の JS プラグイン機構がある。ただし Vue／Svelte テンプレートのような独自パーサーが必要なプラグインは対応が後回しになっていたので、移行前に対応状況を確認する。</div>
+    <div class="card"><strong><span class="x">✕</span>Oxlint が入れば ESLint のプラグインは全部捨てる</strong>ネイティブルールに加えて ESLint 互換の JS プラグイン機構（現時点では alpha）がある。ただし Vue／Svelte テンプレートのような独自パーサーが必要なプラグインはまだ対応していないので、移行前に対応状況を確認する。</div>
     <div class="card"><strong><span class="x">✕</span>Rollup プラグインはもう使えない</strong>Rolldown は Rollup 互換のプラグイン API を持つので、多くの Vite／Rollup プラグインはそのまま動く。</div>
   </div>
 

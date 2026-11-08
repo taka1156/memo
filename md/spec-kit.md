@@ -15,7 +15,7 @@ GitHub 製の仕様駆動開発 (Spec-Driven Development) ツールキットを�
 **ざっくり言うと**
 
 - 「いきなりコードを書かせる」代わりに、 **原則 → 仕様 → 計画 → タスク → 実装** の順に Markdown を積み上げ、AI エージェントにそれを読ませて作らせる仕組み。
-- `specify` CLI は **土台づくり担当** （テンプレート・スクリプト・スラッシュコマンドを配置）。実際の各工程は AI エージェント上の `/speckit.*` コマンドで進める。
+- `specify` CLI は **土台づくり担当** （テンプレート・スクリプト・スラッシュコマンドを配置）。実際の各工程は AI エージェント上の `/speckit.*` コマンドで進める（このページは公式リファレンスにならって `/speckit.specify` 形式で書く。Claude Code や GitHub Copilot では `/speckit-specify` のようにハイフン区切りで呼び出す）。
 - 人間は **「何を・なぜ」を決めてレビューする係** 、AI は **文書化と実装を担う係** 。各工程の成果物がそのまま次工程の入力になる。
 
 ## 全体の流れ
@@ -50,7 +50,7 @@ specify init CLI
 
 作りたいものを自然言語で伝え、ユーザーストーリー・要件・受け入れ条件にする。技術の話はまだしない。
 
-→ 機能ブランチ ＋ `specs/001-xxx/spec.md`
+→ `specs/001-xxx/spec.md` （git 拡張を有効にしていれば機能ブランチも作る）
 
 3
 
@@ -108,13 +108,21 @@ tasks.md の順にコードを書き、完了したタスクにチェックを�
 
 9
 
-/speckit.taskstoissues OPT
+/speckit.converge
 
-タスクを GitHub Issues に起こしてチームで追跡する。
+実装を spec / plan / tasks と突き合わせ、足りない作業を tasks.md に追記する。「Converged」になるまで implement と交互に繰り返す。
+
+→ `tasks.md` に追記
+
+10
+
+/speckit.github.taskstoissues OPT
+
+（github 拡張・ `specify extension add github` で追加）タスクを GitHub Issues に起こしてチームで追跡する。
 
 → GitHub Issues
 
-↻ 次の機能では **2 から** 繰り返す（憲法はプロジェクト共通）。最短ルートは `specify → plan → tasks → implement` 、本番向けは clarify / checklist / analyze も挟むのがおすすめ。
+↻ 次の機能では **2 から** 繰り返す（憲法はプロジェクト共通）。最短ルートは `specify → plan → tasks → implement → converge` 、本番向けは clarify / checklist / analyze も挟むのがおすすめ。
 
 ## 登場人物と役割
 
@@ -134,7 +142,7 @@ AI エージェント 書く・作る
 specify CLI ＋ スクリプト 土台・段取り
 
 - `specify init` で一式を配置
-- 機能ブランチと連番フォルダを作るスクリプト
+- テンプレートの解決や前提チェックを行うスクリプト（ブランチ作成は任意の git 拡張）
 - 環境チェック ( `specify check` )
 
 成果物（Markdown） 契約書・引き継ぎ書
@@ -169,7 +177,7 @@ implement
 
 AI がやること
 
-原則を条文化し、関連テンプレートとの整合も確認する。
+原則を条文化し、バージョンを上げ、変更点をまとめた Sync Impact Report（レビュー用の一時メモ）を先頭に付ける。他のテンプレートは書き換えない。
 
 入力 → 出力
 
@@ -190,7 +198,7 @@ AI がやること
 
 AI がやること
 
-機能ブランチと `specs/NNN-name/` を作り、ユーザーストーリー・機能要件・受け入れ基準を書く。不明点は `[NEEDS CLARIFICATION]` で印を付ける。
+`specs/NNN-name/` を作り（git 拡張があれば機能ブランチも作り）、ユーザーストーリー・機能要件・受け入れ基準を書く。不明点は `[NEEDS CLARIFICATION]` で印を付ける。
 
 入力 → 出力
 
@@ -295,9 +303,9 @@ my-project/
 ├── .specify/
 │   ├── memory/
 │   │   └── constitution.md   # 憲法
-│   ├── scripts/              # ブランチ作成など
+│   ├── scripts/              # 前提チェック・テンプレート解決など
 │   └── templates/            # spec/plan/tasks の雛形
-├── .claude/commands/         # エージェント別に配置
+├── .claude/skills/           # エージェント別に配置
 └── specs/
     └── 001-photo-albums/
         ├── spec.md           # 何を・なぜ
@@ -319,20 +327,20 @@ my-project/
 | `data-model.md` | エンティティと関係 | plan |
 | `contracts/` | API などのインターフェース定義 | plan |
 | `quickstart.md` | 動作確認シナリオ | plan |
-| `tasks.md` | 順序付きタスク | tasks |
+| `tasks.md` | 順序付きタスク | tasks / converge |
 
-エージェント用コマンドの置き場所は選んだエージェントで変わります（Claude Code なら `.claude/commands/` など）。
+エージェント用コマンドの置き場所は選んだエージェントで変わります（Claude Code なら `.claude/skills/` 、GitHub Copilot なら `.github/` 配下など）。
 
 ## コマンド例
 
 ```
-# 前提: Python 3.11+, Git, uv, AI エージェントのどれか
+# 前提: Python 3.11+, uv, 対応する AI エージェント（Git は git 拡張を使うときだけ必要）
 
 # 新規プロジェクトに導入（エージェントを指定）
-uvx --from git+https://github.com/github/spec-kit.git specify init my-project --ai claude
+uvx --from git+https://github.com/github/spec-kit.git specify init my-project --integration claude
 
 # 既存ディレクトリに導入
-uvx --from git+https://github.com/github/spec-kit.git specify init --here --ai claude
+uvx --from git+https://github.com/github/spec-kit.git specify init --here --integration claude
 
 # 必要なツールが揃っているか確認
 specify check
@@ -356,7 +364,7 @@ spec は「何を・なぜ」だけ。技術の話は plan で初めて出す。
 
 全コマンドを毎回使わないといけない
 
-必須級は specify → plan → tasks → implement。clarify / checklist / analyze は規模や重要度に応じて追加する。
+必須級は specify → plan → tasks → implement → converge。clarify / checklist / analyze は規模や重要度に応じて追加する。
 
 AI に任せればレビュー不要
 

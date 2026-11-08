@@ -29,7 +29,7 @@
 | Cache API | 同上（共有の枠） | 非同期 | Request → Response | × | ○（Service Worker の主役） |
 | OPFS | 同上（共有の枠） | 非同期（Worker 内は同期ハンドルも） | ファイル | × | ○ |
 
-IndexedDB・Cache API・OPFS は同じ「オリジンの枠」を分け合う。上限はブラウザとディスクの空きで変わるので、数字を決め打ちせず `navigator.storage.estimate()` で確かめる（下のデモ参照）。localStorage の値は UTF-16 で数えられるので、日本語は 1 文字 2 バイト程度になる。
+IndexedDB・Cache API・OPFS は同じ「オリジンの枠」を分け合う。上限はブラウザとディスクの空きで変わるので、数字を決め打ちせず `navigator.storage.estimate()` で確かめる（下のデモ参照）。localStorage の上限は、ブラウザによってバイト数か文字数（UTF-16 のコード単位）で数えられる。UTF-16 では英数字も日本語も 1 文字 2 バイト扱いで、絵文字などは 2 単位ぶん使う。上限に近いデータを入れるなら、書き込みが失敗する前提で扱う。
 
 ## 実際に書いて確かめる
 

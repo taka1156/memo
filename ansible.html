@@ -438,7 +438,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <h2 id="concepts">各要素の考え方</h2>
   <div class="card">
     <h3>Control Node <span class="tag">実行する側</span></h3>
-    <p>Ansible をインストールしてコマンドを打つマシン。管理対象側には Ansible 不要で、SSH と Python があれば動く（エージェントレス）。</p>
+    <p>Ansible をインストールしてコマンドを打つマシン。管理対象側には Ansible 不要で、Linux なら SSH と Python があれば動く（エージェントレス）。Windows は WinRM と PowerShell を使い、ネットワーク機器では Python が要らないモジュールもある。</p>
   </div>
   <div class="card" style="margin-top:10px">
     <h3>Inventory <span class="tag">誰に</span></h3>
@@ -450,7 +450,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <div class="card" style="margin-top:10px">
     <h3>Tasks と Modules <span class="tag">どうやって</span></h3>
-    <p>Task は「nginx をインストールする」という 1 つの操作、Module はそれを実行する部品。モジュールは「あるべき状態」を宣言する作りなので、何度実行しても結果が同じになる（冪等性）。</p>
+    <p>Task は「nginx をインストールする」という 1 つの操作、Module はそれを実行する部品。ほとんどのモジュールは「あるべき状態」を宣言する作りなので、何度実行しても結果が同じになる（冪等性）。ただし <code>command</code> / <code>shell</code> は任意のコマンドを実行するだけなので、<code>creates</code> などで条件を付けないと冪等にならない。</p>
   </div>
   <div class="card" style="margin-top:10px">
     <h3>Roles <span class="tag">まとめて使い回す</span></h3>
@@ -467,7 +467,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div><b>設定を読む</b><span class="d"><code>ansible.cfg</code> を探して読み込む。</span></div>
     <div><b>Inventory と変数を読む</b><span class="d">ホスト一覧を作り、group_vars / host_vars を紐付ける。</span></div>
     <div><b>Playbook を解析する</b><span class="d">Play ごとに対象ホストを決め、Roles を展開して Task 一覧を作る。</span></div>
-    <div><b>事実情報を集める</b><span class="d">gather_facts で OS や IP などを取得する。</span></div>
+    <div><b>ファクト（facts）を集める</b><span class="d">gather_facts で OS や IP などのホスト情報を取得する。</span></div>
     <div><b>Task を順に実行する</b><span class="d">Connection Plugin で接続し、モジュールを送って実行する。</span></div>
     <div><b>Handler を実行する</b><span class="d">changed になった Task から notify された Handler を最後にまとめて実行。</span></div>
     <div><b>結果を表示する</b><span class="d">PLAY RECAP でホストごとの集計が出る。</span></div>
@@ -543,7 +543,7 @@ document.querySelectorAll('.tabs').forEach(group => {
       "すでにあるべき状態なら、何も変更されない"
     ],
     "answer": 2,
-    "explain": "モジュールは状態を宣言する作りなので、何度実行しても結果が同じになる（冪等性）。",
+    "explain": "ほとんどのモジュールは状態を宣言する作りなので、すでにあるべき状態なら何も変更しない（冪等性）。",
     "ref": "#concepts"
   },
   {
@@ -558,7 +558,7 @@ document.querySelectorAll('.tabs').forEach(group => {
     "ref": "#var-priority"
   },
   {
-    "q": "Ansible で管理するサーバー側に、最低限必要なものは？",
+    "q": "Ansible で管理する Linux サーバー側に、最低限必要なものは？",
     "choices": [
       "SSH で接続できることと Python",
       "Ansible 本体と常駐エージェント",

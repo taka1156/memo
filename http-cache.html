@@ -326,7 +326,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <tr><td><code>stale-if-error=N</code></td><td>オリジンがエラーのとき、古くなってから N 秒間は古いものを返してよい。</td></tr>
     </table>
   </div>
-  <p class="note">古い <code>Expires</code>（日時指定）や <code>Pragma: no-cache</code> もあるが、<code>Cache-Control: max-age</code> があればそちらが優先。新規に書くなら Cache-Control だけでよい。</p>
+  <p class="note">古い <code>Expires</code>（日時指定）もあるが、<code>Cache-Control: max-age</code> があればそちらが優先される。<code>Pragma: no-cache</code> は HTTP/1.0 時代のリクエスト用ヘッダーで、レスポンスに付けたときの動作は決まっていない（非推奨）。新しく書くなら Cache-Control だけでよい。</p>
 
   <h2 id="recipes">用途別のおすすめ</h2>
   <div class="tabs" role="tablist">

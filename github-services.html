@@ -295,7 +295,7 @@ const SERVICES = [
     "name": "GitHub Packages",
     "category": "Registry",
     "tagline": "コードとパッケージを同じ場所で管理",
-    "description": "npm・コンテナ（ghcr.io）・Maven/Gradle・NuGet・RubyGemsに対応するパッケージレジストリ。リポジトリと同じ権限で公開範囲を管理できます。",
+    "description": "npm・コンテナ（ghcr.io）・Maven/Gradle・NuGet・RubyGemsに対応するパッケージレジストリ。Maven/Gradleはリポジトリの権限をそのまま使います。コンテナやnpmなどは公開範囲とアクセス権をリポジトリとは別に設定でき、リポジトリに紐付ければ権限を引き継ぐこともできます。",
     "features": [
       "Container registry（ghcr.io）",
       "npm/Maven/Gradle/NuGet/RubyGems対応",
@@ -318,12 +318,12 @@ const SERVICES = [
     "name": "GitHub Copilot",
     "category": "AI",
     "tagline": "補完からエージェントまで、AIが開発に並走",
-    "description": "IDEやGitHub上で使えるAIコーディングアシスタント。OpenAI・Anthropic・Googleなど複数のモデルから選べます。補完やチャットに加え、IDE内で編集・実行まで進めるエージェントモードや、Issueを任せるとブランチで作業してPRを作るコーディングエージェントも提供しています。無料プランもあります。",
+    "description": "IDEやGitHub上で使えるAIコーディングアシスタント。OpenAI・Anthropic・Googleなど複数のモデルから選べます。補完やチャットに加え、IDE内で編集・実行まで進めるエージェントモードや、Issueやタスクを任せるとクラウド上のブランチで作業し、必要に応じてPRまで作るクラウドエージェント（旧称：コーディングエージェント）も提供しています。無料プランもあります。",
     "features": [
       "コード補完",
       "チャット（複数モデルから選択）",
       "エージェントモード（IDE内）",
-      "コーディングエージェント（Issue→PR）",
+      "クラウドエージェント（旧コーディングエージェント、Issue→ブランチ/PR）",
       "PRのコードレビュー"
     ],
     "useCases": [
@@ -602,7 +602,7 @@ document.getElementById('detail').addEventListener('click', e => {
       "Codespaces"
     ],
     "answer": 0,
-    "explain": "Packages はリポジトリと同じ権限で公開範囲を管理でき、Actions から GITHUB_TOKEN で認証できる。",
+    "explain": "Packages は npm パッケージやコンテナイメージを置くレジストリで、ほかのリポジトリから依存として取り込める。公開範囲はリポジトリから引き継ぐことも、別に設定することもでき、Actions からは GITHUB_TOKEN で認証できる。",
     "ref": "#compare"
   },
   {

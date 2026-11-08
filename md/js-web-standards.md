@@ -150,7 +150,7 @@ ECMAScript には「いつ非同期処理を実行するか」の仕組みは書
 
 新しい機能は「提案（proposal）」として出され、ステージを 1 つずつ進みます。ステージを押すと条件が出ます。
 
-Strawperson・Candidate・Finished などの英語の呼び名は旧版のもので、今の公式プロセス文書は番号と目的で説明しています。
+Candidate・Finished などの英語の呼び名は旧版のもので、今の公式プロセス文書は主に番号と目的で説明しています（Stage 0 だけは今も strawperson と呼ばれます）。
 
 ### 年 1 回の版
 
@@ -210,7 +210,7 @@ W3C のコミュニティグループは正式な標準を発行できないた�
 
 準拠するランタイムはこれらをすべて実装する決まりです。出どころの団体ごとに分けると、ほとんどが WHATWG と W3C の API だとわかります。
 
-WHATWG Fetch・URL・Streams・Encoding・DOM・HTML・Console
+WHATWG Fetch・URL・URL Pattern・Streams・Encoding・Compression・XHR（FormData）・DOM・HTML・Console
 
 `fetch` `Request` `Response` `Headers` `FormData` `URL` `URLSearchParams` `URLPattern` `ReadableStream` `TransformStream` `TextEncoder` `TextDecoder` `CompressionStream` `AbortController` `EventTarget` `setTimeout` `queueMicrotask` `structuredClone` `atob` `console`
 
@@ -236,7 +236,7 @@ TC55 はこうした違いを Fetch の仕様側（WHATWG）に反映しても�
 
 複数のランタイムで動かしたいライブラリは、 **Minimum Common API の範囲で書く** のが目安になります。Hono のように `Request` を受けて `Response` を返す形のフレームワークが Node.js でも Workers でも動くのは、この共通部分の上に乗っているからです。
 
-TC55 に参加しているのは Cloudflare・Node.js・Bloomberg・Igalia などです。Bun は正式なメンバーではありません。Bun にも `fetch` や `Response` はありますが、ECMA-429 に沿うことを約束しているわけではないので、Bun でも動くかは個別に確かめます。
+TC55 には Deno・Igalia（共同議長）、Cloudflare、Bloomberg などが関わっています。Bun は正式なメンバーではありません。Bun にも `fetch` や `Response` はありますが、ECMA-429 に沿うことを約束しているわけではないので、Bun でも動くかは個別に確かめます。
 
 ## よくある誤解
 

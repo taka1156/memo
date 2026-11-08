@@ -58,7 +58,7 @@
 
 **merged** コンテナから見えるファイルシステム（ルート /） `…/overlay2/<id>/merged`
 
-パスは overlay2 ストレージドライバーの例。containerd の image store を使う設定では置き場所が変わるが、重ね方の考え方は同じ。
+パスは overlay2 ストレージドライバーの例。Docker Engine 29 以降を新しく入れた環境では containerd image store（overlayfs スナップショッター）が既定で、データは containerd 側のディレクトリに置かれる。重ね方の考え方は同じ。
 
 ### ファイルを書き換えたときの動き
 
@@ -71,6 +71,7 @@
 # 実際のマウントを確認（overlay2 の場合）
 $ docker inspect <container> --format '{{json .GraphDriver.Data}}'
 # → LowerDir / UpperDir / MergedDir / WorkDir が見える
+# containerd image store では GraphDriver が空。方式は docker info -f '{{ .DriverStatus }}' で確かめ、mount | grep overlay などでマウントを見る
 ```
 
 ## 名前空間（namespace）— 見える範囲を分ける
@@ -127,9 +128,9 @@ $ docker run -it ubuntu:22.04 bash
 
 1. **CLI → dockerd Docker ** Docker CLI が Unix ソケット経由で dockerd（デーモン）に API リクエストを送る。
 2. **イメージの確認・取得 Docker ** ローカルにイメージがなければレジストリ（Docker Hub など）からレイヤーを pull して展開する。
-3. **containerd → shim → runc に委譲 containerd ** dockerd が containerd に指示し、containerd はコンテナごとの shim を立てて OCI ランタイムの **runc** を呼ぶ。
-4. **名前空間を作る カーネル ** runc が `clone()` / `unshare()` で PID・NET・MNT・UTS・IPC などの名前空間を作り、プロセスをその中に置く。
-5. **OverlayFS をマウント カーネル ** lowerdir（イメージ層）と upperdir（書き込み層）を merged に重ね、コンテナのルートファイルシステムにする。
+3. **OverlayFS をマウント containerd / dockerd ** runc を呼ぶ前に、lowerdir（イメージ層）と upperdir（書き込み層）を merged に重ねてマウントし、コンテナのルートファイルシステムを用意しておく。
+4. **containerd → shim → runc に委譲 containerd ** dockerd が containerd に指示し、containerd はコンテナごとの shim を立てて OCI ランタイムの **runc** を呼ぶ。
+5. **名前空間を作る カーネル ** runc が `clone()` / `unshare()` で PID・NET・MNT・UTS・IPC などの名前空間を作り、プロセスをその中に置く。
 6. **cgroups を設定 カーネル ** `/sys/fs/cgroup/` にコンテナ用のグループを作り、CPU・メモリなどの上限を書き込む。
 7. **pivot_root → PID 1 を起動 runc ** `pivot_root()` で merged をルートに切り替え、CMD / ENTRYPOINT を exec。ここでは bash がコンテナ内の PID 1 になる。runc は起動後に抜け、以降は shim がプロセスを見守る。
 

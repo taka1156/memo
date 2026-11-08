@@ -306,7 +306,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="seg-sys" data-k="sys" style="flex-basis:12%">システム</div>
       <div class="seg-md" data-k="md" style="flex-basis:10%">CLAUDE.md</div>
       <div class="seg-desc" data-k="desc" style="flex-basis:5%">説明</div>
-      <div class="seg-tool" data-k="tool" style="flex-basis:14%">MCP ツール定義</div>
+      <div class="seg-tool" data-k="tool" style="flex-basis:5%">MCP ツール名</div>
       <div class="seg-body" data-k="body" style="flex-basis:14%">SKILL.md 本文</div>
       <div class="seg-file" data-k="file" style="flex-basis:10%">同梱ファイル</div>
       <div class="seg-chat" data-k="chat" style="flex-basis:35%">会話・作業</div>
@@ -315,7 +315,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <span><i class="seg-sys"></i>システムプロンプト</span>
       <span><i class="seg-md"></i>指示ファイル（常駐）</span>
       <span><i class="seg-desc"></i>Skill の name / description（常駐・小さい）</span>
-      <span><i class="seg-tool"></i>MCP のツール定義（常駐）</span>
+      <span><i class="seg-tool"></i>MCP のツール名（常駐・小さい）</span>
       <span><i class="seg-body"></i>Skill 本文・同梱ファイル（必要時のみ）</span>
       <span><i class="seg-chat" style="border:1px solid var(--line)"></i>会話・作業に使える残り</span>
     </div>
@@ -326,7 +326,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </div>
     <p class="ctx-note" id="note"></p>
   </div>
-  <p class="muted">CLAUDE.md と MCP のツール定義は<b>毎回</b>場所を取る。CLAUDE.md を長くしたり MCP サーバーを入れすぎたりすると、肝心の作業に使える領域が減り、指示も埋もれる。</p>
+  <p class="muted">CLAUDE.md は<b>毎回</b>全文が場所を取る。MCP は初期状態ではツール名だけが常駐し、詳しい定義は使うときに読み込まれる（ツール検索）。それでもサーバーを入れすぎると一覧が増え、CLAUDE.md を長くすると肝心の作業に使える領域が減って指示も埋もれる。</p>
 
   <h2 id="claude-md">CLAUDE.md</h2>
   <div class="grid2">
@@ -362,7 +362,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <h2 id="agents-md">AGENTS.md</h2>
   <div class="card">
     <p>特定のツールに依存しない、<b>エージェント向け README</b> の共通フォーマット。中身はただの Markdown で、決まった項目はない。OpenAI の Codex から広まり、今は Linux Foundation 傘下の Agentic AI Foundation が管理している。Cursor、GitHub Copilot など多くのツールが読む。</p>
-    <p><b>Claude Code の扱い</b>：バージョン 2.1.277（2026年9月）から、フォルダに <b>CLAUDE.md がないときに限り AGENTS.md を読む</b>ようになった。どちらを読むかは <code>/config</code> で変えられる。</p>
+    <p><b>Claude Code の扱い</b>：バージョン 2.1.277（2026年9月）から、作業フォルダとその上に <b>CLAUDE.md（CLAUDE.local.md を含む）がないときに限り AGENTS.md を読む</b>ようになった。どちらを読むか（両方読むなど）は <code>/config</code> の「Project instructions」で変えられる。</p>
   </div>
   <h3>両方使うときの3パターン</h3>
   <div class="tabs" role="tablist">
@@ -372,7 +372,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <div class="panel card" id="a1">
     <p>CLAUDE.md を置かず、AGENTS.md に一本化する。Claude Code はフォールバックで読む。</p>
-    <p class="muted">一番シンプル。ただし、フォールバックは機能フラグ経由で有効になるため、Bedrock / Vertex 経由やテレメトリ無効の環境では効かないことがある。</p>
+    <p class="muted">一番シンプル。ただし AGENTS.md を直接読むのは v2.1.277 以降で、v2.1.281 より前は Bedrock 経由やテレメトリ無効の環境では読まれなかった。組み込みの agents-md プラグインを無効にしたときや、アップグレード直後の最初のセッションでも読まれないことがある。</p>
   </div>
   <div class="panel card" id="a2" hidden>
     <pre><code># CLAUDE.md
@@ -437,7 +437,7 @@ description: MEMO リポジトリ用の解説ページを新しく作るとき�
 
   <h3>実例：この MEMO</h3>
   <div class="card">
-    <p>このサイト自体がスキルで運用されている。リポジトリの <code>.claude/skills/</code> に <b>memo-style</b>（デザイン規約とテンプレート）、<b>memo-publish</b>（登録手順）、<b>memo-from-chat</b>（会話をページ化）の3つがあり、claude.ai 側の入口スキルが毎回リポジトリから最新の規約を取りに行く。規約を1か所で管理し、どこから頼んでも同じ見た目になる。</p>
+    <p>このサイト自体がスキルで運用されている。リポジトリの <code>.claude/skills/</code> に <b>memo-style</b>（デザイン規約とテンプレート）、<b>memo-publish</b>（登録手順）、<b>memo-from-chat</b>（会話をページ化）などのスキルがあり（ファクトチェックや既存メモの参照・修正も別スキル）、claude.ai 側の入口スキルが毎回リポジトリから最新の規約を取りに行く。規約を1か所で管理し、どこから頼んでも同じ見た目になる。</p>
   </div>
 
   <h2 id="which">どれを使うか</h2>
@@ -496,7 +496,7 @@ document.querySelectorAll('.tabs').forEach(group => {
   });
 });
 const SCENES = [
-  { on: ['sys', 'md', 'desc', 'tool', 'chat'], note: '会話の開始時：システムプロンプト、CLAUDE.md、全スキルの説明文、MCP のツール定義が読み込まれる。Skill の本文はまだ載っていない。' },
+  { on: ['sys', 'md', 'desc', 'tool', 'chat'], note: '会話の開始時：システムプロンプト、CLAUDE.md、全スキルの説明文、MCP のツール名が読み込まれる（ツールの詳しい定義は使うときに読み込まれる）。Skill の本文はまだ載っていない。' },
   { on: ['sys', 'md', 'desc', 'tool', 'body', 'chat'], note: '「図解ページを作って」と頼まれた：description が一致したスキルの SKILL.md 本文だけが追加で読み込まれる。ほかのスキルの本文は載らない。' },
   { on: ['sys', 'md', 'desc', 'tool', 'body', 'file', 'chat'], note: '本文に「template.html をベースにする」とあった：参照された同梱ファイルだけを読む。スクリプトは実行するだけなら中身を読まずに済む。' }
 ];
@@ -538,12 +538,12 @@ scene(0);
   {
     "q": "CLAUDE.md が長くなり、MCP サーバーもたくさん入れた。起きやすい問題は？",
     "choices": [
-      "MCP のツール定義は使うときしか読まれないので影響はない",
+      "MCP は何もコンテキストに常駐しないし、CLAUDE.md は長いほど網羅的になるので問題はない",
       "作業に使えるコンテキストが減り、大事な指示が埋もれる",
       "長いほど指示がよく守られるので問題はない"
     ],
     "answer": 1,
-    "explain": "CLAUDE.md と MCP のツール定義はどちらも常にコンテキストに載る。常に載るものほど短く保つ。",
+    "explain": "CLAUDE.md は毎回全文がコンテキストに載る。MCP も初期状態でツール名は常駐するので、入れすぎれば一覧が増える。常に載るものほど短く保つ。",
     "ref": "#context"
   },
   {

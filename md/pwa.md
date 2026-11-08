@@ -196,7 +196,7 @@ self.addEventListener('fetch', e => {
 
 ### 更新
 
-- 推奨 `sw.js` 自体を HTTP キャッシュさせていない 例: `Cache-Control: no-cache`
+- 推奨 `sw.js` と `importScripts` で読むファイルに `Cache-Control: no-cache` （または `max-age=0` ）を付けている 今のブラウザは既定で sw.js 本体の更新確認に HTTP キャッシュを使わないが、importScripts で読むファイルには HTTP キャッシュが効く。古いブラウザ向けにも sw.js に付けておく
 - 推奨 新しい版を検知したら「更新があります」と知らせ、 `skipWaiting()` で切り替えられる
 
 （元のページで操作できます → https://memo.taka1156.site/pwa.html#checklist）
@@ -215,7 +215,7 @@ self.addEventListener('fetch', e => {
 
 - 推奨 DevTools の Application タブで Manifest・SW・Cache を確認した
 - 推奨 Network タブを Offline にして動作を確認した
-- 推奨 Lighthouse で問題点を確認した
+- 推奨 DevTools の Application タブ → Manifest で、インストールできない理由（エラー・警告）がないか確認した Lighthouse の PWA 監査は v12 で廃止
 
 （元のページで操作できます → https://memo.taka1156.site/pwa.html#checklist）
 

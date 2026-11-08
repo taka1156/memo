@@ -54,7 +54,7 @@
 - [Redis と Valkey の仕組み](https://memo.taka1156.site/md/redis-valkey.md): Redis と Valkey の速さの理由、永続化・複製・クラスター、両者の違いを図解。（データベース, インフラ / 2026-11-03）
 - [リアルタイム通信](https://memo.taka1156.site/md/realtime-comm.md): ポーリング・ロングポーリング・SSE・WebSocket・WebTransport・WebRTC を、通信の向き・再接続・スケールのしかたで比較し、場面ごとの選び方と落とし穴を図解。（ネットワーク, フロントエンド, インフラ / 2026-11-03）
 - [PWA の仕組みとチェックリスト](https://memo.taka1156.site/md/pwa.md): HTTPS・Manifest・Service Worker の役割、キャッシュ戦略、インストール条件と実装項目を図解。（フロントエンド / 2026-11-03）
-- [パスキー（WebAuthn）](https://memo.taka1156.site/md/passkeys.md): 公開鍵で署名するパスキーの登録・ログインの流れ、フィッシングに強い理由、同期型と端末固定型の違い、実装時のチェックリストまでを図解。（セキュリティ / 2026-11-03）
+- [パスキー（WebAuthn）](https://memo.taka1156.site/md/passkeys.md): 公開鍵で署名するパスキーの登録・ログインの流れ、フィッシングに強い理由、同期パスキーとデバイス固定パスキーの違い、実装時のチェックリストまでを図解。（セキュリティ / 2026-11-03）
 - [JS と Web 標準の決まり方](https://memo.taka1156.site/md/js-web-standards.md): JavaScript の言語は TC39、ブラウザ API は WHATWG と W3C、サーバー側ランタイムの共通 API は TC55（WinterTC）。4 つの団体の分担と、仕様が決まるまでの流れを図解。（JavaScript, フロントエンド / 2026-11-03）
 - [JS のモジュールと依存管理](https://memo.taka1156.site/md/js-modules.md): ESM と CommonJS の違い、package.json の exports と条件による解決（動くデモつき）、import maps、npm・pnpm・Bun のインストール方式とロックファイル、モノレポのワークスペースを図解。（JavaScript, 開発ツール / 2026-11-03）
 - [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md): Cache-Control の読み方、鮮度と再検証（ETag・304）、ブラウザと CDN の二段構え、用途別のおすすめ設定までを図解。（インフラ, フロントエンド / 2026-11-03）

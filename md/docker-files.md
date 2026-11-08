@@ -55,20 +55,32 @@ Dockerfile
 Dockerfile
 
 ```
-# syntax=docker/dockerfile:1          ← 最新の Dockerfile 構文を使う宣言（任意）
-FROM node:22-slim                   # ベースイメージ。タグは必ず固定（latest にしない）
-WORKDIR /app                         # 以降の作業ディレクトリ。なければ作られる
+# syntax=docker/dockerfile:1
+# ↑ 最新の Dockerfile 構文を使う宣言（任意）。ディレクティブ行には何も書き足さない
+# ベースイメージ。タグは必ず固定（latest にしない）
+FROM node:22-slim
+# 以降の作業ディレクトリ。なければ作られる
+WORKDIR /app
 
-COPY package.json package-lock.json ./   # ① 依存の定義だけ先にコピー
-RUN npm ci                            # ② 依存をインストール（↑が変わらない限りキャッシュ）
+# ① 依存の定義だけ先にコピー
+COPY package.json package-lock.json ./
+# ② 依存をインストール（↑が変わらない限りキャッシュ）
+RUN npm ci
 
-COPY . .                              # ③ ソースは最後にコピー
+# ③ ソースは最後にコピー
+COPY . .
 
-ENV NODE_ENV=production               # 実行時にも残る環境変数
-USER node                             # root で動かさない
-EXPOSE 3000                           # ドキュメント。これだけでは公開されない
-CMD ["node", "server.js"]             # exec 形式（JSON 配列）で書く
+# 実行時にも残る環境変数
+ENV NODE_ENV=production
+# root で動かさない
+USER node
+# ドキュメント。これだけでは公開されない
+EXPOSE 3000
+# exec 形式（JSON 配列）で書く
+CMD ["node", "server.js"]
 ```
+
+Dockerfile と .dockerignore のコメントは行頭の `#` だけ。命令の後ろに書いた `#` は引数（パターン）の一部になる。
 
 | 命令 | 何をする | 書くときの注意 |
 | --- | --- | --- |
@@ -107,14 +119,16 @@ Docker は上から 1 行ずつ「前回と同じか」を見て、変わった�
 
 ```
 COPY . .
-RUN npm ci   # ソース 1 行の変更でも毎回走る
+# ↓ ソース 1 行の変更でも毎回走る
+RUN npm ci
 ```
 
 速い
 
 ```
 COPY package*.json ./
-RUN npm ci   # 依存が変わったときだけ
+# ↓ 依存が変わったときだけ走る
+RUN npm ci
 COPY . .
 ```
 
@@ -125,9 +139,11 @@ COPY . .
 .dockerignore
 
 ```
-node_modules     # ホストの node_modules を持ち込まない（OS 違いで壊れる）
+# ホストの node_modules を持ち込まない（OS 違いで壊れる）
+node_modules
 .git
-.env             # 秘密情報をイメージに焼き込まない
+# 秘密情報をイメージに焼き込まない
+.env
 dist
 *.log
 ```
@@ -149,7 +165,7 @@ COPY --from=build
 **runtime ステージ（最終イメージ）**
 
 - 実行に要るものだけ
-- 小さい・攻撃面が少ない
+- 小さい・攻撃対象領域（アタックサーフェス）が小さい
 
 最後の `FROM` 以降だけが最終イメージになる。途中のステージは捨てられるので、ビルド道具が本番に残らない。
 
@@ -181,8 +197,10 @@ FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev                       # 本番の依存だけ
-COPY --from=build /app/dist ./dist         # 成果物だけ持ってくる
+# 本番の依存だけ
+RUN npm ci --omit=dev
+# 成果物だけ持ってくる
+COPY --from=build /app/dist ./dist
 USER node
 EXPOSE 3000
 CMD ["node", "dist/server.js"]
@@ -197,7 +215,8 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -o /out/app ./cmd/app   # 静的リンクのバイナリ 1 つ
+# 静的リンクのバイナリ 1 つ
+RUN CGO_ENABLED=0 go build -o /out/app ./cmd/app
 
 # シェルもパッケージマネージャーもない最小イメージ
 FROM gcr.io/distroless/static-debian13:nonroot
@@ -370,6 +389,10 @@ initializeCommand ホスト側で実行
 →
 
 onCreateCommand 作成時 1 回
+
+→
+
+updateContentCommand 作成時に最低 1 回。ソース更新時（プレビルドなど）
 
 →
 

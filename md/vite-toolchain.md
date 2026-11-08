@@ -34,7 +34,7 @@ Rolldown バンドラー
 
 Lightning CSS CSS 処理系
 
-CSS 解析 圧縮 (minify) ベンダープレフィックス ネスト等の下位変換 CSS Modules
+CSS 解析 圧縮 (minify) ベンダープレフィックス ネスト等を古いブラウザー向けに変換（トランスパイル） CSS Modules
 
 ▼ Rolldown が言語処理を委託
 
@@ -193,6 +193,6 @@ Oxc は Vite／Rolldown の内部部品として動くので、普段は直接�
 
 ** ✕ Oxlint・Oxfmt・Vitest を使うには Vite+ が必須** どれも単体で使える。Vite+ は「まとめて入れて、設定を 1 枚にする」ための選択肢。Oxlint／Oxfmt は Vite を使っていないプロジェクトでも動く。
 
-** ✕ Oxlint が入れば ESLint のプラグインは全部捨てる** ネイティブルールに加えて ESLint 互換の JS プラグイン機構がある。ただし Vue／Svelte テンプレートのような独自パーサーが必要なプラグインは対応が後回しになっていたので、移行前に対応状況を確認する。
+** ✕ Oxlint が入れば ESLint のプラグインは全部捨てる** ネイティブルールに加えて ESLint 互換の JS プラグイン機構（現時点では alpha）がある。ただし Vue／Svelte テンプレートのような独自パーサーが必要なプラグインはまだ対応していないので、移行前に対応状況を確認する。
 
 ** ✕ Rollup プラグインはもう使えない** Rolldown は Rollup 互換のプラグイン API を持つので、多くの Vite／Rollup プラグインはそのまま動く。
