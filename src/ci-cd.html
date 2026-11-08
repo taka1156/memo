@@ -319,7 +319,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <div class="panel card" id="d1"><p>インスタンスを少しずつ新バージョンに入れ替える。追加の環境が要らないが、入れ替え中は<b>新旧が混在</b>する（DB スキーマや API の互換性が必要）。Kubernetes の Deployment の既定。</p></div>
   <div class="panel card" id="d2" hidden><p>新環境（グリーン）を丸ごと用意し、確認後にトラフィックを一気に切り替える。<b>戻すのも切り替えるだけ</b>で速い。一時的に 2 倍のリソースが要る。</p></div>
   <div class="panel card" id="d3" hidden><p>まず数 % のトラフィックだけを新バージョンへ流し、エラー率・レイテンシを見ながら広げる。問題の影響範囲を小さくできる。<b>監視の仕組みが前提</b>。</p></div>
-  <div class="panel card" id="d4" hidden><p>PR ごとに一時的な環境（URL）を作って、レビュー時に実際の画面で確認する。Cloudflare Pages や Vercel などが標準で提供。マージ・クローズで削除する。</p></div>
+  <div class="panel card" id="d4" hidden><p>PR ごとに一時的な環境（URL）を作って、レビュー時に実際の画面で確認する。Cloudflare Pages や Vercel などが標準で提供する。不要になった環境は、サービスの保持期間で消えるか、PR のクローズ時に自分で削除する。</p></div>
   <ul class="dots">
     <li>どの方式でも、<b>DB マイグレーションは新旧両方のコードで動く形</b>にする（列の追加 → コード切り替え → 古い列の削除、と分ける）。</li>
     <li>「戻す手順」も CD に入れておく。前の成果物を再デプロイするだけで戻れるのが理想。</li>
@@ -328,7 +328,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="myths">よくある誤解</h2>
   <div class="card myth"><p><span class="ng">✗</span> CI が緑ならデプロイしても安全</p><p><span class="ok">✓</span> テストが書かれている範囲で壊れていないだけ。段階的な展開と監視・ロールバックと組み合わせる。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> <code>actions/xxx@v5</code> のようにタグを書けば、中身は固定されている</p><p><span class="ok">✓</span> タグは後から別のコミットに付け替えられる。固定したいならコミット SHA を書く。推移的な依存まで固定できる workflow lockfile（<code>.github/workflows/actions.lock</code>、2026 年 10 月からプレビュー）も使える。</p></div>
+  <div class="card myth"><p><span class="ng">✗</span> <code>actions/xxx@v5</code> のようにタグを書けば、中身は固定されている</p><p><span class="ok">✓</span> タグは後から別のコミットに付け替えられる。固定したいならコミット SHA を書く。推移的な依存まで固定できる workflow lockfile（<code>.github/workflows/actions.lock</code>。2026 年 10 月にプレビューを経て一般提供）も使える。</p></div>
   <div class="card myth"><p><span class="ng">✗</span> Secrets に入れれば、ワークフローのどこからでも安全に使える</p><p><span class="ok">✓</span> そのステップで動くコード（依存パッケージや外部 Action も含む）からは読める。渡すジョブとステップを絞る。</p></div>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
