@@ -283,12 +283,10 @@ const doubled = computed(() =&gt; count.value * 2)
 
   <h3>コンパイラによる最適化</h3>
   <p>Vue の仮想 DOM は「素朴に全部比べる」わけではない。テンプレートをコンパイルするときに、動的な部分に<b>パッチフラグ</b>を付け、静的な部分は使い回す。</p>
-  <pre><code>// &lt;div&gt;&lt;h1&gt;Todo&lt;/h1&gt;&lt;p&gt;{{ count }}&lt;/p&gt;&lt;/div&gt; のコンパイル結果（簡略）
-const _hoisted = createVNode("h1", null, "Todo")      // 静的：一度だけ作って使い回す
-
-function render(ctx) {
+  <pre><code>// &lt;div&gt;&lt;h1&gt;Todo&lt;/h1&gt;&lt;p&gt;{{ count }}&lt;/p&gt;&lt;/div&gt; のコンパイル結果（Vue 3.5、簡略）
+function render(ctx, _cache) {
   return (openBlock(), createElementBlock("div", null, [
-    _hoisted,
+    _cache[0] || (_cache[0] = createElementVNode("h1", null, "Todo", -1 /* CACHED */)), // 静的：初回だけ作ってキャッシュ
     createElementVNode("p", null, toDisplayString(ctx.count), <span class="pf">1 /* TEXT */</span>)
   ]))
 }</code></pre>
@@ -300,7 +298,7 @@ function render(ctx) {
     <pre><code>&lt;script setup vapor&gt;
 // 書き方は同じ。vapor を付けたコンポーネントだけが新方式でコンパイルされる
 &lt;/script&gt;</code></pre>
-    <p class="muted">Vue 3.6 で導入。2026年9月にリリース候補 (RC) の機能凍結段階に入った。従来のコンポーネントと混在でき、少しずつ移行できるのが特徴。<code>&lt;script setup&gt;</code> 専用で、Options API や <code>&lt;Suspense&gt;</code> には対応しない。</p>
+    <p class="muted">Vue 3.6 で導入。2026年7月にリリース候補 (RC) 段階に入り、Vapor Mode に予定していた機能がそろった。従来のコンポーネントと混在でき、少しずつ移行できるのが特徴。<code>&lt;script setup&gt;</code>（または template だけの SFC）で使い、Options API や <code>v-memo</code> には対応しない。</p>
   </div>
 
   <h2 id="svelte-internals">Svelte の内部</h2>
@@ -326,7 +324,7 @@ export let title            // export let で props</code></pre>
   <h3>コンパイル結果（イメージ）</h3>
   <pre><code>// Counter.svelte → JS（Svelte 5、簡略化）
 import * as $ from 'svelte/internal/client'
-const root = $.template(`&lt;button&gt; &lt;/button&gt;`)
+const root = $.from_html(`&lt;button&gt; &lt;/button&gt;`)
 
 export default function Counter($$anchor) {
   let count = $.state(0)                              // シグナルに変換
@@ -334,11 +332,12 @@ export default function Counter($$anchor) {
 
   const button = root()
   const text = button.firstChild
-  button.onclick = () =&gt; $.set(count, $.get(count) + 1)
+  $.delegated('click', button, () =&gt; $.set(count, $.get(count) + 1))  // クリックは document に委譲
   $.template_effect(() =&gt;                             // このテキストだけを更新する effect
     $.set_text(text, `${$.get(count)}（×2 = ${$.get(doubled)}）`))
   $.append($$anchor, button)
-}</code></pre>
+}
+$.delegate(['click'])</code></pre>
   <p>普通の変数に見えた <code>count</code> が、コンパイル後はシグナルの読み書き（<code>$.get</code> / <code>$.set</code>）になっている。構造は <a href="react-vs-solid.html">Solid のコンパイル結果</a>とほぼ同じ。</p>
 
   <h2 id="compare">比較表</h2>
