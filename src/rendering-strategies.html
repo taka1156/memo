@@ -243,7 +243,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <ul>
       <li>HTML を作るのが<b>ブラウザ（CSR）</b>か、<b>リクエストごとのサーバー（SSR）</b>か、<b>ビルド時（SSG）</b>か。ISR は SSG を期限付きで作り直す折衷。</li>
       <li>SSR / SSG でも、操作できるようにするには同じコンポーネントの JS を送ってイベントをつなぎ直す（<b>ハイドレーション</b>）。ここが重いと「見えるのに押せない」。</li>
-      <li>最近は「<b>動く部分にだけ JS を送る</b>」方向。アイランド（Astro）、Server Components（React）、再開可能性（Qwik）はその実現方法の違い。</li>
+      <li>最近は「<b>動く部分にだけ JS を送る</b>」方向。アイランド（Astro）、Server Components（React）、resumability（再開可能性、Qwik）はその実現方法の違い。</li>
     </ul>
   </div>
 
@@ -289,7 +289,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="seq">
       <span class="who">ビルド</span><div class="bar"><span class="q-build" style="left:0;width:100%">デプロイ前に全ページの HTML を生成（ユーザーは待たない）</span></div>
       <span class="who">CDN</span><div class="bar"><span class="q-net" style="left:0;width:6%">HTML</span></div>
-      <span class="who">ブラウザ</span><div class="bar"><span class="q-paint" style="left:6%;width:16%">表示</span><span class="q-net" style="left:22%;width:20%">JS</span><span class="q-hyd" style="left:42%;width:14%">ハイドレ</span><span class="q-paint" style="left:56%;width:44%">操作可</span></div>
+      <span class="who">ブラウザ</span><div class="bar"><span class="q-paint" style="left:6%;width:16%">表示</span><span class="q-net" style="left:22%;width:20%">JS</span><span class="q-hyd" style="left:42%;width:14%">hydrate</span><span class="q-paint" style="left:56%;width:44%">操作可</span></div>
     </div>
     <p class="mk"><b>最速で安い</b>が、内容はビルド時点のもの。ページ数が多いとビルドが長い。<b>ISR</b> は「生成から N 秒たったら、次のアクセスで古いものを返しつつ裏で作り直す」（HTTP の stale-while-revalidate と同じ考え方）。初回アクセス時に作る設定もできる。</p>
   </div>
@@ -304,7 +304,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="seq">
       <span class="who">サーバー</span><div class="bar"><span class="q-build" style="left:0;width:10%">HTML</span></div>
       <span class="who">ブラウザ</span><div class="bar"><span class="q-paint" style="left:10%;width:90%">表示（大半は静的 HTML のまま）</span></div>
-      <span class="who">島だけ</span><div class="bar"><span class="q-net" style="left:30%;width:12%">JS</span><span class="q-hyd" style="left:42%;width:8%">ハイドレ</span></div>
+      <span class="who">島だけ</span><div class="bar"><span class="q-net" style="left:30%;width:12%">JS</span><span class="q-hyd" style="left:42%;width:8%">hydrate</span></div>
     </div>
     <p class="mk"><b>ページは静的な海、動く部品だけが島</b>。島ごとに「すぐ」「見えたら」「アイドル時」などハイドレーションの時期を選べる（Astro の <code>client:visible</code> など）。ブログ・ドキュメント・LP のように大半が読むだけのページで JS を大きく減らせる。</p>
   </div>
@@ -318,7 +318,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="box">既存 DOM と突き合わせ<small>イベントをつなぐ</small></div>
     </div>
     <p>サーバーとブラウザで<b>同じ結果</b>にならないと不一致（hydration mismatch）になり、警告やちらつきが出る。典型は描画中に <code>Date.now()</code>・<code>Math.random()</code>・<code>window</code> の値・ロケール依存の日付書式を使うこと。ブラウザでしかわからない値は、マウント後（<code>useEffect</code>・<code>onMount</code>）に入れる。</p>
-    <p class="note">Server Components はサーバー専用の部品をハイドレーションの対象から外し、JS を送らない。Qwik の「再開可能性」はハイドレーションの再実行自体をやめ、HTML に状態を書き込んでおき、操作されたハンドラーだけを遅延読み込みする。</p>
+    <p class="note">Server Components はサーバー専用の部品をハイドレーションの対象から外し、JS を送らない。Qwik の resumability（再開可能性）はハイドレーションの再実行自体をやめ、HTML に状態を書き込んでおき、操作されたハンドラーだけを遅延読み込みする。</p>
   </div>
 
   <h2 id="compare">比較表</h2>
@@ -375,7 +375,7 @@ document.querySelectorAll('.tabs').forEach(group => {
 [
   {"q": "社内向けの管理画面（ログイン必須、検索エンジンに載せない）を作る。サーバー運用をできるだけ減らしたい。合う方式は？", "choices": ["SSR", "CSR（SPA）を静的ホスティングで配る", "ISR"], "answer": 1, "explain": "SEO や初回表示の中身が不要なら、静的ファイルを配るだけの CSR が一番運用が軽い。", "ref": "#choose"},
   {"q": "SSR したページで、表示されたボタンを押しても 1〜2 秒反応しないことがある。主な原因は？", "choices": ["CDN のキャッシュが効いていない", "HTML は届いているが、JS の取得とハイドレーションが終わるまでイベントがつながっていない", "SSR では onClick が使えない"], "answer": 1, "explain": "SSR の HTML は見た目だけ。同じコンポーネントの JS を実行してイベントをつなぐまで操作できない。", "ref": "#hydration"},
-  {"q": "コンポーネントで new Date().toLocaleTimeString() を描画したら、hydration mismatch の警告が出た。適切な直し方は？", "choices": ["時刻はマウント後（useEffect など）に入れる", "サーバー側のタイムゾーンを UTC に固定する", "警告を無効にする"], "answer": 0, "explain": "サーバーとブラウザで描画時刻もロケールも違うので一致しない。ブラウザでしか決まらない値はマウント後に入れる。", "ref": "#hydration"},
+  {"q": "コンポーネントで new Date().toLocaleTimeString() を描画したら、hydration mismatch の警告が出た。適切な直し方は？", "choices": ["時刻はマウント後（useEffect など）に入れる", "サーバー側のタイムゾーンを UTC に固定する", "警告を無効にする"], "answer": 0, "explain": "サーバーとブラウザで描画時刻もロケールも違うので一致しない。ブラウザでしか決まらない値はマウント後に入れる。React の suppressHydrationWarning で警告は消せるが、表示はサーバーの時刻のまま直らないので、あくまで最後の手段。", "ref": "#hydration"},
   {"q": "EC サイトの商品ページ（数万件）。価格は 1 日数回変わる程度で、ビルド時間とサーバー負荷の両方を抑えたい。合う方式は？", "choices": ["全ページを毎回 SSR", "全ページを SSG してデプロイのたびに再ビルド", "ISR で一定時間ごとに作り直す"], "answer": 2, "explain": "ISR はアクセスのあったページを期限ごとに裏で作り直す。全件ビルドも毎リクエストの処理も避けられる。", "ref": "#compare"},
   {"q": "ページの中で 1 つの API だけが 2 秒かかり、全体の表示が遅れている。ページ全体を待たせずに済む方法は？", "choices": ["その部分を Suspense などで区切り、ストリーミング SSR で枠を先に送る", "SSG に変えて API を呼ばないようにする", "JS を defer にする"], "answer": 0, "explain": "ストリーミングなら準備できた部分から送れる。遅い部分は読み込み中の表示を置いて、後から同じレスポンスで差し込む。", "ref": "#timeline"}
 ]
