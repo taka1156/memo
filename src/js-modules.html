@@ -262,7 +262,7 @@ export default load;</pre>
         <li><b>静的</b>：import はファイルの先頭で決まり、実行前に依存関係がわかる → 未使用コードを削れる（tree shaking）</li>
         <li>読み込みは<b>非同期</b>。トップレベル <code>await</code> が使える</li>
         <li>ブラウザ・Node.js・Deno・Bun・Workers の<b>どこでも動く</b></li>
-        <li>import は<b>生きた参照</b>（元のモジュールで値が変わると見える）</li>
+        <li>import は<b>ライブバインディング</b>（export 元への読み取り専用の参照。元のモジュールで値が変わると見える）</li>
       </ul>
     </div>
     <div class="card">
@@ -314,7 +314,7 @@ module.exports = { load };</pre>
 
   <h2 id="import-maps">import maps：ブラウザで「名前だけ」の import を解決する</h2>
   <div class="card">
-    <p>ブラウザは <code>import { h } from 'preact'</code> のような<b>パッケージ名だけの指定（ベア指定子）を解決できない</b>。バンドラーがない環境では、import map で名前と URL の対応を教える。</p>
+    <p>ブラウザは <code>import { h } from 'preact'</code> のような<b>パッケージ名だけの指定（ベアモジュール指定子、bare specifier）を解決できない</b>。バンドラーがない環境では、import map で名前と URL の対応を教える。</p>
 <pre>&lt;script type="importmap"&gt;
 {
   "imports": {
@@ -341,14 +341,14 @@ module.exports = { load };</pre>
 ├── my-app が使う express/
 ├── <span class="cm2">express が使う</span> body-parser/   <span class="cm2">← 依存の依存も「平らに」並ぶ</span>
 └── …</div>
-    <p>依存の依存までなるべく<b>平らに</b>（hoisting）並べる。そのため package.json に書いていないパッケージも import できてしまう（<b>幽霊依存</b>）。ある日、間接依存が外れて壊れる原因になる。ロックファイルは <code>package-lock.json</code>。</p>
+    <p>依存の依存までなるべく<b>平らに</b>（hoisting）並べる。そのため package.json に書いていないパッケージも import できてしまう（<b>ファントム依存</b>、phantom dependency。幽霊依存とも）。ある日、間接依存が外れて壊れる原因になる。ロックファイルは <code>package-lock.json</code>。</p>
   </div>
   <div class="panel card" id="pm-pnpm" hidden>
     <div class="tree2">node_modules/
 ├── <span class="ln">react → .pnpm/react@19…/node_modules/react</span>   <span class="cm2">← 直接の依存だけ見える</span>
 └── .pnpm/                       <span class="cm2">← 実体。ストアからハードリンク</span>
 ~/.local/share/pnpm/store         <span class="cm2">← 全プロジェクト共通の置き場</span></div>
-    <p>ファイルの実体は PC に 1 つだけ置き（内容で管理するストア）、各プロジェクトにはハードリンクとシンボリックリンクで見せる。<b>ディスクと時間を節約</b>でき、<b>package.json に書いたものしか import できない</b>ので幽霊依存が起きない。ロックファイルは <code>pnpm-lock.yaml</code>。</p>
+    <p>ファイルの実体は PC に 1 つだけ置き（内容で管理するストア）、各プロジェクトにはハードリンクとシンボリックリンクで見せる。<b>ディスクと時間を節約</b>でき、<b>package.json に書いたものしか import できない</b>のでファントム依存が起きない。ロックファイルは <code>pnpm-lock.yaml</code>。</p>
   </div>
   <div class="panel card" id="pm-bun" hidden>
     <p>Bun のランタイムに付いてくるパッケージマネージャー。npm と互換の <code>node_modules</code> を作り、インストールが速い。ロックファイルは現在テキスト形式の <code>bun.lock</code>（以前はバイナリの <code>bun.lockb</code>）。Bun で実行しないプロジェクトでも、インストーラーとしてだけ使える。</p>
@@ -423,7 +423,7 @@ document.querySelectorAll('.tabs').forEach(group => {
     ['default', './dist/index.js']
   ];
   const ENV = {
-    'node-import': { conds: ['node', 'import', 'default'], why: 'Node.js が import で読むときの条件は <code>node</code>・<code>import</code>・<code>default</code>。上から見て <code>types</code>・<code>workerd</code>・<code>browser</code> は合わず、<code>import</code> で決まる。' },
+    'node-import': { conds: ['node', 'import', 'default'], why: 'Node.js が import で読むときの主な条件は <code>node</code>・<code>import</code>・<code>default</code>（ほかに <code>node-addons</code>、新しい版では <code>module-sync</code> も有効）。上から見て <code>types</code>・<code>workerd</code>・<code>browser</code> は合わず、<code>import</code> で決まる。' },
     'node-require': { conds: ['node', 'require', 'default'], why: 'require のときは <code>import</code> の代わりに <code>require</code> が有効になる。<code>.cjs</code> の CommonJS 版が選ばれる。' },
     'bundler-browser': { conds: ['browser', 'import', 'default', 'module'], why: 'ブラウザ向けにビルドするバンドラーは <code>browser</code> を有効にする。<code>import</code> より上にあるので、ブラウザ専用の実装が選ばれる。順番を逆にすると Node.js 用が入ってしまう。' },
     'ts': { conds: ['types', 'import', 'node', 'default'], why: 'TypeScript は型を探すときに <code>types</code> を見る。先頭に置かないと、<code>import</code> が先に合って <code>.js</code> から型を探しに行き、見つからないことがある。' },
@@ -453,7 +453,7 @@ document.querySelectorAll('.tabs').forEach(group => {
 [
   {"q": "package.json に \"type\": \"module\" を付けたら、CommonJS で書かれた設定ファイル config.js が読み込めなくなった。一番手早い直し方は？", "choices": ["config.js を config.cjs にリネームする", "\"type\" を外して全部 CommonJS に戻す", "config.js の先頭に \"use strict\" を書く"], "answer": 0, "explain": "拡張子 .cjs は package.json の type より優先され、常に CommonJS として読まれる。", "ref": "#which-mode"},
   {"q": "ライブラリの exports に import・require・types を書いたが、TypeScript が型を見つけられない。types は一番下に書いてある。原因は？", "choices": ["types 条件は exports では使えない", "条件は上から順に見るので、先に import が合って types まで届いていない", "TypeScript は exports を読まない"], "answer": 1, "explain": "最初に合った条件で決まる。types は先頭、default は最後に置く。", "ref": "#exports"},
-  {"q": "npm で入れたプロジェクトで、package.json に書いていない lodash を import しても動いていたが、別の依存を更新したら急に見つからなくなった。何が起きた？", "choices": ["lodash が npm から削除された", "間接依存として平らに置かれていた lodash が、依存の更新で外れた（幽霊依存）", "ロックファイルが壊れた"], "answer": 1, "explain": "npm は依存の依存も node_modules 直下に並べるので、書いていないものも import できてしまう。pnpm は直接の依存しか見せないので、この問題が最初から表に出る。", "ref": "#pm"},
+  {"q": "npm で入れたプロジェクトで、package.json に書いていない lodash を import しても動いていたが、別の依存を更新したら急に見つからなくなった。何が起きた？", "choices": ["lodash が npm から削除された", "間接依存として平らに置かれていた lodash が、依存の更新で外れた（ファントム依存）", "ロックファイルが壊れた"], "answer": 1, "explain": "npm は依存の依存も node_modules 直下に並べるので、書いていないものも import できてしまう。pnpm は直接の依存しか見せないので、この問題が最初から表に出る。", "ref": "#pm"},
   {"q": "CI で毎回 npm install していたら、手元と違う版の依存が入ってテストが落ちた。正しい対策は？", "choices": ["package.json の版指定を全部 \"*\" にする", "ロックファイルをコミットし、CI では npm ci を使う", "CI で node_modules をキャッシュしない"], "answer": 1, "explain": "ロックファイルが実際の版を固定する。npm ci はロックファイルどおりに入れ、食い違えば失敗する。", "ref": "#lock"},
   {"q": "バンドラーを使わない小さなサイトで、ブラウザから import { h } from 'preact' と書きたい。必要なものは？", "choices": ["import map で preact と URL の対応を書く", "package.json に preact を追加する", "type=\"module\" を外す"], "answer": 0, "explain": "ブラウザはパッケージ名だけの指定を解決できない。import map が名前と URL の対応を教える。", "ref": "#import-maps"}
 ]
