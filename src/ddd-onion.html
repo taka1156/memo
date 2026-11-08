@@ -296,7 +296,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       </details>
       <details class="block">
         <summary>アプリケーションサービス <span class="lyr a">application</span><span class="en">Application Service / UseCase</span></summary>
-        <p>ユースケース 1 つ＝1 クラス（または関数）。リポジトリから集約を取り出し、ドメインのメソッドを呼び、保存する「段取り役」。<b>業務ルールそのものは書かない</b>。</p>
+        <p>ユースケースを実行する段取り役。関連する操作を 1 クラスにまとめる書き方と、ユースケース 1 つ＝1 クラス（または関数）に分ける書き方（Clean Architecture の UseCase 流）があり、ここでは後者で書く。リポジトリから集約を取り出し、ドメインのメソッドを呼び、保存する。<b>業務ルールそのものは書かない</b>。</p>
         <p class="eg">例: <code>CreateTaskUseCase</code>, <code>CompleteTaskUseCase</code></p>
       </details>
       <details class="block">

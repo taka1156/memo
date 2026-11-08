@@ -289,6 +289,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <tr><th>やりたいこと</th><th>選ぶもの</th><th>書き方</th></tr>
       <tr><td>上下左右の中央寄せ</td><td>Grid</td><td><code>display:grid; place-items:center</code></td></tr>
       <tr><td>ナビの左にロゴ、右にメニュー</td><td>Flex</td><td><code>display:flex; justify-content:space-between</code></td></tr>
+      <tr><td>ロゴは左、メニューとボタンはまとめて右</td><td>Flex</td><td>右に寄せたい最初の要素に <code>margin-left:auto</code>（余りを全部その左に入れる）</td></tr>
       <tr><td>カードを入るだけ並べて自動で折り返す</td><td>Grid</td><td><code>grid-template-columns: repeat(auto-fill, minmax(220px, 1fr))</code></td></tr>
       <tr><td>フッターを画面下に固定（中身が少なくても）</td><td>Grid</td><td><code>min-height:100dvh; grid-template-rows: auto 1fr auto</code></td></tr>
       <tr><td>タグを並べて折り返す（幅はまちまち）</td><td>Flex</td><td><code>display:flex; flex-wrap:wrap; gap:6px</code></td></tr>
@@ -311,8 +312,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="cascade">どのルールが勝つか（カスケード）</h2>
   <div class="cascade">
-    <div><b>1</b>出どころと !important（ブラウザ既定 &lt; 作者 &lt; 作者の !important）</div>
-    <div><b>2</b>カスケードレイヤー（<code>@layer</code> で後に宣言した層が勝つ。通常の宣言ではレイヤー外のスタイルが最強。ただし <code>!important</code> では順位が逆になり、先に宣言した層が勝つ）</div>
+    <div><b>1</b>オリジン（出どころ）と重要度（ブラウザ既定 &lt; 作者 &lt; 作者の !important）</div>
+    <div><b>2</b>カスケードレイヤー（<code>@layer</code> で後に宣言した層が勝つ。通常の宣言では、レイヤー外のスタイルがどの層よりも強い（<code>style</code> 属性はさらに上）。ただし <code>!important</code> では順位が逆になり、先に宣言した層が勝つ）</div>
     <div><b>3</b>詳細度（ID &gt; クラス・属性・疑似クラス &gt; 要素）</div>
     <div><b>4</b>書いた順（後が勝つ）</div>
   </div>
@@ -333,7 +334,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <tr><td><code>dvh</code> / <code>svh</code></td><td>スマホのアドレスバーの出入りを考慮した高さ。<code>100vh</code> がはみ出す問題を避ける。</td></tr>
       <tr><td><code>aspect-ratio</code></td><td>縦横比を保つ。動画の埋め込みや画像の場所取り（CLS 対策）に。</td></tr>
       <tr><td>View Transitions</td><td>画面の切り替えをアニメーションでつなぐ。同一ドキュメント内に加え、ページ遷移でも使えるようになってきている。</td></tr>
-      <tr><td>アンカー配置</td><td>ツールチップやメニューを、別の要素の位置に合わせて CSS だけで置く。2026 年 1 月の Firefox 147 で主要ブラウザがそろって対応した（Baseline）。古いブラウザも対象なら、代わりの表示を用意する。</td></tr>
+      <tr><td>アンカー位置指定（anchor positioning）</td><td>ツールチップやメニューを、別の要素の位置に合わせて CSS だけで置く。2026 年 1 月の Firefox 147 で主要ブラウザがそろって対応した（Baseline）。古いブラウザも対象なら、代わりの表示を用意する。</td></tr>
     </table>
   </div>
 
@@ -421,8 +422,8 @@ document.querySelectorAll('.tabs').forEach(group => {
 [
   {"q": "ヘッダーにロゴとメニューとログインボタンを 1 行に並べ、ロゴは左、残りは右に寄せたい。素直な書き方は？", "choices": ["Grid で 3 列の固定幅を指定する", "Flex で並べ、メニューに margin-left: auto を付ける", "float: right を使う"], "answer": 1, "explain": "1 列に並べて余白を分ける場面は Flex。margin-left: auto はその要素の左に余りを全部入れて右に押し出す。", "ref": "#which"},
   {"q": "記事カード部品を、メインカラムでは横並び、狭いサイドバーでは縦並びで表示したい。画面幅は同じ。使うべきものは？", "choices": ["メディアクエリ", "コンテナクエリ", "flex-wrap"], "answer": 1, "explain": "画面幅ではなく、カードが置かれた場所の幅で切り替えたいのでコンテナクエリ。", "ref": "#cq"},
-  {"q": "UI ライブラリの CSS（#app .btn のような詳細度の高いセレクタ）を、自分の .btn-primary で上書きしたい。!important を使わない方法は？", "choices": ["ライブラリを低いカスケードレイヤーに入れて読み込む", "自分のセレクタに ID を足して詳細度を上げる", "自分の CSS を先に読み込む"], "answer": 0, "explain": "レイヤーの順位は詳細度より先に比べられる。ライブラリを下の層に入れれば、詳細度に関係なく自分のスタイルが勝つ。", "ref": "#cascade"},
-  {"q": "モーダルに z-index: 9999 を付けたのに、別のヘッダーの下に隠れる。モーダルの親には transform が付いている。原因は？", "choices": ["z-index の上限が 999 だから", "親の transform が新しい重ね合わせコンテキストを作り、その中でしか比べられないから", "position: static のままだから z-index が効いていない"], "answer": 1, "explain": "transform などは重ね合わせコンテキストを作る。子の z-index はその中だけの順位になり、外のヘッダーとは親同士で比べられる。", "ref": "#myths"}
+  {"q": "UI ライブラリの CSS（#app .btn のような詳細度の高いセレクタ）を、自分の .btn-primary で上書きしたい。!important も詳細度の引き上げも使わずに済ませる方法は？", "choices": ["ライブラリを低いカスケードレイヤーに入れて読み込む", "自分のセレクタに ID を足して詳細度を上げる", "自分の CSS を先に読み込む"], "answer": 0, "explain": "レイヤーの順位は詳細度より先に比べられる。ライブラリを下の層に入れれば、詳細度に関係なく自分のスタイルが勝つ。", "ref": "#cascade"},
+  {"q": "モーダル（position: fixed）に z-index: 9999 を付けたのに、別のヘッダーの下に隠れる。モーダルの親には transform が付いている。原因は？", "choices": ["z-index の上限が 999 だから", "親の transform が新しい重ね合わせコンテキストを作り、その中でしか比べられないから", "position: static のままだから z-index が効いていない"], "answer": 1, "explain": "transform などは重ね合わせコンテキストを作る。子の z-index はその中だけの順位になり、外のヘッダーとは親同士で比べられる。", "ref": "#myths"}
 ]
 </script>
 </body>

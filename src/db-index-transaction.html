@@ -243,7 +243,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <ul>
       <li>インデックスは<b>値の順に並べた索引（B木）</b>。並び順を使える条件（等号・範囲・前方一致・その順での並べ替え）でだけ効く。</li>
       <li>複合インデックスは<b>左の列から順に</b>使える。列に関数をかけたり、先頭列を飛ばしたりすると使えない。</li>
-      <li>分離レベルは「同時実行でどの異常まで許すか」の設定。<b>READ COMMITTED でも更新の取りこぼしは起きる</b>ので、原子的な UPDATE や行ロックで防ぐ。</li>
+      <li>分離レベルは「同時実行でどの異常まで許すか」の設定。<b>READ COMMITTED でも更新の取りこぼし（ロストアップデート、lost update）は起きる</b>ので、原子的な UPDATE や行ロックで防ぐ。</li>
     </ul>
   </div>
 
@@ -305,7 +305,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h3 id="cost">インデックスのコスト</h3>
   <div class="grid2">
-    <div class="card"><span class="label">書き込みが遅くなる</span><p>INSERT・UPDATE・DELETE のたびに全インデックスを更新する。10 本あれば 10 か所書く。使っていないインデックスは消す。</p></div>
+    <div class="card"><span class="label">書き込みが遅くなる</span><p>INSERT・DELETE のたびに全インデックスを、UPDATE では変更した列を含むインデックスを更新する（PostgreSQL では HOT 更新にならないと全インデックス）。10 本あれば最大 10 か所書く。使っていないインデックスは消す。</p></div>
     <div class="card"><span class="label">カバリングインデックス</span><p>SELECT する列が全部インデックスに入っていれば、テーブル本体を読まずに済む（Index Only Scan）。<code>INCLUDE (列)</code> で葉に列を足せる DB もある。</p></div>
   </div>
 <pre><code>EXPLAIN ANALYZE SELECT * FROM orders WHERE user_id = 5 ORDER BY created_at DESC LIMIT 20;
@@ -372,16 +372,16 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="mvcc">MVCC：読む人と書く人がぶつからない仕組み</h2>
   <div class="card">
-    <p>多くの DB は、更新しても<b>古い版を残しておく</b>（PostgreSQL は新しい行の版を追加し、InnoDB は行を上書きして古い版を undo ログに残す）。各トランザクションは開始時点（または文の開始時点）のスナップショットに見える版だけを読む。</p>
+    <p>多くの DB は、更新しても<b>古い版を残しておく</b>（PostgreSQL は新しい行の版を追加し、InnoDB は行を上書きして古い版を undo ログに残す）。各トランザクションは、最初の文を実行した時点（READ COMMITTED では各文の開始時点）のスナップショットに見える版だけを読む。</p>
     <div class="mvcc">
       <div class="ver dead"><span class="label">版1</span><br>在庫 = 10<br><span class="muted">T100 が作成、T105 が更新して終了</span></div>
       <div class="ver live"><span class="label">版2（最新）</span><br>在庫 = 9<br><span class="muted">T105 が作成</span></div>
       <div class="ver"><span class="label">誰に何が見える？</span><br>T105 より前に始まった T103 → <b>版1</b><br>後から始まった T110 → <b>版2</b></div>
     </div>
-    <p class="note">おかげで SELECT は UPDATE の完了を待たない。代わりに古い版が溜まるので、PostgreSQL は VACUUM、InnoDB は undo ログの purge で片付ける。長時間開いたままのトランザクションがあると古い版を消せず、テーブルが膨らむ。</p>
+    <p class="note">おかげで SELECT は UPDATE の完了を待たない。代わりに古い版が溜まるので、PostgreSQL は VACUUM、InnoDB は undo ログの purge で片付ける。長時間開いたままのトランザクションがあると古い版を消せず、PostgreSQL ではテーブルが、InnoDB では undo ログが膨らむ。</p>
   </div>
 
-  <h2 id="lost-fix">更新の取りこぼしを防ぐ3つの方法</h2>
+  <h2 id="lost-fix">更新の取りこぼし（ロストアップデート）を防ぐ3つの方法</h2>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-panel="fx-atomic">原子的な UPDATE</button>
     <button class="tab" role="tab" aria-selected="false" data-panel="fx-lock">行ロック</button>

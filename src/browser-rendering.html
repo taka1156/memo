@@ -381,7 +381,7 @@ document.querySelectorAll('.tabs').forEach(group => {
   const msg = {
     2: '<b>レイアウトから全部</b>。大きさや位置が変わると周りの要素の配置も計算し直す。毎フレーム変えると重い。',
     3: '<b>ペイントから</b>。配置は変わらないので塗り直しだけ。広い範囲や影・ぼかしは塗りが重い。',
-    4: '<b>合成だけ</b>。レイヤーを動かす・透かすだけなのでメインスレッドが忙しくても滑らか。'
+    4: '<b>合成だけ</b>。レイヤーを動かす・透かすだけで済む。CSS アニメーション・トランジションや Web Animations API で動かせばコンポジタースレッドで進むので、メインスレッドが忙しくても滑らか（JS で毎フレーム書き換える場合はこの恩恵がない）。'
   };
   const btns = document.querySelectorAll('#props button');
   const st = document.querySelectorAll('#pipe2 .st');
@@ -403,7 +403,7 @@ document.querySelectorAll('.tabs').forEach(group => {
 
 <script type="application/json" id="memo-quiz">
 [
-  {"q": "モーダルを右からスライドインさせたい。メインスレッドが重いときでもカクつきにくい書き方は？", "choices": ["left を -100% から 0 へアニメーションする", "transform: translateX(100%) から 0 へアニメーションする", "width を 0 から 400px へアニメーションする"], "answer": 1, "explain": "transform と opacity は合成だけで済み、コンポジタースレッドで動かせる。left や width は毎フレームレイアウトが走る。", "ref": "#cost"},
+  {"q": "モーダルを右からスライドインさせたい。メインスレッドが重いときでもカクつきにくい書き方は？", "choices": ["left を -100% から 0 へアニメーションする", "transform: translateX(100%) から 0 へアニメーションする", "width を 0 から 400px へアニメーションする"], "answer": 1, "explain": "transform と opacity は合成だけで済み、CSS アニメーションならコンポジタースレッドで動かせる。left や width は毎フレームレイアウトが走る。", "ref": "#cost"},
   {"q": "アプリ本体の JS（複数ファイル、実行順が大事）を head に置きたい。HTML の解析を止めず、順番も守るには？", "choices": ["async を付ける", "defer を付ける", "何も付けずに body の先頭に置く"], "answer": 1, "explain": "defer は取得を並行して進め、解析後に書いた順で実行する。async は取れた順に実行するので順番が崩れうる。", "ref": "#blocking"},
   {"q": "リストの各要素の幅を、ループ内で container.offsetWidth を読みながら設定したら極端に遅くなった。原因は？", "choices": ["offsetWidth の読み取りが、直前のスタイル変更を反映するためにその場でレイアウトを強制するから", "style.width への代入はペイントを毎回走らせるから", "ループの中で DOM を参照すること自体が遅いから"], "answer": 0, "explain": "書いた直後に読むと強制同期レイアウトが発生し、要素数だけレイアウトが走る。読みをループの外に出す。", "ref": "#thrash"},
   {"q": "クリックしても数百 ms 反応しない。Performance パネルでは 1 つのタスクが 400ms 走っていた。まず考える対策は？", "choices": ["処理を分割して合間にブラウザへ制御を返すか、Web Worker に移す", "will-change: transform を付ける", "CSS を小さくする"], "answer": 0, "explain": "メインスレッドのロングタスク中は入力処理も描画もできない。分割するか別スレッドに逃がす。", "ref": "#frame"}

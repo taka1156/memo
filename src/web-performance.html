@@ -244,7 +244,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <strong>ざっくり言うと</strong>
     <ul>
       <li><b>LCP</b>（一番大きい要素が表示されるまで）・<b>INP</b>（操作してから画面が反応するまで）・<b>CLS</b>（レイアウトのズレ）の 3 つ。実ユーザーの <b>75 パーセンタイル</b>で判定する。</li>
-      <li>数字が悪いときは分解する。LCP は「サーバー応答・読み込み開始の遅れ・読み込み時間・描画の遅れ」の 4 つ、INP は「待ち・処理・描画」の 3 つのどこが長いかを見る。</li>
+      <li>数字が悪いときは分解する。LCP は「TTFB・リソース読み込みの遅延・リソースの読み込み時間・要素のレンダリングの遅延」の 4 つ、INP は「待ち・処理・描画」の 3 つのどこが長いかを見る。</li>
       <li>Lighthouse（ラボ）は手元の 1 回の計測、CrUX や RUM（フィールド）は実ユーザーの集計。<b>合否はフィールドで決まる</b>。INP は操作しないと出ないので、読み込むだけのラボ計測では測れない。</li>
     </ul>
   </div>
@@ -279,10 +279,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="table-wrap" style="margin-top:12px">
       <table>
         <tr><th>部分</th><th>長いときの原因</th><th>対策</th></tr>
-        <tr><td>TTFB</td><td>サーバー処理・DB・距離・リダイレクト</td><td>CDN キャッシュ、HTML のストリーミング、リダイレクトをなくす</td></tr>
-        <tr><td>開始の遅れ</td><td>LCP 画像が CSS 背景や JS で後から入る、<code>loading="lazy"</code> が付いている</td><td><code>&lt;img&gt;</code> で HTML に直接書く、<code>fetchpriority="high"</code>、必要なら <code>preload</code></td></tr>
-        <tr><td>読み込み時間</td><td>画像が重い・大きすぎる</td><td>AVIF / WebP、<code>srcset</code> と <code>sizes</code> で画面に合ったサイズ</td></tr>
-        <tr><td>描画の遅れ</td><td>レンダリングをブロックする CSS / JS、Web フォント待ち、クライアント描画</td><td>重要な CSS を小さく、JS は defer、SSR / SSG</td></tr>
+        <tr><td>TTFB（最初のバイトまでの時間）</td><td>サーバー処理・DB・距離・リダイレクト</td><td>CDN キャッシュ、HTML のストリーミング、リダイレクトをなくす</td></tr>
+        <tr><td>読み込み開始の遅れ（リソース読み込みの遅延）</td><td>LCP 画像が CSS 背景や JS で後から入る、<code>loading="lazy"</code> が付いている</td><td><code>&lt;img&gt;</code> で HTML に直接書く、<code>fetchpriority="high"</code>、必要なら <code>preload</code></td></tr>
+        <tr><td>読み込み時間（リソースの読み込み時間）</td><td>画像が重い・大きすぎる</td><td>AVIF / WebP、<code>srcset</code> と <code>sizes</code> で画面に合ったサイズ</td></tr>
+        <tr><td>描画の遅れ（要素のレンダリングの遅延）</td><td>レンダリングをブロックする CSS / JS、Web フォント待ち、クライアント描画</td><td>重要な CSS を小さく、JS は defer、SSR / SSG</td></tr>
       </table>
     </div>
   </div>

@@ -223,7 +223,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <strong>ざっくり言うと</strong>
     <ul>
       <li>「いきなりコードを書かせる」代わりに、<b>原則 → 仕様 → 計画 → タスク → 実装</b>の順に Markdown を積み上げ、AI エージェントにそれを読ませて作らせる仕組み。</li>
-      <li><code>specify</code> CLI は<b>土台づくり担当</b>（テンプレート・スクリプト・スラッシュコマンドを配置）。実際の各工程は AI エージェント上の <code>/speckit.*</code> コマンドで進める。</li>
+      <li><code>specify</code> CLI は<b>土台づくり担当</b>（テンプレート・スクリプト・スラッシュコマンドを配置）。実際の各工程は AI エージェント上の <code>/speckit.*</code> コマンドで進める（このページは公式リファレンスにならって <code>/speckit.specify</code> 形式で書く。Claude Code や GitHub Copilot では <code>/speckit-specify</code> のようにハイフン区切りで呼び出す）。</li>
       <li>人間は<b>「何を・なぜ」を決めてレビューする係</b>、AI は<b>文書化と実装を担う係</b>。各工程の成果物がそのまま次工程の入力になる。</li>
     </ul>
   </div>
@@ -264,7 +264,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <div>
           <div class="cmd">/speckit.specify</div>
           <div class="what">作りたいものを自然言語で伝え、ユーザーストーリー・要件・受け入れ条件にする。技術の話はまだしない。</div>
-          <div class="out">→ 機能ブランチ ＋ <code>specs/001-xxx/spec.md</code></div>
+          <div class="out">→ <code>specs/001-xxx/spec.md</code>（git 拡張を有効にしていれば機能ブランチも作る）</div>
         </div>
       </div>
       <div class="arrow"></div>
@@ -328,16 +328,25 @@ footer#memo-backlink a:hover { color: var(--accent); }
         </div>
       </div>
       <div class="arrow"></div>
-      <div class="step opt">
+      <div class="step">
         <div class="no">9</div>
         <div>
-          <div class="cmd">/speckit.taskstoissues<span class="tag">OPT</span></div>
-          <div class="what">タスクを GitHub Issues に起こしてチームで追跡する。</div>
+          <div class="cmd">/speckit.converge</div>
+          <div class="what">実装を spec / plan / tasks と突き合わせ、足りない作業を tasks.md に追記する。「Converged」になるまで implement と交互に繰り返す。</div>
+          <div class="out">→ <code>tasks.md</code> に追記</div>
+        </div>
+      </div>
+      <div class="arrow"></div>
+      <div class="step opt">
+        <div class="no">10</div>
+        <div>
+          <div class="cmd">/speckit.github.taskstoissues<span class="tag">OPT</span></div>
+          <div class="what">（github 拡張・<code>specify extension add github</code> で追加）タスクを GitHub Issues に起こしてチームで追跡する。</div>
           <div class="out">→ GitHub Issues</div>
         </div>
       </div>
     </div>
-    <p class="loop">↻ 次の機能では <b>2 から</b>繰り返す（憲法はプロジェクト共通）。最短ルートは <code>specify → plan → tasks → implement</code>、本番向けは clarify / checklist / analyze も挟むのがおすすめ。</p>
+    <p class="loop">↻ 次の機能では <b>2 から</b>繰り返す（憲法はプロジェクト共通）。最短ルートは <code>specify → plan → tasks → implement → converge</code>、本番向けは clarify / checklist / analyze も挟むのがおすすめ。</p>
   </div>
 
   <h2 id="roles">登場人物と役割</h2>
@@ -363,7 +372,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="who">specify CLI ＋ スクリプト<small>土台・段取り</small></div>
       <ul>
         <li><code>specify init</code> で一式を配置</li>
-        <li>機能ブランチと連番フォルダを作るスクリプト</li>
+        <li>テンプレートの解決や前提チェックを行うスクリプト（ブランチ作成は任意の git 拡張）</li>
         <li>環境チェック (<code>specify check</code>)</li>
       </ul>
     </div>
@@ -392,7 +401,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <dl class="kv">
       <dt>役割</dt><dd>以降すべての工程が従う「プロジェクトの憲法」をつくる。</dd>
       <dt>人間がやること</dt><dd>重視する原則を伝える（例: テストファースト、ライブラリ優先、シンプルさ）。</dd>
-      <dt>AI がやること</dt><dd>原則を条文化し、関連テンプレートとの整合も確認する。</dd>
+      <dt>AI がやること</dt><dd>原則を条文化し、バージョンを上げ、変更点をまとめた Sync Impact Report（レビュー用の一時メモ）を先頭に付ける。他のテンプレートは書き換えない。</dd>
       <dt>入力 → 出力</dt><dd>原則の指示 → <code>.specify/memory/constitution.md</code></dd>
     </dl>
 <pre>/speckit.constitution コード品質・テスト基準・UX の一貫性・
@@ -402,7 +411,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <dl class="kv">
       <dt>役割</dt><dd>「何を・なぜ作るか」を仕様書にする。技術スタックは書かない。</dd>
       <dt>人間がやること</dt><dd>作りたいものとその目的を自然言語で説明する。</dd>
-      <dt>AI がやること</dt><dd>機能ブランチと <code>specs/NNN-name/</code> を作り、ユーザーストーリー・機能要件・受け入れ基準を書く。不明点は <code>[NEEDS CLARIFICATION]</code> で印を付ける。</dd>
+      <dt>AI がやること</dt><dd><code>specs/NNN-name/</code> を作り（git 拡張があれば機能ブランチも作り）、ユーザーストーリー・機能要件・受け入れ基準を書く。不明点は <code>[NEEDS CLARIFICATION]</code> で印を付ける。</dd>
       <dt>入力 → 出力</dt><dd>要望 → <code>spec.md</code></dd>
     </dl>
 <pre>/speckit.specify 写真をアルバムに整理できるアプリ。
@@ -457,9 +466,9 @@ footer#memo-backlink a:hover { color: var(--accent); }
 ├── .specify/
 │   ├── memory/
 │   │   └── constitution.md   <span class="cm"># 憲法</span>
-│   ├── scripts/              <span class="cm"># ブランチ作成など</span>
+│   ├── scripts/              <span class="cm"># 前提チェック・テンプレート解決など</span>
 │   └── templates/            <span class="cm"># spec/plan/tasks の雛形</span>
-├── .claude/commands/         <span class="cm"># エージェント別に配置</span>
+├── .claude/skills/           <span class="cm"># エージェント別に配置</span>
 └── specs/
     └── 001-photo-albums/
         ├── spec.md           <span class="cm"># 何を・なぜ</span>
@@ -480,20 +489,20 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <tr><td><code>data-model.md</code></td><td>エンティティと関係</td><td>plan</td></tr>
         <tr><td><code>contracts/</code></td><td>API などのインターフェース定義</td><td>plan</td></tr>
         <tr><td><code>quickstart.md</code></td><td>動作確認シナリオ</td><td>plan</td></tr>
-        <tr><td><code>tasks.md</code></td><td>順序付きタスク</td><td>tasks</td></tr>
+        <tr><td><code>tasks.md</code></td><td>順序付きタスク</td><td>tasks / converge</td></tr>
       </table>
     </div>
   </div>
-  <p class="note">エージェント用コマンドの置き場所は選んだエージェントで変わります（Claude Code なら <code>.claude/commands/</code> など）。</p>
+  <p class="note">エージェント用コマンドの置き場所は選んだエージェントで変わります（Claude Code なら <code>.claude/skills/</code>、GitHub Copilot なら <code>.github/</code> 配下など）。</p>
 
   <h2 id="examples">コマンド例</h2>
-<pre><span class="cm"># 前提: Python 3.11+, Git, uv, AI エージェントのどれか</span>
+<pre><span class="cm"># 前提: Python 3.11+, uv, 対応する AI エージェント（Git は git 拡張を使うときだけ必要）</span>
 
 <span class="cm"># 新規プロジェクトに導入（エージェントを指定）</span>
-uvx --from git+https://github.com/github/spec-kit.git specify init my-project --ai claude
+uvx --from git+https://github.com/github/spec-kit.git specify init my-project --integration claude
 
 <span class="cm"># 既存ディレクトリに導入</span>
-uvx --from git+https://github.com/github/spec-kit.git specify init --here --ai claude
+uvx --from git+https://github.com/github/spec-kit.git specify init --here --integration claude
 
 <span class="cm"># 必要なツールが揃っているか確認</span>
 specify check</pre>
@@ -515,7 +524,7 @@ specify check</pre>
     </div>
     <div class="myth">
       <p class="q">全コマンドを毎回使わないといけない</p>
-      <p class="a">必須級は specify → plan → tasks → implement。clarify / checklist / analyze は規模や重要度に応じて追加する。</p>
+      <p class="a">必須級は specify → plan → tasks → implement → converge。clarify / checklist / analyze は規模や重要度に応じて追加する。</p>
     </div>
     <div class="myth">
       <p class="q">AI に任せればレビュー不要</p>
@@ -567,11 +576,11 @@ document.querySelectorAll('.tabs').forEach(group => {
     "q": "小さな機能を急いで作りたい。最低限たどる流れは？",
     "choices": [
       "constitution → implement",
-      "specify → plan → tasks → implement",
+      "specify → plan → tasks → implement → converge",
       "clarify → checklist → analyze → implement"
     ],
     "answer": 1,
-    "explain": "clarify・checklist・analyze は規模や重要度に応じて挟む品質ゲート。",
+    "explain": "clarify・checklist・analyze は規模や重要度に応じて挟む品質ゲート。最後は converge で残作業がないかを確かめる。",
     "ref": "#flow"
   },
   {

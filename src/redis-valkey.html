@@ -282,7 +282,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <text x="410" y="94" text-anchor="middle" class="sub">イベントループ</text>
       <text x="410" y="122" text-anchor="middle" font-size="12">コマンドを</text>
       <text x="410" y="140" text-anchor="middle" font-size="12">1 つずつ実行</text>
-      <text x="410" y="176" text-anchor="middle" class="sub">期限切れ掃除・退避も</text>
+      <text x="410" y="176" text-anchor="middle" class="sub">期限切れ掃除・エビクションも</text>
       <line class="arrow-acc" x1="300" y1="125" x2="328" y2="125" marker-end="url(#m2)"/>
 
       <!-- memory -->
@@ -365,8 +365,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <p class="note">内部では件数が少ないうちは詰め込み形式（listpack など）でメモリを節約し、増えたら本格的な構造（ハッシュテーブル、スキップリストなど）に自動で切り替わります。</p>
 
-  <!-- ================= 期限と退避 ================= -->
-  <h2 id="expire">メモリが有限 ─ 期限切れ (TTL) と退避 (eviction)</h2>
+  <!-- ================= 期限とエビクション ================= -->
+  <h2 id="expire">メモリが有限 ─ 期限切れ (TTL) とエビクション (eviction)</h2>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-panel="ex-ttl">期限切れの消し方</button>
     <button class="tab" role="tab" aria-selected="false" data-panel="ex-evict">満杯になったら</button>
@@ -388,7 +388,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <p class="note">「期限ちょうどにメモリが空く」わけではありません。一時的に期限切れキーがメモリに残ることがあります。</p>
   </div>
   <div class="panel card" id="ex-evict" hidden>
-    <p><code>maxmemory</code> に達したときの動きは <code>maxmemory-policy</code> で決まります。</p>
+    <p><code>maxmemory</code> に達したときの動き（キーを追い出して削除する＝エビクションをするか、どれを追い出すか）は <code>maxmemory-policy</code> で決まります。</p>
     <table class="tbl">
       <thead><tr><th>ポリシー</th><th>動き</th><th>向いている用途</th></tr></thead>
       <tbody>
@@ -506,7 +506,7 @@ HSET user:1 plan pro     ← 書き込みのたびに追記</code></pre>
     <div class="timeline">
       <div class="tl redis"><div class="when">2009</div><div class="what"><span class="r">Redis</span> 誕生。BSD ライセンスのオープンソースとして広く普及</div></div>
       <div class="tl redis"><div class="when">2024-03</div><div class="what"><span class="r">Redis</span> が次版（7.4）以降を RSALv2 / SSPLv1 のデュアルライセンスに変更。クラウド事業者が無断でマネージドサービスにすることを制限する、OSI 非承認の「ソースアバイラブル」ライセンス</div></div>
-      <div class="tl valkey"><div class="when">2024-03</div><div class="what">ライセンス変更直前の BSD 版 Redis 7.2.4 から <span class="v">Valkey</span> がフォーク（7.2 系のパッチ版はその後も BSD で提供）。Linux Foundation の下、AWS・Google Cloud・Oracle などのメンテナーが参加。ライセンスは BSD 3-Clause のまま</div></div>
+      <div class="tl valkey"><div class="when">2024-03</div><div class="what">ライセンス変更直前の BSD 版 Redis 7.2.4 から <span class="v">Valkey</span> がフォーク（重大なセキュリティ修正は一定期間 BSD で提供）。Linux Foundation の下、AWS・Google Cloud・Oracle などのメンテナーが参加。ライセンスは BSD 3-Clause のまま</div></div>
       <div class="tl valkey"><div class="when">2024-09</div><div class="what"><span class="v">Valkey 8.0</span>：非同期 I/O スレッド、デュアルチャネルレプリケーションなど独自の改善が始まる</div></div>
       <div class="tl redis"><div class="when">2025-05</div><div class="what"><span class="r">Redis 8</span>：AGPLv3 を選択肢に追加し OSI 承認のオープンソースに復帰。JSON・検索 (Query Engine)・時系列・確率的データ構造・Vector Set を本体ディストリビューションに同梱</div></div>
       <div class="tl valkey"><div class="when">2025-10</div><div class="what"><span class="v">Valkey 9.0</span>：アトミックなスロット移行、ハッシュフィールドの期限、クラスターモードでの複数 DB（番号付き DB）</div></div>
@@ -562,7 +562,7 @@ ZADD rank 90 bob 75 ann                        # ランキング
 ZREVRANGE rank 0 9 WITHSCORES                  # 上位 10 件
 CLUSTER KEYSLOT user:1000                      # どのスロットか
 INFO memory                                    # メモリ使用量
-CONFIG SET maxmemory-policy allkeys-lfu        # キャッシュ用の退避方針</code></pre>
+CONFIG SET maxmemory-policy allkeys-lfu        # キャッシュ用のエビクション方針</code></pre>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

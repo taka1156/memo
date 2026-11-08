@@ -259,7 +259,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="flow">
       <div class="box">Rust / C++ / Go…<small>ソースコード</small></div><div class="arrow">→</div>
       <div class="box">コンパイラ<small>LLVM・wasm-pack・Emscripten</small></div><div class="arrow">→</div>
-      <div class="box">.wasm<small>バイナリ＋JS の接着コード</small></div><div class="arrow">→</div>
+      <div class="box">.wasm<small>バイナリ＋JS のグルーコード</small></div><div class="arrow">→</div>
       <div class="box">ブラウザ<small>検証 → 機械語にコンパイル</small></div>
     </div>
     <p>JS はまず文字列を構文解析し、実行しながら型を推測して最適化する。Wasm は<b>型が最初から決まった低レベルの命令</b>なので、読み込みながら（ストリーミングで）すぐ機械語にでき、速度のぶれも小さい。ただし「JS の何倍も速い」とは限らず、最適化の効いた JS とは同程度のことも多い。差が出るのは、メモリの配置を細かく制御できる処理や、JS の最適化が外れやすい処理。</p>
@@ -292,7 +292,7 @@ instance.exports.blur(ptr, width, height);   <span class="cm">// Wasm が公開�
 
   <h2 id="sandbox">安全性：何から守られているか</h2>
   <div class="grid2">
-    <div class="card"><span class="label">守られる</span><p>Wasm は自分の線形メモリの外（ブラウザのメモリ、JS のオブジェクト）を読み書きできない。ファイル・ネットワーク・DOM には、<b>呼び出し側が imports で渡した関数を通してしか</b>触れない（能力ベース）。ブラウザの同一オリジンポリシーや CSP もそのまま効く。</p></div>
+    <div class="card"><span class="label">守られる</span><p>Wasm は自分の線形メモリの外（ブラウザのメモリ、JS のオブジェクト）を読み書きできない。ファイル・ネットワーク・DOM には、<b>呼び出し側が imports で渡した関数を通してしか</b>触れない（ケイパビリティベース。渡された権限＝ケイパビリティにだけ触れられる）。ブラウザの同一オリジンポリシーや CSP もそのまま効く。</p></div>
     <div class="card"><span class="label">守られない</span><p>C/C++ のバッファオーバーフローは<b>線形メモリの中では普通に起きる</b>。外には出られないが、同じモジュール内のデータは壊れうる。信頼できない入力を古い C ライブラリに渡すなら、Wasm 化しても入力検証は必要。</p></div>
   </div>
 
@@ -322,7 +322,7 @@ instance.exports.blur(ptr, width, height);   <span class="cm">// Wasm が公開�
         <div class="wit">↓</div>
         <div class="ly"><b>ランタイム</b><small>Wasmtime・WasmEdge・エッジ基盤など</small></div>
       </div>
-      <div class="cap"><b>能力ベース</b>「/data だけ読める」「この宛先だけ通信できる」といった権限をホストが渡す。渡されていないものには触れない。</div>
+      <div class="cap"><b>ケイパビリティベース</b>「/data だけ読める」「この宛先だけ通信できる」といった権限をホストが渡す。渡されていないものには触れない。</div>
     </div>
     <p><b>WASI</b> はブラウザ以外で Wasm が OS の機能を使うための標準インターフェース。<b>コンポーネントモデル</b>は、文字列やリストなどの高水準な型（WIT で定義）でモジュール同士をつなぐ仕組みで、別言語で書いた部品を組み合わせられる。WASI の新しい版はこのコンポーネントモデルの上に定義されている。</p>
     <p class="note">「コンテナの次」と言われることがあるが、置き換えというより用途が違う。Wasm は起動がミリ秒単位で小さく隔離が強いので、<b>リクエストごとに起動する関数やプラグイン</b>に向く。既存の Linux アプリをそのまま動かすならコンテナ。WASI はまだ版を重ねている途中なので、使うランタイムがどの版に対応しているかを確認する。</p>
@@ -371,7 +371,7 @@ document.querySelectorAll('.tabs').forEach(group => {
   {"q": "画像フィルターを Wasm にしたのに JS 版より遅くなった。ピクセルごとに JS から Wasm の関数を呼んでいる。どう直す？", "choices": ["画像全体を線形メモリに 1 回コピーし、Wasm の中でループさせて結果を 1 回で返す", "Wasm を JS に戻す（Wasm は JS より遅いので）", "関数呼び出しを async にする"], "answer": 0, "explain": "JS と Wasm の境界を越えるたびに呼び出しと変換のコストがかかる。越える回数を減らし、中で長く計算させると速くなる。", "ref": "#memory"},
   {"q": "リスト表示が重いので、DOM 更新を Wasm で書き直そうとしている。期待できる効果は？", "choices": ["大きく速くなる。Wasm は DOM を直接速く操作できる", "あまり期待できない。Wasm は DOM に直接触れず JS 経由になり、重いのはブラウザ側のレイアウトだから", "Wasm は DOM を一切扱えないので実装できない"], "answer": 1, "explain": "DOM 操作は imports 経由で JS を呼ぶので、むしろ境界のコストが増える。描画の重さはレイアウト・ペイント側の問題。", "ref": "#when"},
   {"q": "信頼できないユーザー入力を、古い C 製のパーサーを Wasm 化したものに渡す。正しい理解は？", "choices": ["Wasm 化したのでバッファオーバーフローは起きない", "オーバーフローは線形メモリ内では起こりうるが、ブラウザや他のメモリには出られない", "オーバーフローするとブラウザのメモリまで書き換えられる"], "answer": 1, "explain": "Wasm のサンドボックスは外への影響を防ぐが、モジュール内部のメモリ安全性までは保証しない。", "ref": "#sandbox"},
-  {"q": "サーバー側でユーザーが書いたプラグインを安全に、リクエストごとに素早く起動して動かしたい。合う選択は？", "choices": ["プラグインを WASI 対応の Wasm として動かし、必要な能力だけ渡す", "プラグインを同じプロセスに eval で読み込む", "プラグインごとに VM を立ち上げる"], "answer": 0, "explain": "Wasm は起動が速く、渡した能力以外に触れない。プラグインの隔離に向いている。", "ref": "#wasi"}
+  {"q": "サーバー側でユーザーが書いたプラグインを安全に、リクエストごとに素早く起動して動かしたい。合う選択は？", "choices": ["プラグインを WASI 対応の Wasm として動かし、必要なケイパビリティ（権限）だけ渡す", "プラグインを同じプロセスに eval で読み込む", "プラグインごとに VM を立ち上げる"], "answer": 0, "explain": "Wasm は起動が速く、渡したケイパビリティ以外に触れない。プラグインの隔離に向いている。", "ref": "#wasi"}
 ]
 </script>
 </body>

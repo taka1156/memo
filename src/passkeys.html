@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>パスキー（WebAuthn）</title>
-<meta name="description" content="公開鍵で署名するパスキーの登録・ログインの流れ、フィッシングに強い理由、同期型と端末固定型の違い、実装時のチェックリストまでを図解。">
+<meta name="description" content="公開鍵で署名するパスキーの登録・ログインの流れ、フィッシングに強い理由、同期パスキーとデバイス固定パスキーの違い、実装時のチェックリストまでを図解。">
 <meta name="memo:tags" content="セキュリティ">
 <meta name="memo:date" content="2026-11-03">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
@@ -275,7 +275,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </div>
   </div>
 
-  <h2 id="types">同期型と端末固定型</h2>
+  <h2 id="types">同期パスキーとデバイス固定パスキー</h2>
   <div class="grid2">
     <div class="card">
       <span class="label">同期パスキー（synced）</span>
@@ -283,7 +283,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <p class="note">安全性はそのマネージャーのアカウント保護に依存する。</p>
     </div>
     <div class="card">
-      <span class="label">端末固定パスキー（device-bound）</span>
+      <span class="label">デバイス固定パスキー（device-bound）</span>
       <p>YubiKey などのセキュリティキーや、管理された業務端末の中だけにあり、<b>コピーできない</b>。管理者アカウントや厳しい社内要件向け。</p>
       <p class="note">失くすと使えないので、予備のキーを必ず登録しておく。</p>
     </div>
@@ -325,7 +325,7 @@ await fetch('/webauthn/verify', { method: 'POST', body: JSON.stringify(cred) });
   <h2 id="myths">よくある誤解</h2>
   <div class="card myth"><p><span class="ng">✕</span> 指紋や顔のデータがサーバーに送られる</p><p><span class="ok">○</span> 生体情報は端末内で本人確認に使うだけ。サーバーに届くのは署名と「本人確認済み」のフラグ。</p></div>
   <div class="card myth"><p><span class="ng">✕</span> パスキー対応サイトがハッキングされたら、パスキーも盗まれる</p><p><span class="ok">○</span> サーバーにあるのは公開鍵だけ。公開鍵では署名できないので、漏れても他人がログインすることはできない。</p></div>
-  <div class="card myth"><p><span class="ng">✕</span> スマホを失くしたらログインできなくなる</p><p><span class="ok">○</span> 同期パスキーなら、同じアカウントの別端末や新しい端末に戻ってくる。端末固定型は予備を登録しておくのが前提。</p></div>
+  <div class="card myth"><p><span class="ng">✕</span> スマホを失くしたらログインできなくなる</p><p><span class="ok">○</span> 同期パスキーなら、同じアカウントの別端末や新しい端末に戻ってくる。デバイス固定型は予備を登録しておくのが前提。</p></div>
 
   <h2 id="now">いまの動き（2026年）</h2>
   <div class="card">
@@ -413,9 +413,9 @@ document.querySelectorAll('.tabs').forEach(group => {
   },
   {
     "q": "社内の管理者アカウントで、鍵がクラウドに同期されることを避けたい。合う構成は？",
-    "choices": ["同期パスキーだけを許可する", "パスワード＋TOTP に戻す", "YubiKey などの端末固定パスキーを使い、予備のキーも登録する"],
+    "choices": ["同期パスキーだけを許可する", "パスワード＋TOTP に戻す", "YubiKey などのデバイス固定パスキーを使い、予備のキーも登録する"],
     "answer": 2,
-    "explain": "端末固定パスキーは鍵をコピーできず、そのハードウェアの中にしか存在しない。失くすと使えないので予備の登録が前提。",
+    "explain": "デバイス固定パスキーは鍵をコピーできず、そのハードウェアの中にしか存在しない。失くすと使えないので予備の登録が前提。",
     "ref": "#types"
   },
   {

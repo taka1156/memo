@@ -280,7 +280,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <strong>ざっくり言うと</strong>
     <ul>
       <li><span class="go">tsgo</span> は Microsoft 公式の Go 移植で、<strong>TypeScript 7 の正式な <code>tsc</code></strong>。旧 JS 版より約 10 倍速い。</li>
-      <li><span class="rs">tsrs</span> はその Go 実装を<strong>関数単位で Rust に移植</strong>した実験版（Oxc 傘下、Cloudflare / VoidZero ほか）。同じワーカー数で最大 8 倍速・メモリ約 70% 減と主張。</li>
+      <li><span class="rs">tsrs</span> はその Go 実装を<strong>関数単位で Rust に移植</strong>した実験版（Oxc 傘下、Cloudflare / VoidZero ほか）。同じワーカー数で最大 8 倍速・メモリ約 70% 減と主張（下の「速さの比較」の 3 例はおよそ 5 倍）。</li>
       <li>どちらも型チェックを<strong>省略しない</strong>本物のコンパイラ。違いは主に<strong>メモリ管理（GC か所有権＋アリーナか）</strong>と <strong>Wasm 適性</strong>、そして成熟度。</li>
     </ul>
   </div>
@@ -351,15 +351,15 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <h3>同じ骨格 + Rust ならではの最適化</h3>
     <p>tsgo の関数を 1 つずつ Rust に写しているので、パイプラインや checker プールの考え方は同じ。そのうえで次を足している。</p>
     <div class="pool rs">
-      <div class="checker"><div class="h">checker × 16（既定例）</div><div class="cache">マシンに応じて適応的に設定。メモリを多めに使う代わりに速い</div></div>
+      <div class="checker"><div class="h">checker × 4（既定）</div><div class="cache">0.20 から既定は tsgo と同じ 4 個。<code>--fast</code> を付けるとマシンに応じて増やす（最大 16〜32）。メモリを多めに使う代わりに速い</div></div>
       <div class="checker"><div class="h">ポインタ圧縮</div><div class="cache">参照をアリーナ内の小さな番号（ハンドル）にして、参照だらけの構造を縮める。番号→アドレス変換のコストとのトレードオフ</div></div>
-      <div class="checker"><div class="h">葉ファイルの早期解放</div><div class="cache">もう誰も参照しない「葉」のファイルの構文データを途中で捨てる（import・宣言マージ等の条件付き）</div></div>
+      <div class="checker"><div class="h">末端（leaf）ファイルの早期解放</div><div class="cache">（<code>--fast</code> 時）もう誰も参照しない末端のファイルの構文データを途中で捨てる（import・宣言マージ等の条件付き）</div></div>
       <div class="checker"><div class="h">PGO ビルド</div><div class="cache">実行プロファイルを使った最適化でリリースバイナリをビルド</div></div>
     </div>
     <ul class="plain" style="margin-top:12px;font-size:.86rem">
-      <li>独自フラグ: <code>--maxMemory</code>（目標値）、<code>--checkerCostCache</code>、Go と割り当てを揃える <code>--checkerAssignment go</code> など。</li>
+      <li>独自フラグ: <code>--maxMemory</code>（目標値）、<code>--checkerCostCache</code>、<code>--fast</code>（高速プリセット）、<code>--fast</code> の割り当てを Go 方式に戻す <code>--checkerAssignment go</code> など。</li>
       <li>メモリは所有権 + アリーナで管理し、<strong>GC が無い</strong>。</li>
-      <li>tsc-rs（ping.gg 発）と統合予定。LSP や content mapper（Vue/Svelte 等）を統合版で整える計画。</li>
+      <li>tsc-rs（ping.gg 発）と統合予定。content mapper（Vue/Svelte 等）は LSP・API でも対応済みで、自動型取得など残りの欠落を埋めていく計画。</li>
     </ul>
   </div>
 
@@ -417,7 +417,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <div class="bar-row rs"><span class="lbl">tsrs</span><div class="bar-track"><div class="bar rs" style="width:2.7%">0.29s</div></div></div>
       </div>
     </div>
-    <p class="note">tsrs 側が出した初期の数字で、ワークロード次第。参考までに tsgo 自体は旧 JS 版 tsc 比で 8〜12 倍（VS Code: 125.7s → 10.6s）。TS 7.1 beta は 7.0 比で最大 2.5 倍速くなっており、差は縮みつつある。</p>
+    <p class="note">tsrs 側が出した初期の数字で、ワークロード次第。参考までに tsgo 自体は旧 JS 版 tsc 比で 8〜12 倍（VS Code: 125.7s → 10.6s）。TS 7.1 beta は 7.0 比で最大 2.5 倍速くなっており、差は縮みつつある（tsrs の現行のベンチ表では、既定設定どうしで TS 7.1 beta 比おおむね 2〜4 倍）。</p>
   </div>
 
   <!-- ================================================= -->
@@ -431,9 +431,9 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <tr><td>移植元</td><td>JS 版 tsc</td><td>Go 版 tsgo（関数単位）</td></tr>
         <tr><td>位置づけ</td><td>正式版。<code>npm i -D typescript</code> で入る</td><td>実験版。<code>npm i -D tsrs</code></td></tr>
         <tr><td>メモリ管理</td><td>GC</td><td>所有権 + アリーナ、ポインタ圧縮、早期解放</td></tr>
-        <tr><td>checker 既定数</td><td>4</td><td>マシン適応（ベンチ例 16）</td></tr>
+        <tr><td>checker 既定数</td><td>4</td><td>4（tsgo と同じ）。<code>--fast</code> でマシン適応</td></tr>
         <tr><td>LSP</td><td>あり（マルチスレッド）</td><td><code>--lsp</code> はあるが既知の欠落あり</td></tr>
-        <tr><td>プログラム API</td><td>7.0 は安定 API なし → 7.1 で予定</td><td>統合版で整備予定</td></tr>
+        <tr><td>プログラム API</td><td>7.0 は安定 API なし → 7.1 で予定</td><td>ベータ版 Node API（<code>--api</code>、<code>tsrs/sync</code> 等）あり。欠落あり</td></tr>
         <tr><td>Wasm</td><td>不向き（GC 同梱）</td><td><code>@tsrs/wasm</code> あり（単一スレッド）</td></tr>
         <tr><td>互換性</td><td>基準そのもの（差分は CHANGES.md）</td><td>診断の順序・位置などに差異あり。差は「バグ」扱い。目標は 7.1 完全準拠</td></tr>
       </tbody>
@@ -445,7 +445,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <div class="card">
     <div class="myth"><div class="q">tsrs は TypeScript の fork（別言語）</div><div class="a">fork ではない。言語設計は TypeScript チームが握り、tsrs は upstream に追従する実装の 1 つ。</div></div>
     <div class="myth"><div class="q">「8 倍速」は旧 tsc と比べた数字</div><div class="a">比較相手は <strong>TypeScript 7.0（tsgo）</strong>で、checker 数を揃えた条件。旧 tsc 比の「約 10 倍」は tsgo の話。</div></div>
-    <div class="myth"><div class="q">swc / esbuild / Biome の仲間</div><div class="a">それらは型を剥がすだけで型チェックはしない。tsgo も tsrs も<strong>型チェックまでやる本物の tsc</strong>。</div></div>
+    <div class="myth"><div class="q">swc / esbuild / Biome の仲間</div><div class="a">swc / esbuild は型を剥がして変換するだけ、Biome はリンター・フォーマッターで、どれも tsc と同じ型チェックはしない。tsgo も tsrs も<strong>型チェックまでやる本物の tsc</strong>。</div></div>
     <div class="myth"><div class="q">Wasm 版ならブラウザでも本番同等に動く</div><div class="a">Wasm 版はシングルスレッドで watch / LSP なし。ネイティブ版のベンチ数値は当てはまらない。</div></div>
     <div class="myth"><div class="q">TS 7 にすれば typescript-eslint や Vue ツールもすぐ速くなる</div><div class="a">7.0 には安定したプログラム API が無く、API 依存のツールは 7.1 待ち。当面は <code>@typescript/typescript6</code>（<code>tsc6</code>）と併用する。</div></div>
   </div>
@@ -478,7 +478,7 @@ npx tsc -p . --noEmit --checkers 8
 # tsrs
 npm i -D tsrs
 npx tsrs -p . --noEmit
-npx tsrs -p . --noEmit --checkerAssignment go   # Go 版と割り当てを揃えて比較
+npx tsrs -p . --noEmit --fast   # 高速プリセット（結果は既定モードと突き合わせる）
 npx tsrs --lsp -stdio                            # 言語サーバー（実験的）</pre>
 
   <h2>出典</h2>
@@ -537,7 +537,7 @@ document.querySelectorAll('.tabs').forEach(group => {
       "済んでいる。Rust / Go 製なので型チェックも速く行う"
     ],
     "answer": 1,
-    "explain": "tsgo と tsrs は型チェックまでやる本物のコンパイラ。swc / esbuild / Biome は型を剥がすだけ。",
+    "explain": "tsgo と tsrs は型チェックまでやる本物のコンパイラ。swc / esbuild は型を剥がして変換するだけ。",
     "ref": "#myths"
   },
   {

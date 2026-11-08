@@ -381,7 +381,7 @@ effect(() =&gt; { text.data = count(); });</code></pre>
     <div><span class="fw fw-vue">Vue</span><small>コンポーネント単位で追跡し、その中は仮想 DOM。コンパイラが差分を絞り込む</small></div>
     <div><span class="fw fw-solid">Solid</span> <span class="fw fw-svelte">Svelte 5</span> <span class="fw fw-vue">Vue Vapor</span><small>仮想 DOM なし。シグナルから DOM ノードへ直結</small></div>
   </div>
-  <p class="muted">Vue 3.6 の Vapor Mode（2026年9月時点で RC）はコンポーネント単位で選べる新モードで、Vue を右下の枠にも置けるようにする。Svelte も 4 までは「代入文をコンパイラが検知する」独自方式だったが、5 の runes でシグナルに移った。</p>
+  <p class="muted">Vue 3.6 の Vapor Mode（2026年7月から RC）はコンポーネント単位で選べる新モードで、Vue を右下の枠にも置けるようにする。Svelte も 4 までは「代入文をコンパイラが検知する」独自方式だったが、5 の runes でシグナルに移った。</p>
 
   <h2 id="compare">比較表</h2>
   <div class="table-wrap">
@@ -493,7 +493,7 @@ document.getElementById('inc').addEventListener('click', () => {
       "仮想 DOM がなくなり、直接 DOM を操作するコードになる"
     ],
     "answer": 1,
-    "explain": "React Compiler は memo / useMemo などを自動挿入するもので、更新の単位はコンポーネントのまま。",
+    "explain": "React Compiler は memo / useMemo に相当するメモ化を自動で入れるもので、更新の単位はコンポーネントのまま。",
     "ref": "#compiler"
   },
   {
