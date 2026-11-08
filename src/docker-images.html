@@ -631,7 +631,8 @@ COPY . .
 FROM gcr.io/distroless/nodejs24-debian13:nonroot
 WORKDIR /app
 COPY --from=build /app /app
-CMD ["server.js"]   # ENTRYPOINT が node なのでファイル名だけ渡す</code></pre>
+# ENTRYPOINT が node なのでファイル名だけ渡す
+CMD ["server.js"]</code></pre>
   </div>
   <div class="panel card" id="d1">
 <pre><code># glibc 必須なので slim。OS 世代はタグで固定する

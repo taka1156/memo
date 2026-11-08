@@ -311,7 +311,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <tr><td>Worker からの接続</td><td>バインディングで呼ぶだけ</td><td>Hyperdrive の接続文字列を普通のドライバに渡す</td></tr>
       <tr><td>Workers 以外から</td><td>HTTP API（主に管理・バッチ向け）</td><td>普通の DB としてどこからでも</td></tr>
       <tr><td>遅延の考え方</td><td>DB の場所＋読み取りレプリカ</td><td>DB のリージョン＋Placement で Worker を近くに＋キャッシュ</td></tr>
-      <tr><td>復旧</td><td>Time Travel（直近 30 日の任意の分。有料プラン）</td><td>PlanetScale のバックアップ・ブランチ</td></tr>
+      <tr><td>復旧</td><td>Time Travel（直近 30 日の任意の分。無料プランは 7 日）</td><td>PlanetScale のバックアップ・ブランチ</td></tr>
       <tr><td>料金の入口</td><td>無料枠あり</td><td>Postgres 単一ノードで月 $5〜（Cloudflare の請求にまとめられる）</td></tr>
       <tr><td>持ち出しやすさ</td><td>SQLite なのでファイルとしては持ち出せるが、サービスは Cloudflare 専用</td><td>標準の Postgres / MySQL なので他へ移しやすい</td></tr>
     </table>

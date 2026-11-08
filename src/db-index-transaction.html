@@ -305,7 +305,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h3 id="cost">インデックスのコスト</h3>
   <div class="grid2">
-    <div class="card"><span class="label">書き込みが遅くなる</span><p>INSERT・DELETE のたびに全インデックスを、UPDATE では変更した列を含むインデックスを更新する。10 本あれば最大 10 か所書く。使っていないインデックスは消す。</p></div>
+    <div class="card"><span class="label">書き込みが遅くなる</span><p>INSERT・DELETE のたびに全インデックスを、UPDATE では変更した列を含むインデックスを更新する（PostgreSQL では HOT 更新にならないと全インデックス）。10 本あれば最大 10 か所書く。使っていないインデックスは消す。</p></div>
     <div class="card"><span class="label">カバリングインデックス</span><p>SELECT する列が全部インデックスに入っていれば、テーブル本体を読まずに済む（Index Only Scan）。<code>INCLUDE (列)</code> で葉に列を足せる DB もある。</p></div>
   </div>
 <pre><code>EXPLAIN ANALYZE SELECT * FROM orders WHERE user_id = 5 ORDER BY created_at DESC LIMIT 20;

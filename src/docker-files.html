@@ -292,10 +292,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <div class="grid2">
     <div class="card bad"><span class="label" style="color:var(--c-ng)">遅い</span>
 <pre><code>COPY . .
-RUN npm ci   <span class="ng"># ソース 1 行の変更でも毎回走る</span></code></pre></div>
+<span class="ng"># ↓ ソース 1 行の変更でも毎回走る</span>
+RUN npm ci</code></pre></div>
     <div class="card good"><span class="label" style="color:var(--c-ok)">速い</span>
 <pre><code>COPY package*.json ./
-RUN npm ci   <span class="ok"># 依存が変わったときだけ</span>
+<span class="ok"># ↓ 依存が変わったときだけ走る</span>
+RUN npm ci
 COPY . .</code></pre></div>
   </div>
   <p class="note">さらに速くするなら、パッケージのダウンロードキャッシュをビルド間で使い回す: <code>RUN --mount=type=cache,target=/root/.npm npm ci</code>（BuildKit。今の Docker では標準）。</p>

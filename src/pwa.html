@@ -429,7 +429,7 @@ self.addEventListener('fetch', e =&gt; {
 
     <h3>更新</h3>
     <ul class="checklist">
-      <li><label><input type="checkbox"><span class="txt"><span class="badge rec">推奨</span><code>sw.js</code> に <code>Cache-Control: no-cache</code>（または <code>max-age=0</code>）を付けている<small>今のブラウザは既定で sw.js の更新確認に HTTP キャッシュを使わないが、古いブラウザや <code>importScripts</code> で読むファイルのため</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt"><span class="badge rec">推奨</span><code>sw.js</code> と <code>importScripts</code> で読むファイルに <code>Cache-Control: no-cache</code>（または <code>max-age=0</code>）を付けている<small>今のブラウザは既定で sw.js 本体の更新確認に HTTP キャッシュを使わないが、importScripts で読むファイルには HTTP キャッシュが効く。古いブラウザ向けにも sw.js に付けておく</small></span></label></li>
       <li><label><input type="checkbox"><span class="txt"><span class="badge rec">推奨</span>新しい版を検知したら「更新があります」と知らせ、<code>skipWaiting()</code> で切り替えられる</span></label></li>
     </ul>
 

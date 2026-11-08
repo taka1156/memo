@@ -388,7 +388,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <p class="note">「期限ちょうどにメモリが空く」わけではありません。一時的に期限切れキーがメモリに残ることがあります。</p>
   </div>
   <div class="panel card" id="ex-evict" hidden>
-    <p><code>maxmemory</code> に達したときにキーを追い出して削除すること（エビクション）の動きは <code>maxmemory-policy</code> で決まります。</p>
+    <p><code>maxmemory</code> に達したときの動き（キーを追い出して削除する＝エビクションをするか、どれを追い出すか）は <code>maxmemory-policy</code> で決まります。</p>
     <table class="tbl">
       <thead><tr><th>ポリシー</th><th>動き</th><th>向いている用途</th></tr></thead>
       <tbody>
