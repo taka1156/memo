@@ -416,26 +416,26 @@ CMD ["node", "server.js"]
 
 ## よくある誤解
 
-Alpine は軽いから実行も速い
+✗ 誤解: Alpine は軽いから実行も速い
 
-速いのは pull と起動前の転送だけ。実行時は malloc やソースビルドの影響でむしろ遅いことがある。
+✓ 正しくは: 速いのは pull と起動前の転送だけ。実行時は malloc やソースビルドの影響でむしろ遅いことがある。
 
-slim と alpine は同じようなもの
+✗ 誤解: slim と alpine は同じようなもの
 
-slim は「Debian（glibc）のダイエット版」、alpine は「別の OS（musl）」。互換性がまったく違う。
+✓ 正しくは: slim は「Debian（glibc）のダイエット版」、alpine は「別の OS（musl）」。互換性がまったく違う。
 
-`node:24` と書けば中身はずっと同じ
+✗ 誤解: `node:24` と書けば中身はずっと同じ
 
-OS 部分を省略すると Debian の世代交代（bookworm → trixie）で glibc ごと変わる。本番では `-trixie-slim` まで書いて固定する。
+✓ 正しくは: OS 部分を省略すると Debian の世代交代（bookworm → trixie）で glibc ごと変わる。本番では `-trixie-slim` まで書いて固定する。
 
-distroless = OS が入っていない
+✗ 誤解: distroless = OS が入っていない
 
-Debian 由来の glibc・証明書・tzdata は入っている。無いのはシェルとパッケージ管理。完全に空なのは scratch。
+✓ 正しくは: Debian 由来の glibc・証明書・tzdata は入っている。無いのはシェルとパッケージ管理。完全に空なのは scratch。
 
-まっさらイメージなら脆弱性ゼロで放置できる
+✗ 誤解: まっさらイメージなら脆弱性ゼロで放置できる
 
-中身が少ないので件数は激減するが、libc や OpenSSL の更新は来る。定期的に再ビルドして取り込む前提。
+✓ 正しくは: 中身が少ないので件数は激減するが、libc や OpenSSL の更新は来る。定期的に再ビルドして取り込む前提。
 
-Alpine はカーネルが違うから動かない
+✗ 誤解: Alpine はカーネルが違うから動かない
 
-カーネルはホストのものを共有。動かない原因は libc（ABI）とローダーの違い。
+✓ 正しくは: カーネルはホストのものを共有。動かない原因は libc（ABI）とローダーの違い。

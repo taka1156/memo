@@ -410,20 +410,20 @@ Dockerfile にツールを書き足すか features にするか迷ったら: ア
 
 ## よくある誤解
 
-EXPOSE を書けば外からアクセスできる
+✗ 誤解: EXPOSE を書けば外からアクセスできる
 
-EXPOSE は「このポートを使う」というメモにすぎない。ホストに公開するのは `docker run -p` や compose の `ports` 。
+✓ 正しくは: EXPOSE は「このポートを使う」というメモにすぎない。ホストに公開するのは `docker run -p` や compose の `ports` 。
 
-ENV や ARG なら API キーを書いても大丈夫
+✗ 誤解: ENV や ARG なら API キーを書いても大丈夫
 
-どちらも `docker history` やイメージの設定から読める。ビルド時に必要なら `RUN --mount=type=secret` 、実行時なら compose の `env_file` などで外から渡す。
+✓ 正しくは: どちらも `docker history` やイメージの設定から読める。ビルド時に必要なら `RUN --mount=type=secret` 、実行時なら compose の `env_file` などで外から渡す。
 
-depends_on を書けば DB の準備完了まで待ってくれる
+✗ 誤解: depends_on を書けば DB の準備完了まで待ってくれる
 
-素の depends_on はコンテナの起動順だけ。接続を受け付けるまで待つには `condition: service_healthy` ＋ healthcheck が要る。
+✓ 正しくは: 素の depends_on はコンテナの起動順だけ。接続を受け付けるまで待つには `condition: service_healthy` ＋ healthcheck が要る。
 
-devcontainer.json は VS Code 専用
+✗ 誤解: devcontainer.json は VS Code 専用
 
-Dev Container は公開された仕様で、Codespaces・JetBrains・CLI（ `devcontainer up` ）でも読める。エディタ固有の部分は `customizations` の中に分けて書く。
+✓ 正しくは: Dev Container は公開された仕様で、Codespaces・JetBrains・CLI（ `devcontainer up` ）でも読める。エディタ固有の部分は `customizations` の中に分けて書く。
 
 関連: [Docker 動作原理](https://memo.taka1156.site/md/docker.md) ／ [Docker イメージの種類](https://memo.taka1156.site/md/docker-images.md)

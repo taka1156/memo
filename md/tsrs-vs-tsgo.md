@@ -228,25 +228,25 @@ tsrs 側が出した初期の数字で、ワークロード次第。参考まで
 
 ## よくある誤解
 
-tsrs は TypeScript の fork（別言語）
+✗ 誤解: tsrs は TypeScript の fork（別言語）
 
-fork ではない。言語設計は TypeScript チームが握り、tsrs は upstream に追従する実装の 1 つ。
+✓ 正しくは: fork ではない。言語設計は TypeScript チームが握り、tsrs は upstream に追従する実装の 1 つ。
 
-「8 倍速」は旧 tsc と比べた数字
+✗ 誤解: 「8 倍速」は旧 tsc と比べた数字
 
-比較相手は **TypeScript 7.0（tsgo）** で、checker 数を揃えた条件。旧 tsc 比の「約 10 倍」は tsgo の話。
+✓ 正しくは: 比較相手は **TypeScript 7.0（tsgo）** で、checker 数を揃えた条件。旧 tsc 比の「約 10 倍」は tsgo の話。
 
-swc / esbuild / Biome の仲間
+✗ 誤解: swc / esbuild / Biome の仲間
 
-swc / esbuild は型を剥がして変換するだけ、Biome はリンター・フォーマッターで、どれも tsc と同じ型チェックはしない。tsgo も tsrs も **型チェックまでやる本物の tsc** 。
+✓ 正しくは: swc / esbuild は型を剥がして変換するだけ、Biome はリンター・フォーマッターで、どれも tsc と同じ型チェックはしない。tsgo も tsrs も **型チェックまでやる本物の tsc** 。
 
-Wasm 版ならブラウザでも本番同等に動く
+✗ 誤解: Wasm 版ならブラウザでも本番同等に動く
 
-Wasm 版はシングルスレッドで watch / LSP なし。ネイティブ版のベンチ数値は当てはまらない。
+✓ 正しくは: Wasm 版はシングルスレッドで watch / LSP なし。ネイティブ版のベンチ数値は当てはまらない。
 
-TS 7 にすれば typescript-eslint や Vue ツールもすぐ速くなる
+✗ 誤解: TS 7 にすれば typescript-eslint や Vue ツールもすぐ速くなる
 
-7.0 には安定したプログラム API が無く、API 依存のツールは 7.1 待ち。当面は `@typescript/typescript6` （ `tsc6` ）と併用する。
+✓ 正しくは: 7.0 には安定したプログラム API が無く、API 依存のツールは 7.1 待ち。当面は `@typescript/typescript6` （ `tsc6` ）と併用する。
 
 ## 使い分けの目安
 

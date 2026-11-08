@@ -300,10 +300,10 @@ await db.update(users).set({ name, bio }).where(eq(users.id, me));
 
 ## よくある誤解
 
-POST にしたので CSRF は大丈夫
+✗ 誤解: POST にしたので CSRF は大丈夫
 
-罠サイトのフォームから POST は送れる。SameSite・トークン・送信元の検証が必要。
+✓ 正しくは: 罠サイトのフォームから POST は送れる。SameSite・トークン・送信元の検証が必要。
 
-https なのでセッションは盗まれない
+✗ 誤解: https なのでセッションは盗まれない
 
-XSS・固定・URL への ID 漏れ・推測しやすい ID は https と関係ない。
+✓ 正しくは: XSS・固定・URL への ID 漏れ・推測しやすい ID は https と関係ない。

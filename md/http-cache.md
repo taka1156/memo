@@ -130,21 +130,21 @@ Vary: Accept-Language        # 日本語版と英語版を別々に保存
 
 ## よくある誤解・ハマりどころ
 
-`no-cache` を付ければキャッシュされない
+✗ 誤解: `no-cache` を付ければキャッシュされない
 
-no-cache は「使う前に毎回確認」。保存はされる。保存させたくないなら `no-store` 。
+✓ 正しくは: no-cache は「使う前に毎回確認」。保存はされる。保存させたくないなら `no-store` 。
 
-Cache-Control を付けなければキャッシュされない
+✗ 誤解: Cache-Control を付けなければキャッシュされない
 
-指定が無くても、 `Last-Modified` があればブラウザや CDN が鮮度を推測して（ヒューリスティック）キャッシュすることがある。意図があるなら必ず明示する。
+✓ 正しくは: 指定が無くても、 `Last-Modified` があればブラウザや CDN が鮮度を推測して（ヒューリスティック）キャッシュすることがある。意図があるなら必ず明示する。
 
-CDN をパージすれば全員に新しいものが届く
+✗ 誤解: CDN をパージすれば全員に新しいものが届く
 
-パージで消えるのは CDN の分だけ。ブラウザに長い max-age で残っている分は消せない。更新があり得るものは URL を変える（ファイル名ハッシュ）か、max-age を短くしておく。
+✓ 正しくは: パージで消えるのは CDN の分だけ。ブラウザに長い max-age で残っている分は消せない。更新があり得るものは URL を変える（ファイル名ハッシュ）か、max-age を短くしておく。
 
-Service Worker のキャッシュも Cache-Control で制御される
+✗ 誤解: Service Worker のキャッシュも Cache-Control で制御される
 
-Service Worker の Cache API は別物で、コードで明示的に出し入れする。HTTP キャッシュとは二重に存在する（ [PWA](https://memo.taka1156.site/md/pwa.md) 参照）。
+✓ 正しくは: Service Worker の Cache API は別物で、コードで明示的に出し入れする。HTTP キャッシュとは二重に存在する（ [PWA](https://memo.taka1156.site/md/pwa.md) 参照）。
 
 ## 確認のしかた
 

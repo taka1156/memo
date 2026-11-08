@@ -284,17 +284,17 @@ LLVM を使うのが定番（Rust・Swift・Julia など）。IR が公開仕様
 
 ## よくある誤解
 
-Clang は GCC のコードを一切使っていない
+✗ 誤解: Clang は GCC のコードを一切使っていない
 
-コンパイラ本体は独立しているが、Linux の clang は既定で GCC が入れたディレクトリを探し、libstdc++ のヘッダ、libgcc、 `crtbegin.o` などのスタートアップファイルを使う（ `clang++ -v` の「Selected GCC installation」で見える）。Clang だけで完結させたいなら `-stdlib=libc++ -rtlib=compiler-rt` などを指定する。
+✓ 正しくは: コンパイラ本体は独立しているが、Linux の clang は既定で GCC が入れたディレクトリを探し、libstdc++ のヘッダ、libgcc、 `crtbegin.o` などのスタートアップファイルを使う（ `clang++ -v` の「Selected GCC installation」で見える）。Clang だけで完結させたいなら `-stdlib=libc++ -rtlib=compiler-rt` などを指定する。
 
-GCC には中間表現がない（ソースから直接アセンブリを出す）
+✗ 誤解: GCC には中間表現がない（ソースから直接アセンブリを出す）
 
-GCC も GENERIC・GIMPLE・RTL と 3 段の中間表現を持ち、SSA ベースの最適化をする。違いは、それが GCC の内部形式で、外部のツールが入出力するための安定したフォーマットとして公開されていないこと。
+✓ 正しくは: GCC も GENERIC・GIMPLE・RTL と 3 段の中間表現を持ち、SSA ベースの最適化をする。違いは、それが GCC の内部形式で、外部のツールが入出力するための安定したフォーマットとして公開されていないこと。
 
-GCC は 1 つの巨大なプログラム、Clang はたくさんのプログラム
+✗ 誤解: GCC は 1 つの巨大なプログラム、Clang はたくさんのプログラム
 
-プロセスの数で見るとむしろ逆に近い。GCC は cc1 → as → collect2/ld と別プログラムを順に呼び、Clang は clang -cc1 の中でアセンブルまで済ませてからリンカを呼ぶ。違いは「プロセスの数」ではなく「中身がライブラリとして切り出されているか」。
+✓ 正しくは: プロセスの数で見るとむしろ逆に近い。GCC は cc1 → as → collect2/ld と別プログラムを順に呼び、Clang は clang -cc1 の中でアセンブルまで済ませてからリンカを呼ぶ。違いは「プロセスの数」ではなく「中身がライブラリとして切り出されているか」。
 
 ## 手元で比べるコマンド
 
