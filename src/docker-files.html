@@ -236,19 +236,30 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="dockerfile">Dockerfile の基本形</h2>
   <span class="file">Dockerfile</span>
-<pre><code><span class="cm"># syntax=docker/dockerfile:1          ← 最新の Dockerfile 構文を使う宣言（任意）</span>
-<span class="hl">FROM</span> node:22-slim                   <span class="cm"># ベースイメージ。タグは必ず固定（latest にしない）</span>
-<span class="hl">WORKDIR</span> /app                         <span class="cm"># 以降の作業ディレクトリ。なければ作られる</span>
+<pre><code><span class="cm"># syntax=docker/dockerfile:1</span>
+<span class="cm"># ↑ 最新の Dockerfile 構文を使う宣言（任意）。ディレクティブ行には何も書き足さない</span>
+<span class="cm"># ベースイメージ。タグは必ず固定（latest にしない）</span>
+<span class="hl">FROM</span> node:22-slim
+<span class="cm"># 以降の作業ディレクトリ。なければ作られる</span>
+<span class="hl">WORKDIR</span> /app
 
-<span class="hl">COPY</span> package.json package-lock.json ./   <span class="cm"># ① 依存の定義だけ先にコピー</span>
-<span class="hl">RUN</span> npm ci                            <span class="cm"># ② 依存をインストール（↑が変わらない限りキャッシュ）</span>
+<span class="cm"># ① 依存の定義だけ先にコピー</span>
+<span class="hl">COPY</span> package.json package-lock.json ./
+<span class="cm"># ② 依存をインストール（↑が変わらない限りキャッシュ）</span>
+<span class="hl">RUN</span> npm ci
 
-<span class="hl">COPY</span> . .                              <span class="cm"># ③ ソースは最後にコピー</span>
+<span class="cm"># ③ ソースは最後にコピー</span>
+<span class="hl">COPY</span> . .
 
-<span class="hl">ENV</span> NODE_ENV=production               <span class="cm"># 実行時にも残る環境変数</span>
-<span class="hl">USER</span> node                             <span class="cm"># root で動かさない</span>
-<span class="hl">EXPOSE</span> 3000                           <span class="cm"># ドキュメント。これだけでは公開されない</span>
-<span class="hl">CMD</span> ["node", "server.js"]             <span class="cm"># exec 形式（JSON 配列）で書く</span></code></pre>
+<span class="cm"># 実行時にも残る環境変数</span>
+<span class="hl">ENV</span> NODE_ENV=production
+<span class="cm"># root で動かさない</span>
+<span class="hl">USER</span> node
+<span class="cm"># ドキュメント。これだけでは公開されない</span>
+<span class="hl">EXPOSE</span> 3000
+<span class="cm"># exec 形式（JSON 配列）で書く</span>
+<span class="hl">CMD</span> ["node", "server.js"]</code></pre>
+  <p class="note">Dockerfile と .dockerignore のコメントは行頭の <code>#</code> だけ。命令の後ろに書いた <code>#</code> は引数（パターン）の一部になる。</p>
 
   <div class="table-wrap">
     <table>
@@ -291,9 +302,11 @@ COPY . .</code></pre></div>
 
   <h3 id="dockerignore">.dockerignore</h3>
   <span class="file">.dockerignore</span>
-<pre><code>node_modules     <span class="cm"># ホストの node_modules を持ち込まない（OS 違いで壊れる）</span>
+<pre><code><span class="cm"># ホストの node_modules を持ち込まない（OS 違いで壊れる）</span>
+node_modules
 .git
-.env             <span class="cm"># 秘密情報をイメージに焼き込まない</span>
+<span class="cm"># 秘密情報をイメージに焼き込まない</span>
+.env
 dist
 *.log</code></pre>
   <p class="note">書かないと <code>COPY . .</code> がこれらまで送り、ビルドが遅くなるうえ、<code>.env</code> がイメージに入る事故が起きる。</p>
@@ -303,7 +316,7 @@ dist
     <div class="stages">
       <div class="stage build"><b>build ステージ</b><ul><li>コンパイラ・devDependencies</li><li>ソース一式</li><li>テスト・ビルドを実行</li></ul></div>
       <div class="arrow">COPY --from=build<br>成果物だけ →</div>
-      <div class="stage run"><b>runtime ステージ（最終イメージ）</b><ul><li>実行に要るものだけ</li><li>小さい・攻撃面が少ない</li></ul></div>
+      <div class="stage run"><b>runtime ステージ（最終イメージ）</b><ul><li>実行に要るものだけ</li><li>小さい・攻撃対象領域（アタックサーフェス）が小さい</li></ul></div>
     </div>
     <p class="note">最後の <code>FROM</code> 以降だけが最終イメージになる。途中のステージは捨てられるので、ビルド道具が本番に残らない。</p>
   </div>
@@ -335,8 +348,10 @@ RUN npm run build
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev                       <span class="cm"># 本番の依存だけ</span>
-<span class="hl">COPY --from=build</span> /app/dist ./dist         <span class="cm"># 成果物だけ持ってくる</span>
+<span class="cm"># 本番の依存だけ</span>
+RUN npm ci --omit=dev
+<span class="cm"># 成果物だけ持ってくる</span>
+<span class="hl">COPY --from=build</span> /app/dist ./dist
 USER node
 EXPOSE 3000
 CMD ["node", "dist/server.js"]</code></pre>
@@ -349,7 +364,8 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -o /out/app ./cmd/app   <span class="cm"># 静的リンクのバイナリ 1 つ</span>
+<span class="cm"># 静的リンクのバイナリ 1 つ</span>
+RUN CGO_ENABLED=0 go build -o /out/app ./cmd/app
 
 <span class="cm"># シェルもパッケージマネージャーもない最小イメージ</span>
 <span class="hl">FROM</span> gcr.io/distroless/static-debian13:nonroot
@@ -497,6 +513,7 @@ $ docker compose config          <span class="cm"># 展開後の最終的な設�
   <div class="flow lifecycle">
     <div class="box host">initializeCommand<small>ホスト側で実行</small></div><div class="arrow">→</div>
     <div class="box">onCreateCommand<small>作成時 1 回</small></div><div class="arrow">→</div>
+    <div class="box">updateContentCommand<small>作成時に最低 1 回。ソース更新時（プレビルドなど）</small></div><div class="arrow">→</div>
     <div class="box">postCreateCommand<small>作成時 1 回（依存インストール向き）</small></div><div class="arrow">→</div>
     <div class="box">postStartCommand<small>起動のたび</small></div><div class="arrow">→</div>
     <div class="box">postAttachCommand<small>エディタが接続するたび</small></div>

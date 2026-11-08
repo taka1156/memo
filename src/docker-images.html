@@ -286,12 +286,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="seg s4"><b>slim</b><span>バリアント（削った版）</span></div>
     </div>
     <div class="examples">
-      <div><code>node:24</code><span class="note">OS 省略 → その時点の Debian 安定版（いまは trixie）のフル版</span></div>
+      <div><code>node:24</code><span class="note">OS 省略 → イメージ側が決めた Debian のフル版（node:24 はいまも bookworm。trixie は <code>-trixie</code> で明示）</span></div>
       <div><code>node:24-slim</code><span class="note">同じ Debian の slim 版</span></div>
       <div><code>node:24-alpine3.24</code><span class="note">ベースが Alpine Linux 3.24（musl）</span></div>
       <div><code>python:3.13-trixie</code><span class="note">Debian 13 を明示。省略すると Debian の世代交代で中身が変わる</span></div>
     </div>
-    <p class="note">Debian のコードネームは映画『トイ・ストーリー』のキャラ名。<b>bullseye</b> = 11、<b>bookworm</b> = 12（2026 年 6 月から LTS 期間）、<b>trixie</b> = 13（現行の安定版）。</p>
+    <p class="note">Debian のコードネームは映画『トイ・ストーリー』のキャラ名。<b>bullseye</b> = 11、<b>bookworm</b> = 12（2026 年 7 月から LTS 期間。2028 年 6 月まで）、<b>trixie</b> = 13（現行の安定版）。</p>
   </div>
 
   <h2 id="structure">全体の構造：みんな同じカーネルの上、違うのは libc から上</h2>
@@ -439,7 +439,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <article class="card img" data-tags="glibc small prod">
       <header><div class="ico ubu">U<sub style="font-size:.6em">c</sub></div><div><h3>Chiseled Ubuntu</h3><p>Ubuntu のパッケージを「スライス」単位で削り出した distroless</p></div></header>
       <div class="meta"><span class="pill glibc">glibc</span><span class="pill">apt なし</span><span class="pill">シェルなし</span></div>
-      <div class="size"><div class="bar"><i style="width:5%"></i></div><span>ベース ≈ 12MB / .NET ≈ 116MB</span></div>
+      <div class="size"><div class="bar"><i style="width:5%"></i></div><span>自己完結型 .NET 向けベース ＜ 6MB（圧縮）</span></div>
       <ul class="pc">
         <li class="p">.NET（Microsoft 公式の chiseled 版）・Java（<code>ubuntu/jre</code>）で特に定番</li>
         <li class="p">Ubuntu LTS のセキュリティ更新をそのまま受けられる</li>
@@ -585,7 +585,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
           <tr><td>動的ローダー</td><td><code>/lib64/ld-linux-x86-64.so.2</code></td><td><code>/lib/ld-musl-x86_64.so.1</code></td></tr>
           <tr><td>シンボルのバージョン</td><td>あり（<code>GLIBC_2.34</code> など）。<b>古い glibc では新しい glibc 向けバイナリが動かない</b></td><td>なし</td></tr>
           <tr><td>静的リンク</td><td>非推奨（NSS などで問題）</td><td>得意。単一バイナリ配布に向く</td></tr>
-          <tr><td>malloc 性能</td><td>マルチスレッドで速い</td><td>遅めと言われがち（mallocng で改善中）。jemalloc 等で回避されることも</td></tr>
+          <tr><td>malloc 性能</td><td>マルチスレッドで速い</td><td>遅めと言われがち（1.2.1 で入った mallocng は堅牢性と省メモリ重視で、速さが目的ではない）。jemalloc や mimalloc に差し替えて回避されることも</td></tr>
           <tr><td>スレッドの既定スタック</td><td>8MB 程度（ulimit 依存）</td><td>128KB と小さい → 深い再帰でクラッシュすることがある</td></tr>
           <tr><td>DNS 解決</td><td>NSS / <code>/etc/nsswitch.conf</code> に従う</td><td>独自実装。昔は TCP フォールバックなし（1.2.4 で対応）、search の扱いに差</td></tr>
           <tr><td>ロケール / iconv</td><td>充実</td><td>最小限</td></tr>
@@ -644,7 +644,7 @@ CMD ["npx", "wrangler", "dev", "--ip", "0.0.0.0"]</code></pre>
   </div>
   <div class="panel card" id="d2" hidden>
 <pre><code># ビルドはフル版、実行は distroless で最小に
-FROM golang:1.25-trixie AS build
+FROM golang:1.27-trixie AS build
 WORKDIR /src
 COPY . .
 RUN CGO_ENABLED=0 go build -o /app ./cmd/server
@@ -738,7 +738,7 @@ filter.addEventListener('click', e => {
       "問題ない。同じタグなら、いつ pull しても中身は同じ"
     ],
     "answer": 0,
-    "explain": "OS を省略すると、その時点の Debian 安定版のフル版になる。",
+    "explain": "OS を省略すると、イメージ側が決めた既定の Debian になり、世代交代のタイミングで中身（glibc ごと）が変わる。",
     "ref": "#myths"
   },
   {

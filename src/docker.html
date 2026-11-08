@@ -296,7 +296,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </div>
     <div class="ofs-down">▼ カーネルが重ねてマウント</div>
     <div class="ofs-merged"><b>merged</b><small>コンテナから見えるファイルシステム（ルート /）</small><small><code>…/overlay2/&lt;id&gt;/merged</code></small></div>
-    <p class="note">パスは overlay2 ストレージドライバーの例。containerd の image store を使う設定では置き場所が変わるが、重ね方の考え方は同じ。</p>
+    <p class="note">パスは overlay2 ストレージドライバーの例。Docker Engine 29 以降を新しく入れた環境では containerd image store（overlayfs スナップショッター）が既定で、データは containerd 側のディレクトリに置かれる。重ね方の考え方は同じ。</p>
   </div>
 
   <h3 style="font-size:.95rem;margin:18px 0 8px">ファイルを書き換えたときの動き</h3>
@@ -308,7 +308,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </ol>
 <pre><code><span class="cm"># 実際のマウントを確認（overlay2 の場合）</span>
 $ docker inspect &lt;container&gt; --format '{{json .GraphDriver.Data}}'
-<span class="cm"># → LowerDir / UpperDir / MergedDir / WorkDir が見える</span></code></pre>
+<span class="cm"># → LowerDir / UpperDir / MergedDir / WorkDir が見える</span>
+<span class="cm"># containerd image store では GraphDriver が空。方式は docker info -f '{{ .DriverStatus }}' で確かめ、mount | grep overlay などでマウントを見る</span></code></pre>
 
   <h2 id="namespaces">名前空間（namespace）— 見える範囲を分ける</h2>
   <div class="grid3">
@@ -336,9 +337,9 @@ $ docker inspect &lt;container&gt; --format '{{json .GraphDriver.Data}}'
   <ol class="steps">
     <li><b>CLI → dockerd<span class="who">Docker</span></b>Docker CLI が Unix ソケット経由で dockerd（デーモン）に API リクエストを送る。</li>
     <li><b>イメージの確認・取得<span class="who">Docker</span></b>ローカルにイメージがなければレジストリ（Docker Hub など）からレイヤーを pull して展開する。</li>
+    <li><b>OverlayFS をマウント<span class="who">containerd / dockerd</span></b>runc を呼ぶ前に、lowerdir（イメージ層）と upperdir（書き込み層）を merged に重ねてマウントし、コンテナのルートファイルシステムを用意しておく。</li>
     <li><b>containerd → shim → runc に委譲<span class="who">containerd</span></b>dockerd が containerd に指示し、containerd はコンテナごとの shim を立てて OCI ランタイムの <b style="display:inline">runc</b> を呼ぶ。</li>
     <li><b>名前空間を作る<span class="who">カーネル</span></b>runc が <code>clone()</code> / <code>unshare()</code> で PID・NET・MNT・UTS・IPC などの名前空間を作り、プロセスをその中に置く。</li>
-    <li><b>OverlayFS をマウント<span class="who">カーネル</span></b>lowerdir（イメージ層）と upperdir（書き込み層）を merged に重ね、コンテナのルートファイルシステムにする。</li>
     <li><b>cgroups を設定<span class="who">カーネル</span></b><code>/sys/fs/cgroup/</code> にコンテナ用のグループを作り、CPU・メモリなどの上限を書き込む。</li>
     <li><b>pivot_root → PID 1 を起動<span class="who">runc</span></b><code>pivot_root()</code> で merged をルートに切り替え、CMD / ENTRYPOINT を exec。ここでは bash がコンテナ内の PID 1 になる。runc は起動後に抜け、以降は shim がプロセスを見守る。</li>
   </ol>
