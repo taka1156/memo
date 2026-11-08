@@ -32,7 +32,7 @@
     --chip: #18222f;
     --c-fe: #4fd1c5;
     --c-mid: #b195ff;
-    --c-be: #ffa65c;
+    --c-be: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -88,8 +88,6 @@ pre code { background: none; padding: 0; font-size: inherit; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .series { font-size: 0.8rem; color: var(--fg-2); margin: -16px 0 22px; }
 .series a, .series b { display: inline-block; margin-right: 10px; }
@@ -225,6 +223,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -458,10 +457,11 @@ max:
   <div class="panel card" id="jit-p" hidden><p>IR を実行時に機械語にしてすぐ動かす。LLVM には <b>ORC JIT</b> という JIT 用の API があり、Julia などが使う。コンパイル時間がそのまま待ち時間になるので、JavaScript エンジンのような「とにかく早く動かす」用途では、LLVM より軽い自前の JIT を使うことが多い。</p></div>
 
   <h2 id="myths">よくある誤解</h2>
-  <details><summary>「LLVM は仮想マシン (VM) である」</summary><p>元は Low Level Virtual Machine の略だったが、今は正式に略語ではなく、JVM のような実行環境でもない。LLVM IR は「仮想的な命令セット」として設計されたが、普段は事前コンパイル (AOT) で機械語にしてから配る。</p></details>
-  <details><summary>「LLVM IR はどの CPU でも動く共通フォーマット」</summary><p>IR の命令自体は CPU に依存しないが、フロントエンドが出す IR には <code>target triple</code>・データレイアウト（ポインタの大きさ、アライメント）・呼び出し規約が埋め込まれ、<code>sizeof</code> などは IR 生成の時点で数値になっている。x86-64 向けに出した IR を AArch64 向けに使い回すことは基本的にできない。CPU に依存しない配布形式が欲しいなら <a href="webassembly.html">WebAssembly</a> のような、そのために設計された形式を使う。</p></details>
-  <details><summary>「Clang = LLVM」</summary><p>Clang は LLVM を使う C 系言語のフロントエンド（とドライバ）で、LLVM の利用者の 1 つ。<code>clang</code> コマンドが内部で LLVM のライブラリを呼んでいる。GCC と比べた構成の違いは <a href="gcc-vs-clang.html">GCC と Clang の構成比較</a>へ。</p></details>
-  <details><summary>「-O3 にすれば必ず速くなる」</summary><p>-O3 はより積極的なインライン化・ループ変換を足すが、コードが大きくなって命令キャッシュに乗らず、かえって遅くなることもある。速さを決めるのは計測。サイズ優先なら <code>-Os</code> / <code>-Oz</code>。</p></details>
+  <details class="myth"><summary>LLVM は仮想マシン (VM) である</summary><p>元は Low Level Virtual Machine の略だったが、今は正式に略語ではなく、JVM のような実行環境でもない。LLVM IR は「仮想的な命令セット」として設計されたが、普段は事前コンパイル (AOT) で機械語にしてから配る。</p></details>
+  <details class="myth"><summary>LLVM IR はどの CPU でも動く共通フォーマット</summary><p>IR の命令自体は CPU に依存しないが、フロントエンドが出す IR には <code>target triple</code>・データレイアウト（ポインタの大きさ、アライメント）・呼び出し規約が埋め込まれ、<code>sizeof</code> などは IR 生成の時点で数値になっている。x86-64 向けに出した IR を AArch64 向けに使い回すことは基本的にできない。CPU に依存しない配布形式が欲しいなら <a href="webassembly.html">WebAssembly</a> のような、そのために設計された形式を使う。</p></details>
+  <details class="myth"><summary>Clang = LLVM</summary><p>Clang は LLVM を使う C 系言語のフロントエンド（とドライバ）で、LLVM の利用者の 1 つ。<code>clang</code> コマンドが内部で LLVM のライブラリを呼んでいる。GCC と比べた構成の違いは <a href="gcc-vs-clang.html">GCC と Clang の構成比較</a>へ。</p></details>
+  <details class="myth"><summary>-O3 にすれば必ず速くなる</summary><p>-O3 はより積極的なインライン化・ループ変換を足すが、コードが大きくなって命令キャッシュに乗らず、かえって遅くなることもある。速さを決めるのは計測。サイズ優先なら <code>-Os</code> / <code>-Oz</code>。</p></details>
+
 
   <h2 id="commands">手元で各段を見るコマンド</h2>
 <pre><code># C → LLVM IR（テキスト）。名前を残し、-O0 でも後から opt を当てられるようにする

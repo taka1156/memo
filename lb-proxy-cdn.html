@@ -17,6 +17,7 @@
   --line: #dde1e8;
   --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
   --chip: #eceff4;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -27,6 +28,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -75,8 +77,6 @@ pre {
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -110,9 +110,9 @@ footer#memo-backlink a {
 }
 footer#memo-backlink a:hover { color: var(--accent); }
 
-:root { --c-ok: #1f8a50; --c-warn: #b45309; --c-ng: #c0392b; --c-sub: #7c3aed; }
+:root { --c-sub: #7c3aed; }
 @media (prefers-color-scheme: dark) {
-  :root { --c-ok: #4ade80; --c-warn: #fbbf24; --c-ng: #f87171; --c-sub: #c4b5fd; }
+  :root { --c-sub: #c4b5fd; }
 }
 a { color: var(--accent); }
 h3 { font-size: 0.98rem; margin: 22px 0 8px; }
@@ -136,13 +136,13 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .btn.on { border-color: var(--accent); color: var(--accent); }
 .ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
 .stepmsg {
-  border-left: 3px solid var(--accent); background: var(--surface);
+  border-left: 3px solid var(--line); background: var(--surface);
   border-radius: 0 8px 8px 0; padding: 10px 14px; min-height: 4.6em; font-size: 0.9rem;
 }
-.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); display: block; }
+.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); display: block; }
 .anat { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
 .anat .card { padding: 10px 14px; }
-.anat b { font-size: 0.85rem; color: var(--accent); }
+.anat b { font-size: 0.85rem; color: var(--fg); }
 .anat p { font-size: 0.8rem; margin: 2px 0 0; color: var(--fg-2); }
 .panel { margin-top: 0; }
 .panel h4 { font-size: 0.9rem; margin: 10px 0 4px; }
@@ -151,10 +151,6 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .tag-ok { color: var(--c-ok); font-weight: 700; }
 .tag-ng { color: var(--c-ng); font-weight: 700; }
 .tag-warn { color: var(--c-warn); font-weight: 700; }
-details.myth { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
-details.myth summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
-details.myth summary::before { content: '✗ '; color: var(--c-ng); }
-details.myth p { font-size: 0.86rem; }
 .related { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .related a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font-size: 0.75rem; font-weight: 600; }
 .related a:hover { color: var(--accent); }
@@ -166,7 +162,7 @@ details.myth p { font-size: 0.86rem; }
 }
 .node b { display: block; font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; }
 .node span { color: var(--fg-2); }
-.node.hl { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.node.hl { border-color: var(--c-key); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-key) 18%, transparent); }
 .node.dim { opacity: .45; }
 .arrow { align-self: center; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
 @media (max-width: 640px) {
@@ -183,9 +179,9 @@ details.myth p { font-size: 0.86rem; }
 .srv.down { border-style: dashed; opacity: .55; }
 .srv.down b::after { content: ' 停止'; font: 600 0.68rem 'Noto Sans JP', sans-serif; color: var(--c-ng); }
 .bar { height: 8px; background: var(--chip); border-radius: 4px; margin: 6px 0 2px; overflow: hidden; }
-.bar i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.bar i { display: block; height: 100%; background: var(--c-key); transition: width .2s; }
 .srv .stat { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); font-size: 0.72rem; }
-.srv.flash { border-color: var(--accent); }
+.srv.flash { border-color: var(--line); }
 .simlog { font: 500 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); min-height: 1.6em; margin-top: 6px; }
 /* 層の地図 */
 .layers { display: grid; grid-template-columns: 7.5em 1fr; gap: 0; font-size: 0.82rem; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
@@ -209,6 +205,7 @@ details.myth p { font-size: 0.86rem; }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -388,18 +385,11 @@ Forwarded: for=203.0.113.7;proto=https         <span class="cm"># 上 2 つを�
   </ul>
 
   <h2 id="myth">よくある誤解</h2>
-  <details class="myth"><summary>リバースプロキシとロードバランサは別の機械として両方置くもの</summary>
-    <p>役割の名前であって、機械の種類ではない。nginx 1 台でパス振り分け・TLS 終端（リバースプロキシ）と複数台への分散（LB）を同時にやれる。小さな構成なら 1 段で足りる。</p>
-  </details>
-  <details class="myth"><summary>CDN は画像や JS などの静的ファイル専用</summary>
-    <p>キャッシュできない API も CDN を通す価値がある。ユーザーの近くで TLS を張る・オリジンまでの経路を最適化する・DDoS や WAF で守る、はキャッシュと無関係に効く。</p>
-  </details>
-  <details class="myth"><summary>X-Forwarded-For の先頭がクライアントの IP</summary>
-    <p>クライアントが最初から偽の値を入れて送れるので、先頭は誰でも詐称できる。信頼できるのは自分のプロキシが追記した部分だけ。これを間違えると IP によるレート制限や許可リストがすり抜けられる。</p>
-  </details>
-  <details class="myth"><summary>LB を置けば落ちない</summary>
-    <p>LB 自体が 1 台なら、そこが単一障害点になる。クラウドの LB は内部で冗長化されているが、自前の場合は 2 台で仮想 IP を引き継ぐ（keepalived など）か、DNS で複数の入口を返す。</p>
-  </details>
+  <details class="myth"><summary>リバースプロキシとロードバランサは別の機械として両方置くもの</summary><p>役割の名前であって、機械の種類ではない。nginx 1 台でパス振り分け・TLS 終端（リバースプロキシ）と複数台への分散（LB）を同時にやれる。小さな構成なら 1 段で足りる。</p></details>
+  <details class="myth"><summary>CDN は画像や JS などの静的ファイル専用</summary><p>キャッシュできない API も CDN を通す価値がある。ユーザーの近くで TLS を張る・オリジンまでの経路を最適化する・DDoS や WAF で守る、はキャッシュと無関係に効く。</p></details>
+  <details class="myth"><summary>X-Forwarded-For の先頭がクライアントの IP</summary><p>クライアントが最初から偽の値を入れて送れるので、先頭は誰でも詐称できる。信頼できるのは自分のプロキシが追記した部分だけ。これを間違えると IP によるレート制限や許可リストがすり抜けられる。</p></details>
+  <details class="myth"><summary>LB を置けば落ちない</summary><p>LB 自体が 1 台なら、そこが単一障害点になる。クラウドの LB は内部で冗長化されているが、自前の場合は 2 台で仮想 IP を引き継ぐ（keepalived など）か、DNS で複数の入口を返す。</p></details>
+
 
   <h2 id="cmd">確かめ方と設定例</h2>
 <pre>curl -sI https://example.com/app.js | grep -iE 'cache|age|via|server'

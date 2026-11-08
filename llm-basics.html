@@ -17,12 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-a: #c2410c;
+  --c-key: #4f46e5; /* 図の強調（このページの色と見分けやすい色） */
+  --c-a: #be185d;
   --c-b: #15803d;
   --c-c: #7c3aed;
-  --c-d: #b45309;
+  --c-d: #4d7c0f;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -33,9 +32,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-a: #fb923c;
+    --c-key: #a5b4fc; /* 図の強調（このページの色と見分けやすい色） */
+    --c-a: #f472b6;
     --c-b: #4ade80;
     --c-c: #c4b5fd;
     --c-d: #fbbf24;
@@ -97,8 +95,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
@@ -107,7 +103,7 @@ pre code { background: none; padding: 0; word-break: normal; }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .big { font-size: 1.05rem; font-weight: 700; }
@@ -165,8 +161,6 @@ input[type="text"], textarea, input[type="number"] {
 }
 .ok { color: var(--c-ok); font-weight: 700; }
 .ng { color: var(--c-ng); font-weight: 700; }
-.myth { margin-bottom: 10px; }
-.myth p { margin: 4px 0; }
 
 svg.fig { width: 100%; height: auto; display: block; }
 svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); }
@@ -204,27 +198,27 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .prow { display: grid; grid-template-columns: 5.8em 1fr 3.6em; align-items: center; gap: 8px; font-size: 0.85rem; }
 .prow .w { font-weight: 700; }
 .prow .bar { height: 14px; background: var(--chip); border-radius: 4px; overflow: hidden; }
-.prow .bar span { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.prow .bar span { display: block; height: 100%; background: var(--c-key); transition: width .2s; }
 .prow .bar span.cut { background: var(--line); }
 .prow .v { font: 600 0.75rem 'JetBrains Mono', monospace; text-align: right; color: var(--fg-2); }
 .sliders { display: grid; gap: 8px; }
 .sliders label { display: grid; grid-template-columns: 7.5em 1fr 3em; align-items: center; gap: 8px; font: 600 0.8rem 'JetBrains Mono', monospace; }
 .sliders input { width: 100%; accent-color: var(--accent); }
 .sample { font-size: 0.9rem; }
-.sample b { color: var(--accent); }
+.sample b { color: var(--fg); }
 .ctxbar { display: flex; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); margin: 10px 0 6px; }
 .ctxbar div { display: flex; align-items: center; justify-content: center; font: 600 0.68rem 'JetBrains Mono', monospace; color: #fff; white-space: nowrap; overflow: hidden; }
 .cx-sys { background: #5b6b84; width: 10%; }
 .cx-tool { background: #7c3aed; width: 12%; }
 .cx-hist { background: #0077b6; width: 38%; }
-.cx-res { background: #b45309; width: 22%; }
+.cx-res { background: #0f766e; width: 22%; }
 .cx-out { background: #15803d; width: 10%; }
 .cx-free { background: var(--chip); color: var(--fg-2) !important; width: 8%; }
 .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.75rem; color: var(--fg-2); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 .agent { display: grid; gap: 6px; max-width: 560px; }
 .agent .s { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: var(--surface); font-size: 0.85rem; }
-.agent .s b { font-family: 'JetBrains Mono', monospace; color: var(--accent); font-size: 0.78rem; display: block; }
+.agent .s b { font-family: 'JetBrains Mono', monospace; color: var(--fg); font-size: 0.78rem; display: block; }
 .agent .s.app b { color: var(--c-a); }
 .agent .a { color: var(--fg-2); font-size: 0.75rem; padding-left: 14px; }
 </style>
@@ -243,6 +237,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -300,7 +295,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <span><i style="background:#5b6b84"></i>システムプロンプト（アプリが与える指示）</span>
     <span><i style="background:#7c3aed"></i>ツールの定義（MCP など）</span>
     <span><i style="background:#0077b6"></i>これまでのやり取り（CLAUDE.md などの差し込みも含む）</span>
-    <span><i style="background:#b45309"></i>検索結果・ファイル内容</span>
+    <span><i style="background:#0f766e"></i>検索結果・ファイル内容</span>
     <span><i style="background:#15803d"></i>これから生成する分</span>
   </div>
   <ul class="dots">
@@ -333,9 +328,9 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <circle cx="300" cy="55" r="6" fill="var(--c-b)"/><text x="250" y="40">パスワード再設定</text>
         <circle cx="330" cy="95" r="6" fill="var(--c-b)"/><text x="285" y="118">2 段階認証</text>
         <circle cx="260" cy="170" r="6" fill="var(--c-c)"/><text x="272" y="174">配送料金</text>
-        <circle cx="105" cy="85" r="8" fill="none" stroke="var(--accent)" stroke-width="3"/>
-        <text x="20" y="185" fill="var(--accent)" font-weight="700">質問「買った服を返したい」</text>
-        <line x1="90" y1="172" x2="102" y2="94" stroke="var(--accent)" stroke-dasharray="3 3"/>
+        <circle cx="105" cy="85" r="8" fill="none" stroke="var(--c-key)" stroke-width="3"/>
+        <text x="20" y="185" fill="var(--c-key)" font-weight="700">質問「買った服を返したい」</text>
+        <line x1="90" y1="172" x2="102" y2="94" stroke="var(--c-key)" stroke-dasharray="3 3"/>
       </g>
     </svg>
     <p class="muted">2 次元に描いた例示。質問のベクトルに近い「返品の手順」「返金ポリシー」が検索で選ばれる。キーワードが一致しなくても意味で引ける。</p>
@@ -377,9 +372,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <p class="related"><a href="mcp.html">MCP の仕組み</a><a href="agent-instructions.html">CLAUDE.md / AGENTS.md / Skills</a><a href="spec-kit.html">Spec Kit</a></p>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><p><span class="ng">✗</span> 会話するたびにモデルが学習して賢くなっていく</p><p><span class="ok">✓</span> 利用中に重みは変わらない。「覚えている」ように見えるのは、アプリが履歴やメモリ機能の内容をコンテキストに入れているから。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> コンテキストウィンドウが大きいモデルなら、全部入れておけば全部正確に使ってくれる</p><p><span class="ok">✓</span> 入れるほど遅く高くなり、埋もれた情報は見落としやすい。関連部分に絞った方が精度も上がることが多い。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> LLM がツールを実行している</p><p><span class="ok">✓</span> モデルは「何を呼びたいか」を出力するだけ。実行するのはアプリや API の提供側で、自分で定義したツールの実行と権限管理はアプリ側の責任。</p></div>
+  <details class="myth"><summary>会話するたびにモデルが学習して賢くなっていく</summary><p>利用中に重みは変わらない。「覚えている」ように見えるのは、アプリが履歴やメモリ機能の内容をコンテキストに入れているから。</p></details>
+  <details class="myth"><summary>コンテキストウィンドウが大きいモデルなら、全部入れておけば全部正確に使ってくれる</summary><p>入れるほど遅く高くなり、埋もれた情報は見落としやすい。関連部分に絞った方が精度も上がることが多い。</p></details>
+  <details class="myth"><summary>LLM がツールを実行している</summary><p>モデルは「何を呼びたいか」を出力するだけ。実行するのはアプリや API の提供側で、自分で定義したツールの実行と権限管理はアプリ側の責任。</p></details>
+
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

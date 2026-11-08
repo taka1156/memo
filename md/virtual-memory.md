@@ -209,16 +209,16 @@ cat /sys/kernel/mm/transparent_hugepage/enabled
 
 ## よくある誤解
 
-✗ top の VIRT が 20GB なので、このプロセスは 20GB 使っている
+top の VIRT が 20GB なので、このプロセスは 20GB 使っている
 
-✓ VIRT は予約したアドレス空間。実際に物理メモリに載っているのは RES。JVM や Go、ブラウザは大きく予約するのが普通。
+VIRT は予約したアドレス空間。実際に物理メモリに載っているのは RES。JVM や Go、ブラウザは大きく予約するのが普通。
 
-✗ malloc が NULL を返さなければ、そのメモリは確保できている
+malloc が NULL を返さなければ、そのメモリは確保できている
 
-✓ Linux の既定では、物理メモリは触ったときに割り当てる。足りなければ、その時点で OOM killer に殺されうる。
+Linux の既定では、物理メモリは触ったときに割り当てる。足りなければ、その時点で OOM killer に殺されうる。
 
-✗ free の free 列が少ないのはメモリ不足
+free の free 列が少ないのはメモリ不足
 
-✓ 空きはページキャッシュに使われ、必要になれば手放される。見るのは available とスワップの出し入れ。
+空きはページキャッシュに使われ、必要になれば手放される。見るのは available とスワップの出し入れ。
 
 関連: [メモリ管理](https://memo.taka1156.site/md/memory-management.md) [OS のスケジューリング](https://memo.taka1156.site/md/os-scheduling.md) [Linux プロセスの仕組み](https://memo.taka1156.site/md/linux-process.md) [Docker 動作原理](https://memo.taka1156.site/md/docker.md) [Redis と Valkey](https://memo.taka1156.site/md/redis-valkey.md)

@@ -17,10 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-front: #c2410c;
+  --c-front: #be185d;
   --c-back: #15803d;
-  --c-ng: #b91c1c;
-  --c-ok: #15803d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -31,10 +29,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-front: #fb923c;
+    --c-front: #f472b6;
     --c-back: #4ade80;
-    --c-ng: #f87171;
-    --c-ok: #4ade80;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -89,8 +85,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
@@ -98,7 +92,7 @@ pre code { background: none; padding: 0; word-break: normal; }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .big { font-size: 1.05rem; font-weight: 700; }
@@ -136,11 +130,7 @@ th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: le
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
 td:first-child { font-weight: 700; white-space: nowrap; }
 
-
 /* 誤解 */
-.myth { margin-bottom: 10px; }
-.myth .ng { color: var(--c-ng); font-weight: 700; }
-.myth .ok { color: var(--c-ok); font-weight: 700; }
 
 .related a { display: inline-block; margin: 4px 8px 4px 0; }
 
@@ -181,8 +171,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .stack .ly.eng small { color: rgba(255,255,255,.85); }
 .stack .ly.app { background: var(--chip); }
 .k-node { --k: #15803d; }
-.k-bun { --k: #a16207; }
-.k-cf { --k: #c2410c; }
+.k-bun { --k: #4d7c0f; }
+.k-cf { --k: #4d7c0f; }
 @media (prefers-color-scheme: dark) { .k-node { --k: #16a34a; } .k-bun { --k: #ca8a04; } .k-cf { --k: #ea580c; } }
 .layer-labels { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.78rem; color: var(--fg-2); margin-top: 10px; }
 
@@ -202,7 +192,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
 .loop { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
 .loop .ph { background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font: 600 0.78rem 'JetBrains Mono', monospace; }
-.loop .ph.main { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.loop .ph.main { background: var(--chip); color: var(--fg); border-color: var(--line); }
 
 .pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .pick .card { border-top: 4px solid var(--k); padding: 12px 14px; }
@@ -225,6 +215,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -420,18 +411,10 @@ createServer((req, res) =&gt; {
   <p class="muted">重い計算・長時間の処理・大きなファイル処理は Node.js か Bun 向き。Workers で扱うなら、キューや Containers と組み合わせる。</p>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「Bun は Node の完全な代替。置き換えれば全部速くなる」</p>
-    <p><span class="ok">○</span> 互換性は高いが 100% ではなく、ネイティブアドオンや細かい挙動で差が出ることがある。速さもベンチマークほどの差が実アプリで出るとは限らない（DB やネットワークの待ちが支配的なことが多い）。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「Workers でも npm のパッケージは何でも動く」</p>
-    <p><span class="ok">○</span> ディスクにファイルが残ることを前提にしたものや、子プロセス、ネイティブアドオンに依存するものは動かない。Node 互換（2026-08-04 以降の互換性日付では標準で有効）で動く範囲は広がったが、すべてではない。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「Node はシングルスレッドだから CPU を1つしか使えない」</p>
-    <p><span class="ok">○</span> JS の実行スレッドは1つだが、I/O は裏のスレッドプールで並列に動く。CPU を使う処理は <code>worker_threads</code> や、プロセスを複数立てて分散できる。</p>
-  </div>
+  <details class="myth"><summary>Bun は Node の完全な代替。置き換えれば全部速くなる</summary><p>互換性は高いが 100% ではなく、ネイティブアドオンや細かい挙動で差が出ることがある。速さもベンチマークほどの差が実アプリで出るとは限らない（DB やネットワークの待ちが支配的なことが多い）。</p></details>
+  <details class="myth"><summary>Workers でも npm のパッケージは何でも動く</summary><p>ディスクにファイルが残ることを前提にしたものや、子プロセス、ネイティブアドオンに依存するものは動かない。Node 互換（2026-08-04 以降の互換性日付では標準で有効）で動く範囲は広がったが、すべてではない。</p></details>
+  <details class="myth"><summary>Node はシングルスレッドだから CPU を1つしか使えない</summary><p>JS の実行スレッドは1つだが、I/O は裏のスレッドプールで並列に動く。CPU を使う処理は <code>worker_threads</code> や、プロセスを複数立てて分散できる。</p></details>
+
 
   <h2>関連メモ</h2>
   <p class="related"><a href="cloudflare-services.html">Cloudflare サービス →</a> <a href="vite-toolchain.html">Vite ツールチェーン →</a></p>

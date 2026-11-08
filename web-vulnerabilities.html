@@ -17,9 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ng: #b91c1c;
-  --c-ok: #15803d;
-  --c-warn: #b45309;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -30,9 +27,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ng: #f87171;
-    --c-ok: #4ade80;
-    --c-warn: #fbbf24;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -92,8 +86,7 @@ pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: norm
   padding: 16px 18px;
   margin: 12px 0;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li, ul.list li { margin-left: 1.2em; }
+ul.list li { margin-left: 1.2em; }
 ul.list { margin: 8px 0; }
 ul.list li { margin-bottom: 4px; }
 .note { font-size: 0.83rem; color: var(--fg-2); }
@@ -121,8 +114,8 @@ ul.list li { margin-bottom: 4px; }
 }
 .map .app {
   writing-mode: vertical-rl;
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--chip);
+  color: var(--fg);
   font: 700 0.85rem 'Noto Sans JP', sans-serif;
   border-radius: 10px;
   padding: 14px 8px;
@@ -143,7 +136,7 @@ ul.list li { margin-bottom: 4px; }
 }
 .sink:hover { border-color: var(--accent); }
 .sink .to { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
-.sink .v { font-weight: 700; font-size: 0.88rem; color: var(--accent); }
+.sink .v { font-weight: 700; font-size: 0.88rem; color: var(--fg); }
 .map2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px; }
 .map2 .sink { border-left-color: var(--c-warn); }
 @media (max-width: 640px) {
@@ -187,8 +180,8 @@ ol.flow li::before {
   place-items: center;
   width: 20px; height: 20px;
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--chip);
+  color: var(--fg);
   font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace;
   margin-right: 6px;
 }
@@ -259,12 +252,6 @@ ol.flow li.x::before { background: var(--c-ng); }
 .bar-row .ms { text-align: right; color: var(--fg-2); }
 #redos-extra { font-size: 0.85rem; }
 
-.myth { display: grid; gap: 10px; }
-.myth .card { margin: 0; }
-.myth .q { font-weight: 700; }
-.myth .q::before { content: '✗ '; color: var(--c-ng); }
-.myth .a::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
-
 footer#memo-backlink {
   margin-top: 40px;
   padding-top: 16px;
@@ -298,6 +285,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -588,11 +576,10 @@ const [file] = await db.select().from(files)
 
   <!-- ======================== Myths ======================== -->
   <h2 id="myths">よくある誤解</h2>
-  <div class="myth">
-    <div class="card"><p class="q">入力時に危険な文字を消しておけば、どこに出しても安全</p><p class="a">安全な形は出力先（HTML・SQL・シェル・URL）ごとに違う。入力では形式の検証、出力では文脈に合わせた分離・エスケープ。</p></div>
-    <div class="card"><p class="q">ORM を使っているので SQL インジェクションはない</p><p class="a">Drizzle なら <code>sql.raw()</code> のように文字列をそのまま埋め込む API に外からの値を渡したときや、並び替え列の受け取りで起きる。</p></div>
-    <div class="card"><p class="q">正規表現は小さな処理なので DoS とは無関係</p><p class="a">入れ子の量指定子があると、数十文字の入力で数秒〜数分 CPU を占有する。</p></div>
-  </div>
+  <details class="myth"><summary>入力時に危険な文字を消しておけば、どこに出しても安全</summary><p>安全な形は出力先（HTML・SQL・シェル・URL）ごとに違う。入力では形式の検証、出力では文脈に合わせた分離・エスケープ。</p></details>
+  <details class="myth"><summary>ORM を使っているので SQL インジェクションはない</summary><p>Drizzle なら <code>sql.raw()</code> のように文字列をそのまま埋め込む API に外からの値を渡したときや、並び替え列の受け取りで起きる。</p></details>
+  <details class="myth"><summary>正規表現は小さな処理なので DoS とは無関係</summary><p>入れ子の量指定子があると、数十文字の入力で数秒〜数分 CPU を占有する。</p></details>
+
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

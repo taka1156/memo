@@ -17,10 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
   --chip: #eceff4;
+  --c-key: #4f46e5; /* 図の強調（このページの色と見分けやすい色） */
   --c-user: #1f8a50;
-  --c-kernel: #c2410c;
+  --c-kernel: #be185d;
   --c-hw: #6b7280;
-  --c-sig: #b45309;
+  --c-sig: #4d7c0f;
   --c-dead: #9aa3b2;
 }
 @media (prefers-color-scheme: dark) {
@@ -32,8 +33,9 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
+    --c-key: #a5b4fc; /* 図の強調（このページの色と見分けやすい色） */
     --c-user: #4ade80;
-    --c-kernel: #fb923c;
+    --c-kernel: #f472b6;
     --c-hw: #94a3b8;
     --c-sig: #fbbf24;
     --c-dead: #4b5869;
@@ -90,8 +92,6 @@ pre .cm { color: var(--fg-2); }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .table-wrap { overflow-x: auto; margin: 10px 0; }
@@ -138,14 +138,14 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .btn.on { border-color: var(--accent); color: var(--accent); }
 .ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
 .stepmsg {
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--line);
   background: var(--surface);
   border-radius: 0 8px 8px 0;
   padding: 10px 14px;
   min-height: 4.6em;
   font-size: 0.9rem;
 }
-.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); display: block; }
+.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); display: block; }
 
 a { color: var(--accent); }
 .series { display: flex; flex-wrap: wrap; gap: 6px; margin: -12px 0 24px; }
@@ -156,13 +156,13 @@ a { color: var(--accent); }
 .map a { text-decoration: none; color: var(--fg); display: block; }
 .map a:hover .card { border-color: var(--accent); }
 .map .card { height: 100%; }
-.map b { color: var(--accent); font-size: 0.95rem; }
+.map b { color: var(--fg); font-size: 0.95rem; }
 .map p { font-size: 0.8rem; color: var(--fg-2); }
 .map ul { margin: 6px 0 0 1.1em; font-size: 0.78rem; }
 /* プロセスの中身 */
 .anat { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
 .anat .card { padding: 10px 14px; }
-.anat b { font-size: 0.85rem; color: var(--accent); }
+.anat b { font-size: 0.85rem; color: var(--fg); }
 .anat p { font-size: 0.8rem; margin: 2px 0 0; color: var(--fg-2); }
 
 /* fork/exec ステージ */
@@ -179,14 +179,14 @@ a { color: var(--accent); }
 .pbox .nm { font: 700 0.95rem 'JetBrains Mono', ui-monospace, monospace; }
 .pbox .meta { font: 500 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
 .pbox .nt { font-size: 0.75rem; margin-top: 4px; }
-.pbox.hl { border-color: var(--accent); }
+.pbox.hl { border-color: var(--c-key); }
 .pbox.zombie { border-style: dashed; border-color: var(--c-dead); color: var(--fg-2); }
 .pbox.wait { opacity: .7; }
 @keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* プロセスツリー */
 .tree { font: 500 0.8rem/1.75 'JetBrains Mono', ui-monospace, monospace; white-space: pre; overflow-x: auto; }
-.tree .p { color: var(--accent); }
+.tree .p { color: var(--fg); }
 
 /* パイプ */
 .pipefig { display: grid; grid-template-columns: 1fr 120px 1fr; gap: 8px; align-items: center; }
@@ -194,15 +194,11 @@ a { color: var(--accent); }
 .fdbox .nm { font: 700 0.9rem 'JetBrains Mono', ui-monospace, monospace; margin-bottom: 4px; }
 .fd { display: flex; gap: 6px; align-items: baseline; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.75rem; }
 .fd i { font-style: normal; background: var(--chip); border-radius: 4px; padding: 0 5px; min-width: 2.2em; text-align: center; }
-.fd.p em { color: var(--accent); font-style: normal; font-weight: 700; }
+.fd.p em { color: var(--fg); font-style: normal; font-weight: 700; }
 .pipebuf { text-align: center; border: 1.5px solid var(--c-kernel); border-radius: 8px; padding: 10px 6px; font-size: 0.75rem; background: color-mix(in srgb, var(--c-kernel) 7%, var(--surface)); }
 .pipebuf b { display: block; font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--c-kernel); }
 
 /* 誤解 */
-details.myth { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
-details.myth summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
-details.myth summary::before { content: '✗ '; color: var(--c-sig); }
-details.myth p { font-size: 0.86rem; }
 
 @media (max-width: 640px) {
   .kgrid { grid-template-columns: 1fr; }
@@ -250,6 +246,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -355,15 +352,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
 
   <h2 id="misc">よくある誤解</h2>
-  <details class="myth"><summary>ゾンビプロセスは kill -9 で消せる</summary>
-    <p>ゾンビはすでに終了していて、残っているのは終了ステータスだけ。消すには<b>親が <code>wait</code> する</b>必要がある。親を直すか親を終了させれば、ゾンビは PID 1 に引き取られて回収される。</p>
-  </details>
-  <details class="myth"><summary>スクリプトの中で cd や export すれば、終わった後のシェルにも反映される</summary>
-    <p><code>./script.sh</code> は子プロセスとして動くので、カレントディレクトリや環境変数の変更は子の中だけで終わり、親のシェルには戻らない。今のシェルに反映したいときは <code>source script.sh</code>（または <code>. script.sh</code>）で、同じプロセスの中で読み込む。</p>
-  </details>
-  <details class="myth"><summary>パイプの先に渡せば、エラーメッセージも絞り込める</summary>
-    <p>パイプでつながるのは fd 1（stdout）だけで、fd 2（stderr）は端末のまま。エラーもまとめて渡すには <code>cmd 2&gt;&amp;1 | grep x</code>（bash なら <code>|&amp;</code>）のように fd 2 を fd 1 と同じ先に付け替える。</p>
-  </details>
+  <details class="myth"><summary>ゾンビプロセスは kill -9 で消せる</summary><p>ゾンビはすでに終了していて、残っているのは終了ステータスだけ。消すには<b>親が <code>wait</code> する</b>必要がある。親を直すか親を終了させれば、ゾンビは PID 1 に引き取られて回収される。</p></details>
+  <details class="myth"><summary>スクリプトの中で cd や export すれば、終わった後のシェルにも反映される</summary><p><code>./script.sh</code> は子プロセスとして動くので、カレントディレクトリや環境変数の変更は子の中だけで終わり、親のシェルには戻らない。今のシェルに反映したいときは <code>source script.sh</code>（または <code>. script.sh</code>）で、同じプロセスの中で読み込む。</p></details>
+  <details class="myth"><summary>パイプの先に渡せば、エラーメッセージも絞り込める</summary><p>パイプでつながるのは fd 1（stdout）だけで、fd 2（stderr）は端末のまま。エラーもまとめて渡すには <code>cmd 2&gt;&amp;1 | grep x</code>（bash なら <code>|&amp;</code>）のように fd 2 を fd 1 と同じ先に付け替える。</p></details>
+
 
   <h2 id="cmd">コマンド例</h2>
 <pre>echo $$                                   <span class="cm"># 今のシェルの PID</span>

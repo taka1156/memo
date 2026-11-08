@@ -240,21 +240,21 @@ TC55 には Deno・Igalia（共同議長）、Cloudflare、Bloomberg などが�
 
 ## よくある誤解
 
-✗ `setTimeout` や `console` は JavaScript の言語機能
+`setTimeout` や `console` は JavaScript の言語機能
 
-○ HTML Standard と Console Standard（WHATWG）で決まっている。ECMAScript には入っていない
+HTML Standard と Console Standard（WHATWG）で決まっている。ECMAScript には入っていない
 
-✗ HTML の仕様は W3C が作っている
+HTML の仕様は W3C が作っている
 
-○ 本体は WHATWG の Living Standard。W3C はそのスナップショットを勧告として承認する
+本体は WHATWG の Living Standard。W3C はそのスナップショットを勧告として承認する
 
-✗ Stage 3 になった機能はどのブラウザでも使える
+Stage 3 になった機能はどのブラウザでも使える
 
-○ Stage 3 は「実装を始めてよい」段階。使えるかどうかは各ブラウザの実装状況で確かめる
+Stage 3 は「実装を始めてよい」段階。使えるかどうかは各ブラウザの実装状況で確かめる
 
-✗ TC55 はサーバー専用の新しい API を作る団体
+TC55 はサーバー専用の新しい API を作る団体
 
-○ 中心は既存の Web API から共通セットを選ぶこと。サーバーで違う動きが必要な点は WHATWG や W3C の仕様に戻して直す
+中心は既存の Web API から共通セットを選ぶこと。サーバーで違う動きが必要な点は WHATWG や W3C の仕様に戻して直す
 
 ## 関連メモ
 

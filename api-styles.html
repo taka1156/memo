@@ -18,11 +18,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-warn: #b45309;
   --c-a: #7c3aed;
-  --c-b: #c2410c;
+  --c-b: #be185d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -33,11 +30,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-warn: #fbbf24;
     --c-a: #c4b5fd;
-    --c-b: #fb923c;
+    --c-b: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -96,8 +90,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
@@ -106,7 +98,7 @@ pre .cm { color: var(--fg-2); }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .ok { color: var(--c-ok); font-weight: 700; }
@@ -140,25 +132,6 @@ pre .cm { color: var(--fg-2); }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* ステップ */
-ol.steps { list-style: none; counter-reset: st; }
-ol.steps > li {
-  counter-increment: st;
-  position: relative;
-  padding: 10px 12px 10px 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  margin-bottom: 8px;
-}
-ol.steps > li::before {
-  content: counter(st);
-  position: absolute; left: 12px; top: 10px;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: var(--accent); color: var(--bg);
-  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
-  text-align: center;
-}
-ol.steps b { display: block; }
 
 /* 表 */
 .table-wrap { overflow-x: auto; }
@@ -175,7 +148,7 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 .fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
 
 /* 誤解 */
-.myth { margin-bottom: 10px; }
+
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
@@ -221,7 +194,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 /* ---- このページ専用 ---- */
 .who { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
 .who .card { padding: 12px 14px; }
-.who h3 { font: 700 0.95rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.who h3 { font: 700 0.95rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); }
 </style>
 <!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="icon" href="assets/favicon.ico" sizes="any">
@@ -238,6 +211,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -367,9 +341,10 @@ Content-Type: application/problem+json
 }</pre>
 
   <h2 id="myths">よくある誤解</h2>
-  <details class="card myth"><summary>「GraphQL は REST の上位互換」</summary><p>柔軟さと引き換えに、キャッシュ・認可（項目ごと）・負荷制御を自分で設計する必要がある。クライアントが 1 つで画面も固定なら、REST のほうが単純で速いことが多い。</p></details>
-  <details class="card myth"><summary>「URL に動詞を入れたら REST じゃない」</summary><p>リソースで表しにくい操作（<code>POST /orders/42/cancel</code>）は現実によくある。大事なのはメソッドの安全性・冪等性を守ることと、一貫した規則。</p></details>
-  <details class="card myth"><summary>「gRPC はブラウザから使えない」</summary><p>そのままでは使えないが、gRPC-Web や Connect で同じ .proto から呼べる。ただし双方向ストリーミングはブラウザでは制限がある。</p></details>
+  <details class="myth"><summary>GraphQL は REST の上位互換</summary><p>柔軟さと引き換えに、キャッシュ・認可（項目ごと）・負荷制御を自分で設計する必要がある。クライアントが 1 つで画面も固定なら、REST のほうが単純で速いことが多い。</p></details>
+  <details class="myth"><summary>URL に動詞を入れたら REST じゃない</summary><p>リソースで表しにくい操作（<code>POST /orders/42/cancel</code>）は現実によくある。大事なのはメソッドの安全性・冪等性を守ることと、一貫した規則。</p></details>
+  <details class="myth"><summary>gRPC はブラウザから使えない</summary><p>そのままでは使えないが、gRPC-Web や Connect で同じ .proto から呼べる。ただし双方向ストリーミングはブラウザでは制限がある。</p></details>
+
 
   <h2>関連メモ</h2>
   <p class="related"><a href="http-cache.html">HTTP キャッシュ</a><a href="realtime-comm.html">リアルタイム通信</a><a href="ddd-onion.html">DDD とオニオン</a><a href="distributed-basics.html">分散システムの基本</a><a href="typescript.html">TypeScript</a></p>

@@ -17,9 +17,7 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-warn: #b45309;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #7c3aed;
   --c-b: #0e7490;
 }
@@ -32,9 +30,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-warn: #fbbf24;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #c4b5fd;
     --c-b: #67e8f9;
   }
@@ -88,7 +84,7 @@ pre {
 }
 pre code { background: none; padding: 0; word-break: normal; }
 pre .cm { color: var(--fg-2); }
-pre .hl { color: var(--accent); font-weight: 700; }
+pre .hl { color: var(--c-key); font-weight: 700; }
 pre .ok { color: var(--c-ok); }
 pre .ng { color: var(--c-ng); }
 .file {
@@ -110,8 +106,6 @@ pre .ng { color: var(--c-ng); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
 .grid2 > * { min-width: 0; }
@@ -119,7 +113,7 @@ pre .ng { color: var(--c-ng); }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .ok { color: var(--c-ok); font-weight: 700; }
@@ -220,6 +214,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -240,7 +235,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <h2 id="roles">4 つのファイルの役割</h2>
   <div class="roles">
     <div class="card role" style="--k:var(--c-b)"><b>.dockerignore</b><p>ビルドに<b>送らない</b>ファイル。<code>COPY . .</code> の範囲を絞る。</p></div>
-    <div class="card role" style="--k:var(--accent)"><b>Dockerfile</b><p><b>1 つのイメージ</b>の作り方。<code>docker build</code> が読む。</p></div>
+    <div class="card role" style="--k:var(--c-key)"><b>Dockerfile</b><p><b>1 つのイメージ</b>の作り方。<code>docker build</code> が読む。</p></div>
     <div class="card role" style="--k:var(--c-warn)"><b>compose.yaml</b><p><b>複数のコンテナ</b>（app・db…）の起動設定。<code>docker compose up</code> が読む。</p></div>
     <div class="card role" style="--k:var(--c-a)"><b>devcontainer.json</b><p>VS Code などが<b>開発環境として入るコンテナ</b>の設定。上の 2 つを参照できる。</p></div>
   </div>
@@ -540,14 +535,10 @@ $ docker compose config          <span class="cm"># 展開後の最終的な設�
   <p class="note">Dockerfile にツールを書き足すか features にするか迷ったら: アプリの実行に要るものは Dockerfile、開発時だけ要るもの（gh・リンター等）は features や devcontainer 側に寄せると本番イメージが太らない。</p>
 
   <h2 id="myths">よくある誤解</h2>
-  <details class="card"><summary>EXPOSE を書けば外からアクセスできる</summary>
-    <p>EXPOSE は「このポートを使う」というメモにすぎない。ホストに公開するのは <code>docker run -p</code> や compose の <code>ports</code>。</p></details>
-  <details class="card"><summary>ENV や ARG なら API キーを書いても大丈夫</summary>
-    <p>どちらも <code>docker history</code> やイメージの設定から読める。ビルド時に必要なら <code>RUN --mount=type=secret</code>、実行時なら compose の <code>env_file</code> などで外から渡す。</p></details>
-  <details class="card"><summary>depends_on を書けば DB の準備完了まで待ってくれる</summary>
-    <p>素の depends_on はコンテナの起動順だけ。接続を受け付けるまで待つには <code>condition: service_healthy</code> ＋ healthcheck が要る。</p></details>
-  <details class="card"><summary>devcontainer.json は VS Code 専用</summary>
-    <p>Dev Container は公開された仕様で、Codespaces・JetBrains・CLI（<code>devcontainer up</code>）でも読める。エディタ固有の部分は <code>customizations</code> の中に分けて書く。</p></details>
+  <details class="myth"><summary>EXPOSE を書けば外からアクセスできる</summary><p>EXPOSE は「このポートを使う」というメモにすぎない。ホストに公開するのは <code>docker run -p</code> や compose の <code>ports</code>。</p></details>
+  <details class="myth"><summary>ENV や ARG なら API キーを書いても大丈夫</summary><p>どちらも <code>docker history</code> やイメージの設定から読める。ビルド時に必要なら <code>RUN --mount=type=secret</code>、実行時なら compose の <code>env_file</code> などで外から渡す。</p></details>
+  <details class="myth"><summary>depends_on を書けば DB の準備完了まで待ってくれる</summary><p>素の depends_on はコンテナの起動順だけ。接続を受け付けるまで待つには <code>condition: service_healthy</code> ＋ healthcheck が要る。</p></details>
+  <details class="myth"><summary>devcontainer.json は VS Code 専用</summary><p>Dev Container は公開された仕様で、Codespaces・JetBrains・CLI（<code>devcontainer up</code>）でも読める。エディタ固有の部分は <code>customizations</code> の中に分けて書く。</p></details>
 
   <p class="note">関連: <a href="docker.html">Docker 動作原理</a> ／ <a href="docker-images.html">Docker イメージの種類</a></p>
 

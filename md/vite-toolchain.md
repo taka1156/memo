@@ -46,7 +46,7 @@ Parser Resolver Transformer（TS/JSX 除去・構文変換） Minifier Oxlint Ox
 
 ## ビルドの流れ（ `vite build` ）
 
-（図: .ts .tsx / .js .vue … / .css / import された CSS / Rolldown / 解析・解決 / Oxc parser / + resolver / 変換 / Oxc / transformer / 結合・分割 / tree shaking / chunking / 圧縮 / minifier / 前処理（任意） / PostCSS / Sass / 変換・圧縮 / Lightning CSS / dist/ / .js .css / 緑枠 = Oxc の部品 ／ 橙枠 = Rolldown 本体 ／ 桃枠 = Lightning CSS → https://memo.taka1156.site/vite-toolchain.html#build-flow）
+（図: .ts .tsx / .js .vue … / .css / import された CSS / Rolldown / 解析・解決 / Oxc parser / + resolver / 変換 / Oxc / transformer / 結合・分割 / tree shaking / chunking / 圧縮 / minifier / 前処理（任意） / PostCSS / Sass / 変換・圧縮 / Lightning CSS / dist/ / .js .css / 緑枠 = Oxc の部品 ／ 青枠 = Rolldown 本体 ／ 桃枠 = Lightning CSS → https://memo.taka1156.site/vite-toolchain.html#build-flow）
 
 dev サーバーでも同じ部品が使われる（ファイルを個別に変換して配信）。将来の「Full Bundle Mode」では dev でも Rolldown でバンドルする方向で、Vite 8 時点では実験的機能。
 
@@ -185,14 +185,30 @@ Oxc は Vite／Rolldown の内部部品として動くので、普段は直接�
 
 ## よくある誤解
 
-** ✕ Rolldown は Vite の新しい名前** Vite はそのまま。中で使うバンドラーが Rollup／esbuild から Rolldown に入れ替わっただけ。
+Rolldown は Vite の新しい名前
 
-** ✕ Oxc はリンター（Oxlint）のこと** Oxlint は Oxc の一部。本体はパーサー・変換器・圧縮器などの部品集で、Rolldown の言語処理を支えている。
+Vite はそのまま。中で使うバンドラーが Rollup／esbuild から Rolldown に入れ替わっただけ。
 
-** ✕ Lightning CSS が入ったので PostCSS は不要** Vite 8 で Lightning CSS が担当するのは主に CSS 圧縮。 `css.transformer` の既定は PostCSS のままで、Tailwind などの PostCSS プラグインもそのまま動く。
+Oxc はリンター（Oxlint）のこと
 
-** ✕ Oxlint・Oxfmt・Vitest を使うには Vite+ が必須** どれも単体で使える。Vite+ は「まとめて入れて、設定を 1 枚にする」ための選択肢。Oxlint／Oxfmt は Vite を使っていないプロジェクトでも動く。
+Oxlint は Oxc の一部。本体はパーサー・変換器・圧縮器などの部品集で、Rolldown の言語処理を支えている。
 
-** ✕ Oxlint が入れば ESLint のプラグインは全部捨てる** ネイティブルールに加えて ESLint 互換の JS プラグイン機構（現時点では alpha）がある。ただし Vue／Svelte テンプレートのような独自パーサーが必要なプラグインはまだ対応していないので、移行前に対応状況を確認する。
+Lightning CSS が入ったので PostCSS は不要
 
-** ✕ Rollup プラグインはもう使えない** Rolldown は Rollup 互換のプラグイン API を持つので、多くの Vite／Rollup プラグインはそのまま動く。
+Vite 8 で Lightning CSS が担当するのは主に CSS 圧縮。
+
+css.transformer
+
+の既定は PostCSS のままで、Tailwind などの PostCSS プラグインもそのまま動く。
+
+Oxlint・Oxfmt・Vitest を使うには Vite+ が必須
+
+どれも単体で使える。Vite+ は「まとめて入れて、設定を 1 枚にする」ための選択肢。Oxlint／Oxfmt は Vite を使っていないプロジェクトでも動く。
+
+Oxlint が入れば ESLint のプラグインは全部捨てる
+
+ネイティブルールに加えて ESLint 互換の JS プラグイン機構（現時点では alpha）がある。ただし Vue／Svelte テンプレートのような独自パーサーが必要なプラグインはまだ対応していないので、移行前に対応状況を確認する。
+
+Rollup プラグインはもう使えない
+
+Rolldown は Rollup 互換のプラグイン API を持つので、多くの Vite／Rollup プラグインはそのまま動く。

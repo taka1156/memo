@@ -18,9 +18,7 @@
   --accent: #0077b6;
   --chip: #eceff4;
   --c-type: #7b4fd6;
-  --c-js: #b88600;
-  --c-ok: #1f8a4c;
-  --c-warn: #c0392b;
+  --c-js: #be185d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -32,9 +30,7 @@
     --accent: #00d4ff;
     --chip: #18222f;
     --c-type: #b69cff;
-    --c-js: #f2c94c;
-    --c-ok: #4cd18a;
-    --c-warn: #ff7b6b;
+    --c-js: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -86,8 +82,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .t { color: var(--c-type); font-weight: 700; }
 .j { color: var(--c-js); font-weight: 700; }
@@ -120,8 +114,8 @@ pre code { background: none; padding: 0; font-size: 1em; }
   position: absolute; left: 0; top: 10px;
   width: 36px; height: 36px; border-radius: 50%;
   background: var(--surface);
-  border: 2px solid var(--accent);
-  color: var(--accent);
+  border: 2px solid var(--line);
+  color: var(--fg);
   display: flex; align-items: center; justify-content: center;
   font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace;
 }
@@ -149,7 +143,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .fig .sub { fill: var(--fg-2); font-size: 11px; }
 .fig .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.fig .box-a { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig .box-a { fill: var(--surface); stroke: var(--fg-2); stroke-width: 2; }
 .fig .box-t { fill: var(--surface); stroke: var(--c-type); stroke-width: 2; }
 .fig .box-j { fill: var(--surface); stroke: var(--c-js); stroke-width: 2; }
 .fig .arrow { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
@@ -172,13 +166,9 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 tr:last-child td { border-bottom: none; }
 
 /* 誤解 */
-.myth { margin-bottom: 10px; }
-.myth .q { font-weight: 700; }
-.myth .q::before { content: "✕ "; color: var(--c-warn); }
-.myth .a::before { content: "◯ "; color: var(--c-ok); font-weight: 700; }
 
 /* ホバー補足 */
-.tip { border-bottom: 1px dotted var(--accent); cursor: help; position: relative; }
+.tip { border-bottom: 1px dotted var(--line); cursor: help; position: relative; }
 .tip:hover::after, .tip:focus::after {
   content: attr(data-tip);
   position: absolute; left: 0; top: 1.8em; z-index: 5;
@@ -222,6 +212,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -516,28 +507,12 @@ type A = Unwrap&lt;Promise&lt;string&gt;&gt;; // string</code></pre>
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card">
-    <div class="myth">
-      <p class="q">型を書けば実行時にもチェックされる</p>
-      <p class="a">型はコンパイル時に消える。外部入力は実行時に検証する（zod など）。</p>
-    </div>
-    <div class="myth">
-      <p class="q">型エラーがあると JS が出力されない</p>
-      <p class="a">tsc は既定でエラーがあっても JS を出す。esbuild や Node の型除去はそもそもチェックしない。</p>
-    </div>
-    <div class="myth">
-      <p class="q">TypeScript にすると実行が速くなる / 遅くなる</p>
-      <p class="a">実行されるのはただの JS なので、速度は変わらない。変わるのはビルド時間と開発体験。</p>
-    </div>
-    <div class="myth">
-      <p class="q">とりあえず any で逃げればいい</p>
-      <p class="a">any はチェックを止める。型がわからないときは <code>unknown</code> にして、絞り込んでから使う。</p>
-    </div>
-    <div class="myth">
-      <p class="q">全部の変数に型注釈を書くべき</p>
-      <p class="a">推論できるところは任せる。書くのは関数の引数・公開 API・推論が広すぎるところ。</p>
-    </div>
-  </div>
+  <details class="myth"><summary>型を書けば実行時にもチェックされる</summary><p>型はコンパイル時に消える。外部入力は実行時に検証する（zod など）。</p></details>
+  <details class="myth"><summary>型エラーがあると JS が出力されない</summary><p>tsc は既定でエラーがあっても JS を出す。esbuild や Node の型除去はそもそもチェックしない。</p></details>
+  <details class="myth"><summary>TypeScript にすると実行が速くなる / 遅くなる</summary><p>実行されるのはただの JS なので、速度は変わらない。変わるのはビルド時間と開発体験。</p></details>
+  <details class="myth"><summary>とりあえず any で逃げればいい</summary><p>any はチェックを止める。型がわからないときは <code>unknown</code> にして、絞り込んでから使う。</p></details>
+  <details class="myth"><summary>全部の変数に型注釈を書くべき</summary><p>推論できるところは任せる。書くのは関数の引数・公開 API・推論が広すぎるところ。</p></details>
+
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

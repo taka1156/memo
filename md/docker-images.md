@@ -16,8 +16,7 @@ slim / alpine / bookworm / trixie / distroless … タグの意味と glibc・mu
 
 - `bookworm` や `trixie` は **Debian のバージョン名** 、 `slim` は **中身を削った版** 、 `alpine` は **別ディストロ** 。軸が違う。
 - 一番効く違いは **C ライブラリ (libc)** 。Debian / Ubuntu / distroless は **glibc** 、Alpine は **musl** 。glibc 前提でビルドされたバイナリ（workerd など）は Alpine で動かない。
-- Alpine は「小さい → pull が速い」だけで、 **実行が速いわけではない** 。迷ったら `*-slim` （Debian・glibc）が無難。
-- 本番の「まっさら」枠は **distroless / Chainguard / Docker Hardened Images / Chiseled Ubuntu / scratch** 。シェルもパッケージ管理も無く、 **ビルドは別ステージ** で行ってコピーする。
+- Alpine は「小さい → pull が速い」だけで、 **実行が速いわけではない** 。迷ったら `*-slim` （Debian・glibc）が無難。本番の「まっさら」枠は **distroless / Chainguard / Docker Hardened Images / Chiseled Ubuntu / scratch** 。シェルもパッケージ管理も無く、 **ビルドは別ステージ** で行ってコピーする。
 
 ## タグの読み方
 

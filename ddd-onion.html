@@ -22,10 +22,8 @@
   --c-domain-bg: #e7f4ec;
   --c-app: #0077b6;
   --c-app-bg: #e4f0fa;
-  --c-outer: #b5651d;
+  --c-outer: #be185d;
   --c-outer-bg: #fbf0e3;
-  --c-ok: #2e7d4f;
-  --c-ng: #c0392b;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -40,10 +38,8 @@
     --c-domain-bg: #10261a;
     --c-app: #00d4ff;
     --c-app-bg: #0d2232;
-    --c-outer: #f0a35e;
+    --c-outer: #f472b6;
     --c-outer-bg: #2a1d10;
-    --c-ok: #4ade80;
-    --c-ng: #ff7b72;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -97,8 +93,6 @@ pre code { background: none; padding: 0; font-size: inherit; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .note { color: var(--fg-2); font-size: 0.85rem; }
 
 /* タブ */
@@ -217,13 +211,9 @@ svg text { font-family: 'Noto Sans JP', system-ui, sans-serif; }
 .ctx { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 520px) { .ctx { grid-template-columns: 1fr; } }
 .ctx > div { border: 2px dashed var(--line); border-radius: 12px; padding: 10px 12px; font-size: 0.84rem; }
-.ctx h4 { font-size: 0.85rem; color: var(--accent); margin-bottom: 4px; }
+.ctx h4 { font-size: 0.85rem; color: var(--fg); margin-bottom: 4px; }
 
 /* 誤解 */
-.myth { margin: 10px 0; }
-.myth .q { font-weight: 700; }
-.myth .q::before { content: '✕ '; color: var(--c-ng); }
-.myth .a::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -258,6 +248,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -459,28 +450,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <!-- ============ Myths ============ -->
   <h2 id="myths">よくある誤解</h2>
-  <div class="card">
-    <div class="myth">
-      <p class="q">フォルダを domain / application / infrastructure に分ければ DDD になる</p>
-      <p class="a">フォルダは入れ物。<code>Task</code> がゲッター・セッターだけで、ルールが全部ユースケースに書かれていたら、それは「ドメインモデル貧血症」。ルールをエンティティや値オブジェクトに入れて初めて意味がある。</p>
-    </div>
-    <div class="myth">
-      <p class="q">Zod でバリデーションしているから値オブジェクトは要らない</p>
-      <p class="a">Zod は「HTTP の入力の形」を守る係、値オブジェクトは「業務ルール」を守る係。CLI やバッチなど別の入口から来ても、<code>TaskTitle</code> を通れば必ず 1〜100 文字になる。</p>
-    </div>
-    <div class="myth">
-      <p class="q">リポジトリはテーブルごとに 1 つ作る</p>
-      <p class="a">リポジトリは<b>集約ごと</b>。注文と注文明細が 1 つの集約なら、<code>OrderRepository</code> 1 つで両方のテーブルを扱う。</p>
-    </div>
-    <div class="myth">
-      <p class="q">Hono の Context (<code>c</code>) をユースケースに渡せば楽</p>
-      <p class="a">それをすると application が Hono に依存し、テストにも Context が必要になる。ハンドラで必要な値だけ取り出してプレーンな引数で渡す。</p>
-    </div>
-    <div class="myth">
-      <p class="q">どんなプロジェクトでもこの構成にすべき</p>
-      <p class="a">CRUD 中心でルールが少ないなら、ファイル数が増えるコストのほうが大きい。業務ルールが多い・長く育てる・チームで触る、といった条件がそろうほど効いてくる。まずは「業務ルールはエンティティに、DB アクセスはリポジトリに」だけを分けて始め、ルールが増えた部分から層を分けていけばよい。</p>
-    </div>
-  </div>
+  <details class="myth"><summary>フォルダを domain / application / infrastructure に分ければ DDD になる</summary><p>フォルダは入れ物。<code>Task</code> がゲッター・セッターだけで、ルールが全部ユースケースに書かれていたら、それは「ドメインモデル貧血症」。ルールをエンティティや値オブジェクトに入れて初めて意味がある。</p></details>
+  <details class="myth"><summary>Zod でバリデーションしているから値オブジェクトは要らない</summary><p>Zod は「HTTP の入力の形」を守る係、値オブジェクトは「業務ルール」を守る係。CLI やバッチなど別の入口から来ても、<code>TaskTitle</code> を通れば必ず 1〜100 文字になる。</p></details>
+  <details class="myth"><summary>リポジトリはテーブルごとに 1 つ作る</summary><p>リポジトリは<b>集約ごと</b>。注文と注文明細が 1 つの集約なら、<code>OrderRepository</code> 1 つで両方のテーブルを扱う。</p></details>
+  <details class="myth"><summary>Hono の Context (<code>c</code>) をユースケースに渡せば楽</summary><p>それをすると application が Hono に依存し、テストにも Context が必要になる。ハンドラで必要な値だけ取り出してプレーンな引数で渡す。</p></details>
+  <details class="myth"><summary>どんなプロジェクトでもこの構成にすべき</summary><p>CRUD 中心でルールが少ないなら、ファイル数が増えるコストのほうが大きい。業務ルールが多い・長く育てる・チームで触る、といった条件がそろうほど効いてくる。まずは「業務ルールはエンティティに、DB アクセスはリポジトリに」だけを分けて始め、ルールが増えた部分から層を分けていけばよい。</p></details>
+
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

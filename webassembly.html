@@ -18,11 +18,9 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-warn: #b45309;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #7c3aed;
-  --c-b: #c2410c;
+  --c-b: #0369a1;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -33,11 +31,9 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-warn: #fbbf24;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #c4b5fd;
-    --c-b: #fb923c;
+    --c-b: #7dd3fc;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -96,8 +92,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
@@ -106,7 +100,7 @@ pre .cm { color: var(--fg-2); }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .ok { color: var(--c-ok); font-weight: 700; }
@@ -140,25 +134,6 @@ pre .cm { color: var(--fg-2); }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* ステップ */
-ol.steps { list-style: none; counter-reset: st; }
-ol.steps > li {
-  counter-increment: st;
-  position: relative;
-  padding: 10px 12px 10px 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  margin-bottom: 8px;
-}
-ol.steps > li::before {
-  content: counter(st);
-  position: absolute; left: 12px; top: 10px;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: var(--accent); color: var(--bg);
-  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
-  text-align: center;
-}
-ol.steps b { display: block; }
 
 /* 表 */
 .table-wrap { overflow-x: auto; }
@@ -175,7 +150,7 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 .fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
 
 /* 誤解 */
-.myth { margin-bottom: 10px; }
+
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
@@ -231,8 +206,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .stackd .ly b { display: block; font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; }
 .stackd .ly small { color: var(--fg-2); font-size: 0.72rem; }
 .stackd .wit { text-align: center; font-size: 0.72rem; color: var(--fg-2); margin: 6px 0; }
-.stackd .cap { border-left: 3px solid var(--accent); padding-left: 10px; font-size: 0.82rem; }
-.stackd .cap b { color: var(--accent); display: block; }
+.stackd .cap { border-left: 3px solid var(--line); padding-left: 10px; font-size: 0.82rem; }
+.stackd .cap b { color: var(--fg); display: block; }
 .bridge .side { border: 2px solid var(--line); border-radius: 10px; padding: 10px; text-align: center; }
 .bridge .side b { font-family: 'JetBrains Mono', ui-monospace, monospace; display: block; }
 .bridge .side small { color: var(--fg-2); font-size: 0.72rem; }
@@ -255,6 +230,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -292,7 +268,7 @@ instance.exports.blur(ptr, width, height);   <span class="cm">// Wasm が公開�
   <h2 id="memory">線形メモリと境界のコスト</h2>
   <div class="card">
     <div class="bridge">
-      <div class="side" style="border-color:var(--accent)"><b>JS の世界</b><small>オブジェクト・文字列・DOM・GC</small></div>
+      <div class="side" style="border-color:var(--c-key)"><b>JS の世界</b><small>オブジェクト・文字列・DOM・GC</small></div>
       <div class="mid">文字列・配列はコピー<div></div>数値・参照は素通り</div>
       <div class="side" style="border-color:var(--c-a)"><b>Wasm の世界</b><small>数値・参照と線形メモリ</small></div>
     </div>
@@ -300,7 +276,7 @@ instance.exports.blur(ptr, width, height);   <span class="cm">// Wasm が公開�
     <div class="mem" aria-label="線形メモリの例">
       <span>0</span><span>…</span><span class="s">h</span><span class="s">e</span><span class="s">l</span><span class="s">l</span><span class="s">o</span><span>…</span><span class="u">px</span><span class="u">px</span><span class="u">px</span><span class="u">px</span><span>…</span>
     </div>
-    <p class="note">橙は文字列 "hello" を UTF-8 で書き込んだ場所、紫は画像のピクセル。JS 側からは <code>new Uint8Array(memory.buffer)</code> で同じバイト列が見える。</p>
+    <p class="note">青は文字列 "hello" を UTF-8 で書き込んだ場所、紫は画像のピクセル。JS 側からは <code>new Uint8Array(memory.buffer)</code> で同じバイト列が見える。</p>
   </div>
   <div class="lane" style="margin-top:12px">
     <div class="card"><span class="label ng">遅くなる使い方</span><p>ピクセル 1 つごとに JS から Wasm の関数を呼ぶ。DOM の要素 1 つごとに Wasm から JS を呼ぶ。毎回の呼び出しと変換のコストが計算より大きくなる。</p></div>
@@ -335,7 +311,7 @@ instance.exports.blur(ptr, width, height);   <span class="cm">// Wasm が公開�
           <div class="ly" style="border-color:var(--c-b)"><b>コンポーネント B</b><small>Go や Python 製</small></div>
         </div>
         <div class="wit">↕ WIT で型付きのインターフェースを定義し、言語をまたいで呼び合う</div>
-        <div class="ly" style="border-color:var(--accent)"><b>WASI</b><small>ファイル・時計・乱数・ソケット・HTTP などの標準 API</small></div>
+        <div class="ly" style="border-color:var(--c-key)"><b>WASI</b><small>ファイル・時計・乱数・ソケット・HTTP などの標準 API</small></div>
         <div class="wit">↓</div>
         <div class="ly"><b>ランタイム</b><small>Wasmtime・WasmEdge・エッジ基盤など</small></div>
       </div>

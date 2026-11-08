@@ -17,11 +17,10 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #1a7f37;
-  --c-ng: #c4314b;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-heap: #8250df;
   --c-p1: #0077b6;
-  --c-p2: #b35900;
+  --c-p2: #be185d;
   --c-p3: #1a7f37;
 }
 @media (prefers-color-scheme: dark) {
@@ -33,11 +32,10 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #3fb950;
-    --c-ng: #ff6b81;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-heap: #c297ff;
     --c-p1: #00d4ff;
-    --c-p2: #ffa657;
+    --c-p2: #f472b6;
     --c-p3: #3fb950;
   }
 }
@@ -95,8 +93,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .note { color: var(--fg-2); font-size: 0.82rem; }
 
 /* タブ */
@@ -187,8 +183,8 @@ pre code { background: none; padding: 0; font-size: 1em; }
 }
 .flow .st b { display: block; font-family: 'JetBrains Mono', monospace; color: var(--fg); font-size: 0.85rem; }
 .flow .st span { color: var(--fg-2); }
-.flow .st.hot { border: 2px solid var(--accent); }
-.flow .st.hot b { color: var(--accent); }
+.flow .st.hot { border: 2px solid var(--c-key); }
+.flow .st.hot b { color: var(--c-key); }
 .flow .ar { align-self: center; color: var(--fg-2); padding: 0 4px; font-family: 'JetBrains Mono', monospace; }
 @media (max-width: 640px) {
   .flow { flex-direction: column; }
@@ -202,7 +198,7 @@ svg.fig text { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size
 svg.fig .lbl { font-size: 11px; fill: var(--fg-2); }
 svg.fig .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
 svg.fig .area { fill: var(--chip); stroke: none; }
-svg.fig .var { fill: var(--surface); stroke: var(--accent); stroke-width: 1.5; }
+svg.fig .var { fill: var(--surface); stroke: var(--fg-2); stroke-width: 1.5; }
 svg.fig .dead { fill: var(--surface); stroke: var(--c-ng); stroke-width: 1.5; stroke-dasharray: 4 3; }
 svg.fig .heap { fill: var(--surface); stroke: var(--c-heap); stroke-width: 1.5; }
 svg.fig .arr { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
@@ -246,10 +242,6 @@ th { background: var(--chip); font-weight: 700; }
 td:first-child { font-weight: 700; white-space: nowrap; }
 
 /* 誤解 */
-.myth { margin-bottom: 10px; }
-.myth p:first-child { font-weight: 700; }
-.myth p:first-child::before { content: "✕ "; color: var(--c-ng); }
-.myth p + p::before { content: "→ "; color: var(--c-ok); font-weight: 700; }
 
 .res li { margin: 4px 0 4px 1.2em; }
 
@@ -286,6 +278,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -614,26 +607,12 @@ match read_config() {
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth">
-    <p>clone() を使うのは負け</p>
-    <p>学習初期は clone で回避して動かすのが正解。動いてから、借用に置き換えて最適化すればいい。</p>
-  </div>
-  <div class="card myth">
-    <p>ライフタイムを毎回書く必要がある</p>
-    <p>省略規則で大半は不要。コンパイラに求められたときに書けば足りる。</p>
-  </div>
-  <div class="card myth">
-    <p>GC がない ＝ 手動でメモリを解放する</p>
-    <p>所有者がスコープを抜けると自動で <code>drop</code> される（RAII）。free を書くことはない。</p>
-  </div>
-  <div class="card myth">
-    <p>unsafe はバグだらけの危険なコード</p>
-    <p>「コンパイラが安全性を確かめられない操作（生ポインタの参照外しや FFI 呼び出しなど）を、人間が責任を持って保証する」という印。範囲を小さく閉じ込め、safe な API で包むのが作法。</p>
-  </div>
-  <div class="card myth">
-    <p>コンパイルエラーが多い ＝ 書きにくい言語</p>
-    <p>実行時に出るはずだったバグを前倒しで見せている。エラーメッセージには直し方の提案（help:）まで付くので、読むこと自体が学習になる。</p>
-  </div>
+  <details class="myth"><summary>clone() を使うのは負け</summary><p>学習初期は clone で回避して動かすのが正解。動いてから、借用に置き換えて最適化すればいい。</p></details>
+  <details class="myth"><summary>ライフタイムを毎回書く必要がある</summary><p>省略規則で大半は不要。コンパイラに求められたときに書けば足りる。</p></details>
+  <details class="myth"><summary>GC がない ＝ 手動でメモリを解放する</summary><p>所有者がスコープを抜けると自動で <code>drop</code> される（RAII）。free を書くことはない。</p></details>
+  <details class="myth"><summary>unsafe はバグだらけの危険なコード</summary><p>「コンパイラが安全性を確かめられない操作（生ポインタの参照外しや FFI 呼び出しなど）を、人間が責任を持って保証する」という印。範囲を小さく閉じ込め、safe な API で包むのが作法。</p></details>
+  <details class="myth"><summary>コンパイルエラーが多い ＝ 書きにくい言語</summary><p>実行時に出るはずだったバグを前倒しで見せている。エラーメッセージには直し方の提案（help:）まで付くので、読むこと自体が学習になる。</p></details>
+
 
   <h2 id="commands">よく使うコマンド</h2>
 <pre><code>cargo new myapp       <span class="cm"># プロジェクト作成</span>

@@ -141,15 +141,15 @@ my-repo/ ├── package.json ← "workspaces": ["apps/*", "packages/*"]（pnp
 
 ## よくある誤解
 
-「"type": "module" にすれば全部 ESM になる」
+"type": "module" にすれば全部 ESM になる
 
 そのパッケージ内の `.js` が ESM として読まれるだけ。 `.cjs` は CommonJS のまま、依存パッケージはそれぞれの package.json に従う。設定ファイル（ `eslint.config.cjs` など）が壊れることがあるので拡張子で明示する。
 
-「main を書いておけば exports はいらない」
+main を書いておけば exports はいらない
 
 `main` は 1 つの入口しか表せず、条件分岐もサブパスの公開・非公開もできない。新しいパッケージは `exports` を書き、古いツール向けに `main` も残す。
 
-「ロックファイルは衝突が面倒だから .gitignore」
+ロックファイルは衝突が面倒だから .gitignore
 
 入れないと、開発者・CI・本番で違う版が入り、「手元では動く」が起きる。衝突したら手で直さず、マネージャーにもう一度 install させて作り直す。
 

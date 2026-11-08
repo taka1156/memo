@@ -17,10 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-front: #c2410c;
+  --c-front: #be185d;
   --c-back: #15803d;
-  --c-ng: #b91c1c;
-  --c-ok: #15803d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -31,10 +29,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-front: #fb923c;
+    --c-front: #f472b6;
     --c-back: #4ade80;
-    --c-ng: #f87171;
-    --c-ok: #4ade80;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -89,8 +85,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
@@ -98,7 +92,7 @@ pre code { background: none; padding: 0; word-break: normal; }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .big { font-size: 1.05rem; font-weight: 700; }
@@ -136,11 +130,7 @@ th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: le
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
 td:first-child { font-weight: 700; white-space: nowrap; }
 
-
 /* 誤解 */
-.myth { margin-bottom: 10px; }
-.myth .ng { color: var(--c-ng); font-weight: 700; }
-.myth .ok { color: var(--c-ok); font-weight: 700; }
 
 .related a { display: inline-block; margin: 4px 8px 4px 0; }
 
@@ -236,7 +226,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
 .site { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 
-:root { --c-a: #b45309; --c-b: #0369a1; --c-c: #7c3aed; }
+:root { --c-a: #4d7c0f; --c-b: #0369a1; --c-c: #7c3aed; }
 @media (prefers-color-scheme: dark) { :root { --c-a: #fbbf24; --c-b: #38bdf8; --c-c: #c4b5fd; } }
 .rw .k-r { --k: var(--c-ng); }
 .rw .k-w { --k: var(--c-ok); }
@@ -256,6 +246,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -466,22 +457,11 @@ export default {
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「CORS はサーバーを攻撃から守る仕組み」</p>
-    <p><span class="ok">○</span> 守っているのは<b>ユーザー</b>。curl やサーバー間通信には何の制限もかからないので、API 自体の認証・認可は別に必要。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「curl だと通るのに CORS エラーになるのはサーバーのバグ」</p>
-    <p><span class="ok">○</span> CORS はブラウザだけが行うチェック。curl は許可ヘッダーを見ないので通って当然。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「<code>mode: 'no-cors'</code> にすれば直る」</p>
-    <p><span class="ok">○</span> エラーは消えるが、レスポンスは中身の読めない「opaque」になる。データを使いたいなら意味がない。CORS はフロントだけでは直せず、サーバーの設定が必要。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「CORS を設定していれば CSRF は防げる」</p>
-    <p><span class="ok">○</span> 単純リクエスト（フォーム送信と同じ形）は CORS と関係なく送られ、サーバーで処理される。CSRF は SameSite Cookie や CSRF トークンで防ぐ。</p>
-  </div>
+  <details class="myth"><summary>CORS はサーバーを攻撃から守る仕組み</summary><p>守っているのは<b>ユーザー</b>。curl やサーバー間通信には何の制限もかからないので、API 自体の認証・認可は別に必要。</p></details>
+  <details class="myth"><summary>curl だと通るのに CORS エラーになるのはサーバーのバグ</summary><p>CORS はブラウザだけが行うチェック。curl は許可ヘッダーを見ないので通って当然。</p></details>
+  <details class="myth"><summary><code>mode: 'no-cors'</code> にすれば直る</summary><p>エラーは消えるが、レスポンスは中身の読めない「opaque」になる。データを使いたいなら意味がない。CORS はフロントだけでは直せず、サーバーの設定が必要。</p></details>
+  <details class="myth"><summary>CORS を設定していれば CSRF は防げる</summary><p>単純リクエスト（フォーム送信と同じ形）は CORS と関係なく送られ、サーバーで処理される。CSRF は SameSite Cookie や CSRF トークンで防ぐ。</p></details>
+
 
   <h2>関連メモ</h2>
   <p class="related"><a href="jwt-vs-session.html">JWT とセッション（CSRF と SameSite）→</a> <a href="vite-toolchain.html">Vite ツールチェーン →</a></p>

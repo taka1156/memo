@@ -17,13 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #1a7f37;
-  --c-ng: #cf222e;
-  --c-warn: #9a6700;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #0077b6;
   --c-b: #8250df;
   --c-c: #1a7f37;
-  --c-d: #bc4c00;
+  --c-d: #be185d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -34,9 +32,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #3fb950;
-    --c-ng: #f85149;
-    --c-warn: #d29922;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #00d4ff;
     --c-b: #bc8cff;
     --c-c: #3fb950;
@@ -97,8 +93,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .note {
   font-size: 0.85rem;
   color: var(--fg-2);
@@ -118,12 +112,12 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .diagram { margin: 8px 0; }
 .diagram svg { width: 100%; height: auto; display: block; }
 .d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-box.hl { stroke: var(--c-key); stroke-width: 2; }
 .d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
 .d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
-.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
-.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
-.d-head { fill: var(--accent); }
+.d-label { fill: var(--fg); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--fg-2); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--fg); }
 .d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
 .d-ng-head { fill: var(--c-ng); }
 
@@ -136,7 +130,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 10px 12px;
 }
-.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); font-size: 0.85rem; }
 .step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
 .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
 .flow span {
@@ -146,7 +140,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
   padding: 3px 10px;
   font-size: 0.82rem;
 }
-.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+.flow i { font-style: normal; color: var(--fg); font-weight: 700; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -170,14 +164,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .tbl td:first-child { font-weight: 700; }
 @media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
 
-
 /* よくある誤解 */
-.myth { margin-bottom: 10px; }
-.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
-.myth summary::-webkit-details-marker { display: none; }
-.myth summary::before { content: '✕ '; color: var(--c-ng); }
-.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
-.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
 
 /* OK / NG コード比較 */
 .vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
@@ -214,7 +201,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .spectrum .card { padding: 10px 12px; }
 .spectrum .card b { font-size: 0.88rem; }
 .spectrum .card p { font-size: 0.8rem; color: var(--fg-2); margin: 4px 0 0; }
-.strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); letter-spacing: .1em; }
+.strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); letter-spacing: .1em; }
 .badge {
   display: inline-block;
   font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
@@ -241,10 +228,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .fpbits .e { background: color-mix(in srgb, var(--c-a) 25%, transparent); }
 .fpbits .m { background: color-mix(in srgb, var(--c-c) 18%, transparent); }
 .exact { font: 500 0.78rem 'JetBrains Mono', ui-monospace, monospace; word-break: break-all; background: var(--chip); border-radius: 6px; padding: 6px 10px; }
-.exact b { color: var(--accent); }
+.exact b { color: var(--fg); }
 .numline { position: relative; height: 54px; margin: 8px 0; }
 .numline .axis { position: absolute; left: 0; right: 0; top: 26px; height: 2px; background: var(--line); }
-.numline i { position: absolute; top: 18px; width: 2px; height: 18px; background: var(--accent); }
+.numline i { position: absolute; top: 18px; width: 2px; height: 18px; background: var(--chip); }
 .numline span { position: absolute; top: 38px; font: 500 0.68rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); transform: translateX(-50%); white-space: nowrap; }
 </style>
 <!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
@@ -262,6 +249,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -367,9 +355,10 @@ round(2.5)           <span class="cm"># 2   Python は偶数丸め（銀行丸�
   <p>LLM などでは、64 ビットどころか 16 ビット（FP16・BF16）や 8 ビット・4 ビットの数で重みを持ちます。少しの誤差より、メモリと速度を優先しているためです（量子化。<a href="llm-basics.html">LLM の仕組み</a>）。BF16 は指数のビットを float32 と同じにし、仮数を削って「表せる範囲は広いまま、精度だけ落とした」形式です。</p>
 
   <h2 id="myths">よくある誤解</h2>
-  <details class="myth card"><summary>0.1 + 0.2 の問題は JavaScript のバグ</summary><p>IEEE 754 の 2 進浮動小数点を使う言語ならどれでも起きる。仕様どおりの動作。</p></details>
-  <details class="myth card"><summary>小数点以下 2 桁で表示すれば計算も正確になる</summary><p>表示を丸めても内部の値は変わらない。合計や比較で誤差が表に出る。</p></details>
-  <details class="myth card"><summary>Number で扱えるのは 2^53 まで</summary><p>もっと大きな数も入る（約 1.8×10^308 まで）。ただ 2^53 を超えると整数を 1 刻みで表せなくなる。「安全に」扱えるのがそこまで。</p></details>
+  <details class="myth"><summary>0.1 + 0.2 の問題は JavaScript のバグ</summary><p>IEEE 754 の 2 進浮動小数点を使う言語ならどれでも起きる。仕様どおりの動作。</p></details>
+  <details class="myth"><summary>小数点以下 2 桁で表示すれば計算も正確になる</summary><p>表示を丸めても内部の値は変わらない。合計や比較で誤差が表に出る。</p></details>
+  <details class="myth"><summary>Number で扱えるのは 2^53 まで</summary><p>もっと大きな数も入る（約 1.8×10^308 まで）。ただ 2^53 を超えると整数を 1 刻みで表せなくなる。「安全に」扱えるのがそこまで。</p></details>
+
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

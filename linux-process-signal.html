@@ -18,9 +18,9 @@
   --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
   --chip: #eceff4;
   --c-user: #1f8a50;
-  --c-kernel: #c2410c;
+  --c-kernel: #be185d;
   --c-hw: #6b7280;
-  --c-sig: #b45309;
+  --c-sig: #4d7c0f;
   --c-dead: #9aa3b2;
 }
 @media (prefers-color-scheme: dark) {
@@ -33,7 +33,7 @@
     --accent: #00d4ff;
     --chip: #18222f;
     --c-user: #4ade80;
-    --c-kernel: #fb923c;
+    --c-kernel: #f472b6;
     --c-hw: #94a3b8;
     --c-sig: #fbbf24;
     --c-dead: #4b5869;
@@ -90,8 +90,6 @@ pre .cm { color: var(--fg-2); }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .table-wrap { overflow-x: auto; margin: 10px 0; }
@@ -138,14 +136,14 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .btn.on { border-color: var(--accent); color: var(--accent); }
 .ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
 .stepmsg {
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--line);
   background: var(--surface);
   border-radius: 0 8px 8px 0;
   padding: 10px 14px;
   min-height: 4.6em;
   font-size: 0.9rem;
 }
-.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); display: block; }
+.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); display: block; }
 
 a { color: var(--accent); }
 .series { display: flex; flex-wrap: wrap; gap: 6px; margin: -12px 0 24px; }
@@ -156,7 +154,7 @@ a { color: var(--accent); }
 .map a { text-decoration: none; color: var(--fg); display: block; }
 .map a:hover .card { border-color: var(--accent); }
 .map .card { height: 100%; }
-.map b { color: var(--accent); font-size: 0.95rem; }
+.map b { color: var(--fg); font-size: 0.95rem; }
 .map p { font-size: 0.8rem; color: var(--fg-2); }
 .map ul { margin: 6px 0 0 1.1em; font-size: 0.78rem; }
 /* 全体像の層 */
@@ -174,7 +172,7 @@ a { color: var(--accent); }
   color: var(--fg-2);
   padding: 2px 0;
 }
-.syscall span { color: var(--accent); }
+.syscall span { color: var(--fg); }
 
 /* キー入力の旅 */
 .path { display: grid; gap: 4px; }
@@ -248,6 +246,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>

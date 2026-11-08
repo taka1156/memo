@@ -17,10 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-front: #c2410c;
+  --c-front: #be185d;
   --c-back: #15803d;
-  --c-ng: #b91c1c;
-  --c-ok: #15803d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -31,10 +29,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-front: #fb923c;
+    --c-front: #f472b6;
     --c-back: #4ade80;
-    --c-ng: #f87171;
-    --c-ok: #4ade80;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -89,8 +85,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
@@ -98,7 +92,7 @@ pre code { background: none; padding: 0; word-break: normal; }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .big { font-size: 1.05rem; font-weight: 700; }
@@ -136,11 +130,7 @@ th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: le
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
 td:first-child { font-weight: 700; white-space: nowrap; }
 
-
 /* 誤解 */
-.myth { margin-bottom: 10px; }
-.myth .ng { color: var(--c-ng); font-weight: 700; }
-.myth .ok { color: var(--c-ok); font-weight: 700; }
 
 .related a { display: inline-block; margin: 4px 8px 4px 0; }
 
@@ -166,18 +156,18 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .nm { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .nm svg { width: 100%; height: auto; display: block; margin: 6px 0; }
 .nm .n { stroke: var(--fg-2); stroke-width: 1.2; opacity: .55; }
-.nm .hub { fill: var(--accent); }
+.nm .hub { fill: var(--fg); }
 .nm .hubt { fill: var(--bg); font: 700 12px 'JetBrains Mono', monospace; text-anchor: middle; }
 .nm .a { fill: var(--chip); stroke: var(--line); }
 .nm .at { fill: var(--fg); font: 500 11px 'Noto Sans JP', sans-serif; text-anchor: middle; }
-.nm .count { font: 700 1.1rem 'JetBrains Mono', monospace; color: var(--accent); }
+.nm .count { font: 700 1.1rem 'JetBrains Mono', monospace; color: var(--fg); }
 
 .arch { width: 100%; height: auto; display: block; }
-.arch .host { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.arch .host { fill: var(--surface); stroke: var(--fg-2); stroke-width: 2; }
 .arch .cli { fill: var(--chip); stroke: var(--line); }
 .arch .srv { fill: var(--chip); stroke: var(--fg-2); }
 .arch .ext { fill: none; stroke: var(--line); stroke-dasharray: 4 3; }
-.arch .llm { fill: var(--accent); }
+.arch .llm { fill: var(--fg); }
 .arch text { fill: var(--fg); font: 500 13px 'Noto Sans JP', sans-serif; text-anchor: middle; }
 .arch .t-b { font-weight: 700; }
 .arch .t-s { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', monospace; }
@@ -198,7 +188,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   color: var(--fg-2);
   margin-left: 4px;
 }
-.prim h3 { margin-top: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+.prim h3 { margin-top: 0; color: var(--fg); font-family: 'JetBrains Mono', monospace; }
 
 .steps { counter-reset: s; list-style: none; }
 .steps > li { counter-increment: s; position: relative; padding-left: 40px; margin-bottom: 14px; }
@@ -206,7 +196,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   content: counter(s);
   position: absolute; left: 0; top: 0;
   width: 28px; height: 28px; border-radius: 50%;
-  background: var(--accent); color: var(--bg);
+  background: var(--chip); color: var(--fg);
   font: 700 0.85rem/28px 'JetBrains Mono', monospace;
   text-align: center;
 }
@@ -231,6 +221,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -458,18 +449,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「MCP サーバーの中で AI が動いている」</p>
-    <p><span class="ok">○</span> サーバーは普通のプログラムで、LLM は入っていない。考えるのはホスト側の LLM。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「ツールは多いほど賢くなる」</p>
-    <p><span class="ok">○</span> ツールの説明はすべてコンテキストを消費し、選択肢が増えるほど誤選択も増える。必要なサーバーだけ有効にする。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「MCP は Anthropic 専用」</p>
-    <p><span class="ok">○</span> Anthropic が 2024 年に公開したオープンな仕様で、2025 年 12 月からは Linux Foundation 傘下の Agentic AI Foundation が管理している。他社の AI アプリや IDE も対応している。SDK も TypeScript、Python、Go、C# などがある。</p>
-  </div>
+  <details class="myth"><summary>MCP サーバーの中で AI が動いている</summary><p>サーバーは普通のプログラムで、LLM は入っていない。考えるのはホスト側の LLM。</p></details>
+  <details class="myth"><summary>ツールは多いほど賢くなる</summary><p>ツールの説明はすべてコンテキストを消費し、選択肢が増えるほど誤選択も増える。必要なサーバーだけ有効にする。</p></details>
+  <details class="myth"><summary>MCP は Anthropic 専用</summary><p>Anthropic が 2024 年に公開したオープンな仕様で、2025 年 12 月からは Linux Foundation 傘下の Agentic AI Foundation が管理している。他社の AI アプリや IDE も対応している。SDK も TypeScript、Python、Go、C# などがある。</p></details>
+
 
   <h2>関連メモ</h2>
   <p class="related"><a href="agent-instructions.html">CLAUDE.md / AGENTS.md / Skills →</a> <a href="oauth-oidc.html">OAuth 2.0 / OIDC（リモート MCP の認可）→</a></p>

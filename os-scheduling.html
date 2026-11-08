@@ -17,12 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-a: #c2410c;
+  --c-key: #0f766e; /* 図の強調（このページの色と見分けやすい色） */
+  --c-a: #be185d;
   --c-b: #15803d;
   --c-c: #7c3aed;
-  --c-d: #b45309;
+  --c-d: #4d7c0f;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -33,9 +32,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-a: #fb923c;
+    --c-key: #2dd4bf; /* 図の強調（このページの色と見分けやすい色） */
+    --c-a: #f472b6;
     --c-b: #4ade80;
     --c-c: #c4b5fd;
     --c-d: #fbbf24;
@@ -97,14 +95,12 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .label {
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -126,8 +122,6 @@ th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowr
 td:first-child { font-weight: 700; white-space: nowrap; }
 .ok { color: var(--c-ok); font-weight: 700; }
 .ng { color: var(--c-ng); font-weight: 700; }
-.myth { margin-bottom: 10px; }
-.myth p { margin: 4px 0; }
 .related a { display: inline-block; margin: 4px 10px 4px 0; }
 input[type="range"] { width: 100%; accent-color: var(--accent); }
 footer#memo-backlink {
@@ -154,7 +148,7 @@ svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--f
 svg.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 700; }
 svg.fig .sub { fill: var(--fg-2); font-size: 13px; }
 svg.fig .st { fill: var(--surface); stroke: var(--line); stroke-width: 2; }
-svg.fig .st.run { stroke: var(--accent); }
+svg.fig .st.run { stroke: var(--c-key); }
 svg.fig .ed { stroke: var(--fg-2); stroke-width: 1.5; fill: none; marker-end: url(#ar); }
 .steps { counter-reset: s; display: grid; gap: 6px; }
 .steps div { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; align-items: start; font-size: 0.88rem; }
@@ -200,6 +194,7 @@ svg.fig .ed { stroke: var(--fg-2); stroke-width: 1.5; fill: none; marker-end: ur
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -353,9 +348,9 @@ cat /proc/loadavg                <span class="cm"># ロードアベレージ（L
   <p class="muted">ロードアベレージがコア数を大きく超えていても CPU 使用率が低いなら、CPU の取り合いではなく、ディスクや NFS の I/O 待ち（D 状態）が溜まっている可能性が高い。</p>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><p><span class="ng">✗</span> スレッドを増やせば処理は速くなる</p><p><span class="ok">✓</span> CPU バウンドな処理はコア数を超えて増やしても速くならず、切り替えとキャッシュの汚れで遅くなる。増やして効くのは I/O 待ちが多い処理。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> nice 19 にすれば、そのプロセスは CPU をほとんど使わない</p><p><span class="ok">✓</span> 取り合う相手がいなければ使い切れる。nice は取り合ったときの配分の重み。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> コンテナの CPU 上限 1 コアは「1 コアだけ使える」</p><p><span class="ok">✓</span> 「100ms ごとに合計 100ms まで」。複数のコアで同時に動けるが、合計が上限に達するとその期間の残りは止められる。</p></div>
+  <details class="myth"><summary>スレッドを増やせば処理は速くなる</summary><p>CPU バウンドな処理はコア数を超えて増やしても速くならず、切り替えとキャッシュの汚れで遅くなる。増やして効くのは I/O 待ちが多い処理。</p></details>
+  <details class="myth"><summary>nice 19 にすれば、そのプロセスは CPU をほとんど使わない</summary><p>取り合う相手がいなければ使い切れる。nice は取り合ったときの配分の重み。</p></details>
+  <details class="myth"><summary>コンテナの CPU 上限 1 コアは「1 コアだけ使える」</summary><p>「100ms ごとに合計 100ms まで」。複数のコアで同時に動けるが、合計が上限に達するとその期間の残りは止められる。</p></details>
 
   <p class="related">関連: <a href="concurrency-models.html">並行処理のモデル</a><a href="linux-process.html">Linux プロセスの仕組み</a><a href="linux-signal.html">Linux シグナルとジョブ制御</a><a href="virtual-memory.html">仮想メモリとページング</a><a href="event-loop.html">JS のイベントループ</a></p>
 

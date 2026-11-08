@@ -17,13 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #1a7f37;
-  --c-ng: #cf222e;
-  --c-warn: #9a6700;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #0077b6;
   --c-b: #8250df;
   --c-c: #1a7f37;
-  --c-d: #bc4c00;
+  --c-d: #be185d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -34,9 +32,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #3fb950;
-    --c-ng: #f85149;
-    --c-warn: #d29922;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #00d4ff;
     --c-b: #bc8cff;
     --c-c: #3fb950;
@@ -97,8 +93,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .note {
   font-size: 0.85rem;
   color: var(--fg-2);
@@ -118,12 +112,12 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .diagram { margin: 8px 0; }
 .diagram svg { width: 100%; height: auto; display: block; }
 .d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-box.hl { stroke: var(--c-key); stroke-width: 2; }
 .d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
 .d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
-.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
-.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
-.d-head { fill: var(--accent); }
+.d-label { fill: var(--fg); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--fg-2); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--fg); }
 .d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
 .d-ng-head { fill: var(--c-ng); }
 
@@ -136,7 +130,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 10px 12px;
 }
-.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); font-size: 0.85rem; }
 .step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
 .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
 .flow span {
@@ -146,7 +140,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
   padding: 3px 10px;
   font-size: 0.82rem;
 }
-.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+.flow i { font-style: normal; color: var(--fg); font-weight: 700; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -170,14 +164,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .tbl td:first-child { font-weight: 700; }
 @media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
 
-
 /* よくある誤解 */
-.myth { margin-bottom: 10px; }
-.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
-.myth summary::-webkit-details-marker { display: none; }
-.myth summary::before { content: '✕ '; color: var(--c-ng); }
-.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
-.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
 
 /* OK / NG コード比較 */
 .vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
@@ -214,7 +201,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .spectrum .card { padding: 10px 12px; }
 .spectrum .card b { font-size: 0.88rem; }
 .spectrum .card p { font-size: 0.8rem; color: var(--fg-2); margin: 4px 0 0; }
-.strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); letter-spacing: .1em; }
+.strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); letter-spacing: .1em; }
 .badge {
   display: inline-block;
   font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
@@ -237,14 +224,14 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .qrow { display: grid; grid-template-columns: 80px 1fr 80px; gap: 8px; align-items: center; }
 .qrow b { font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace; text-align: center; }
 .qbox { background: var(--chip); border-radius: 8px; min-height: 44px; padding: 6px; display: flex; flex-wrap: wrap; gap: 3px; align-content: flex-start; }
-.qbox i { width: 8px; height: 14px; border-radius: 2px; background: var(--accent); display: block; }
+.qbox i { width: 8px; height: 14px; border-radius: 2px; background: var(--chip); display: block; }
 .qstat { font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace; text-align: center; color: var(--fg-2); }
 .pat { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
 .pat svg { width: 100%; height: auto; display: block; margin: 6px 0; }
 .pat text { font: 600 11px 'JetBrains Mono', ui-monospace, monospace; fill: var(--fg); }
 .pat rect { fill: var(--chip); stroke: var(--line); }
-.pat rect.q { fill: color-mix(in srgb, var(--accent) 18%, transparent); stroke: var(--accent); }
-.pat line, .pat path { stroke: var(--accent); stroke-width: 1.6; fill: none; }
+.pat rect.q { fill: color-mix(in srgb, var(--fg-2) 18%, transparent); stroke: var(--fg-2); }
+.pat line, .pat path { stroke: var(--fg-2); stroke-width: 1.6; fill: none; }
 </style>
 <!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="icon" href="assets/favicon.ico" sizes="any">
@@ -261,6 +248,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -374,9 +362,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <p>WebSocket や SSE（<a href="realtime-comm.html">リアルタイム通信</a>）は「今つながっている相手に即座に届ける」もので、相手がいなければ届きません。キューは「相手がいなくても預かって、後で確実に処理させる」もの。チャットなら、送信はキューで確実に保存・配信処理し、表示は WebSocket で即時に、と組み合わせることが多いです。</p>
 
   <h2 id="myths">よくある誤解</h2>
-  <details class="myth card"><summary>キューに入れれば必ず 1 回だけ処理される</summary><p>多くは少なくとも 1 回。ack 前の障害で 2 回届くことがあるので、受け手を冪等にする。</p></details>
-  <details class="myth card"><summary>Kafka は高性能なキュー</summary><p>Kafka はメッセージを保持し続けるログで、複数のグループが別々の位置から読み直せる。1 件ごとの ack や、パーティション数を超える並列処理は従来のキューのほうが得意。</p></details>
-  <details class="myth card"><summary>キューを入れれば負荷の問題は解決する</summary><p>キューは急増を平らにするだけ。平均でも処理能力が足りなければバックログは増え続ける。キューの長さ・最古メッセージの経過時間を監視する（<a href="observability.html">オブザーバビリティ</a>）。</p></details>
+  <details class="myth"><summary>キューに入れれば必ず 1 回だけ処理される</summary><p>多くは少なくとも 1 回。ack 前の障害で 2 回届くことがあるので、受け手を冪等にする。</p></details>
+  <details class="myth"><summary>Kafka は高性能なキュー</summary><p>Kafka はメッセージを保持し続けるログで、複数のグループが別々の位置から読み直せる。1 件ごとの ack や、パーティション数を超える並列処理は従来のキューのほうが得意。</p></details>
+  <details class="myth"><summary>キューを入れれば負荷の問題は解決する</summary><p>キューは急増を平らにするだけ。平均でも処理能力が足りなければバックログは増え続ける。キューの長さ・最古メッセージの経過時間を監視する（<a href="observability.html">オブザーバビリティ</a>）。</p></details>
+
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

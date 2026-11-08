@@ -61,7 +61,7 @@ Wasm の関数がやり取りする値は、基本的に **数値** （i32 / i64
 
 0 … h e l l o … px px px px …
 
-橙は文字列 "hello" を UTF-8 で書き込んだ場所、紫は画像のピクセル。JS 側からは `new Uint8Array(memory.buffer)` で同じバイト列が見える。
+青は文字列 "hello" を UTF-8 で書き込んだ場所、紫は画像のピクセル。JS 側からは `new Uint8Array(memory.buffer)` で同じバイト列が見える。
 
 遅くなる使い方
 

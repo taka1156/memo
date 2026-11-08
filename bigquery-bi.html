@@ -17,12 +17,12 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
+  --c-key: #0f766e; /* 図の強調（このページの色と見分けやすい色） */
   --c-src: #7c3aed;
-  --c-raw: #b45309;
+  --c-raw: #be185d;
   --c-stg: #0e7490;
   --c-mart: #15803d;
-  --c-bi: #c2410c;
-  --c-ng: #b91c1c;
+  --c-bi: #4d7c0f;
   --c-scan: rgba(0, 119, 182, 0.55);
   --c-scan-soft: rgba(0, 119, 182, 0.18);
 }
@@ -35,12 +35,12 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
+    --c-key: #2dd4bf; /* 図の強調（このページの色と見分けやすい色） */
     --c-src: #c4b5fd;
     --c-raw: #fbbf24;
     --c-stg: #67e8f9;
     --c-mart: #4ade80;
-    --c-bi: #fb923c;
-    --c-ng: #f87171;
+    --c-bi: #a3e635;
     --c-scan: rgba(0, 212, 255, 0.55);
     --c-scan-soft: rgba(0, 212, 255, 0.16);
   }
@@ -92,7 +92,7 @@ pre {
   margin: 8px 0;
 }
 pre .cm { color: var(--fg-2); }
-pre .kw { color: var(--accent); font-weight: 700; }
+pre .kw { color: var(--c-key); font-weight: 700; }
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -100,8 +100,6 @@ pre .kw { color: var(--accent); font-weight: 700; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 10px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -123,14 +121,14 @@ pre .kw { color: var(--accent); font-weight: 700; }
   flex: 1;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-top: 4px solid var(--c, var(--accent));
+  border-top: 4px solid var(--c, var(--line));
   border-radius: 10px;
   padding: 10px 10px 12px;
   min-width: 0;
 }
 .stage h4 {
   font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace;
-  color: var(--c, var(--accent));
+  color: var(--c, var(--fg));
   margin-bottom: 6px;
 }
 .stage .it {
@@ -174,8 +172,8 @@ pre .kw { color: var(--accent); font-weight: 700; }
 .grid .cell.on.part.clus { background: linear-gradient(90deg, var(--chip) 0 75%, transparent 75%), repeating-linear-gradient(135deg, var(--c-scan) 0 3px, var(--c-scan-soft) 3px 7px); }
 .meter { margin-top: 12px; }
 .bar { height: 12px; background: var(--chip); border-radius: 999px; overflow: hidden; }
-.bar i { display: block; height: 100%; background: var(--accent); width: 100%; transition: width .3s; min-width: 2px; }
-.meter .num { font: 700 1.1rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.bar i { display: block; height: 100%; background: var(--c-key); width: 100%; transition: width .3s; min-width: 2px; }
+.meter .num { font: 700 1.1rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.72rem; color: var(--fg-2); margin-top: 6px; }
 .legend span::before { content: ''; display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; background: var(--sw); }
 
@@ -197,7 +195,7 @@ pre .kw { color: var(--accent); font-weight: 700; }
   border-radius: 6px;
   padding: 4px 8px;
 }
-.order .s.hi { border-color: var(--accent); color: var(--accent); }
+.order .s.hi { border-color: var(--line); color: var(--fg); }
 .order .a { color: var(--fg-2); font-size: 0.75rem; }
 
 /* 表 */
@@ -220,10 +218,6 @@ pre .kw { color: var(--accent); font-weight: 700; }
 .ev .kv { margin: 4px 0 4px 18px; border-left: 2px solid var(--c-src); padding-left: 8px; }
 
 /* 誤解 */
-.myth { border-left: 3px solid var(--c-ng); }
-.myth .q { font-weight: 700; }
-.myth .q::before { content: '✗ '; color: var(--c-ng); }
-.myth .a::before { content: '→ '; color: var(--c-mart); font-weight: 700; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -258,6 +252,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -630,8 +625,8 @@ items      ARRAY&lt;STRUCT&lt;sku STRING, qty INT64, price NUMERIC&gt;&gt;
     <text x="80" y="66" text-anchor="middle" class="hdr" style="fill: var(--c-bi)">利用者</text>
     <text x="80" y="86" text-anchor="middle" class="sub">Explore で「月」と</text>
     <text x="80" y="101" text-anchor="middle" class="sub">「売上」を選ぶ</text>
-    <rect x="230" y="20" width="180" height="120" rx="8" class="nd" style="stroke: var(--accent)"/>
-    <text x="320" y="42" text-anchor="middle" class="hdr" style="fill: var(--accent)">Looker</text>
+    <rect x="230" y="20" width="180" height="120" rx="8" class="nd" style="stroke: var(--c-key)"/>
+    <text x="320" y="42" text-anchor="middle" class="hdr" style="fill: var(--c-key)">Looker</text>
     <rect x="245" y="52" width="150" height="36" rx="5" class="nd"/>
     <text x="320" y="67" text-anchor="middle" style="font-size:11px">LookML</text>
     <text x="320" y="81" text-anchor="middle" class="sub">dimension / measure / join</text>
@@ -729,26 +724,12 @@ items      ARRAY&lt;STRUCT&lt;sku STRING, qty INT64, price NUMERIC&gt;&gt;
 
   <!-- ===================================================== -->
   <h2 id="pitfalls">よくある誤解・落とし穴</h2>
-  <div class="card myth">
-    <p class="q">LIMIT 10 を付ければ安くなる</p>
-    <p class="a">課金は読んだ列と範囲で決まり、LIMIT では基本的に減らない（クラスタ化テーブルだけは途中でスキャンが止まって減ることがある）。列を絞り、パーティション・クラスタ列で WHERE する。中身を見るだけならプレビュー。</p>
-  </div>
-  <div class="card myth" id="p-ratio">
-    <p class="q">日別 CVR の平均が月の CVR</p>
-    <p class="a">比率の平均は、日ごとの母数の違いを無視する。月の CVR は <code>SUM(cv) / SUM(sessions)</code>。BI ツールでも比率は「合計 ÷ 合計」の計算フィールドにする。</p>
-  </div>
-  <div class="card myth" id="p-distinct">
-    <p class="q">日別ユニークユーザー数を足せば月間ユーザー数</p>
-    <p class="a">複数日に来た人を重複して数えてしまう。<code>COUNT(DISTINCT)</code> は足し算できないので、元データから月単位で数え直す（集計テーブルを作るなら月別も別に持つ）。</p>
-  </div>
-  <div class="card myth" id="p-fanout">
-    <p class="q">注文と明細を JOIN してから送料を SUM すればよい</p>
-    <p class="a">明細の行数ぶん注文が複製され、送料が何倍にもなる（ファンアウト）。集計してから JOIN するか、粒度をそろえる。Looker なら対称集計が守ってくれる。</p>
-  </div>
-  <div class="card myth" id="p-tz">
-    <p class="q"><code>DATE(created_at)</code> で日本の日付になる</p>
-    <p class="a">TIMESTAMP は UTC 基準なので、日本時間 0〜9 時のデータが前日扱いになる。<code>DATE(created_at, 'Asia/Tokyo')</code> のようにタイムゾーンを明示する。</p>
-  </div>
+  <details class="myth"><summary>LIMIT 10 を付ければ安くなる</summary><p>課金は読んだ列と範囲で決まり、LIMIT では基本的に減らない（クラスタ化テーブルだけは途中でスキャンが止まって減ることがある）。列を絞り、パーティション・クラスタ列で WHERE する。中身を見るだけならプレビュー。</p></details>
+  <details class="myth" id="p-ratio"><summary>日別 CVR の平均が月の CVR</summary><p>比率の平均は、日ごとの母数の違いを無視する。月の CVR は <code>SUM(cv) / SUM(sessions)</code>。BI ツールでも比率は「合計 ÷ 合計」の計算フィールドにする。</p></details>
+  <details class="myth" id="p-distinct"><summary>日別ユニークユーザー数を足せば月間ユーザー数</summary><p>複数日に来た人を重複して数えてしまう。<code>COUNT(DISTINCT)</code> は足し算できないので、元データから月単位で数え直す（集計テーブルを作るなら月別も別に持つ）。</p></details>
+  <details class="myth" id="p-fanout"><summary>注文と明細を JOIN してから送料を SUM すればよい</summary><p>明細の行数ぶん注文が複製され、送料が何倍にもなる（ファンアウト）。集計してから JOIN するか、粒度をそろえる。Looker なら対称集計が守ってくれる。</p></details>
+  <details class="myth" id="p-tz"><summary><code>DATE(created_at)</code> で日本の日付になる</summary><p>TIMESTAMP は UTC 基準なので、日本時間 0〜9 時のデータが前日扱いになる。<code>DATE(created_at, 'Asia/Tokyo')</code> のようにタイムゾーンを明示する。</p></details>
+
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

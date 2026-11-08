@@ -17,9 +17,7 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #2e8b57;
-  --c-warn: #c27c0e;
-  --c-ng: #c8372d;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-ok-bg: #e8f5ee;
   --c-warn-bg: #fdf3e2;
   --c-ng-bg: #fbecea;
@@ -33,9 +31,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #5fd39a;
-    --c-warn: #f2b24c;
-    --c-ng: #ff7b6e;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-ok-bg: #12261c;
     --c-warn-bg: #2a2010;
     --c-ng-bg: #2a1614;
@@ -93,8 +89,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -116,14 +110,14 @@ pre code { background: none; padding: 0; word-break: normal; }
 .fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .fig .sub { fill: var(--fg-2); font-size: 11px; }
 .fig .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.fig .box-acc { fill: var(--chip); stroke: var(--accent); stroke-width: 1.5; }
+.fig .box-acc { fill: var(--chip); stroke: var(--c-key); stroke-width: 1.5; }
 .fig .box-ok { fill: var(--surface); stroke: var(--c-ok); stroke-width: 1.5; }
 .fig .box-warn { fill: var(--surface); stroke: var(--c-warn); stroke-width: 1.5; }
 .fig .arrow { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
-.fig .arrow-acc { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig .arrow-acc { stroke: var(--c-key); stroke-width: 2; fill: none; }
 .fig .dash { stroke-dasharray: 4 4; }
 .fig .ah { fill: var(--fg-2); }
-.fig .ah-acc { fill: var(--accent); }
+.fig .ah-acc { fill: var(--c-key); }
 .scroll-x { overflow-x: auto; }
 
 /* キーとフォルダ表示 */
@@ -131,7 +125,7 @@ pre code { background: none; padding: 0; word-break: normal; }
 @media (max-width: 600px) { .twocol { grid-template-columns: 1fr; } }
 .keys { font: 500 0.78rem 'JetBrains Mono', ui-monospace, monospace; }
 .keys div { padding: 4px 8px; border-bottom: 1px dashed var(--line); word-break: break-all; }
-.keys .pfx { color: var(--accent); font-weight: 700; }
+.keys .pfx { color: var(--fg); font-weight: 700; }
 .tree { font: 500 0.8rem 'JetBrains Mono', ui-monospace, monospace; }
 .tree div { padding: 2px 0; }
 .label-s { font-size: 0.75rem; color: var(--fg-2); font-weight: 700; letter-spacing: .05em; margin-bottom: 6px; }
@@ -155,14 +149,14 @@ pre code { background: none; padding: 0; word-break: normal; }
   background: var(--chip); border-radius: 8px; padding: 10px 12px; margin-top: 8px;
   word-break: break-all;
 }
-.out .hl { color: var(--accent); font-weight: 700; }
+.out .hl { color: var(--c-key); font-weight: 700; }
 .verdict { font-weight: 700; }
 .verdict.ok { color: var(--c-ok); }
 .verdict.ng { color: var(--c-ng); }
 
 /* パート棒 */
 .parts { display: flex; gap: 2px; height: 26px; margin-top: 10px; }
-.parts span { flex: 1; background: var(--accent); opacity: .75; border-radius: 3px; }
+.parts span { flex: 1; background: var(--chip); opacity: .75; border-radius: 3px; }
 .parts span.last { opacity: .35; }
 
 /* 互換レイヤー */
@@ -177,7 +171,7 @@ pre code { background: none; padding: 0; word-break: normal; }
 /* 製品 */
 .prods { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
 .prod { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
-.prod h3 { margin: 0 0 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.9rem; }
+.prod h3 { margin: 0 0 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); font-size: 0.9rem; }
 .prod .meta { font: 500 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
 .prod p { font-size: 0.84rem; margin: 6px 0 0; }
 .badge { display: inline-block; font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; margin-left: 4px; vertical-align: 1px; }
@@ -234,6 +228,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>

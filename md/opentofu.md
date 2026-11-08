@@ -137,7 +137,7 @@ AWS・GCP・Azure など、クラウドごとの API 呼び出しを引き受け
 
 **State を更新する** 成功した Resource の情報を State に書き込む。次回の plan はこの新しい State を基準にする。
 
-## よくある誤解
+## よくある質問
 
 OpenTofu と Terraform は別の言語？ いいえ
 

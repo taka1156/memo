@@ -17,12 +17,13 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-vite: #7c3aed;
-  --c-rolldown: #e8590c;
+  --c-rolldown: #0369a1;
   --c-oxc: #0b8a6a;
   --c-lcss: #c2255c;
   --c-old: #8a93a5;
-  --c-test: #9a7400;
+  --c-test: #4f46e5;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -33,12 +34,13 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-vite: #b197fc;
-    --c-rolldown: #ffa94d;
+    --c-rolldown: #7dd3fc;
     --c-oxc: #38d9a9;
     --c-lcss: #f783ac;
     --c-old: #6b7789;
-    --c-test: #ffd43b;
+    --c-test: #a5b4fc;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -89,8 +91,6 @@ pre {
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -165,10 +165,6 @@ th, td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: lef
 th { color: var(--fg-2); font-weight: 500; font-size: 0.75rem; }
 td:first-child { font-family: 'JetBrains Mono', monospace; font-weight: 700; white-space: nowrap; }
 
-.myth { display: grid; gap: 10px; }
-.myth .card strong { display: block; margin-bottom: 2px; }
-.myth .x { color: var(--c-lcss); font-weight: 700; margin-right: 4px; }
-
 footer#memo-backlink {
   margin-top: 40px;
   padding-top: 16px;
@@ -202,6 +198,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -313,7 +310,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <path d="M325 228 H362"/>
         <path d="M525 228 H555 V209"/>
       </g>
-      <text x="320" y="285" text-anchor="middle" class="sub">緑枠 = Oxc の部品 ／ 橙枠 = Rolldown 本体 ／ 桃枠 = Lightning CSS</text>
+      <text x="320" y="285" text-anchor="middle" class="sub">緑枠 = Oxc の部品 ／ 青枠 = Rolldown 本体 ／ 桃枠 = Lightning CSS</text>
     </svg>
     <p class="note">dev サーバーでも同じ部品が使われる（ファイルを個別に変換して配信）。将来の「Full Bundle Mode」では dev でも Rolldown でバンドルする方向で、Vite 8 時点では実験的機能。</p>
   </div>
@@ -356,8 +353,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
         </marker>
       </defs>
       <!-- Row A: vp CLI -->
-      <rect x="8" y="8" width="504" height="70" rx="10" fill="color-mix(in srgb, var(--accent) 7%, var(--surface))" stroke="var(--accent)" stroke-width="2"/>
-      <text x="18" y="29" class="mono" font-size="13" font-weight="700" style="fill:var(--accent)">Vite+ （vp）</text>
+      <rect x="8" y="8" width="504" height="70" rx="10" fill="color-mix(in srgb, var(--c-key) 7%, var(--surface))" stroke="var(--c-key)" stroke-width="2"/>
+      <text x="18" y="29" class="mono" font-size="13" font-weight="700" style="fill:var(--c-key)">Vite+ （vp）</text>
       <text x="502" y="29" text-anchor="end" class="sub">vp check = lint + fmt + 型チェック</text>
       <g class="mono" font-size="11.5">
         <rect x="8"   y="40" width="96" height="28" rx="6" fill="var(--surface)" stroke="var(--line)"/>
@@ -486,7 +483,7 @@ vp check    # Oxfmt → Oxlint → 型チェック をまとめて実行</pre>
           <tr><td style="color:var(--c-test)">Vitest</td><td>テストランナー</td><td>Vite のパイプラインでテスト実行</td><td>Jest</td><td>使える（5：2026-09）</td></tr>
           <tr><td style="color:var(--c-oxc)">Oxlint</td><td>リンター</td><td>静的解析（型対応ルールは tsgolint）</td><td>ESLint, typescript-eslint</td><td>使える</td></tr>
           <tr><td style="color:var(--c-oxc)">Oxfmt</td><td>フォーマッター</td><td>コード整形</td><td>Prettier</td><td>使える</td></tr>
-          <tr><td style="color:var(--accent)">Vite+</td><td>統合 CLI</td><td>上の全部を <code>vp</code> と設定 1 枚に束ねる</td><td>個別ツールの寄せ集め</td><td>—（1.0：2026-09 時点）</td></tr>
+          <tr><td style="color:var(--c-key)">Vite+</td><td>統合 CLI</td><td>上の全部を <code>vp</code> と設定 1 枚に束ねる</td><td>個別ツールの寄せ集め</td><td>—（1.0：2026-09 時点）</td></tr>
         </tbody>
       </table>
     </div>
@@ -516,14 +513,13 @@ export default defineConfig({
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="myth">
-    <div class="card"><strong><span class="x">✕</span>Rolldown は Vite の新しい名前</strong>Vite はそのまま。中で使うバンドラーが Rollup／esbuild から Rolldown に入れ替わっただけ。</div>
-    <div class="card"><strong><span class="x">✕</span>Oxc はリンター（Oxlint）のこと</strong>Oxlint は Oxc の一部。本体はパーサー・変換器・圧縮器などの部品集で、Rolldown の言語処理を支えている。</div>
-    <div class="card"><strong><span class="x">✕</span>Lightning CSS が入ったので PostCSS は不要</strong>Vite 8 で Lightning CSS が担当するのは主に CSS 圧縮。<code>css.transformer</code> の既定は PostCSS のままで、Tailwind などの PostCSS プラグインもそのまま動く。</div>
-    <div class="card"><strong><span class="x">✕</span>Oxlint・Oxfmt・Vitest を使うには Vite+ が必須</strong>どれも単体で使える。Vite+ は「まとめて入れて、設定を 1 枚にする」ための選択肢。Oxlint／Oxfmt は Vite を使っていないプロジェクトでも動く。</div>
-    <div class="card"><strong><span class="x">✕</span>Oxlint が入れば ESLint のプラグインは全部捨てる</strong>ネイティブルールに加えて ESLint 互換の JS プラグイン機構（現時点では alpha）がある。ただし Vue／Svelte テンプレートのような独自パーサーが必要なプラグインはまだ対応していないので、移行前に対応状況を確認する。</div>
-    <div class="card"><strong><span class="x">✕</span>Rollup プラグインはもう使えない</strong>Rolldown は Rollup 互換のプラグイン API を持つので、多くの Vite／Rollup プラグインはそのまま動く。</div>
-  </div>
+  <details class="myth"><summary>Rolldown は Vite の新しい名前</summary><p>Vite はそのまま。中で使うバンドラーが Rollup／esbuild から Rolldown に入れ替わっただけ。</p></details>
+  <details class="myth"><summary>Oxc はリンター（Oxlint）のこと</summary><p>Oxlint は Oxc の一部。本体はパーサー・変換器・圧縮器などの部品集で、Rolldown の言語処理を支えている。</p></details>
+  <details class="myth"><summary>Lightning CSS が入ったので PostCSS は不要</summary><p>Vite 8 で Lightning CSS が担当するのは主に CSS 圧縮。</p><p>css.transformer</p><p>の既定は PostCSS のままで、Tailwind などの PostCSS プラグインもそのまま動く。</p></details>
+  <details class="myth"><summary>Oxlint・Oxfmt・Vitest を使うには Vite+ が必須</summary><p>どれも単体で使える。Vite+ は「まとめて入れて、設定を 1 枚にする」ための選択肢。Oxlint／Oxfmt は Vite を使っていないプロジェクトでも動く。</p></details>
+  <details class="myth"><summary>Oxlint が入れば ESLint のプラグインは全部捨てる</summary><p>ネイティブルールに加えて ESLint 互換の JS プラグイン機構（現時点では alpha）がある。ただし Vue／Svelte テンプレートのような独自パーサーが必要なプラグインはまだ対応していないので、移行前に対応状況を確認する。</p></details>
+  <details class="myth"><summary>Rollup プラグインはもう使えない</summary><p>Rolldown は Rollup 互換のプラグイン API を持つので、多くの Vite／Rollup プラグインはそのまま動く。</p></details>
+
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

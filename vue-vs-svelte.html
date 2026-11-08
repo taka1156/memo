@@ -17,10 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-front: #c2410c;
+  --c-front: #be185d;
   --c-back: #15803d;
-  --c-ng: #b91c1c;
-  --c-ok: #15803d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -31,10 +29,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-front: #fb923c;
+    --c-front: #f472b6;
     --c-back: #4ade80;
-    --c-ng: #f87171;
-    --c-ok: #4ade80;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -89,8 +85,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
@@ -98,7 +92,7 @@ pre code { background: none; padding: 0; word-break: normal; }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .big { font-size: 1.05rem; font-weight: 700; }
@@ -136,11 +130,7 @@ th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: le
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
 td:first-child { font-weight: 700; white-space: nowrap; }
 
-
 /* 誤解 */
-.myth { margin-bottom: 10px; }
-.myth .ng { color: var(--c-ng); font-weight: 700; }
-.myth .ok { color: var(--c-ok); font-weight: 700; }
 
 .related a { display: inline-block; margin: 4px 8px 4px 0; }
 
@@ -197,8 +187,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
 .pf { color: var(--c-svelte); font-weight: 700; }
 
-:root { --c-vue: #15803d; --c-svelte: #c2410c; --c-build: #7c3aed; --c-rt: #0369a1; }
-@media (prefers-color-scheme: dark) { :root { --c-vue: #4ade80; --c-svelte: #fb923c; --c-build: #8b5cf6; --c-rt: #0284c7; } }
+:root { --c-vue: #15803d; --c-svelte: #4d7c0f; --c-build: #7c3aed; --c-rt: #0369a1; }
+@media (prefers-color-scheme: dark) { :root { --c-vue: #4ade80; --c-svelte: #a3e635; --c-build: #8b5cf6; --c-rt: #0284c7; } }
 </style>
 <!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="icon" href="assets/favicon.ico" sizes="any">
@@ -215,6 +205,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -373,18 +364,10 @@ $.delegate(['click'])</code></pre>
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「Svelte はランタイムがゼロ」</p>
-    <p><span class="ok">○</span> シグナルや DOM ヘルパーなどの小さなランタイムはある（上のコンパイル結果の <code>svelte/internal/client</code>）。「仮想 DOM のような大きなランタイムがない」が正確。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「Vue は仮想 DOM だから遅い」</p>
-    <p><span class="ok">○</span> 依存追跡で更新するコンポーネントを絞り、パッチフラグで比較対象も絞っているので、素朴な仮想 DOM よりずっと効率的。Vapor Mode ではベンチマーク上 Solid や Svelte 5 と並ぶ。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「Svelte 5 は Svelte 4 の書き方を少し変えただけ」</p>
-    <p><span class="ok">○</span> 「代入の検知」から「シグナル」へと、内部の仕組みが丸ごと作り直された。書き方の変化はその結果。</p>
-  </div>
+  <details class="myth"><summary>Svelte はランタイムがゼロ</summary><p>シグナルや DOM ヘルパーなどの小さなランタイムはある（上のコンパイル結果の <code>svelte/internal/client</code>）。「仮想 DOM のような大きなランタイムがない」が正確。</p></details>
+  <details class="myth"><summary>Vue は仮想 DOM だから遅い</summary><p>依存追跡で更新するコンポーネントを絞り、パッチフラグで比較対象も絞っているので、素朴な仮想 DOM よりずっと効率的。Vapor Mode ではベンチマーク上 Solid や Svelte 5 と並ぶ。</p></details>
+  <details class="myth"><summary>Svelte 5 は Svelte 4 の書き方を少し変えただけ</summary><p>「代入の検知」から「シグナル」へと、内部の仕組みが丸ごと作り直された。書き方の変化はその結果。</p></details>
+
 
   <h2>関連メモ</h2>
   <p class="related"><a href="reactivity-models.html">← UI 更新の3つの方式</a> <a href="react-vs-solid.html">← React と Solid</a></p>

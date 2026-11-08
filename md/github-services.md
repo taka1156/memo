@@ -323,7 +323,6 @@ function renderDetail(id, scroll) {
   const prev = byId[order[(i - 1 + order.length) % order.length]];
   const next = byId[order[(i + 1) % order.length]];
   const el = document.getElementById('detail');
-  el.style.setProperty('--svc', s.color);
   el.innerHTML = `
     <div class="detail-top"><span class="chip">${esc(s.category)}</span></div>
     <h3>${esc(s.name)}</h3>

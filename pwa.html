@@ -17,7 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-must: #c2410c;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
+  --c-must: #be185d;
   --c-rec: #047857;
 }
 @media (prefers-color-scheme: dark) {
@@ -29,7 +30,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-must: #fb923c;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
+    --c-must: #f472b6;
     --c-rec: #34d399;
   }
 }
@@ -82,15 +84,13 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .note { color: var(--fg-2); font-size: 0.85rem; }
 
 /* 3 要素カード */
 .pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .pillar .num {
   font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace;
-  color: var(--accent);
+  color: var(--fg);
   letter-spacing: 0.1em;
 }
 .pillar strong { display: block; font-size: 1rem; margin: 2px 0 4px; }
@@ -99,12 +99,12 @@ pre code { background: none; padding: 0; font-size: 1em; }
 /* 図 */
 .diagram svg { width: 100%; height: auto; display: block; }
 .d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-box.hl { stroke: var(--c-key); stroke-width: 2; }
 .d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
 .d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
-.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
-.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
-.d-head { fill: var(--accent); }
+.d-label { fill: var(--fg); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--fg-2); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--fg); }
 .d-frame { fill: none; stroke: var(--fg-2); stroke-width: 1.2; stroke-dasharray: 5 4; }
 .d-frame-label { fill: var(--fg-2); font: 700 11px 'JetBrains Mono', ui-monospace, monospace; }
 
@@ -118,7 +118,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
   padding: 10px 12px;
   position: relative;
 }
-.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); font-size: 0.85rem; }
 .step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
 
 /* タブ */
@@ -142,7 +142,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
   padding: 3px 10px;
   font-size: 0.82rem;
 }
-.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+.flow i { font-style: normal; color: var(--fg); font-weight: 700; }
 
 /* 表 */
 .tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -153,7 +153,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 /* チェックリスト */
 .progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
-.bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.bar div { height: 100%; width: 0; background: var(--c-key); transition: width .2s; }
 .count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
 .checklist { list-style: none; }
 .checklist li { border-bottom: 1px solid var(--line); }
@@ -176,12 +176,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .badge.rec { color: var(--c-rec); }
 
 /* よくある誤解 */
-.myth { margin-bottom: 10px; }
-.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
-.myth summary::-webkit-details-marker { display: none; }
-.myth summary::before { content: '✕ '; color: var(--c-must); }
-.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
-.myth p::before { content: '→ '; color: var(--c-rec); font-weight: 700; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -216,6 +210,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -468,22 +463,21 @@ self.addEventListener('fetch', e =&gt; {
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card">
-    <details class="myth"><summary>Service Worker を入れれば、アプリ全体がオフラインで動く</summary><p>動くのはキャッシュしてあるものだけ。API の結果や未訪問のページは、自分でキャッシュしない限りオフラインでは表示できない。</p></details>
-    <details class="myth"><summary><code>sw.js</code> を書き換えればすぐ反映される</summary><p>新しい SW は waiting 状態で止まる。すべてのタブを閉じるか、<code>skipWaiting()</code> を呼ぶまで古い SW が動き続ける。</p></details>
-    <details class="myth"><summary><code>sw.js</code> は <code>/js/</code> などに置いてもよい</summary><p>SW が制御できるのは置いた場所以下だけ。<code>/js/sw.js</code> だと <code>/js/</code> 配下しか制御できない。サーバーが <code>Service-Worker-Allowed</code> ヘッダーを返せば広げられるが、通常はルートに置くのが簡単。</p></details>
-    <details class="myth"><summary>fetch ハンドラがないとインストールできない</summary><p>以前の Chrome では必須だった。Chrome 108（モバイル）／112（デスクトップ）でメニューからのインストールには不要になり、現在の Chrome のインストール基準にも Service Worker の条件は載っていない。ただし他のブラウザでは基準が異なることがあり、オフライン対応のためにも実装するのが普通。</p></details>
-    <details class="myth"><summary>iPhone でもインストールボタンが自動で出る</summary><p>iOS の Safari には自動のプロンプトも <code>beforeinstallprompt</code> もない（Firefox も非対応）。ユーザーに共有メニューから追加してもらう必要がある。</p></details>
-  </div>
+  <details class="myth"><summary>Service Worker を入れれば、アプリ全体がオフラインで動く</summary><p>動くのはキャッシュしてあるものだけ。API の結果や未訪問のページは、自分でキャッシュしない限りオフラインでは表示できない。</p></details>
+  <details class="myth"><summary><code>sw.js</code> を書き換えればすぐ反映される</summary><p>新しい SW は waiting 状態で止まる。すべてのタブを閉じるか、<code>skipWaiting()</code> を呼ぶまで古い SW が動き続ける。</p></details>
+  <details class="myth"><summary><code>sw.js</code> は <code>/js/</code> などに置いてもよい</summary><p>SW が制御できるのは置いた場所以下だけ。<code>/js/sw.js</code> だと <code>/js/</code> 配下しか制御できない。サーバーが <code>Service-Worker-Allowed</code> ヘッダーを返せば広げられるが、通常はルートに置くのが簡単。</p></details>
+  <details class="myth"><summary>fetch ハンドラがないとインストールできない</summary><p>以前の Chrome では必須だった。Chrome 108（モバイル）／112（デスクトップ）でメニューからのインストールには不要になり、現在の Chrome のインストール基準にも Service Worker の条件は載っていない。ただし他のブラウザでは基準が異なることがあり、オフライン対応のためにも実装するのが普通。</p></details>
+  <details class="myth"><summary>iPhone でもインストールボタンが自動で出る</summary><p>iOS の Safari には自動のプロンプトも <code>beforeinstallprompt</code> もない（Firefox も非対応）。ユーザーに共有メニューから追加してもらう必要がある。</p></details>
+
 
   <h2>参考</h2>
   <div class="card">
     <ul style="margin-left:1.2em;font-size:0.88rem">
-      <li><a href="https://web.dev/install-criteria/" style="color:var(--accent)">What does it take to be installable?（web.dev）</a></li>
-      <li><a href="https://developer.chrome.com/blog/update-install-criteria" style="color:var(--accent)">Revisiting Chrome's installability criteria（Chrome for Developers）</a></li>
-      <li><a href="https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/" style="color:var(--accent)">Web Push for Web Apps on iOS and iPadOS（WebKit）</a></li>
-      <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register" style="color:var(--accent)">ServiceWorkerContainer: register()（MDN）</a></li>
-      <li><a href="https://caniuse.com/wf-beforeinstallprompt" style="color:var(--accent)">beforeinstallprompt（Can I use）</a></li>
+      <li><a href="https://web.dev/install-criteria/" style="color:var(--c-key)">What does it take to be installable?（web.dev）</a></li>
+      <li><a href="https://developer.chrome.com/blog/update-install-criteria" style="color:var(--c-key)">Revisiting Chrome's installability criteria（Chrome for Developers）</a></li>
+      <li><a href="https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/" style="color:var(--c-key)">Web Push for Web Apps on iOS and iPadOS（WebKit）</a></li>
+      <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register" style="color:var(--c-key)">ServiceWorkerContainer: register()（MDN）</a></li>
+      <li><a href="https://caniuse.com/wf-beforeinstallprompt" style="color:var(--c-key)">beforeinstallprompt（Can I use）</a></li>
     </ul>
     <p class="note">2026-11-03 時点で確認。</p>
   </div>

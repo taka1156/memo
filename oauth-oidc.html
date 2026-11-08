@@ -17,10 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-front: #c2410c;
+  --c-front: #be185d;
   --c-back: #15803d;
-  --c-ng: #b91c1c;
-  --c-ok: #15803d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -31,10 +29,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-front: #fb923c;
+    --c-front: #f472b6;
     --c-back: #4ade80;
-    --c-ng: #f87171;
-    --c-ok: #4ade80;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -89,8 +85,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
@@ -98,7 +92,7 @@ pre code { background: none; padding: 0; word-break: normal; }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .big { font-size: 1.05rem; font-weight: 700; }
@@ -165,7 +159,7 @@ pre code { background: none; padding: 0; word-break: normal; }
 .stepper button:disabled { opacity: .4; cursor: default; }
 .stepper .pos { font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
 .step-detail { min-height: 150px; }
-.step-detail h3 { margin-top: 0; color: var(--accent); }
+.step-detail h3 { margin-top: 0; color: var(--fg); }
 .chan {
   display: inline-block;
   font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
@@ -202,9 +196,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 .aud .arrow { text-align: center; }
 
 /* 誤解 */
-.myth { margin-bottom: 10px; }
-.myth .ng { color: var(--c-ng); font-weight: 700; }
-.myth .ok { color: var(--c-ok); font-weight: 700; }
 
 .related a { display: inline-block; margin: 4px 8px 4px 0; }
 
@@ -241,6 +232,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -495,22 +487,11 @@ grant_type=client_credentials
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「OAuth でログインしている」</p>
-    <p><span class="ok">○</span> 素の OAuth は「権限を渡す」だけで、誰がログインしたかは保証しない。アクセストークンを持っているからといって本人とは限らない（他アプリ向けのトークンを使い回される危険がある）。ログインには OIDC の ID トークンを使う。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「ID トークンを API に送って認可に使う」</p>
-    <p><span class="ok">○</span> ID トークンの <code>aud</code> はクライアント自身。API の認可にはアクセストークンを使う。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「PKCE はスマホアプリだけのもの」</p>
-    <p><span class="ok">○</span> 今はすべてのクライアントで使うのが推奨。client_secret があっても付けておく。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「アクセストークンは JWT」</p>
-    <p><span class="ok">○</span> 仕様上は形式自由。中身を読めるかどうかに依存せず、クライアントにとっては「意味のわからない文字列」として扱う。</p>
-  </div>
+  <details class="myth"><summary>OAuth でログインしている</summary><p>素の OAuth は「権限を渡す」だけで、誰がログインしたかは保証しない。アクセストークンを持っているからといって本人とは限らない（他アプリ向けのトークンを使い回される危険がある）。ログインには OIDC の ID トークンを使う。</p></details>
+  <details class="myth"><summary>ID トークンを API に送って認可に使う</summary><p>ID トークンの <code>aud</code> はクライアント自身。API の認可にはアクセストークンを使う。</p></details>
+  <details class="myth"><summary>PKCE はスマホアプリだけのもの</summary><p>今はすべてのクライアントで使うのが推奨。client_secret があっても付けておく。</p></details>
+  <details class="myth"><summary>アクセストークンは JWT</summary><p>仕様上は形式自由。中身を読めるかどうかに依存せず、クライアントにとっては「意味のわからない文字列」として扱う。</p></details>
+
 
   <h2>関連メモ</h2>
   <p class="related"><a href="jwt-vs-session.html">JWT とセッション →</a></p>

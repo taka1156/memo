@@ -17,11 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-warn: #b45309;
   --c-a: #7c3aed;
-  --c-b: #c2410c;
+  --c-b: #be185d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -32,11 +29,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-warn: #fbbf24;
     --c-a: #c4b5fd;
-    --c-b: #fb923c;
+    --c-b: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -95,8 +89,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
@@ -105,7 +97,7 @@ pre .cm { color: var(--fg-2); }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .ok { color: var(--c-ok); font-weight: 700; }
@@ -139,25 +131,6 @@ pre .cm { color: var(--fg-2); }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* ステップ */
-ol.steps { list-style: none; counter-reset: st; }
-ol.steps > li {
-  counter-increment: st;
-  position: relative;
-  padding: 10px 12px 10px 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  margin-bottom: 8px;
-}
-ol.steps > li::before {
-  content: counter(st);
-  position: absolute; left: 12px; top: 10px;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: var(--accent); color: var(--bg);
-  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
-  text-align: center;
-}
-ol.steps b { display: block; }
 
 /* 表 */
 .table-wrap { overflow-x: auto; }
@@ -174,7 +147,7 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 .fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
 
 /* 誤解 */
-.myth { margin-bottom: 10px; }
+
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
@@ -244,6 +217,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
 <style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
 <!-- /memo:head -->
 </head>
@@ -361,10 +335,11 @@ Vary: Accept-Language        <span class="cm"># 日本語版と英語版を別�
   </div>
 
   <h2 id="myths">よくある誤解・ハマりどころ</h2>
-  <div class="card myth"><p><span class="ng">✕</span> <code>no-cache</code> を付ければキャッシュされない</p><p><span class="ok">○</span> no-cache は「使う前に毎回確認」。保存はされる。保存させたくないなら <code>no-store</code>。</p></div>
-  <div class="card myth"><p><span class="ng">✕</span> Cache-Control を付けなければキャッシュされない</p><p><span class="ok">○</span> 指定が無くても、<code>Last-Modified</code> があればブラウザや CDN が鮮度を推測して（ヒューリスティック）キャッシュすることがある。意図があるなら必ず明示する。</p></div>
-  <div class="card myth"><p><span class="ng">✕</span> CDN をパージすれば全員に新しいものが届く</p><p><span class="ok">○</span> パージで消えるのは CDN の分だけ。ブラウザに長い max-age で残っている分は消せない。更新があり得るものは URL を変える（ファイル名ハッシュ）か、max-age を短くしておく。</p></div>
-  <div class="card myth"><p><span class="ng">✕</span> Service Worker のキャッシュも Cache-Control で制御される</p><p><span class="ok">○</span> Service Worker の Cache API は別物で、コードで明示的に出し入れする。HTTP キャッシュとは二重に存在する（<a href="pwa.html">PWA</a> 参照）。</p></div>
+  <details class="myth"><summary><code>no-cache</code> を付ければキャッシュされない</summary><p>no-cache は「使う前に毎回確認」。保存はされる。保存させたくないなら <code>no-store</code>。</p></details>
+  <details class="myth"><summary>Cache-Control を付けなければキャッシュされない</summary><p>指定が無くても、<code>Last-Modified</code> があればブラウザや CDN が鮮度を推測して（ヒューリスティック）キャッシュすることがある。意図があるなら必ず明示する。</p></details>
+  <details class="myth"><summary>CDN をパージすれば全員に新しいものが届く</summary><p>パージで消えるのは CDN の分だけ。ブラウザに長い max-age で残っている分は消せない。更新があり得るものは URL を変える（ファイル名ハッシュ）か、max-age を短くしておく。</p></details>
+  <details class="myth"><summary>Service Worker のキャッシュも Cache-Control で制御される</summary><p>Service Worker の Cache API は別物で、コードで明示的に出し入れする。HTTP キャッシュとは二重に存在する（<a href="pwa.html">PWA</a> 参照）。</p></details>
+
 
   <h2>確認のしかた</h2>
 <pre><code>curl -sI https://example.com/app.js     <span class="cm"># Cache-Control / ETag / Age を見る</span>
