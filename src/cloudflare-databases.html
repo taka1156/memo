@@ -17,11 +17,9 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-warn: #b45309;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #7c3aed;
-  --c-b: #c2410c;
+  --c-b: #be185d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -32,11 +30,9 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-warn: #fbbf24;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #c4b5fd;
-    --c-b: #fb923c;
+    --c-b: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -95,8 +91,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
@@ -105,7 +99,7 @@ pre .cm { color: var(--fg-2); }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .ok { color: var(--c-ok); font-weight: 700; }
@@ -139,25 +133,6 @@ pre .cm { color: var(--fg-2); }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* ステップ */
-ol.steps { list-style: none; counter-reset: st; }
-ol.steps > li {
-  counter-increment: st;
-  position: relative;
-  padding: 10px 12px 10px 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  margin-bottom: 8px;
-}
-ol.steps > li::before {
-  content: counter(st);
-  position: absolute; left: 12px; top: 10px;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: var(--accent); color: var(--bg);
-  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
-  text-align: center;
-}
-ol.steps b { display: block; }
 
 /* 表 */
 .table-wrap { overflow-x: auto; }
@@ -174,7 +149,7 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 .fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
 
 /* 誤解 */
-.myth { margin-bottom: 10px; }
+
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
@@ -336,10 +311,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><p><span class="ng">✕</span> Hyperdrive は Cloudflare の Postgres サービス</p><p><span class="ok">○</span> Hyperdrive 自体はデータを持たない。外にある Postgres / MySQL へのつなぎ役（接続プール＋キャッシュ）。DB 本体は PlanetScale などで別に用意する。</p></div>
-  <div class="card myth"><p><span class="ng">✕</span> Hyperdrive を挟めば書き込みも速くなる</p><p><span class="ok">○</span> 速くなるのは接続の確立と、キャッシュできる読み取り。書き込みは毎回 DB まで届く。DB のリージョンが遠いなら、Placement で Worker を DB の近くで動かす方が効く。キャッシュは書き込みで消えない。既定では <code>max_age</code> 60 秒に再検証中の 15 秒が加わり、最長で 75 秒ほど古い値を返し得る。書いた直後の読み取りや認証・権限まわりは、<b>キャッシュを無効にした別の Hyperdrive 設定（バインディング）</b>から読む。</p></div>
-  <div class="card myth"><p><span class="ng">✕</span> D1 は Postgres と同じように使える</p><p><span class="ok">○</span> SQL の方言は SQLite。型がゆるい、使えない関数や構文がある、などの違いがあり、Postgres 向けの ORM 設定やマイグレーションはそのまま流用できないことが多い。</p></div>
-  <div class="card myth"><p><span class="ng">✕</span> D1 も読み取りレプリカを増やせば書き込みが捌ける</p><p><span class="ok">○</span> レプリカは読み取り専用。書き込みが詰まるなら DB を分ける。</p></div>
+  <details class="myth"><summary>Hyperdrive は Cloudflare の Postgres サービス</summary><p>Hyperdrive 自体はデータを持たない。外にある Postgres / MySQL へのつなぎ役（接続プール＋キャッシュ）。DB 本体は PlanetScale などで別に用意する。</p></details>
+  <details class="myth"><summary>Hyperdrive を挟めば書き込みも速くなる</summary><p>速くなるのは接続の確立と、キャッシュできる読み取り。書き込みは毎回 DB まで届く。DB のリージョンが遠いなら、Placement で Worker を DB の近くで動かす方が効く。キャッシュは書き込みで消えない。既定では <code>max_age</code> 60 秒に再検証中の 15 秒が加わり、最長で 75 秒ほど古い値を返し得る。書いた直後の読み取りや認証・権限まわりは、<b>キャッシュを無効にした別の Hyperdrive 設定（バインディング）</b>から読む。</p></details>
+  <details class="myth"><summary>D1 は Postgres と同じように使える</summary><p>SQL の方言は SQLite。型がゆるい、使えない関数や構文がある、などの違いがあり、Postgres 向けの ORM 設定やマイグレーションはそのまま流用できないことが多い。</p></details>
+  <details class="myth"><summary>D1 も読み取りレプリカを増やせば書き込みが捌ける</summary><p>レプリカは読み取り専用。書き込みが詰まるなら DB を分ける。</p></details>
+
 
   <h2>関連</h2>
   <p class="related"><a href="cloudflare-services.html">Cloudflare サービス</a><a href="db-internals.html">DB のしくみ（SQLite のセクション）</a><a href="db-index-transaction.html">インデックスとトランザクション</a></p>
@@ -388,7 +364,7 @@ document.querySelectorAll('.tabs').forEach(group => {
     m1.style.width = p + '%'; m2.style.width = (100 - p) + '%';
     let t, c;
     if (a + b === 0) { t = 'チェックすると、どちらに寄るかが出る。'; c = 'var(--line)'; }
-    else if (a && b && Math.abs(a - b) <= 2) { t = '<b>両方の性質がある</b>：共有データは PlanetScale、テナントごとの状態は D1 という<a href="#combo">組み合わせ</a>を検討。'; c = 'var(--accent)'; }
+    else if (a && b && Math.abs(a - b) <= 2) { t = '<b>両方の性質がある</b>：共有データは PlanetScale、テナントごとの状態は D1 という<a href="#combo">組み合わせ</a>を検討。'; c = 'var(--c-key)'; }
     else if (a > b) { t = '<b class="col-d1">D1 が合いそう</b>：テナントごとに DB を分け、書き込みを散らす設計で始める。'; c = 'var(--c-b)'; }
     else { t = '<b class="col-ps">Hyperdrive＋PlanetScale が合いそう</b>：Placement で Worker を DB の近くに置き、最新の値が要る読み取りはキャッシュ無効の Hyperdrive 設定から読む。'; c = 'var(--c-ok)'; }
     res.innerHTML = t; res.style.borderColor = c;

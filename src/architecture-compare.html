@@ -17,13 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #1a7f37;
-  --c-ng: #cf222e;
-  --c-warn: #9a6700;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #0077b6;
   --c-b: #8250df;
   --c-c: #1a7f37;
-  --c-d: #bc4c00;
+  --c-d: #be185d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -34,9 +32,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #3fb950;
-    --c-ng: #f85149;
-    --c-warn: #d29922;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #00d4ff;
     --c-b: #bc8cff;
     --c-c: #3fb950;
@@ -97,8 +93,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .note {
   font-size: 0.85rem;
   color: var(--fg-2);
@@ -118,12 +112,12 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .diagram { margin: 8px 0; }
 .diagram svg { width: 100%; height: auto; display: block; }
 .d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-box.hl { stroke: var(--c-key); stroke-width: 2; }
 .d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
 .d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
-.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
-.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
-.d-head { fill: var(--accent); }
+.d-label { fill: var(--fg); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--fg-2); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--fg); }
 .d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
 .d-ng-head { fill: var(--c-ng); }
 
@@ -136,7 +130,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 10px 12px;
 }
-.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); font-size: 0.85rem; }
 .step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
 .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
 .flow span {
@@ -146,7 +140,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
   padding: 3px 10px;
   font-size: 0.82rem;
 }
-.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+.flow i { font-style: normal; color: var(--fg); font-weight: 700; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -173,7 +167,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 /* チェックリスト */
 .progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
-.bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.bar div { height: 100%; width: 0; background: var(--c-key); transition: width .2s; }
 .count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
 .checklist { list-style: none; }
 .checklist li { border-bottom: 1px solid var(--line); }
@@ -199,12 +193,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .badge.d { color: var(--c-d); }
 
 /* よくある誤解 */
-.myth { margin-bottom: 10px; }
-.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
-.myth summary::-webkit-details-marker { display: none; }
-.myth summary::before { content: '✕ '; color: var(--c-ng); }
-.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
-.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
 
 /* OK / NG コード比較 */
 .vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
@@ -231,9 +219,9 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
 .ring-1 { fill: var(--chip); stroke: var(--line); stroke-width: 1.2; }
 .ring-2 { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
-.ring-core { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
-.hex { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
-.port { fill: var(--accent); }
+.ring-core { fill: var(--surface); stroke: var(--fg-2); stroke-width: 2; }
+.hex { fill: var(--surface); stroke: var(--fg-2); stroke-width: 2; }
+.port { fill: var(--fg); }
 .adapter { fill: var(--chip); stroke: var(--line); stroke-width: 1.2; }
 .d-small { fill: var(--fg); font: 500 11px 'Noto Sans JP', system-ui, sans-serif; }
 .d-side { fill: var(--fg-2); font: 700 10px 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .05em; }
@@ -241,7 +229,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .arch-meta b { display: block; font-size: 0.75rem; color: var(--fg-2); }
 .svg-narrow { max-width: 420px; margin: 0 auto; }
 .map td:not(:first-child) { font-size: 0.82rem; }
-.map tr.hl td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.map tr.hl td { background: color-mix(in srgb, var(--c-key) 8%, transparent); }
 </style>
 </head>
 <body>
@@ -419,10 +407,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <p class="note">迷ったら「ヘキサゴナル程度（ドメイン／ユースケース／アダプター の 3 フォルダ）」から始めて、必要になった所だけ層を足すのが失敗しにくい。</p>
 
   <h2 id="myths">よくある誤解</h2>
-  <details class="myth card"><summary>クリーンアーキテクチャは必ず 4 層（4 つの円）にする</summary><p>円の数は例にすぎず、必要に応じて増減してよいとされている。守るべきなのは「依存は内側へ」というルールだけ。</p></details>
-  <details class="myth card"><summary>ヘキサゴナルは 6 つのポートを持つ</summary><p>六角形は、ポートやアダプターを必要なだけ描き込める余白を作り、一次元の層の図から離れるために選ばれた形で、6 という数に意味はない。正式名も Ports and Adapters。</p></details>
-  <details class="myth card"><summary>オニオンとクリーンは別物なので混ぜてはいけない</summary><p>どちらも依存性逆転でドメインを中心にする同じ系統。オニオンの層分けにクリーンのユースケースクラスを使う、のような組み合わせは普通に行われている。</p></details>
-  <details class="myth card"><summary>レイヤードはもう古くて使うべきではない</summary><p>業務ルールが薄いアプリでは、最も少ないコードで済む合理的な選択。つらくなってから DIP を入れて内向きに変えればよい。</p></details>
+  <details class="myth"><summary>クリーンアーキテクチャは必ず 4 層（4 つの円）にする</summary><p>円の数は例にすぎず、必要に応じて増減してよいとされている。守るべきなのは「依存は内側へ」というルールだけ。</p></details>
+  <details class="myth"><summary>ヘキサゴナルは 6 つのポートを持つ</summary><p>六角形は、ポートやアダプターを必要なだけ描き込める余白を作り、一次元の層の図から離れるために選ばれた形で、6 という数に意味はない。正式名も Ports and Adapters。</p></details>
+  <details class="myth"><summary>オニオンとクリーンは別物なので混ぜてはいけない</summary><p>どちらも依存性逆転でドメインを中心にする同じ系統。オニオンの層分けにクリーンのユースケースクラスを使う、のような組み合わせは普通に行われている。</p></details>
+  <details class="myth"><summary>レイヤードはもう古くて使うべきではない</summary><p>業務ルールが薄いアプリでは、最も少ないコードで済む合理的な選択。つらくなってから DIP を入れて内向きに変えればよい。</p></details>
+
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

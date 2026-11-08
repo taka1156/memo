@@ -17,9 +17,7 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ng: #b91c1c;
-  --c-ok: #15803d;
-  --c-warn: #b45309;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -30,9 +28,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ng: #f87171;
-    --c-ok: #4ade80;
-    --c-warn: #fbbf24;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -82,7 +78,7 @@ pre {
 }
 pre code { background: none; padding: 0; font-size: inherit; }
 .cm { color: var(--fg-2); }
-.hl { background: color-mix(in srgb, var(--accent) 18%, transparent); border-radius: 3px; }
+.hl { background: color-mix(in srgb, var(--c-key) 18%, transparent); border-radius: 3px; }
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -90,8 +86,7 @@ pre code { background: none; padding: 0; font-size: inherit; }
   padding: 16px 18px;
   margin: 12px 0;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li, ul.list li { margin-left: 1.2em; }
+ul.list li { margin-left: 1.2em; }
 ul.list { margin: 8px 0; }
 ul.list li { margin-bottom: 4px; }
 .note { font-size: 0.83rem; color: var(--fg-2); }
@@ -136,7 +131,7 @@ ul.list li { margin-bottom: 4px; }
 .hcard:hover { border-color: var(--accent); transform: translateY(-1px); }
 .hcard .name {
   font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace;
-  color: var(--accent);
+  color: var(--fg);
   overflow-wrap: anywhere;
 }
 .hcard .threat { font-size: 0.82rem; margin-top: 4px; }
@@ -177,8 +172,8 @@ ol.flow li::before {
   place-items: center;
   width: 20px; height: 20px;
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--chip);
+  color: var(--fg);
   font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace;
   margin-right: 6px;
 }
@@ -195,12 +190,12 @@ figure.fig figcaption { font-size: 0.8rem; color: var(--fg-2); margin-top: 6px; 
 .s-chip { fill: var(--chip); }
 .s-ng { fill: none; stroke: var(--c-ng); stroke-width: 2; stroke-dasharray: 6 4; }
 .s-ngfill { fill: var(--c-ng); }
-.s-accent { fill: var(--accent); }
+.s-accent { fill: var(--fg); }
 .s-line { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
 .s-t { fill: var(--fg); font-family: 'Noto Sans JP', system-ui, sans-serif; font-size: 14px; }
 .s-t2 { fill: var(--fg-2); font-family: 'Noto Sans JP', system-ui, sans-serif; font-size: 12px; }
 .s-tng { fill: var(--c-ng); font-family: 'Noto Sans JP', system-ui, sans-serif; font-size: 13px; font-weight: 700; }
-.s-btn { fill: var(--accent); }
+.s-btn { fill: var(--fg); }
 .s-btntext { fill: var(--bg); font-family: 'Noto Sans JP', system-ui, sans-serif; font-size: 13px; font-weight: 700; }
 
 /* タブ */
@@ -250,11 +245,6 @@ textarea {
 details { margin: 8px 0; }
 details summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
 details[open] summary { margin-bottom: 6px; }
-.myth { display: grid; gap: 10px; }
-.myth .card { margin: 0; }
-.myth .q { font-weight: 700; }
-.myth .q::before { content: '✗ '; color: var(--c-ng); }
-.myth .a::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -670,12 +660,11 @@ Content-Security-Policy-Report-Only: script-src 'nonce-R4nd0m' 'strict-dynamic';
 
   <!-- ======================== Myths ======================== -->
   <h2 id="myths">よくある誤解</h2>
-  <div class="myth">
-    <div class="card"><p class="q">CSP を入れたので、出力のエスケープは手を抜いていい</p><p class="a">CSP は 2 枚目の壁。<code>'unsafe-inline'</code> が残っていたり、許可したドメインに抜け道があったりすると素通りする。エスケープが 1 枚目。</p></div>
-    <div class="card"><p class="q">http → https のリダイレクトがあれば HSTS はいらない</p><p class="a">リダイレクト前の最初の http リクエストが書き換えられる。HSTS（できれば preload）で、ブラウザが最初から https を使うようにする。</p></div>
-    <div class="card"><p class="q">ヘッダーは HTML ページにだけ付ければいい</p><p class="a">API の JSON やアップロードファイルにも nosniff・CORP は必要。エラーページ（404 / 500）にも付くよう、サーバーやフレームワーク全体で設定する。</p></div>
-    <div class="card"><p class="q">HttpOnly にしたので XSS されても大丈夫</p><p class="a">Cookie は読まれないが、XSS したスクリプトはそのページ上で<b>ユーザーとしてリクエストを送れる</b>。被害が減るだけで、XSS 自体は防げない。</p></div>
-  </div>
+  <details class="myth"><summary>CSP を入れたので、出力のエスケープは手を抜いていい</summary><p>CSP は 2 枚目の壁。<code>'unsafe-inline'</code> が残っていたり、許可したドメインに抜け道があったりすると素通りする。エスケープが 1 枚目。</p></details>
+  <details class="myth"><summary>http → https のリダイレクトがあれば HSTS はいらない</summary><p>リダイレクト前の最初の http リクエストが書き換えられる。HSTS（できれば preload）で、ブラウザが最初から https を使うようにする。</p></details>
+  <details class="myth"><summary>ヘッダーは HTML ページにだけ付ければいい</summary><p>API の JSON やアップロードファイルにも nosniff・CORP は必要。エラーページ（404 / 500）にも付くよう、サーバーやフレームワーク全体で設定する。</p></details>
+  <details class="myth"><summary>HttpOnly にしたので XSS されても大丈夫</summary><p>Cookie は読まれないが、XSS したスクリプトはそのページ上で<b>ユーザーとしてリクエストを送れる</b>。被害が減るだけで、XSS 自体は防げない。</p></details>
+
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

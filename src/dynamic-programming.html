@@ -17,12 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-a: #c2410c;
+  --c-key: #0f766e; /* 図の強調（このページの色と見分けやすい色） */
+  --c-a: #be185d;
   --c-b: #15803d;
   --c-c: #7c3aed;
-  --c-d: #b45309;
+  --c-d: #4d7c0f;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -33,9 +32,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-a: #fb923c;
+    --c-key: #2dd4bf; /* 図の強調（このページの色と見分けやすい色） */
+    --c-a: #f472b6;
     --c-b: #4ade80;
     --c-c: #c4b5fd;
     --c-d: #fbbf24;
@@ -97,14 +95,12 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .label {
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -126,8 +122,6 @@ table.t th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-spa
 table.t td:first-child { font-weight: 700; white-space: nowrap; }
 .ok { color: var(--c-ok); font-weight: 700; }
 .ng { color: var(--c-ng); font-weight: 700; }
-.myth { margin-bottom: 10px; }
-.myth p { margin: 4px 0; }
 .related a { display: inline-block; margin: 4px 10px 4px 0; }
 footer#memo-backlink {
   margin-top: 40px;
@@ -150,11 +144,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
 /* このページ固有 */
 .series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
 .series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
-.series span { background: var(--accent); color: var(--bg); font-weight: 700; }
+.series span { background: var(--chip); color: var(--fg); font-weight: 700; }
 .o { font: 700 0.78rem 'JetBrains Mono', monospace; white-space: nowrap; }
 .steps3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .steps3 .card { margin: 0; }
-.steps3 .num { font: 700 1.3rem 'JetBrains Mono', monospace; color: var(--accent); }
+.steps3 .num { font: 700 1.3rem 'JetBrains Mono', monospace; color: var(--fg); }
 .btns { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
 .btn { border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 8px; padding: 5px 12px; font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace; cursor: pointer; }
 .btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -164,7 +158,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .grid td { width: 30px; height: 28px; text-align: center; border-radius: 4px; background: var(--chip); border: 1px solid transparent; transition: background .15s; }
 .grid td.empty { color: transparent; background: color-mix(in srgb, var(--chip) 45%, transparent); }
 .grid td.base { color: var(--fg-2); }
-.grid td.cur { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--surface)); }
+.grid td.cur { border-color: var(--c-key); background: color-mix(in srgb, var(--c-key) 22%, var(--surface)); }
 .grid td.src { border-color: var(--c-d); background: color-mix(in srgb, var(--c-d) 22%, var(--surface)); }
 .grid td.path { border-color: var(--c-b); background: color-mix(in srgb, var(--c-b) 25%, var(--surface)); }
 .explain { font: 500 0.8rem 'JetBrains Mono', monospace; background: var(--chip); border-radius: 8px; padding: 8px 10px; min-height: 2.4em; overflow-x: auto; }
@@ -251,7 +245,7 @@ print(b)                    <span class="cm"># 答えは b</span></code></pre>
     </div>
     <div class="table-wrap"><table class="grid" id="ks-grid"></table></div>
     <div class="explain" id="ks-explain"></div>
-    <div class="legend"><span><i style="border-color:var(--accent);background:color-mix(in srgb, var(--accent) 22%, var(--surface))"></i>いま計算するマス</span><span><i style="border-color:var(--c-d);background:color-mix(in srgb, var(--c-d) 22%, var(--surface))"></i>使う値</span><span><i style="border-color:var(--c-b);background:color-mix(in srgb, var(--c-b) 25%, var(--surface))"></i>答えをたどった道</span></div>
+    <div class="legend"><span><i style="border-color:var(--c-key);background:color-mix(in srgb, var(--c-key) 22%, var(--surface))"></i>いま計算するマス</span><span><i style="border-color:var(--c-d);background:color-mix(in srgb, var(--c-d) 22%, var(--surface))"></i>使う値</span><span><i style="border-color:var(--c-b);background:color-mix(in srgb, var(--c-b) 25%, var(--surface))"></i>答えをたどった道</span></div>
   </div>
 <pre><code><span class="cm"># i 個目を「入れない」か「入れる」かの 2 通りを比べる</span>
 dp[i][w] = max(dp[i-1][w],                       <span class="cm"># 入れない</span>
@@ -303,9 +297,9 @@ dp[i][w] = max(dp[i-1][w],                       <span class="cm"># 入れない
   </ul>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><p><span class="ng">✗</span> DP は表（配列）を作るもの</p><p><span class="ok">✓</span> メモ化再帰も DP。本質は「部分問題の答えを 1 回だけ計算して使い回す」こと。辞書でメモしてもよい。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> メモ化すればどんな再帰も速くなる</p><p><span class="ok">✓</span> 速さは状態の数で決まる。引数に「選んだものの一覧」を丸ごと入れると状態が 2ⁿ 通りになり、メモしても速くならない。状態に入れる情報を絞るのが設計の中心。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> 2 次元の表を 1 次元にしても、ループの向きは同じでよい</p><p><span class="ok">✓</span> 1 個までのナップサックは w を大きい方から回す。向きを間違えると、同じ品物を何度も使った答えになる。</p></div>
+  <details class="myth"><summary>DP は表（配列）を作るもの</summary><p>メモ化再帰も DP。本質は「部分問題の答えを 1 回だけ計算して使い回す」こと。辞書でメモしてもよい。</p></details>
+  <details class="myth"><summary>メモ化すればどんな再帰も速くなる</summary><p>速さは状態の数で決まる。引数に「選んだものの一覧」を丸ごと入れると状態が 2ⁿ 通りになり、メモしても速くならない。状態に入れる情報を絞るのが設計の中心。</p></details>
+  <details class="myth"><summary>2 次元の表を 1 次元にしても、ループの向きは同じでよい</summary><p>1 個までのナップサックは w を大きい方から回す。向きを間違えると、同じ品物を何度も使った答えになる。</p></details>
 
   <p class="related">関連: <a href="algorithm-paradigms.html">設計手法の全体像</a><a href="data-structures.html">データ構造と計算量</a><a href="graph-algorithms.html">グラフ探索と最短経路</a><a href="git-internals.html">Git の内部構造</a></p>
 

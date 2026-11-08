@@ -17,13 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-tc39: #a16207;
+  --c-tc39: #be185d;
   --c-whatwg: #15803d;
   --c-w3c: #1d4ed8;
   --c-tc55: #7c3aed;
   --c-host: #6b7280;
-  --c-ng: #b91c1c;
-  --c-ok: #15803d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -39,8 +37,6 @@
     --c-w3c: #60a5fa;
     --c-tc55: #c084fc;
     --c-host: #9ca3af;
-    --c-ng: #f87171;
-    --c-ok: #4ade80;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -84,8 +80,6 @@ code {
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 
 /* 団体の色 */
@@ -214,9 +208,6 @@ th { color: var(--fg-2); font-weight: 500; font-size: 0.76rem; white-space: nowr
 .chips.out code { text-decoration: line-through; color: var(--fg-2); }
 
 /* 誤解 */
-.myth { margin-bottom: 10px; }
-.myth .ng { color: var(--c-ng); font-weight: 700; }
-.myth .ok { color: var(--c-ok); font-weight: 700; }
 
 .related a { display: inline-block; margin: 4px 8px 4px 0; }
 .sources { font-size: 0.78rem; color: var(--fg-2); margin-top: 20px; }
@@ -417,10 +408,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <p class="muted">TC55 には Deno・Igalia（共同議長）、Cloudflare、Bloomberg などが関わっています。Bun は正式なメンバーではありません。Bun にも <code>fetch</code> や <code>Response</code> はありますが、ECMA-429 に沿うことを約束しているわけではないので、Bun でも動くかは個別に確かめます。</p>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><span class="ng">✗</span> <code>setTimeout</code> や <code>console</code> は JavaScript の言語機能<br><span class="ok">○</span> HTML Standard と Console Standard（WHATWG）で決まっている。ECMAScript には入っていない</div>
-  <div class="card myth"><span class="ng">✗</span> HTML の仕様は W3C が作っている<br><span class="ok">○</span> 本体は WHATWG の Living Standard。W3C はそのスナップショットを勧告として承認する</div>
-  <div class="card myth"><span class="ng">✗</span> Stage 3 になった機能はどのブラウザでも使える<br><span class="ok">○</span> Stage 3 は「実装を始めてよい」段階。使えるかどうかは各ブラウザの実装状況で確かめる</div>
-  <div class="card myth"><span class="ng">✗</span> TC55 はサーバー専用の新しい API を作る団体<br><span class="ok">○</span> 中心は既存の Web API から共通セットを選ぶこと。サーバーで違う動きが必要な点は WHATWG や W3C の仕様に戻して直す</div>
+  <details class="myth"><summary><code>setTimeout</code> や <code>console</code> は JavaScript の言語機能</summary><p>HTML Standard と Console Standard（WHATWG）で決まっている。ECMAScript には入っていない</p></details>
+  <details class="myth"><summary>HTML の仕様は W3C が作っている</summary><p>本体は WHATWG の Living Standard。W3C はそのスナップショットを勧告として承認する</p></details>
+  <details class="myth"><summary>Stage 3 になった機能はどのブラウザでも使える</summary><p>Stage 3 は「実装を始めてよい」段階。使えるかどうかは各ブラウザの実装状況で確かめる</p></details>
+  <details class="myth"><summary>TC55 はサーバー専用の新しい API を作る団体</summary><p>中心は既存の Web API から共通セットを選ぶこと。サーバーで違う動きが必要な点は WHATWG や W3C の仕様に戻して直す</p></details>
+
 
   <h2>関連メモ</h2>
   <p class="related"><a href="js-runtimes.html">JS ランタイム比較 →</a> <a href="cors-sop.html">CORS と同一オリジンポリシー →</a> <a href="typescript.html">TypeScript 学習フローと仕組み →</a></p>

@@ -17,13 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #1a7f37;
-  --c-ng: #cf222e;
-  --c-warn: #9a6700;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #0077b6;
   --c-b: #8250df;
   --c-c: #1a7f37;
-  --c-d: #bc4c00;
+  --c-d: #be185d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -34,9 +32,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #3fb950;
-    --c-ng: #f85149;
-    --c-warn: #d29922;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #00d4ff;
     --c-b: #bc8cff;
     --c-c: #3fb950;
@@ -97,8 +93,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .note {
   font-size: 0.85rem;
   color: var(--fg-2);
@@ -118,12 +112,12 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .diagram { margin: 8px 0; }
 .diagram svg { width: 100%; height: auto; display: block; }
 .d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-box.hl { stroke: var(--c-key); stroke-width: 2; }
 .d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
 .d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
-.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
-.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
-.d-head { fill: var(--accent); }
+.d-label { fill: var(--fg); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--fg-2); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--fg); }
 .d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
 .d-ng-head { fill: var(--c-ng); }
 
@@ -136,7 +130,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 10px 12px;
 }
-.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); font-size: 0.85rem; }
 .step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
 .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
 .flow span {
@@ -146,7 +140,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
   padding: 3px 10px;
   font-size: 0.82rem;
 }
-.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+.flow i { font-style: normal; color: var(--fg); font-weight: 700; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -173,7 +167,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 /* チェックリスト */
 .progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
-.bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.bar div { height: 100%; width: 0; background: var(--c-key); transition: width .2s; }
 .count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
 .checklist { list-style: none; }
 .checklist li { border-bottom: 1px solid var(--line); }
@@ -199,12 +193,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .badge.d { color: var(--c-d); }
 
 /* よくある誤解 */
-.myth { margin-bottom: 10px; }
-.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
-.myth summary::-webkit-details-marker { display: none; }
-.myth summary::before { content: '✕ '; color: var(--c-ng); }
-.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
-.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
 
 /* OK / NG コード比較 */
 .vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
@@ -231,7 +219,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
 .stack { display: grid; gap: 6px; }
 .layer { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
-.layer .ln { font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.layer .ln { font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); }
 .layer .ln small { display: block; color: var(--fg-2); font-weight: 500; font-size: 0.7rem; }
 .layer p { margin: 0; font-size: 0.84rem; }
 .layer p span { color: var(--fg-2); }
@@ -242,7 +230,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
 .split .card ul { margin-top: 6px; }
 .tree { font: 500 0.78rem/1.7 'JetBrains Mono', ui-monospace, monospace; white-space: pre; overflow-x: auto; }
-.tree .hl { color: var(--accent); font-weight: 700; }
+.tree .hl { color: var(--c-key); font-weight: 700; }
 .tree .dim { color: var(--fg-2); }
 .atom-q { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .atom-q span { background: var(--chip); border-radius: 6px; padding: 2px 10px; font-size: 0.8rem; }
@@ -452,10 +440,11 @@ export function ClearCartButton() {
   <p class="note">shadcn/ui は「Headless（Radix など）＋ Tailwind のスタイル」を雛形としてコピーする仕組み。つまり上の 3 つ目を楽に始める方法とも言える。</p>
 
   <h2 id="myths">よくある誤解</h2>
-  <details class="myth card"><summary>Headless UI を使えばアクセシビリティは完璧</summary><p>振る舞いと ARIA は面倒を見てくれるが、コントラスト・ラベルの文言・見出し構造・フォーカスの見た目は使う側の責任（<a href="a11y-checklist.html">チェックリスト</a>）。</p></details>
-  <details class="myth card"><summary>共通化は早いほど良い</summary><p>1 か所でしか使っていない段階で汎用化すると、想像上の要件で props が膨らむ。3 か所目で形が見えてから <code>ui/</code> に上げるほうが結局速い。</p></details>
-  <details class="myth card"><summary>Atomic Design の考え方は全部間違いだった</summary><p>「部品の組み合わせで画面を作る」「部品単体で開発・確認する」は今も主流。廃れたのは 5 段階の分類とそれに沿ったフォルダ構成。</p></details>
-  <details class="myth card"><summary>shadcn/ui はコンポーネントライブラリ</summary><p>npm から部品を import して使うのではなく、コードを自分のリポジトリに書き出して所有する方式。更新も自分の判断で取り込む。</p></details>
+  <details class="myth"><summary>Headless UI を使えばアクセシビリティは完璧</summary><p>振る舞いと ARIA は面倒を見てくれるが、コントラスト・ラベルの文言・見出し構造・フォーカスの見た目は使う側の責任（<a href="a11y-checklist.html">チェックリスト</a>）。</p></details>
+  <details class="myth"><summary>共通化は早いほど良い</summary><p>1 か所でしか使っていない段階で汎用化すると、想像上の要件で props が膨らむ。3 か所目で形が見えてから <code>ui/</code> に上げるほうが結局速い。</p></details>
+  <details class="myth"><summary>Atomic Design の考え方は全部間違いだった</summary><p>「部品の組み合わせで画面を作る」「部品単体で開発・確認する」は今も主流。廃れたのは 5 段階の分類とそれに沿ったフォルダ構成。</p></details>
+  <details class="myth"><summary>shadcn/ui はコンポーネントライブラリ</summary><p>npm から部品を import して使うのではなく、コードを自分のリポジトリに書き出して所有する方式。更新も自分の判断で取り込む。</p></details>
+
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

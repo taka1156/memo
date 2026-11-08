@@ -17,12 +17,10 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-cf: #b45309;
+  --c-cf: #be185d;
   --c-node: #047857;
   --c-ssg: #1d4ed8;
-  --c-ok: #047857;
-  --c-warn: #b91c1c;
-  --c-note: #a16207;
+  --c-note: #4d7c0f;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -36,8 +34,6 @@
     --c-cf: #f59e0b;
     --c-node: #34d399;
     --c-ssg: #60a5fa;
-    --c-ok: #34d399;
-    --c-warn: #f87171;
     --c-note: #facc15;
   }
 }
@@ -91,8 +87,6 @@ a { color: var(--accent); }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 
 /* 構造図 */
 .flow { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; }
@@ -105,7 +99,7 @@ a { color: var(--accent); }
 }
 .flow .box b { display: block; font-size: 0.9rem; }
 .flow .box span { font-size: 0.78rem; color: var(--fg-2); }
-.flow .box.main { border-color: var(--accent); }
+.flow .box.main { border-color: var(--line); }
 .flow .arrow {
   align-self: center;
   color: var(--fg-2);
@@ -137,8 +131,7 @@ a { color: var(--accent); }
 .bar .fill { height: 100%; border-radius: 5px; }
 .bar .val { width: 4.5em; flex: none; text-align: right; font-family: 'JetBrains Mono', monospace; }
 .fill.next { background: var(--fg-2); }
-.fill.vin { background: var(--accent); }
-
+.fill.vin { background: var(--chip); }
 
 /* デプロイパターン表 */
 .matrix { display: grid; grid-template-columns: 7em repeat(3, 1fr); gap: 8px; }
@@ -302,18 +295,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card">
-    <dl class="faq">
-      <dt>vinext は Next.js のフォーク</dt>
-      <dd>フォークではなく API 表面の再実装。Next.js パッケージが無くても動く。</dd>
-      <dt>ビルドが 4 倍速いので、サイトも 4 倍速くなる</dt>
-      <dd>ベンチはビルドとバンドルだけ。配信速度は、本家が事前生成する静的ページではむしろ本家が有利な場面もある。</dd>
-      <dt>Cloudflare で Next.js を動かすなら vinext 一択</dt>
-      <dd>README 自身が「成熟していて安全なのは OpenNext」と書いている。互換性重視なら OpenNext、軽さと Vite 系ツールを取るなら vinext。</dd>
-      <dt>静的エクスポートでも Server Actions が使える</dt>
-      <dd>使えない。サーバーが無い構成なので、フォーム送信などは外部 API に向ける必要がある（上の表の SSG 列参照）。</dd>
-    </dl>
-  </div>
+  <details class="myth"><summary>vinext は Next.js のフォーク</summary><p>フォークではなく API 表面の再実装。Next.js パッケージが無くても動く。</p></details>
+  <details class="myth"><summary>ビルドが 4 倍速いので、サイトも 4 倍速くなる</summary><p>ベンチはビルドとバンドルだけ。配信速度は、本家が事前生成する静的ページではむしろ本家が有利な場面もある。</p></details>
+  <details class="myth"><summary>Cloudflare で Next.js を動かすなら vinext 一択</summary><p>README 自身が「成熟していて安全なのは OpenNext」と書いている。互換性重視なら OpenNext、軽さと Vite 系ツールを取るなら vinext。</p></details>
+  <details class="myth"><summary>静的エクスポートでも Server Actions が使える</summary><p>使えない。サーバーが無い構成なので、フォーム送信などは外部 API に向ける必要がある（上の表の SSG 列参照）。</p></details>
+
 
   <h2 id="migrate">移行を試すなら</h2>
   <pre>npx vinext check   # 互換性の問題を事前にスキャン

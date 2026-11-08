@@ -17,6 +17,7 @@
   --line: #dde1e8;
   --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
   --chip: #eceff4;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -27,6 +28,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -75,8 +77,6 @@ pre {
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -110,9 +110,9 @@ footer#memo-backlink a {
 }
 footer#memo-backlink a:hover { color: var(--accent); }
 
-:root { --c-ok: #1f8a50; --c-warn: #b45309; --c-ng: #c0392b; --c-sub: #7c3aed; }
+:root { --c-sub: #7c3aed; }
 @media (prefers-color-scheme: dark) {
-  :root { --c-ok: #4ade80; --c-warn: #fbbf24; --c-ng: #f87171; --c-sub: #c4b5fd; }
+  :root { --c-sub: #c4b5fd; }
 }
 a { color: var(--accent); }
 h3 { font-size: 0.98rem; margin: 22px 0 8px; }
@@ -136,13 +136,13 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .btn.on { border-color: var(--accent); color: var(--accent); }
 .ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
 .stepmsg {
-  border-left: 3px solid var(--accent); background: var(--surface);
+  border-left: 3px solid var(--line); background: var(--surface);
   border-radius: 0 8px 8px 0; padding: 10px 14px; min-height: 4.6em; font-size: 0.9rem;
 }
-.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); display: block; }
+.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); display: block; }
 .anat { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
 .anat .card { padding: 10px 14px; }
-.anat b { font-size: 0.85rem; color: var(--accent); }
+.anat b { font-size: 0.85rem; color: var(--fg); }
 .anat p { font-size: 0.8rem; margin: 2px 0 0; color: var(--fg-2); }
 .panel { margin-top: 0; }
 .panel h4 { font-size: 0.9rem; margin: 10px 0 4px; }
@@ -151,10 +151,6 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .tag-ok { color: var(--c-ok); font-weight: 700; }
 .tag-ng { color: var(--c-ng); font-weight: 700; }
 .tag-warn { color: var(--c-warn); font-weight: 700; }
-details.myth { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
-details.myth summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
-details.myth summary::before { content: '✗ '; color: var(--c-ng); }
-details.myth p { font-size: 0.86rem; }
 .related { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .related a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font-size: 0.75rem; font-weight: 600; }
 .related a:hover { color: var(--accent); }
@@ -166,7 +162,7 @@ details.myth p { font-size: 0.86rem; }
 }
 .node b { display: block; font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; }
 .node span { color: var(--fg-2); }
-.node.hl { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.node.hl { border-color: var(--c-key); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-key) 18%, transparent); }
 .node.dim { opacity: .45; }
 .arrow { align-self: center; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
 @media (max-width: 640px) {
@@ -184,17 +180,17 @@ details.myth p { font-size: 0.86rem; }
 .wnode { border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: color-mix(in srgb, var(--chip) 50%, transparent); }
 .wnode > .zt { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-bottom: 4px; }
 .pods { display: flex; flex-wrap: wrap; gap: 4px; min-height: 30px; margin-top: 4px; }
-.pod { font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace; border: 1.5px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 2px 6px; animation: pop .25s ease-out; }
+.pod { font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace; border: 1.5px solid var(--line); color: var(--fg); border-radius: 6px; padding: 2px 6px; animation: pop .25s ease-out; }
 .pod.pending { border-style: dashed; color: var(--fg-2); border-color: var(--fg-2); }
 .pod.dead { border-color: var(--c-ng); color: var(--c-ng); text-decoration: line-through; }
 @keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
 /* オブジェクトの関係 */
 .objtree { font: 500 0.8rem/1.8 'JetBrains Mono', ui-monospace, monospace; white-space: pre; overflow-x: auto; }
-.objtree .k { color: var(--accent); font-weight: 700; }
+.objtree .k { color: var(--fg); font-weight: 700; }
 .objtree .c { color: var(--fg-2); }
 /* Service タイプ */
 .svc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.svc .card b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.svc .card b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); }
 .svc .card p { font-size: 0.8rem; }
 @media (max-width: 640px) {
   .cluster, .svc { grid-template-columns: 1fr; }
@@ -393,18 +389,11 @@ spec:
   <p class="muted">ローリングアップデートでは、新しい Pod が readiness に通ってから古い Pod を減らす。readiness が無いと、起動途中の Pod にリクエストが流れて更新のたびにエラーが出る。</p>
 
   <h2 id="myth">よくある誤解</h2>
-  <details class="myth"><summary>Pod はコンテナの別名</summary>
-    <p>Pod は 1 つ以上のコンテナのまとまり。同じ Pod のコンテナはネットワーク名前空間（同じ IP・localhost で通じる）とボリュームを共有し、必ず同じノードに置かれる。ログ転送やプロキシを横に添えるサイドカーはこの性質を使う。</p>
-  </details>
-  <details class="myth"><summary>Secret に入れれば暗号化される</summary>
-    <p>Secret の値は base64 で書かれているだけで、誰でも元に戻せる。守っているのは RBAC（誰が読めるか）で、etcd に保存するときの暗号化はクラスタの設定で有効にする必要がある。外部のシークレット管理（クラウドの KMS・Vault など）と連携することも多い。</p>
-  </details>
-  <details class="myth"><summary>Ingress を書けば外からつながる</summary>
-    <p>Ingress は設定データでしかない。それを読んで実際にトラフィックを受けるコントローラがクラスタに入っていなければ、何も起きない。Gateway API も同じ。</p>
-  </details>
-  <details class="myth"><summary>kubectl で Pod を直したら、それで直る</summary>
-    <p>Deployment が管理している Pod を手で変えても、コントローラが「あるべき状態」に戻す（または作り直したときに消える）。直すのは Deployment の定義の方。定義を Git に置いて自動で適用する（GitOps）と、手で変えた差分が残らない。</p>
-  </details>
+  <details class="myth"><summary>Pod はコンテナの別名</summary><p>Pod は 1 つ以上のコンテナのまとまり。同じ Pod のコンテナはネットワーク名前空間（同じ IP・localhost で通じる）とボリュームを共有し、必ず同じノードに置かれる。ログ転送やプロキシを横に添えるサイドカーはこの性質を使う。</p></details>
+  <details class="myth"><summary>Secret に入れれば暗号化される</summary><p>Secret の値は base64 で書かれているだけで、誰でも元に戻せる。守っているのは RBAC（誰が読めるか）で、etcd に保存するときの暗号化はクラスタの設定で有効にする必要がある。外部のシークレット管理（クラウドの KMS・Vault など）と連携することも多い。</p></details>
+  <details class="myth"><summary>Ingress を書けば外からつながる</summary><p>Ingress は設定データでしかない。それを読んで実際にトラフィックを受けるコントローラがクラスタに入っていなければ、何も起きない。Gateway API も同じ。</p></details>
+  <details class="myth"><summary>kubectl で Pod を直したら、それで直る</summary><p>Deployment が管理している Pod を手で変えても、コントローラが「あるべき状態」に戻す（または作り直したときに消える）。直すのは Deployment の定義の方。定義を Git に置いて自動で適用する（GitOps）と、手で変えた差分が残らない。</p></details>
+
 
   <h2 id="cmd">よく使うコマンド</h2>
 <pre>kubectl get pods -o wide                   <span class="cm"># どのノードで動いているか・Pod の IP</span>

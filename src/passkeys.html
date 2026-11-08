@@ -17,11 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-warn: #b45309;
   --c-a: #7c3aed;
-  --c-b: #c2410c;
+  --c-b: #be185d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -32,11 +29,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-warn: #fbbf24;
     --c-a: #c4b5fd;
-    --c-b: #fb923c;
+    --c-b: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -95,8 +89,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
@@ -105,7 +97,7 @@ pre .cm { color: var(--fg-2); }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .ok { color: var(--c-ok); font-weight: 700; }
@@ -139,25 +131,6 @@ pre .cm { color: var(--fg-2); }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* ステップ */
-ol.steps { list-style: none; counter-reset: st; }
-ol.steps > li {
-  counter-increment: st;
-  position: relative;
-  padding: 10px 12px 10px 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  margin-bottom: 8px;
-}
-ol.steps > li::before {
-  content: counter(st);
-  position: absolute; left: 12px; top: 10px;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: var(--accent); color: var(--bg);
-  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
-  text-align: center;
-}
-ol.steps b { display: block; }
 
 /* 表 */
 .table-wrap { overflow-x: auto; }
@@ -174,7 +147,7 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 .fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
 
 /* 誤解 */
-.myth { margin-bottom: 10px; }
+
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
@@ -323,9 +296,10 @@ await fetch('/webauthn/verify', { method: 'POST', body: JSON.stringify(cred) });
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><p><span class="ng">✕</span> 指紋や顔のデータがサーバーに送られる</p><p><span class="ok">○</span> 生体情報は端末内で本人確認に使うだけ。サーバーに届くのは署名と「本人確認済み」のフラグ。</p></div>
-  <div class="card myth"><p><span class="ng">✕</span> パスキー対応サイトがハッキングされたら、パスキーも盗まれる</p><p><span class="ok">○</span> サーバーにあるのは公開鍵だけ。公開鍵では署名できないので、漏れても他人がログインすることはできない。</p></div>
-  <div class="card myth"><p><span class="ng">✕</span> スマホを失くしたらログインできなくなる</p><p><span class="ok">○</span> 同期パスキーなら、同じアカウントの別端末や新しい端末に戻ってくる。デバイス固定型は予備を登録しておくのが前提。</p></div>
+  <details class="myth"><summary>指紋や顔のデータがサーバーに送られる</summary><p>生体情報は端末内で本人確認に使うだけ。サーバーに届くのは署名と「本人確認済み」のフラグ。</p></details>
+  <details class="myth"><summary>パスキー対応サイトがハッキングされたら、パスキーも盗まれる</summary><p>サーバーにあるのは公開鍵だけ。公開鍵では署名できないので、漏れても他人がログインすることはできない。</p></details>
+  <details class="myth"><summary>スマホを失くしたらログインできなくなる</summary><p>同期パスキーなら、同じアカウントの別端末や新しい端末に戻ってくる。デバイス固定型は予備を登録しておくのが前提。</p></details>
+
 
   <h2 id="now">いまの動き（2026年）</h2>
   <div class="card">

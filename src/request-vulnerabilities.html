@@ -17,9 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ng: #b91c1c;
-  --c-ok: #15803d;
-  --c-warn: #b45309;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -30,9 +27,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ng: #f87171;
-    --c-ok: #4ade80;
-    --c-warn: #fbbf24;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -92,8 +86,7 @@ pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: norm
   padding: 16px 18px;
   margin: 12px 0;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li, ul.list li { margin-left: 1.2em; }
+ul.list li { margin-left: 1.2em; }
 ul.list { margin: 8px 0; }
 ul.list li { margin-bottom: 4px; }
 .note { font-size: 0.83rem; color: var(--fg-2); }
@@ -121,8 +114,8 @@ ul.list li { margin-bottom: 4px; }
 }
 .map .app {
   writing-mode: vertical-rl;
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--chip);
+  color: var(--fg);
   font: 700 0.85rem 'Noto Sans JP', sans-serif;
   border-radius: 10px;
   padding: 14px 8px;
@@ -143,7 +136,7 @@ ul.list li { margin-bottom: 4px; }
 }
 .sink:hover { border-color: var(--accent); }
 .sink .to { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
-.sink .v { font-weight: 700; font-size: 0.88rem; color: var(--accent); }
+.sink .v { font-weight: 700; font-size: 0.88rem; color: var(--fg); }
 .map2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px; }
 .map2 .sink { border-left-color: var(--c-warn); }
 @media (max-width: 640px) {
@@ -187,8 +180,8 @@ ol.flow li::before {
   place-items: center;
   width: 20px; height: 20px;
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--chip);
+  color: var(--fg);
   font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace;
   margin-right: 6px;
 }
@@ -258,12 +251,6 @@ ol.flow li.x::before { background: var(--c-ng); }
 .bar-row.safe .fill { background: var(--c-ok); }
 .bar-row .ms { text-align: right; color: var(--fg-2); }
 #redos-extra { font-size: 0.85rem; }
-
-.myth { display: grid; gap: 10px; }
-.myth .card { margin: 0; }
-.myth .q { font-weight: 700; }
-.myth .q::before { content: '✗ '; color: var(--c-ng); }
-.myth .a::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -546,10 +533,9 @@ await db.update(users).set(<span class="good">{ name, bio }</span>).where(eq(use
 
   <!-- ======================== Myths ======================== -->
   <h2 id="myths">よくある誤解</h2>
-  <div class="myth">
-    <div class="card"><p class="q">POST にしたので CSRF は大丈夫</p><p class="a">罠サイトのフォームから POST は送れる。SameSite・トークン・送信元の検証が必要。</p></div>
-    <div class="card"><p class="q">https なのでセッションは盗まれない</p><p class="a">XSS・固定・URL への ID 漏れ・推測しやすい ID は https と関係ない。</p></div>
-  </div>
+  <details class="myth"><summary>POST にしたので CSRF は大丈夫</summary><p>罠サイトのフォームから POST は送れる。SameSite・トークン・送信元の検証が必要。</p></details>
+  <details class="myth"><summary>https なのでセッションは盗まれない</summary><p>XSS・固定・URL への ID 漏れ・推測しやすい ID は https と関係ない。</p></details>
+
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

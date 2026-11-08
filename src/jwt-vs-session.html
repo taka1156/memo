@@ -17,10 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-front: #c2410c;
+  --c-front: #4d7c0f;
   --c-back: #15803d;
-  --c-ng: #b91c1c;
-  --c-ok: #15803d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -31,10 +29,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-front: #fb923c;
+    --c-front: #a3e635;
     --c-back: #4ade80;
-    --c-ng: #f87171;
-    --c-ok: #4ade80;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -89,8 +85,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
@@ -98,7 +92,7 @@ pre code { background: none; padding: 0; word-break: normal; }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .big { font-size: 1.05rem; font-weight: 700; }
@@ -136,11 +130,7 @@ th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: le
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
 td:first-child { font-weight: 700; white-space: nowrap; }
 
-
 /* 誤解 */
-.myth { margin-bottom: 10px; }
-.myth .ng { color: var(--c-ng); font-weight: 700; }
-.myth .ok { color: var(--c-ok); font-weight: 700; }
 
 .related a { display: inline-block; margin: 4px 8px 4px 0; }
 
@@ -165,7 +155,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 /* このページ固有 */
 .axis { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 560px) { .axis { grid-template-columns: 1fr; } }
-.axis .q { font-weight: 700; color: var(--accent); }
+.axis .q { font-weight: 700; color: var(--fg); }
 
 .jwt {
   font: 600 0.82rem/1.6 'JetBrains Mono', ui-monospace, monospace;
@@ -379,22 +369,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「JWT は暗号化されているから、中に何を入れても安全」</p>
-    <p><span class="ok">○</span> 普通の JWT（JWS）は署名だけ。中身は誰でも読める。暗号化したいなら JWE という別形式を使う。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「セッションはスケールしない」</p>
-    <p><span class="ok">○</span> サーバーごとのメモリに持つとそうなるが、Redis などの共有ストアに置けば何台でも増やせる。数ミリ秒の問い合わせが問題になる規模はまれ。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「JWT にすればログアウト処理が要らない」</p>
-    <p><span class="ok">○</span> クライアントから消しても、盗まれたコピーは期限まで有効。サーバー側でリフレッシュトークンを無効化する処理は必要。</p>
-  </div>
-  <div class="card myth">
-    <p><span class="ng">✕</span> 「HttpOnly Cookie なら XSS は怖くない」</p>
-    <p><span class="ok">○</span> トークンを盗まれないだけで、XSS が起きればそのページ上から本人として API を叩ける。XSS 対策そのものは必須。</p>
-  </div>
+  <details class="myth"><summary>JWT は暗号化されているから、中に何を入れても安全</summary><p>普通の JWT（JWS）は署名だけ。中身は誰でも読める。暗号化したいなら JWE という別形式を使う。</p></details>
+  <details class="myth"><summary>セッションはスケールしない</summary><p>サーバーごとのメモリに持つとそうなるが、Redis などの共有ストアに置けば何台でも増やせる。数ミリ秒の問い合わせが問題になる規模はまれ。</p></details>
+  <details class="myth"><summary>JWT にすればログアウト処理が要らない</summary><p>クライアントから消しても、盗まれたコピーは期限まで有効。サーバー側でリフレッシュトークンを無効化する処理は必要。</p></details>
+  <details class="myth"><summary>HttpOnly Cookie なら XSS は怖くない</summary><p>トークンを盗まれないだけで、XSS が起きればそのページ上から本人として API を叩ける。XSS 対策そのものは必須。</p></details>
+
 
   <h2>関連メモ</h2>
   <p class="related"><a href="oauth-oidc.html">← OAuth 2.0 / OIDC のフロー</a></p>

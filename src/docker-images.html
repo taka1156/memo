@@ -17,14 +17,12 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
+  --c-key: #0f766e; /* 図の強調（このページの色と見分けやすい色） */
   --c-debian: #b5174f;
   --c-alpine: #1f6fb2;
   --c-ubuntu: #d4521f;
   --c-distroless: #4b6b4f;
   --c-scratch: #6b7280;
-  --c-ok: #1a7f37;
-  --c-ng: #c4342b;
-  --c-warn: #a86a00;
   --c-glibc: #7a3fb8;
   --c-musl: #0f8a8a;
   --c-cg: #5b46c9;
@@ -39,14 +37,12 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
+    --c-key: #2dd4bf; /* 図の強調（このページの色と見分けやすい色） */
     --c-debian: #f0628f;
     --c-alpine: #5aaaf0;
-    --c-ubuntu: #ff8a5c;
+    --c-ubuntu: #a3e635;
     --c-distroless: #8fc093;
     --c-scratch: #9aa3b2;
-    --c-ok: #4ccf6c;
-    --c-ng: #ff6b62;
-    --c-warn: #f0b542;
     --c-glibc: #b98cf0;
     --c-musl: #4fd6d6;
     --c-cg: #9d8cff;
@@ -103,8 +99,6 @@ pre code { background: none; padding: 0; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -127,7 +121,7 @@ pre code { background: none; padding: 0; }
 .seg span { display: block; font-family: 'Noto Sans JP', sans-serif; font-size: 0.7rem; color: var(--fg-2); }
 .seg.sep { background: none; padding: 8px 0; min-width: 0; font-size: 1.05rem; font-weight: 700; color: var(--fg-2); }
 .s1 { background: var(--chip); }
-.s2 { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.s2 { background: color-mix(in srgb, var(--fg-2) 14%, transparent); }
 .s3 { background: color-mix(in srgb, var(--c-debian) 14%, transparent); }
 .s4 { background: color-mix(in srgb, var(--c-ok) 14%, transparent); }
 .examples { margin-top: 12px; display: grid; gap: 4px; font-size: 0.82rem; }
@@ -180,7 +174,7 @@ pre code { background: none; padding: 0; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .img { display: flex; flex-direction: column; gap: 8px; transition: opacity .2s, border-color .2s; }
 .img.dim { opacity: 0.3; }
-.img.hit { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.img.hit { border-color: var(--line); box-shadow: 0 0 0 1px var(--line); }
 .img header { display: flex; gap: 10px; align-items: center; }
 .img h3 { margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; }
 .img header p { margin: 0; font-size: 0.72rem; color: var(--fg-2); }
@@ -191,7 +185,7 @@ pre code { background: none; padding: 0; }
 .pill.nolibc { border: 1px dashed var(--c-scratch); background: none; }
 .size { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; font-size: 0.72rem; color: var(--fg-2); }
 .bar { height: 6px; background: var(--chip); border-radius: 3px; overflow: hidden; }
-.bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.bar i { display: block; height: 100%; background: var(--c-key); border-radius: 3px; }
 .pc { list-style: none; font-size: 0.8rem; display: grid; gap: 2px; }
 .pc li { padding-left: 1.4em; position: relative; }
 .pc li::before { position: absolute; left: 0; font-weight: 700; }
@@ -235,10 +229,6 @@ table.mx td.n { color: var(--c-ok); font-weight: 700; }
 .abi .sub { fill: var(--fg-2); }
 
 /* 誤解 */
-.myth { display: grid; gap: 10px; }
-.myth .card p:first-child { font-weight: 700; }
-.myth .card p:first-child::before { content: "✕ "; color: var(--c-ng); }
-.myth .card p + p::before { content: "→ "; color: var(--c-ok); font-weight: 700; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -269,8 +259,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <ul>
       <li><code>bookworm</code> や <code>trixie</code> は <b>Debian のバージョン名</b>、<code>slim</code> は <b>中身を削った版</b>、<code>alpine</code> は <b>別ディストロ</b>。軸が違う。</li>
       <li>一番効く違いは <b>C ライブラリ (libc)</b>。Debian / Ubuntu / distroless は <b>glibc</b>、Alpine は <b>musl</b>。glibc 前提でビルドされたバイナリ（workerd など）は Alpine で動かない。</li>
-      <li>Alpine は「小さい → pull が速い」だけで、<b>実行が速いわけではない</b>。迷ったら <code>*-slim</code>（Debian・glibc）が無難。</li>
-      <li>本番の「まっさら」枠は <b>distroless / Chainguard / Docker Hardened Images / Chiseled Ubuntu / scratch</b>。シェルもパッケージ管理も無く、<b>ビルドは別ステージ</b>で行ってコピーする。</li>
+      <li>Alpine は「小さい → pull が速い」だけで、<b>実行が速いわけではない</b>。迷ったら <code>*-slim</code>（Debian・glibc）が無難。本番の「まっさら」枠は <b>distroless / Chainguard / Docker Hardened Images / Chiseled Ubuntu / scratch</b>。シェルもパッケージ管理も無く、<b>ビルドは別ステージ</b>で行ってコピーする。</li>
     </ul>
   </div>
 
@@ -506,19 +495,19 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <text x="141" y="98" text-anchor="middle" font-size="12">gcc・make・npm・git・シェル</text>
       <rect x="36" y="114" width="210" height="26" rx="6" fill="var(--chip)"/>
       <text x="141" y="132" text-anchor="middle" font-size="12">devDependencies・キャッシュ</text>
-      <rect x="76" y="146" width="130" height="24" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
-      <text x="141" y="163" text-anchor="middle" font-size="12" font-weight="700" fill="var(--accent)">成果物</text>
+      <rect x="76" y="146" width="130" height="24" rx="6" fill="none" stroke="var(--c-key)" stroke-width="2"/>
+      <text x="141" y="163" text-anchor="middle" font-size="12" font-weight="700" fill="var(--c-key)">成果物</text>
 
-      <path d="M210 158 C 300 158, 330 120, 404 120" fill="none" stroke="var(--accent)" stroke-width="2" marker-end="url(#ar)"/>
-      <text x="320" y="110" text-anchor="middle" class="mono" font-size="12" fill="var(--accent)">COPY --from=build</text>
+      <path d="M210 158 C 300 158, 330 120, 404 120" fill="none" stroke="var(--c-key)" stroke-width="2" marker-end="url(#ar)"/>
+      <text x="320" y="110" text-anchor="middle" class="mono" font-size="12" fill="var(--c-key)">COPY --from=build</text>
       <text x="320" y="176" text-anchor="middle" class="sub" font-size="11">それ以外は捨てる</text>
-      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="var(--accent)"/></marker></defs>
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="var(--c-key)"/></marker></defs>
 
       <rect x="408" y="50" width="216" height="110" rx="12" fill="none" stroke="var(--c-distroless)" stroke-width="2"/>
       <text x="516" y="76" text-anchor="middle" font-weight="700">ランタイムステージ</text>
       <text x="516" y="96" text-anchor="middle" class="mono sub" font-size="11">distroless / chainguard</text>
-      <rect x="451" y="108" width="130" height="24" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
-      <text x="516" y="125" text-anchor="middle" font-size="12" font-weight="700" fill="var(--accent)">成果物</text>
+      <rect x="451" y="108" width="130" height="24" rx="6" fill="none" stroke="var(--c-key)" stroke-width="2"/>
+      <text x="516" y="125" text-anchor="middle" font-size="12" font-weight="700" fill="var(--c-key)">成果物</text>
       <text x="516" y="150" text-anchor="middle" class="sub" font-size="11">＋ libc・証明書だけ</text>
     </svg>
   </div>
@@ -548,7 +537,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <div class="panel card abi" id="t-abi">
     <p><b>API</b> は「ソースコードで呼べる関数の約束」、<b>ABI (Application Binary Interface)</b> は「<b>コンパイル済みバイナリ同士</b>の約束」。関数のシンボル名、引数の渡し方、構造体のレイアウト、どのローダーで起動するか、まで含む。</p>
     <svg viewBox="0 0 640 300" role="img" aria-label="アプリ、libc、カーネルの層とそれぞれの境界にあるAPIとABI">
-      <rect x="20" y="16" width="600" height="56" rx="10" fill="none" stroke="var(--accent)" stroke-width="2"/>
+      <rect x="20" y="16" width="600" height="56" rx="10" fill="none" stroke="var(--c-key)" stroke-width="2"/>
       <text x="320" y="40" text-anchor="middle" font-weight="700">あなたのアプリ（コンパイル済みバイナリ）</text>
       <text x="320" y="60" text-anchor="middle" class="sub" font-size="12">printf() や getaddrinfo() を呼ぶ</text>
 
@@ -666,14 +655,13 @@ CMD ["node", "server.js"]
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="myth">
-    <div class="card"><p>Alpine は軽いから実行も速い</p><p>速いのは pull と起動前の転送だけ。実行時は malloc やソースビルドの影響でむしろ遅いことがある。</p></div>
-    <div class="card"><p>slim と alpine は同じようなもの</p><p>slim は「Debian（glibc）のダイエット版」、alpine は「別の OS（musl）」。互換性がまったく違う。</p></div>
-    <div class="card"><p><code>node:24</code> と書けば中身はずっと同じ</p><p>OS 部分を省略すると Debian の世代交代（bookworm → trixie）で glibc ごと変わる。本番では <code>-trixie-slim</code> まで書いて固定する。</p></div>
-    <div class="card"><p>distroless = OS が入っていない</p><p>Debian 由来の glibc・証明書・tzdata は入っている。無いのはシェルとパッケージ管理。完全に空なのは scratch。</p></div>
-    <div class="card"><p>まっさらイメージなら脆弱性ゼロで放置できる</p><p>中身が少ないので件数は激減するが、libc や OpenSSL の更新は来る。定期的に再ビルドして取り込む前提。</p></div>
-    <div class="card"><p>Alpine はカーネルが違うから動かない</p><p>カーネルはホストのものを共有。動かない原因は libc（ABI）とローダーの違い。</p></div>
-  </div>
+  <details class="myth"><summary>Alpine は軽いから実行も速い</summary><p>速いのは pull と起動前の転送だけ。実行時は malloc やソースビルドの影響でむしろ遅いことがある。</p></details>
+  <details class="myth"><summary>slim と alpine は同じようなもの</summary><p>slim は「Debian（glibc）のダイエット版」、alpine は「別の OS（musl）」。互換性がまったく違う。</p></details>
+  <details class="myth"><summary><code>node:24</code> と書けば中身はずっと同じ</summary><p>OS 部分を省略すると Debian の世代交代（bookworm → trixie）で glibc ごと変わる。本番では <code>-trixie-slim</code> まで書いて固定する。</p></details>
+  <details class="myth"><summary>distroless = OS が入っていない</summary><p>Debian 由来の glibc・証明書・tzdata は入っている。無いのはシェルとパッケージ管理。完全に空なのは scratch。</p></details>
+  <details class="myth"><summary>まっさらイメージなら脆弱性ゼロで放置できる</summary><p>中身が少ないので件数は激減するが、libc や OpenSSL の更新は来る。定期的に再ビルドして取り込む前提。</p></details>
+  <details class="myth"><summary>Alpine はカーネルが違うから動かない</summary><p>カーネルはホストのものを共有。動かない原因は libc（ABI）とローダーの違い。</p></details>
+
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

@@ -17,13 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #1a7f37;
-  --c-ng: #cf222e;
-  --c-warn: #9a6700;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #0077b6;
   --c-b: #8250df;
   --c-c: #1a7f37;
-  --c-d: #bc4c00;
+  --c-d: #be185d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -34,9 +32,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #3fb950;
-    --c-ng: #f85149;
-    --c-warn: #d29922;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #00d4ff;
     --c-b: #bc8cff;
     --c-c: #3fb950;
@@ -97,8 +93,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .note {
   font-size: 0.85rem;
   color: var(--fg-2);
@@ -118,12 +112,12 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .diagram { margin: 8px 0; }
 .diagram svg { width: 100%; height: auto; display: block; }
 .d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.d-box.hl { stroke: var(--accent); stroke-width: 2; }
+.d-box.hl { stroke: var(--c-key); stroke-width: 2; }
 .d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
 .d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
-.d-label { fill: var(--accent); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
-.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
-.d-head { fill: var(--accent); }
+.d-label { fill: var(--fg); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-arrow { stroke: var(--fg-2); stroke-width: 1.8; fill: none; }
+.d-head { fill: var(--fg); }
 .d-ng { stroke: var(--c-ng); stroke-width: 1.8; fill: none; stroke-dasharray: 5 4; }
 .d-ng-head { fill: var(--c-ng); }
 
@@ -136,7 +130,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 10px 12px;
 }
-.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.85rem; }
+.step b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); font-size: 0.85rem; }
 .step p { font-size: 0.82rem; color: var(--fg-2); margin: 2px 0 0; }
 .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
 .flow span {
@@ -146,7 +140,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
   padding: 3px 10px;
   font-size: 0.82rem;
 }
-.flow i { font-style: normal; color: var(--accent); font-weight: 700; }
+.flow i { font-style: normal; color: var(--fg); font-weight: 700; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -170,14 +164,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .tbl td:first-child { font-weight: 700; }
 @media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
 
-
 /* よくある誤解 */
-.myth { margin-bottom: 10px; }
-.myth summary { cursor: pointer; font-weight: 700; list-style: none; }
-.myth summary::-webkit-details-marker { display: none; }
-.myth summary::before { content: '✕ '; color: var(--c-ng); }
-.myth p { color: var(--fg-2); font-size: 0.88rem; margin-top: 6px; }
-.myth p::before { content: '→ '; color: var(--c-ok); font-weight: 700; }
 
 /* OK / NG コード比較 */
 .vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
@@ -214,7 +201,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .spectrum .card { padding: 10px 12px; }
 .spectrum .card b { font-size: 0.88rem; }
 .spectrum .card p { font-size: 0.8rem; color: var(--fg-2); margin: 4px 0 0; }
-.strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); letter-spacing: .1em; }
+.strength { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); letter-spacing: .1em; }
 .badge {
   display: inline-block;
   font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace;
@@ -239,12 +226,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .lane b { display: block; color: var(--fg-2); font-size: 0.72rem; margin-bottom: 4px; }
 .lane div.on { color: var(--accent); font-weight: 700; }
 .mem { text-align: center; font: 700 0.95rem 'JetBrains Mono', ui-monospace, monospace; }
-.mem span { color: var(--accent); font-size: 1.3rem; }
+.mem span { color: var(--fg); font-size: 1.3rem; }
 .mem.bad span { color: var(--c-ng); }
 .actor-fig { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
 .mailbox { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
 .mailbox span { background: var(--chip); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; font: 600 0.72rem 'JetBrains Mono', ui-monospace, monospace; }
-.mailbox span.now { border-color: var(--accent); color: var(--accent); }
+.mailbox span.now { border-color: var(--c-key); color: var(--c-key); }
 </style>
 </head>
 <body>
@@ -390,9 +377,10 @@ result := &lt;-ch                      <span class="cm">// チャネルで受け
   </table></div>
 
   <h2 id="myths">よくある誤解</h2>
-  <details class="myth card"><summary>JS はシングルスレッドだから競合状態は起きない</summary><p>同じ行の途中で割り込まれることはないが、<code>await</code> をまたいだ「読んで → 書く」は他のタスクに割り込まれる。</p></details>
-  <details class="myth card"><summary>async にすれば処理が速くなる</summary><p>速くなるのは待ち時間を重ねられるときだけ。計算そのものは速くならず、重い計算はむしろ全体を止める。</p></details>
-  <details class="myth card"><summary>アクターならどれだけ負荷をかけても大丈夫</summary><p>1 アクターは 1 度に 1 件。1 つに集中すると列が伸びて遅くなる。単位を細かく分けるのが前提。</p></details>
+  <details class="myth"><summary>JS はシングルスレッドだから競合状態は起きない</summary><p>同じ行の途中で割り込まれることはないが、<code>await</code> をまたいだ「読んで → 書く」は他のタスクに割り込まれる。</p></details>
+  <details class="myth"><summary>async にすれば処理が速くなる</summary><p>速くなるのは待ち時間を重ねられるときだけ。計算そのものは速くならず、重い計算はむしろ全体を止める。</p></details>
+  <details class="myth"><summary>アクターならどれだけ負荷をかけても大丈夫</summary><p>1 アクターは 1 度に 1 件。1 つに集中すると列が伸びて遅くなる。単位を細かく分けるのが前提。</p></details>
+
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

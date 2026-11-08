@@ -17,10 +17,9 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-redis: #c8372d;
   --c-valkey: #2f6fdb;
-  --c-ok: #2e8b57;
-  --c-warn: #c27c0e;
   --c-redis-bg: #fbecea;
   --c-valkey-bg: #e9f0fc;
 }
@@ -33,10 +32,9 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-redis: #ff7b6e;
     --c-valkey: #7aa7ff;
-    --c-ok: #5fd39a;
-    --c-warn: #f2b24c;
     --c-redis-bg: #2a1614;
     --c-valkey-bg: #141f33;
   }
@@ -92,8 +90,6 @@ pre code { background: none; padding: 0; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .r { color: var(--c-redis); font-weight: 700; }
 .v { color: var(--c-valkey); font-weight: 700; }
 
@@ -117,14 +113,14 @@ pre code { background: none; padding: 0; }
 .fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .fig .sub { fill: var(--fg-2); font-size: 11px; }
 .fig .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.fig .box-acc { fill: var(--chip); stroke: var(--accent); stroke-width: 1.5; }
+.fig .box-acc { fill: var(--chip); stroke: var(--c-key); stroke-width: 1.5; }
 .fig .box-ok { fill: var(--surface); stroke: var(--c-ok); stroke-width: 1.5; }
 .fig .box-warn { fill: var(--surface); stroke: var(--c-warn); stroke-width: 1.5; }
 .fig .arrow { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
-.fig .arrow-acc { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig .arrow-acc { stroke: var(--c-key); stroke-width: 2; fill: none; }
 .fig .dash { stroke-dasharray: 4 4; }
 .fig .ah { fill: var(--fg-2); }
-.fig .ah-acc { fill: var(--accent); }
+.fig .ah-acc { fill: var(--c-key); }
 .scroll-x { overflow-x: auto; }
 
 /* イベントループ */
@@ -141,7 +137,7 @@ pre code { background: none; padding: 0; }
   transition: opacity .3s, transform .3s;
 }
 .cmd .who { color: var(--fg-2); }
-.cmd.running { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 2px var(--accent) inset; }
+.cmd.running { border-color: var(--line); background: var(--surface); box-shadow: 0 0 0 2px var(--line) inset; }
 .cmd.done { opacity: .45; }
 .store { font: 500 0.78rem 'JetBrains Mono', ui-monospace, monospace; }
 .store div { padding: 4px 8px; border-bottom: 1px dashed var(--line); }
@@ -163,7 +159,7 @@ pre code { background: none; padding: 0; }
 .type {
   background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
 }
-.type h3 { margin: 0 0 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); font-size: 0.9rem; }
+.type h3 { margin: 0 0 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); font-size: 0.9rem; }
 .type .shape { font: 500 0.75rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); border-radius: 6px; padding: 6px 8px; margin: 6px 0; white-space: pre; overflow-x: auto; }
 .type .use { font-size: 0.82rem; color: var(--fg-2); }
 
@@ -176,7 +172,7 @@ pre code { background: none; padding: 0; }
 .slotbar { display: flex; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); position: relative; margin: 12px 0 4px; }
 .slotbar div { flex: 1; display: flex; align-items: center; justify-content: center; font: 600 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); background: var(--chip); border-right: 1px solid var(--line); transition: background .2s, color .2s; }
 .slotbar div:last-child { border-right: none; }
-.slotbar div.hit { background: var(--accent); color: var(--bg); }
+.slotbar div.hit { background: var(--chip); color: var(--fg); }
 .slotscale { display: flex; justify-content: space-between; font: 500 0.68rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
 .result { font: 500 0.85rem 'JetBrains Mono', ui-monospace, monospace; margin-top: 8px; }
 
@@ -533,22 +529,11 @@ HSET user:1 plan pro     ← 書き込みのたびに追記</code></pre>
 
   <!-- ================= 誤解 ================= -->
   <h2 id="myths">よくある誤解</h2>
-  <details>
-    <summary>「シングルスレッドだから CPU を 1 コアしか使えない」</summary>
-    <p>コマンドの<strong>実行</strong>は 1 スレッドですが、I/O スレッド・永続化の子プロセス・裏での解放処理などで他のコアも使います。それでも 1 プロセスの実行は 1 本なので、さらに伸ばすなら Cluster で複数プロセスに分けます。</p>
-  </details>
-  <details>
-    <summary>「MULTI / EXEC はロールバックできるトランザクション」</summary>
-    <p>まとめて順番に実行され、間に他のコマンドが割り込まないことは保証されますが、途中のコマンドが失敗しても<strong>前のコマンドは取り消されません</strong>。条件付き更新には <code>WATCH</code>（楽観ロック）か Lua スクリプト / Function を使います。</p>
-  </details>
-  <details>
-    <summary>「Valkey は Redis の互換品だから中身は別物」</summary>
-    <p>逆で、Valkey は Redis 7.2.4 のソースコードそのものから始まっています。違いが出てくるのはフォーク後に各自が加えた部分だけです。</p>
-  </details>
-  <details>
-    <summary>「本番で KEYS * を使って調べればいい」</summary>
-    <p>全キーを一度に走査するのでメインスレッドが長時間ふさがり、その間ほかのクライアントは全員待たされます。少しずつ返す <code>SCAN</code> を使います。</p>
-  </details>
+  <details class="myth"><summary>シングルスレッドだから CPU を 1 コアしか使えない</summary><p>コマンドの<strong>実行</strong>は 1 スレッドですが、I/O スレッド・永続化の子プロセス・裏での解放処理などで他のコアも使います。それでも 1 プロセスの実行は 1 本なので、さらに伸ばすなら Cluster で複数プロセスに分けます。</p></details>
+  <details class="myth"><summary>MULTI / EXEC はロールバックできるトランザクション</summary><p>まとめて順番に実行され、間に他のコマンドが割り込まないことは保証されますが、途中のコマンドが失敗しても<strong>前のコマンドは取り消されません</strong>。条件付き更新には <code>WATCH</code>（楽観ロック）か Lua スクリプト / Function を使います。</p></details>
+  <details class="myth"><summary>Valkey は Redis の互換品だから中身は別物</summary><p>逆で、Valkey は Redis 7.2.4 のソースコードそのものから始まっています。違いが出てくるのはフォーク後に各自が加えた部分だけです。</p></details>
+  <details class="myth"><summary>本番で KEYS * を使って調べればいい</summary><p>全キーを一度に走査するのでメインスレッドが長時間ふさがり、その間ほかのクライアントは全員待たされます。少しずつ返す <code>SCAN</code> を使います。</p></details>
+
 
   <h2 id="commands">コマンド例</h2>
   <pre><code># 動かしてみる（どちらも 6379 番で起動し、同じ CLI 操作ができる）

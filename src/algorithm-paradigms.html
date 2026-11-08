@@ -17,12 +17,10 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-a: #c2410c;
+  --c-a: #be185d;
   --c-b: #15803d;
   --c-c: #7c3aed;
-  --c-d: #b45309;
+  --c-d: #4d7c0f;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -33,9 +31,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-a: #fb923c;
+    --c-a: #f472b6;
     --c-b: #4ade80;
     --c-c: #c4b5fd;
     --c-d: #fbbf24;
@@ -97,14 +93,12 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .label {
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -126,8 +120,6 @@ th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowr
 td:first-child { font-weight: 700; white-space: nowrap; }
 .ok { color: var(--c-ok); font-weight: 700; }
 .ng { color: var(--c-ng); font-weight: 700; }
-.myth { margin-bottom: 10px; }
-.myth p { margin: 4px 0; }
 .related a { display: inline-block; margin: 4px 10px 4px 0; }
 input[type="range"] { width: 100%; accent-color: var(--accent); }
 footer#memo-backlink {
@@ -151,12 +143,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
 /* このページ固有 */
 .series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
 .series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
-.series span { background: var(--accent); color: var(--bg); font-weight: 700; }
+.series span { background: var(--chip); color: var(--fg); font-weight: 700; }
 .o { font: 700 0.78rem 'JetBrains Mono', monospace; white-space: nowrap; }
 .flow { display: grid; gap: 8px; }
 .step { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
 .step .qq { font-size: 0.88rem; }
-.step .go { font: 700 0.78rem 'JetBrains Mono', monospace; color: var(--accent); white-space: nowrap; }
+.step .go { font: 700 0.78rem 'JetBrains Mono', monospace; color: var(--fg); white-space: nowrap; }
 .step .go a { text-decoration: none; }
 .arrow { text-align: center; color: var(--fg-2); font-size: 0.75rem; line-height: 1; }
 @media (max-width: 480px) { .step { grid-template-columns: 1fr; } }
@@ -348,9 +340,9 @@ print(ok)                         <span class="cm"># 可になる最小の W。O
   </ul>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><p><span class="ng">✗</span> 再帰で書けば分割統治法</p><p><span class="ok">✓</span> 再帰は書き方で、分割統治は「重ならない部分に分けて合わせる」という設計。動的計画法も再帰（メモ化）で書けるし、マージソートはループでも書ける。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> 貪欲法は近似なので、正しい答えは出ない</p><p><span class="ok">✓</span> 最適になることを示せる問題（区間スケジューリング、ダイクストラ法、クラスカル法）では正確な答えが出る。示せないのに使うと、反例で間違う。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> 二分探索はソート済み配列専用</p><p><span class="ok">✓</span> 「条件が一方向に切り替わる」ものなら何でもよい。答えの値、時刻、コミットの並びなど。</p></div>
+  <details class="myth"><summary>再帰で書けば分割統治法</summary><p>再帰は書き方で、分割統治は「重ならない部分に分けて合わせる」という設計。動的計画法も再帰（メモ化）で書けるし、マージソートはループでも書ける。</p></details>
+  <details class="myth"><summary>貪欲法は近似なので、正しい答えは出ない</summary><p>最適になることを示せる問題（区間スケジューリング、ダイクストラ法、クラスカル法）では正確な答えが出る。示せないのに使うと、反例で間違う。</p></details>
+  <details class="myth"><summary>二分探索はソート済み配列専用</summary><p>「条件が一方向に切り替わる」ものなら何でもよい。答えの値、時刻、コミットの並びなど。</p></details>
 
   <p class="related">関連: <a href="data-structures.html">データ構造と計算量</a><a href="dynamic-programming.html">動的計画法</a><a href="graph-algorithms.html">グラフ探索と最短経路</a><a href="crypto-basics.html">暗号の基礎</a><a href="git-internals.html">Git の内部構造</a></p>
 

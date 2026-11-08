@@ -17,8 +17,9 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-anc: #c2410c;
-  --c-anc-bg: #fff1e6;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
+  --c-anc: #0369a1;
+  --c-anc-bg: #e0f2fe;
   --c-desc: #2b8a3e;
   --c-desc-bg: #e9f7ec;
   --c-edge: #aab3c0;
@@ -33,8 +34,9 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-anc: #ff9f43;
-    --c-anc-bg: #2a1a0c;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
+    --c-anc: #7dd3fc;
+    --c-anc-bg: #0c1f2e;
     --c-desc: #51cf66;
     --c-desc-bg: #0f2416;
     --c-edge: #3a4d63;
@@ -79,8 +81,6 @@ code {
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .note { color: var(--fg-2); font-size: 0.82rem; }
 
 /* タブ */
@@ -137,7 +137,7 @@ code {
 #tree .node rect.box { fill: var(--surface); stroke: var(--fg-2); stroke-width: 1.2; }
 #tree .node text.name { font: 700 11px 'JetBrains Mono', monospace; fill: var(--fg); }
 #tree .node text.badge { font: 700 10px 'Noto Sans JP', sans-serif; text-anchor: end; }
-#tree .node.sel rect.box { fill: var(--accent); stroke: var(--accent); }
+#tree .node.sel rect.box { fill: var(--c-key); stroke: var(--c-key); }
 #tree .node.sel text.name { fill: var(--bg); }
 #tree .node.anc rect.box { fill: var(--c-anc-bg); stroke: var(--c-anc); stroke-width: 2; }
 #tree .node.anc text.badge { fill: var(--c-anc); }
@@ -152,7 +152,7 @@ code {
 /* 詳細パネル */
 #info { margin-top: 14px; }
 #info .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-#info .head .nm { font: 700 1.15rem 'JetBrains Mono', monospace; color: var(--accent); }
+#info .head .nm { font: 700 1.15rem 'JetBrains Mono', monospace; color: var(--fg); }
 #info .head .yr { font: 500 0.85rem 'JetBrains Mono', monospace; color: var(--fg-2); }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
 @media (max-width: 600px) { .cols { grid-template-columns: 1fr; } }
@@ -188,10 +188,6 @@ td.lang { font: 700 0.85rem 'JetBrains Mono', monospace; white-space: nowrap; }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 @media (max-width: 700px) { .grid3 { grid-template-columns: 1fr; } }
 .grid3 .card p { font-size: 0.86rem; }
-.myth { margin-bottom: 10px; }
-.myth .q { font-weight: 700; }
-.myth .q::before { content: '✕ '; color: var(--c-anc); }
-.myth .a::before { content: '→ '; color: var(--c-desc); font-weight: 700; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -222,13 +218,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <ul>
       <li>言語の系譜は 1 本の木ではなく、複数の親を持つ<strong>網目状（DAG）</strong>。Rust の親は 10 言語近くある。</li>
       <li>関係には<strong>派生</strong>（方言・後継）、<strong>影響</strong>（アイデアの借用）、<strong>実装</strong>（その言語で処理系を書いた）の 3 種類がある。</li>
-      <li>Rust は「見た目は C 系、中身は ML 系」。OCaml は Rust の思想上の親であり、Rust・Flow・ReScript の処理系を書いた言語でもある。</li>
-      <li>alt JS は「JS の子（派生）」でも、親は別系統。TypeScript は C#、PureScript は Haskell、ReScript は OCaml の血を引く。</li>
+      <li>Rust は「見た目は C 系、中身は ML 系」。OCaml は Rust の思想上の親であり、Rust・Flow・ReScript の処理系を書いた言語でもある。alt JS は「JS の子（派生）」でも、親は別系統。TypeScript は C#、PureScript は Haskell、ReScript は OCaml の血を引く。</li>
     </ul>
   </div>
 
   <h2 id="genealogy">系譜図</h2>
-  <p class="note">上が古く、下が新しい。言語をクリックすると、その祖先（橙）と子孫（緑）が「親・祖父母・子・孫…」の世代つきで光る。世代は最短の経路で数える。</p>
+  <p class="note">上が古く、下が新しい。言語をクリックすると、その祖先（青）と子孫（緑）が「親・祖父母・子・孫…」の世代つきで光る。世代は最短の経路で数える。</p>
 
   <div class="controls">
     <label>言語
@@ -271,24 +266,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <div id="heritage-panels"></div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card">
-    <div class="myth">
-      <p class="q">Rust は C++ の子孫</p>
-      <p class="a">波括弧の構文やメモリモデルは C++ 寄りだが、型システム（enum・match・型推論）は ML 系。どちらか一方の子ではなく、両方の血を引く。</p>
-    </div>
-    <div class="myth">
-      <p class="q">OCaml で書かれていたから Rust は OCaml の子</p>
-      <p class="a">「実装」と「設計上の影響」は別。たまたま両方が当てはまるのが OCaml → Rust で、Rust は 2011 年に Rust 自身で書き直された（セルフホスト）。</p>
-    </div>
-    <div class="myth">
-      <p class="q">TypeScript は JavaScript の子だから、JavaScript で書かれている</p>
-      <p class="a">言語としては JS の上位互換（派生）だが、コンパイラは長く TypeScript 自身で書かれ、TypeScript 7.0（2026 年）で Go 製に置き換わった。親（派生元）と実装言語は一致しなくてよい。</p>
-    </div>
-    <div class="myth">
-      <p class="q">系譜は 1 本の家系図にまとまる</p>
-      <p class="a">実際は複数の親を持つ網目状。図の上の方では、ALGOL が C 系と ML 系の両方の祖先になっている。</p>
-    </div>
-  </div>
+  <details class="myth"><summary>Rust は C++ の子孫</summary><p>波括弧の構文やメモリモデルは C++ 寄りだが、型システム（enum・match・型推論）は ML 系。どちらか一方の子ではなく、両方の血を引く。</p></details>
+  <details class="myth"><summary>OCaml で書かれていたから Rust は OCaml の子</summary><p>「実装」と「設計上の影響」は別。たまたま両方が当てはまるのが OCaml → Rust で、Rust は 2011 年に Rust 自身で書き直された（セルフホスト）。</p></details>
+  <details class="myth"><summary>TypeScript は JavaScript の子だから、JavaScript で書かれている</summary><p>言語としては JS の上位互換（派生）だが、コンパイラは長く TypeScript 自身で書かれ、TypeScript 7.0（2026 年）で Go 製に置き換わった。親（派生元）と実装言語は一致しなくてよい。</p></details>
+  <details class="myth"><summary>系譜は 1 本の家系図にまとまる</summary><p>実際は複数の親を持つ網目状。図の上の方では、ALGOL が C 系と ML 系の両方の祖先になっている。</p></details>
+
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

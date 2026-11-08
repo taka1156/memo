@@ -17,11 +17,9 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-warn: #b45309;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #7c3aed;
-  --c-b: #c2410c;
+  --c-b: #be185d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -32,11 +30,9 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-warn: #fbbf24;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #c4b5fd;
-    --c-b: #fb923c;
+    --c-b: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -95,8 +91,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
@@ -105,7 +99,7 @@ pre .cm { color: var(--fg-2); }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .ok { color: var(--c-ok); font-weight: 700; }
@@ -139,25 +133,6 @@ pre .cm { color: var(--fg-2); }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* ステップ */
-ol.steps { list-style: none; counter-reset: st; }
-ol.steps > li {
-  counter-increment: st;
-  position: relative;
-  padding: 10px 12px 10px 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  margin-bottom: 8px;
-}
-ol.steps > li::before {
-  content: counter(st);
-  position: absolute; left: 12px; top: 10px;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: var(--accent); color: var(--bg);
-  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
-  text-align: center;
-}
-ol.steps b { display: block; }
 
 /* 表 */
 .table-wrap { overflow-x: auto; }
@@ -174,7 +149,7 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 .fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
 
 /* 誤解 */
-.myth { margin-bottom: 10px; }
+
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
@@ -205,17 +180,17 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .fig .c-commit { stroke: var(--c-a); }
 .fig .c-tree { stroke: var(--c-ok); }
 .fig .c-blob { stroke: var(--c-b); }
-.fig .c-ref { stroke: var(--accent); }
+.fig .c-ref { stroke: var(--fg-2); }
 .fig .t-commit { fill: var(--c-a); }
 .fig .t-tree { fill: var(--c-ok); }
 .fig .t-blob { fill: var(--c-b); }
-.fig .t-ref { fill: var(--accent); }
+.fig .t-ref { fill: var(--fg); }
 .fig .ah { fill: var(--fg-2); }
 .fig .dot { fill: var(--surface); stroke: var(--fg); stroke-width: 2; }
-.fig .dot.new { stroke: var(--accent); stroke-width: 3; }
+.fig .dot.new { stroke: var(--fg-2); stroke-width: 3; }
 .fig .dot.old { stroke: var(--fg-2); stroke-dasharray: 4 3; }
 .fig .edge.old { stroke-dasharray: 4 3; opacity: .6; }
-.fig .reflbl { fill: var(--accent); font-weight: 700; }
+.fig .reflbl { fill: var(--fg); font-weight: 700; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.8rem; margin-top: 8px; }
 .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; border: 2px solid currentColor; margin-right: 5px; vertical-align: -1px; }
 .areas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
@@ -277,7 +252,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <path class="edge" d="M350,236L388,56" marker-end="url(#ar)"/>
       <path class="edge" d="M350,252L388,258" marker-end="url(#ar)"/>
     </svg>
-    <div class="legend"><span style="color:var(--accent)">ref（ポインタ）</span><span style="color:var(--c-a)">commit</span><span style="color:var(--c-ok)">tree</span><span style="color:var(--c-b)">blob</span></div>
+    <div class="legend"><span style="color:var(--c-key)">ref（ポインタ）</span><span style="color:var(--c-a)">commit</span><span style="color:var(--c-ok)">tree</span><span style="color:var(--c-b)">blob</span></div>
     <p class="note">README は変更していないので、C1 と C2 の tree は<b>同じ blob を共有</b>している。毎回スナップショットでも容量が膨らまないのはこのため（さらに pack ファイルで差分圧縮される）。</p>
   </div>
 
@@ -402,9 +377,10 @@ git reset --hard ORIG_HEAD     <span class="cm"># 直前の rebase / merge / res
   <p class="note">どこからも参照されないコミットは、reflog の期限（既定で 30〜90 日）を過ぎたあと <code>git gc</code> で消える。<b>一度もコミットしていない変更は reflog にも無い</b>ので、reset --hard の前は <code>git stash</code> しておくと安全。</p>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><p><span class="ng">✕</span> コミットは前回からの差分を保存している</p><p><span class="ok">○</span> コミットは全体のスナップショット（tree）を指す。差分は表示のたびに2つの tree を比べて計算している。保存時の差分圧縮は pack ファイルの別の仕組み。</p></div>
-  <div class="card myth"><p><span class="ng">✕</span> ブランチを削除するとそのコミットも消える</p><p><span class="ok">○</span> 消えるのはポインタだけ。コミットは reflog から辿れるうちは復元できる。</p></div>
-  <div class="card myth"><p><span class="ng">✕</span> rebase はコミットを移動する</p><p><span class="ok">○</span> 同じ変更内容の<b>新しいコミットを作り直す</b>。元のコミットは残ったまま、ブランチが新しい方を指し直すだけ。</p></div>
+  <details class="myth"><summary>コミットは前回からの差分を保存している</summary><p>コミットは全体のスナップショット（tree）を指す。差分は表示のたびに2つの tree を比べて計算している。保存時の差分圧縮は pack ファイルの別の仕組み。</p></details>
+  <details class="myth"><summary>ブランチを削除するとそのコミットも消える</summary><p>消えるのはポインタだけ。コミットは reflog から辿れるうちは復元できる。</p></details>
+  <details class="myth"><summary>rebase はコミットを移動する</summary><p>同じ変更内容の<b>新しいコミットを作り直す</b>。元のコミットは残ったまま、ブランチが新しい方を指し直すだけ。</p></details>
+
 
   <h2 id="future">これからの変更（Git 3.0）</h2>
   <div class="card">

@@ -17,12 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-a: #c2410c;
+  --c-key: #0f766e; /* 図の強調（このページの色と見分けやすい色） */
+  --c-a: #be185d;
   --c-b: #15803d;
   --c-c: #7c3aed;
-  --c-d: #b45309;
+  --c-d: #4d7c0f;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -33,9 +32,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-a: #fb923c;
+    --c-key: #2dd4bf; /* 図の強調（このページの色と見分けやすい色） */
+    --c-a: #f472b6;
     --c-b: #4ade80;
     --c-c: #c4b5fd;
     --c-d: #fbbf24;
@@ -97,14 +95,12 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .label {
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -126,8 +122,6 @@ table.t th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-spa
 table.t td:first-child { font-weight: 700; }
 .ok { color: var(--c-ok); font-weight: 700; }
 .ng { color: var(--c-ng); font-weight: 700; }
-.myth { margin-bottom: 10px; }
-.myth p { margin: 4px 0; }
 .related a { display: inline-block; margin: 4px 10px 4px 0; }
 footer#memo-backlink {
   margin-top: 40px;
@@ -150,7 +144,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 /* このページ固有 */
 .series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
 .series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
-.series span { background: var(--accent); color: var(--bg); font-weight: 700; }
+.series span { background: var(--chip); color: var(--fg); font-weight: 700; }
 .o { font: 700 0.78rem 'JetBrains Mono', monospace; white-space: nowrap; }
 .btns { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
 .btn { border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 8px; padding: 5px 12px; font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace; cursor: pointer; }
@@ -163,7 +157,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .maze div.wall { background: var(--fg-2); }
 .maze div.seen { background: color-mix(in srgb, var(--c-c) 22%, var(--surface)); color: var(--fg); }
 .maze div.path { background: color-mix(in srgb, var(--c-b) 40%, var(--surface)); color: var(--fg); font-weight: 700; }
-.maze div.se { background: var(--accent); color: var(--bg); font-weight: 700; }
+.maze div.se { background: var(--chip); color: var(--fg); font-weight: 700; }
 @media (max-width: 420px) { .maze div { width: 30px; height: 30px; } }
 .stat { font: 500 0.8rem 'JetBrains Mono', monospace; background: var(--chip); border-radius: 8px; padding: 8px 10px; min-height: 2.4em; }
 svg.g { width: 100%; max-width: 520px; height: auto; display: block; margin: 6px auto; }
@@ -172,10 +166,10 @@ svg.g text.w { font-size: 11px; fill: var(--fg-2); }
 .dist { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; font: 600 0.75rem 'JetBrains Mono', monospace; text-align: center; margin-top: 6px; }
 .dist div { background: var(--chip); border-radius: 6px; padding: 4px 2px; border: 1px solid transparent; }
 .dist div.done { border-color: var(--c-b); }
-.dist div.cur { border-color: var(--accent); }
+.dist div.cur { border-color: var(--c-key); }
 .dist small { display: block; color: var(--fg-2); font-size: 0.66rem; }
 .queue { font: 500 0.78rem 'JetBrains Mono', monospace; margin-top: 6px; }
-.queue b { color: var(--accent); }
+.queue b { color: var(--fg); }
 </style>
 </head>
 <body>
@@ -336,9 +330,9 @@ while pq:
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><p><span class="ng">✗</span> DFS でも最短経路が求まる</p><p><span class="ok">✓</span> DFS は最初に見つけた道を返すだけで、遠回りのことがある。重みなしの最短経路は BFS。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> ダイクストラ法は負の重みがあっても使える</p><p><span class="ok">✓</span> 「一度確定した距離はもう縮まない」ことに頼っているので、負の辺があると誤った答えになりうる。ベルマン–フォード法を使う。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> 木と同じように、訪れた記録なしで探索してよい</p><p><span class="ok">✓</span> 木にはループがないが、一般のグラフにはある。記録なしだと同じ頂点を何度も訪れ、終わらないか指数的に遅くなる。</p></div>
+  <details class="myth"><summary>DFS でも最短経路が求まる</summary><p>DFS は最初に見つけた道を返すだけで、遠回りのことがある。重みなしの最短経路は BFS。</p></details>
+  <details class="myth"><summary>ダイクストラ法は負の重みがあっても使える</summary><p>「一度確定した距離はもう縮まない」ことに頼っているので、負の辺があると誤った答えになりうる。ベルマン–フォード法を使う。</p></details>
+  <details class="myth"><summary>木と同じように、訪れた記録なしで探索してよい</summary><p>木にはループがないが、一般のグラフにはある。記録なしだと同じ頂点を何度も訪れ、終わらないか指数的に遅くなる。</p></details>
 
   <p class="related">関連: <a href="algorithm-paradigms.html">設計手法の全体像</a><a href="dynamic-programming.html">動的計画法</a><a href="data-structures.html">データ構造と計算量</a><a href="tcp-ip.html">TCP/IP</a><a href="git-internals.html">Git の内部構造</a></p>
 
@@ -469,7 +463,7 @@ const mk = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag)
     });
     N.forEach((n, i) => {
       const done = st.removed.has(i), inq = st.q.includes(i);
-      const col = i === st.last ? 'var(--accent)' : done ? 'var(--c-b)' : inq ? 'var(--c-d)' : 'var(--line)';
+      const col = i === st.last ? 'var(--c-key)' : done ? 'var(--c-b)' : inq ? 'var(--c-d)' : 'var(--line)';
       mk('rect', { x: n.x - BW / 2, y: n.y - BH / 2, width: BW, height: BH, rx: 6, fill: done ? 'color-mix(in srgb, var(--c-b) 22%, var(--surface))' : 'var(--surface)', stroke: col, 'stroke-width': i === st.last ? 2.5 : 1.5 }, svg);
       const t = mk('text', { x: n.x, y: n.y }, svg); t.textContent = n.k;
       const d = mk('text', { x: n.x + BW / 2 - 2, y: n.y - BH / 2 - 7, class: 'w' }, svg); d.textContent = done ? '' : '入' + st.indeg[i];
@@ -524,7 +518,7 @@ const mk = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag)
     if (st.done.size === N.length) st.prev.forEach((p, v) => { if (p >= 0) tree.add(E.findIndex(([a, b]) => (a === p && b === v) || (a === v && b === p))); });
     E.forEach(([u, v, w], i) => {
       const a = N[u], b = N[v];
-      const col = tree.has(i) ? 'var(--c-b)' : st.hot.has(i) ? 'var(--accent)' : 'var(--line)';
+      const col = tree.has(i) ? 'var(--c-b)' : st.hot.has(i) ? 'var(--c-key)' : 'var(--line)';
       mk('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke: col, 'stroke-width': tree.has(i) || st.hot.has(i) ? 3 : 1.5 }, svg);
       const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
       mk('rect', { x: mx - 9, y: my - 9, width: 18, height: 18, rx: 4, fill: 'var(--surface)' }, svg);
@@ -532,7 +526,7 @@ const mk = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag)
     });
     N.forEach((n, i) => {
       const done = st.done.has(i);
-      mk('circle', { cx: n.x, cy: n.y, r: 17, fill: done ? 'color-mix(in srgb, var(--c-b) 25%, var(--surface))' : 'var(--chip)', stroke: i === st.cur ? 'var(--accent)' : done ? 'var(--c-b)' : 'var(--line)', 'stroke-width': i === st.cur ? 3 : 1.5 }, svg);
+      mk('circle', { cx: n.x, cy: n.y, r: 17, fill: done ? 'color-mix(in srgb, var(--c-b) 25%, var(--surface))' : 'var(--chip)', stroke: i === st.cur ? 'var(--c-key)' : done ? 'var(--c-b)' : 'var(--line)', 'stroke-width': i === st.cur ? 3 : 1.5 }, svg);
       const t = mk('text', { x: n.x, y: n.y }, svg); t.textContent = n.k;
     });
     const box = document.getElementById('d-dist');

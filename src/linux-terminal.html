@@ -18,9 +18,9 @@
   --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
   --chip: #eceff4;
   --c-user: #1f8a50;
-  --c-kernel: #c2410c;
+  --c-kernel: #be185d;
   --c-hw: #6b7280;
-  --c-sig: #b45309;
+  --c-sig: #4d7c0f;
   --c-dead: #9aa3b2;
 }
 @media (prefers-color-scheme: dark) {
@@ -33,7 +33,7 @@
     --accent: #00d4ff;
     --chip: #18222f;
     --c-user: #4ade80;
-    --c-kernel: #fb923c;
+    --c-kernel: #f472b6;
     --c-hw: #94a3b8;
     --c-sig: #fbbf24;
     --c-dead: #4b5869;
@@ -90,8 +90,6 @@ pre .cm { color: var(--fg-2); }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .table-wrap { overflow-x: auto; margin: 10px 0; }
@@ -138,14 +136,14 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .btn.on { border-color: var(--accent); color: var(--accent); }
 .ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
 .stepmsg {
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--line);
   background: var(--surface);
   border-radius: 0 8px 8px 0;
   padding: 10px 14px;
   min-height: 4.6em;
   font-size: 0.9rem;
 }
-.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); display: block; }
+.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); display: block; }
 
 a { color: var(--accent); }
 .series { display: flex; flex-wrap: wrap; gap: 6px; margin: -12px 0 24px; }
@@ -156,14 +154,10 @@ a { color: var(--accent); }
 .map a { text-decoration: none; color: var(--fg); display: block; }
 .map a:hover .card { border-color: var(--accent); }
 .map .card { height: 100%; }
-.map b { color: var(--accent); font-size: 0.95rem; }
+.map b { color: var(--fg); font-size: 0.95rem; }
 .map p { font-size: 0.8rem; color: var(--fg-2); }
 .map ul { margin: 6px 0 0 1.1em; font-size: 0.78rem; }
 /* 誤解 */
-details.myth { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
-details.myth summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
-details.myth summary::before { content: '✗ '; color: var(--c-sig); }
-details.myth p { font-size: 0.86rem; }
 
 @media (max-width: 640px) {
   .kgrid { grid-template-columns: 1fr; }
@@ -282,18 +276,11 @@ infocmp | head                   <span class="cm"># その種類で使えるシ�
   <p>同じ処理でも端末の種類によってシーケンスが違うことがあるので、プログラムは環境変数 <code>TERM</code> と terminfo データベースを見て出し分ける。表示が崩れたときに <code>reset</code> で戻るのは、端末の状態とラインディシプリンの設定を初期化し直すから。</p>
 
   <h2 id="misc">よくある誤解</h2>
-  <details class="myth"><summary>Ctrl+C はターミナルアプリがプロセスを止めている</summary>
-    <p>ターミナルは <code>0x03</code> という 1 バイトを書くだけ。それを SIGINT に変えて<b>フォアグラウンドのプロセスグループ全員</b>に送るのはカーネルのラインディシプリン。だから SSH 越しでも、どのターミナルアプリでも同じように効く。<code>stty intr ^X</code> にすれば Ctrl+X が割り込みキーになる。</p>
-  </details>
-  <details class="myth"><summary>Ctrl+D はプロセスを終わらせるシグナル</summary>
-    <p>シグナルではない。cat などカノニカルモードで読んでいるプログラムに対して行が空のときに押すと、ラインディシプリンが読み手の <code>read()</code> に 0 バイトを返し、プログラムが<b>入力の終わり (EOF)</b> と判断して自分で終わる。行の途中で押すと、それまでの文字をすぐ渡すだけ。</p>
-  </details>
-  <details class="myth"><summary>Ctrl+S を押したら端末が壊れて固まった</summary>
-    <p>壊れていない。Ctrl+S はラインディシプリンのフロー制御で<b>出力を一時停止</b>しただけで、裏ではプログラムが動いている（出力が詰まると書き込みで待たされる）。Ctrl+Q で再開する。不要なら <code>stty -ixon</code> で無効にできる。</p>
-  </details>
-  <details class="myth"><summary>シェルとターミナルは同じもの</summary>
-    <p>別のプログラム。ターミナル（エミュレータ）は文字を描くだけで、どのシェルが動いているかを知らない。同じターミナルで bash から zsh に切り替えたり、シェル以外のプログラム（<code>ssh</code> や <code>python</code>）を直接動かしたりできる。</p>
-  </details>
+  <details class="myth"><summary>Ctrl+C はターミナルアプリがプロセスを止めている</summary><p>ターミナルは <code>0x03</code> という 1 バイトを書くだけ。それを SIGINT に変えて<b>フォアグラウンドのプロセスグループ全員</b>に送るのはカーネルのラインディシプリン。だから SSH 越しでも、どのターミナルアプリでも同じように効く。<code>stty intr ^X</code> にすれば Ctrl+X が割り込みキーになる。</p></details>
+  <details class="myth"><summary>Ctrl+D はプロセスを終わらせるシグナル</summary><p>シグナルではない。cat などカノニカルモードで読んでいるプログラムに対して行が空のときに押すと、ラインディシプリンが読み手の <code>read()</code> に 0 バイトを返し、プログラムが<b>入力の終わり (EOF)</b> と判断して自分で終わる。行の途中で押すと、それまでの文字をすぐ渡すだけ。</p></details>
+  <details class="myth"><summary>Ctrl+S を押したら端末が壊れて固まった</summary><p>壊れていない。Ctrl+S はラインディシプリンのフロー制御で<b>出力を一時停止</b>しただけで、裏ではプログラムが動いている（出力が詰まると書き込みで待たされる）。Ctrl+Q で再開する。不要なら <code>stty -ixon</code> で無効にできる。</p></details>
+  <details class="myth"><summary>シェルとターミナルは同じもの</summary><p>別のプログラム。ターミナル（エミュレータ）は文字を描くだけで、どのシェルが動いているかを知らない。同じターミナルで bash から zsh に切り替えたり、シェル以外のプログラム（<code>ssh</code> や <code>python</code>）を直接動かしたりできる。</p></details>
+
 
   <h2 id="cmd">コマンド例</h2>
 <pre>tty                     <span class="cm"># 今つながっている端末 → /dev/pts/3</span>

@@ -17,11 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-warn: #b45309;
   --c-a: #7c3aed;
-  --c-b: #c2410c;
+  --c-b: #be185d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -32,11 +29,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-warn: #fbbf24;
     --c-a: #c4b5fd;
-    --c-b: #fb923c;
+    --c-b: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -95,8 +89,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
@@ -105,7 +97,7 @@ pre .cm { color: var(--fg-2); }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .ok { color: var(--c-ok); font-weight: 700; }
@@ -139,25 +131,6 @@ pre .cm { color: var(--fg-2); }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* ステップ */
-ol.steps { list-style: none; counter-reset: st; }
-ol.steps > li {
-  counter-increment: st;
-  position: relative;
-  padding: 10px 12px 10px 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  margin-bottom: 8px;
-}
-ol.steps > li::before {
-  content: counter(st);
-  position: absolute; left: 12px; top: 10px;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: var(--accent); color: var(--bg);
-  font: 700 0.75rem/22px 'JetBrains Mono', ui-monospace, monospace;
-  text-align: center;
-}
-ol.steps b { display: block; }
 
 /* 表 */
 .table-wrap { overflow-x: auto; }
@@ -174,7 +147,7 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 .fig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
 
 /* 誤解 */
-.myth { margin-bottom: 10px; }
+
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
@@ -203,11 +176,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
 /* このページ固有 */
 .fig .k { fill: var(--chip); stroke: var(--line); stroke-width: 1.5; }
-.fig .k.hit { stroke: var(--accent); stroke-width: 3; }
-.fig .path { stroke: var(--accent); stroke-width: 3; fill: none; }
+.fig .k.hit { stroke: var(--fg-2); stroke-width: 3; }
+.fig .path { stroke: var(--fg-2); stroke-width: 3; fill: none; }
 .fig .leafln { stroke: var(--fg-2); stroke-width: 1.2; stroke-dasharray: 3 3; fill: none; }
 .fig .ah { fill: var(--fg-2); }
-.fig .aha { fill: var(--accent); }
+.fig .aha { fill: var(--fg); }
 .checker .qs { display: grid; gap: 6px; }
 .checker label { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; background: var(--surface); }
 .checker label:has(input:checked) { border-color: var(--accent); outline: 1px solid var(--accent); }
@@ -408,8 +381,9 @@ COMMIT;</code></pre>
   </div>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><p><span class="ng">✕</span> WHERE に出てくる列全部にインデックスを張れば速くなる</p><p><span class="ok">○</span> 書き込みが遅くなり、プランナが使うのは通常1クエリにつき一部だけ。よく使う検索条件の組み合わせに合わせた複合インデックスを少数作る方が効く。</p></div>
-  <div class="card myth"><p><span class="ng">✕</span> トランザクションで囲めば同時実行の問題は全部防げる</p><p><span class="ok">○</span> 防げる範囲は分離レベル次第。既定の READ COMMITTED では、読んでから書き戻す処理の取りこぼしは防げない。</p></div>
+  <details class="myth"><summary>WHERE に出てくる列全部にインデックスを張れば速くなる</summary><p>書き込みが遅くなり、プランナが使うのは通常1クエリにつき一部だけ。よく使う検索条件の組み合わせに合わせた複合インデックスを少数作る方が効く。</p></details>
+  <details class="myth"><summary>トランザクションで囲めば同時実行の問題は全部防げる</summary><p>防げる範囲は分離レベル次第。既定の READ COMMITTED では、読んでから書き戻す処理の取りこぼしは防げない。</p></details>
+
 
   <h2>関連</h2>
   <p class="related"><a href="db-internals.html">DB のしくみ</a><a href="jwt-vs-session.html">JWT とセッション</a></p>

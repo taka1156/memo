@@ -17,12 +17,10 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-a: #c2410c;
+  --c-a: #be185d;
   --c-b: #15803d;
   --c-c: #7c3aed;
-  --c-d: #b45309;
+  --c-d: #4d7c0f;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -33,9 +31,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-a: #fb923c;
+    --c-a: #f472b6;
     --c-b: #4ade80;
     --c-c: #c4b5fd;
     --c-d: #fbbf24;
@@ -97,14 +93,12 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .label {
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -146,8 +140,6 @@ input[type="text"] {
 }
 .ok { color: var(--c-ok); font-weight: 700; }
 .ng { color: var(--c-ng); font-weight: 700; }
-.myth { margin-bottom: 10px; }
-.myth p { margin: 4px 0; }
 .related a { display: inline-block; margin: 4px 10px 4px 0; }
 footer#memo-backlink {
   margin-top: 40px;
@@ -187,15 +179,15 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .xl .ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
 .pt { width: 100%; min-width: 0; font: 500 0.76rem 'JetBrains Mono', monospace; }
 .pt td, .pt th { padding: 4px 8px; }
-.pt tr.hit td { background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.result { border-radius: 8px; padding: 10px 12px; font-size: 0.86rem; margin-top: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.pt tr.hit td { background: color-mix(in srgb, var(--fg-2) 14%, transparent); }
+.result { border-radius: 8px; padding: 10px 12px; font-size: 0.86rem; margin-top: 10px; background: color-mix(in srgb, var(--fg-2) 8%, var(--surface)); }
 .result.bad { background: color-mix(in srgb, var(--c-ng) 12%, var(--surface)); }
 .result.warn { background: color-mix(in srgb, var(--c-d) 14%, var(--surface)); }
 .result b.mono { font-family: 'JetBrains Mono', monospace; }
 .walk { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
 .walk .box { background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font: 600 0.78rem 'JetBrains Mono', monospace; }
 .walk .box small { display: block; font: 400 0.68rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
-.walk .box.tlb { border-color: var(--accent); }
+.walk .box.tlb { border-color: var(--line); }
 .walk .arr { color: var(--fg-2); font-weight: 700; }
 .faults { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
 .faults .card { margin: 0; }
@@ -336,9 +328,9 @@ perf stat -e page-faults,major-faults ./app
 cat /sys/kernel/mm/transparent_hugepage/enabled</code></pre>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><p><span class="ng">✗</span> top の VIRT が 20GB なので、このプロセスは 20GB 使っている</p><p><span class="ok">✓</span> VIRT は予約したアドレス空間。実際に物理メモリに載っているのは RES。JVM や Go、ブラウザは大きく予約するのが普通。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> malloc が NULL を返さなければ、そのメモリは確保できている</p><p><span class="ok">✓</span> Linux の既定では、物理メモリは触ったときに割り当てる。足りなければ、その時点で OOM killer に殺されうる。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> free の free 列が少ないのはメモリ不足</p><p><span class="ok">✓</span> 空きはページキャッシュに使われ、必要になれば手放される。見るのは available とスワップの出し入れ。</p></div>
+  <details class="myth"><summary>top の VIRT が 20GB なので、このプロセスは 20GB 使っている</summary><p>VIRT は予約したアドレス空間。実際に物理メモリに載っているのは RES。JVM や Go、ブラウザは大きく予約するのが普通。</p></details>
+  <details class="myth"><summary>malloc が NULL を返さなければ、そのメモリは確保できている</summary><p>Linux の既定では、物理メモリは触ったときに割り当てる。足りなければ、その時点で OOM killer に殺されうる。</p></details>
+  <details class="myth"><summary>free の free 列が少ないのはメモリ不足</summary><p>空きはページキャッシュに使われ、必要になれば手放される。見るのは available とスワップの出し入れ。</p></details>
 
   <p class="related">関連: <a href="memory-management.html">メモリ管理</a><a href="os-scheduling.html">OS のスケジューリング</a><a href="linux-process.html">Linux プロセスの仕組み</a><a href="docker.html">Docker 動作原理</a><a href="redis-valkey.html">Redis と Valkey</a></p>
 

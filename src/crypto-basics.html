@@ -17,12 +17,10 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-a: #c2410c;
+  --c-a: #be185d;
   --c-b: #15803d;
   --c-c: #7c3aed;
-  --c-d: #b45309;
+  --c-d: #4d7c0f;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -33,9 +31,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-a: #fb923c;
+    --c-a: #f472b6;
     --c-b: #4ade80;
     --c-c: #c4b5fd;
     --c-d: #fbbf24;
@@ -97,8 +93,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
@@ -107,7 +101,7 @@ pre code { background: none; padding: 0; word-break: normal; }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .big { font-size: 1.05rem; font-weight: 700; }
@@ -165,8 +159,6 @@ input[type="text"], textarea, input[type="number"] {
 }
 .ok { color: var(--c-ok); font-weight: 700; }
 .ng { color: var(--c-ng); font-weight: 700; }
-.myth { margin-bottom: 10px; }
-.myth p { margin: 4px 0; }
 
 svg.fig { width: 100%; height: auto; display: block; }
 svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); }
@@ -196,7 +188,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 /* このページ固有 */
 .prop { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 10px 0; }
 .prop div { background: var(--chip); border-radius: 8px; padding: 8px 10px; font-size: 0.82rem; }
-.prop b { display: block; color: var(--accent); font-size: 0.85rem; }
+.prop b { display: block; color: var(--fg); font-size: 0.85rem; }
 .hashdemo { display: grid; gap: 8px; }
 .hashdemo textarea { width: 100%; resize: vertical; min-height: 60px; }
 .digest { font: 500 0.78rem/1.6 'JetBrains Mono', monospace; word-break: break-all; background: var(--chip); border-radius: 8px; padding: 8px 10px; }
@@ -216,7 +208,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .seq .row { display: grid; grid-template-columns: 1fr; gap: 2px; border-left: 3px solid var(--line); padding: 4px 0 4px 10px; }
 .seq .row.c2s { border-color: var(--c-a); }
 .seq .row.s2c { border-color: var(--c-b); }
-.seq .row.both { border-color: var(--accent); }
+.seq .row.both { border-color: var(--line); }
 .seq .dir { font: 700 0.7rem 'JetBrains Mono', monospace; color: var(--fg-2); }
 .seq .msg { font: 700 0.85rem 'JetBrains Mono', monospace; }
 .seq .msg .enc { font-size: 0.68rem; color: var(--c-c); margin-left: 6px; }
@@ -368,10 +360,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <p class="related"><a href="jwt-vs-session.html">JWT とセッション</a><a href="passkeys.html">パスキー</a><a href="oauth-oidc.html">OAuth / OIDC</a><a href="web-protocols.html">HTTP と TLS・DNS</a><a href="git-internals.html">Git の内部構造</a></p>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><p><span class="ng">✗</span> JWT は暗号化されているので、中に個人情報を入れても安全</p><p><span class="ok">✓</span> 通常の JWT は署名されているだけで、中身は誰でも読める。改ざんは検出できるが、隠せはしない。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> パスワードは SHA-256 でハッシュ化すれば安全</p><p><span class="ok">✓</span> 速いハッシュは総当たりに弱い。Argon2id / bcrypt / scrypt を使う。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> HTTPS（鍵マークなど）で接続できるサイトは安全なサイト</p><p><span class="ok">✓</span> 保証されるのは「そのドメインと暗号化された通信をしている」ことだけ。フィッシングサイトも普通に証明書を取れる。Chrome はこの誤解を避けるため、117 から鍵アイコンの表示をやめている。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> 公開鍵暗号でデータ本体を暗号化している</p><p><span class="ok">✓</span> 本体は共通鍵暗号。公開鍵の仕組みは、その鍵を共有する（鍵交換）・相手を確かめる（署名）ために使う。</p></div>
+  <details class="myth"><summary>JWT は暗号化されているので、中に個人情報を入れても安全</summary><p>通常の JWT は署名されているだけで、中身は誰でも読める。改ざんは検出できるが、隠せはしない。</p></details>
+  <details class="myth"><summary>パスワードは SHA-256 でハッシュ化すれば安全</summary><p>速いハッシュは総当たりに弱い。Argon2id / bcrypt / scrypt を使う。</p></details>
+  <details class="myth"><summary>HTTPS（鍵マークなど）で接続できるサイトは安全なサイト</summary><p>保証されるのは「そのドメインと暗号化された通信をしている」ことだけ。フィッシングサイトも普通に証明書を取れる。Chrome はこの誤解を避けるため、117 から鍵アイコンの表示をやめている。</p></details>
+  <details class="myth"><summary>公開鍵暗号でデータ本体を暗号化している</summary><p>本体は共通鍵暗号。公開鍵の仕組みは、その鍵を共有する（鍵交換）・相手を確かめる（署名）ために使う。</p></details>
+
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

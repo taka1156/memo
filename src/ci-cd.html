@@ -17,12 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-a: #c2410c;
+  --c-key: #0f766e; /* 図の強調（このページの色と見分けやすい色） */
+  --c-a: #be185d;
   --c-b: #15803d;
   --c-c: #7c3aed;
-  --c-d: #b45309;
+  --c-d: #4d7c0f;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -33,9 +32,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-a: #fb923c;
+    --c-key: #2dd4bf; /* 図の強調（このページの色と見分けやすい色） */
+    --c-a: #f472b6;
     --c-b: #4ade80;
     --c-c: #c4b5fd;
     --c-d: #fbbf24;
@@ -97,8 +95,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
@@ -107,7 +103,7 @@ pre code { background: none; padding: 0; word-break: normal; }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .big { font-size: 1.05rem; font-weight: 700; }
@@ -165,8 +161,6 @@ input[type="text"], textarea, input[type="number"] {
 }
 .ok { color: var(--c-ok); font-weight: 700; }
 .ng { color: var(--c-ng); font-weight: 700; }
-.myth { margin-bottom: 10px; }
-.myth p { margin: 4px 0; }
 
 svg.fig { width: 100%; height: auto; display: block; }
 svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); }
@@ -206,10 +200,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .yaml pre { margin: 0; }
 .yl { cursor: pointer; border-radius: 4px; display: inline-block; width: 100%; }
 .yl:hover, .yl.on { background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.explain { margin-top: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; min-height: 3.4em; }
-.explain b { font-family: 'JetBrains Mono', monospace; color: var(--accent); }
+.explain { margin-top: 10px; background: color-mix(in srgb, var(--fg-2) 8%, var(--surface)); border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; min-height: 3.4em; }
+.explain b { font-family: 'JetBrains Mono', monospace; color: var(--fg); }
 .struct { display: grid; gap: 8px; }
-.struct .wf { border: 2px solid var(--accent); border-radius: 10px; padding: 10px; }
+.struct .wf { border: 2px solid var(--line); border-radius: 10px; padding: 10px; }
 .struct .jobs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 8px; }
 .struct .job { border: 1px dashed var(--c-a); border-radius: 8px; padding: 8px; }
 .struct .step { background: var(--chip); border-radius: 6px; padding: 3px 8px; margin-top: 4px; font: 500 0.75rem 'JetBrains Mono', monospace; }
@@ -251,7 +245,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <h2 id="structure">GitHub Actions の構造</h2>
   <div class="card struct">
     <div class="wf">
-      <span class="t" style="color:var(--accent)">workflow</span> <span class="muted">.github/workflows/ci.yml — <code>on:</code> のイベントで起動</span>
+      <span class="t" style="color:var(--c-key)">workflow</span> <span class="muted">.github/workflows/ci.yml — <code>on:</code> のイベントで起動</span>
       <div class="jobs">
         <div class="job"><span class="t" style="color:var(--c-a)">job: test</span> <span class="muted">runner A</span>
           <div class="step">uses: actions/checkout</div><div class="step">uses: actions/setup-node</div><div class="step">run: npm ci</div><div class="step">run: npm test</div>
@@ -327,9 +321,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <p class="related"><a href="github-services.html">GitHub サービス</a><a href="testing-strategy.html">テスト戦略</a><a href="docker-files.html">Dockerfile と Compose</a><a href="crypto-basics.html">暗号の基礎</a></p>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><p><span class="ng">✗</span> CI が緑ならデプロイしても安全</p><p><span class="ok">✓</span> テストが書かれている範囲で壊れていないだけ。段階的な展開と監視・ロールバックと組み合わせる。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> <code>actions/xxx@v5</code> のようにタグを書けば、中身は固定されている</p><p><span class="ok">✓</span> タグは後から別のコミットに付け替えられる。固定したいならコミット SHA を書く。推移的な依存まで固定できる workflow lockfile（<code>.github/workflows/actions.lock</code>。2026 年 10 月にプレビューを経て一般提供）も使える。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> Secrets に入れれば、ワークフローのどこからでも安全に使える</p><p><span class="ok">✓</span> そのステップで動くコード（依存パッケージや外部 Action も含む）からは読める。渡すジョブとステップを絞る。</p></div>
+  <details class="myth"><summary>CI が緑ならデプロイしても安全</summary><p>テストが書かれている範囲で壊れていないだけ。段階的な展開と監視・ロールバックと組み合わせる。</p></details>
+  <details class="myth"><summary><code>actions/xxx@v5</code> のようにタグを書けば、中身は固定されている</summary><p>タグは後から別のコミットに付け替えられる。固定したいならコミット SHA を書く。推移的な依存まで固定できる workflow lockfile（<code>.github/workflows/actions.lock</code>。2026 年 10 月にプレビューを経て一般提供）も使える。</p></details>
+  <details class="myth"><summary>Secrets に入れれば、ワークフローのどこからでも安全に使える</summary><p>そのステップで動くコード（依存パッケージや外部 Action も含む）からは読める。渡すジョブとステップを絞る。</p></details>
+
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

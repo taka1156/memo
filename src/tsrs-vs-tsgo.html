@@ -19,11 +19,10 @@
   --chip: #eceff4;
   --c-ts: #3178c6;
   --c-go: #007d9c;
-  --c-rs: #c2410c;
+  --c-rs: #be185d;
   --c-ts-bg: #e8f0fb;
   --c-go-bg: #e3f4f8;
   --c-rs-bg: #fdeee6;
-  --c-warn: #a16207;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -36,11 +35,10 @@
     --chip: #18222f;
     --c-ts: #6aa8f7;
     --c-go: #3fd0f0;
-    --c-rs: #ff8a5c;
+    --c-rs: #f472b6;
     --c-ts-bg: #132238;
     --c-go-bg: #0f2a33;
     --c-rs-bg: #2e1810;
-    --c-warn: #f5c451;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -91,8 +89,6 @@ pre {
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .note { color: var(--fg-2); font-size: 0.8rem; margin-top: 10px; }
 .go { color: var(--c-go); font-weight: 700; }
 .rs { color: var(--c-rs); font-weight: 700; }
@@ -154,13 +150,13 @@ pre {
   padding: 10px;
   position: relative;
 }
-.stage .t { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.stage .t { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); }
 .stage .d { font-size: 0.78rem; color: var(--fg-2); line-height: 1.5; margin-top: 2px; }
 .stage .par {
   display: inline-block; margin-top: 6px;
   font: 600 0.68rem 'JetBrains Mono', ui-monospace, monospace;
   padding: 1px 7px; border-radius: 999px;
-  border: 1px solid var(--accent); color: var(--accent);
+  border: 1px solid var(--line); color: var(--fg);
 }
 
 /* checker プール図 */
@@ -239,10 +235,6 @@ th.rs { color: var(--c-rs); }
 td:first-child { font-weight: 700; white-space: nowrap; }
 
 /* 誤解 */
-.myth { margin: 10px 0; }
-.myth .q { font-weight: 700; }
-.myth .q::before { content: "✕ "; color: var(--c-warn); font-family: 'JetBrains Mono', ui-monospace, monospace; }
-.myth .a { font-size: 0.88rem; color: var(--fg); margin-left: 1.3em; }
 
 /* 使い分け */
 .choose { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -442,13 +434,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <!-- ================================================= -->
   <h2 id="myths">よくある誤解</h2>
-  <div class="card">
-    <div class="myth"><div class="q">tsrs は TypeScript の fork（別言語）</div><div class="a">fork ではない。言語設計は TypeScript チームが握り、tsrs は upstream に追従する実装の 1 つ。</div></div>
-    <div class="myth"><div class="q">「8 倍速」は旧 tsc と比べた数字</div><div class="a">比較相手は <strong>TypeScript 7.0（tsgo）</strong>で、checker 数を揃えた条件。旧 tsc 比の「約 10 倍」は tsgo の話。</div></div>
-    <div class="myth"><div class="q">swc / esbuild / Biome の仲間</div><div class="a">swc / esbuild は型を剥がして変換するだけ、Biome はリンター・フォーマッターで、どれも tsc と同じ型チェックはしない。tsgo も tsrs も<strong>型チェックまでやる本物の tsc</strong>。</div></div>
-    <div class="myth"><div class="q">Wasm 版ならブラウザでも本番同等に動く</div><div class="a">Wasm 版はシングルスレッドで watch / LSP なし。ネイティブ版のベンチ数値は当てはまらない。</div></div>
-    <div class="myth"><div class="q">TS 7 にすれば typescript-eslint や Vue ツールもすぐ速くなる</div><div class="a">7.0 には安定したプログラム API が無く、API 依存のツールは 7.1 待ち。当面は <code>@typescript/typescript6</code>（<code>tsc6</code>）と併用する。</div></div>
-  </div>
+  <details class="myth"><summary>tsrs は TypeScript の fork（別言語）</summary><p>fork ではない。言語設計は TypeScript チームが握り、tsrs は upstream に追従する実装の 1 つ。</p></details>
+  <details class="myth"><summary>「8 倍速」は旧 tsc と比べた数字</summary><p>比較相手は <strong>TypeScript 7.0（tsgo）</strong>で、checker 数を揃えた条件。旧 tsc 比の「約 10 倍」は tsgo の話。</p></details>
+  <details class="myth"><summary>swc / esbuild / Biome の仲間</summary><p>swc / esbuild は型を剥がして変換するだけ、Biome はリンター・フォーマッターで、どれも tsc と同じ型チェックはしない。tsgo も tsrs も<strong>型チェックまでやる本物の tsc</strong>。</p></details>
+  <details class="myth"><summary>Wasm 版ならブラウザでも本番同等に動く</summary><p>Wasm 版はシングルスレッドで watch / LSP なし。ネイティブ版のベンチ数値は当てはまらない。</p></details>
+  <details class="myth"><summary>TS 7 にすれば typescript-eslint や Vue ツールもすぐ速くなる</summary><p>7.0 には安定したプログラム API が無く、API 依存のツールは 7.1 待ち。当面は <code>@typescript/typescript6</code>（<code>tsc6</code>）と併用する。</p></details>
+
 
   <!-- ================================================= -->
   <h2 id="choose">使い分けの目安</h2>

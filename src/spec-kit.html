@@ -18,7 +18,7 @@
   --accent: #0077b6;
   --chip: #eceff4;
   --c-core: #0077b6;
-  --c-gate: #c26a00;
+  --c-gate: #be185d;
   --c-opt: #7a5bc7;
   --c-human: #1f8a4c;
 }
@@ -32,7 +32,7 @@
     --accent: #00d4ff;
     --chip: #18222f;
     --c-core: #00d4ff;
-    --c-gate: #ffb454;
+    --c-gate: #f472b6;
     --c-opt: #b79cff;
     --c-human: #5fd38d;
   }
@@ -88,8 +88,6 @@ pre .cm { color: var(--fg-2); }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -169,7 +167,7 @@ pre .cm { color: var(--fg-2); }
 
 /* 役割（登場人物） */
 .actors { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
-.actor { border-top: 3px solid var(--accent); }
+.actor { border-top: 3px solid var(--line); }
 .actor.h { border-top-color: var(--c-human); }
 .actor.a { border-top-color: var(--c-core); }
 .actor.c { border-top-color: var(--c-opt); }
@@ -185,10 +183,6 @@ pre .cm { color: var(--fg-2); }
 .tbl-wrap { overflow-x: auto; }
 
 /* 誤解 */
-.myth { margin-bottom: 10px; }
-.myth .q { font-weight: 700; }
-.myth .q::before { content: '✕ '; color: var(--c-gate); }
-.myth .a::before { content: '→ '; color: var(--accent); font-weight: 700; }
 
 .cols2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .kv { font-size: 0.85rem; }
@@ -509,28 +503,12 @@ specify check</pre>
   <p class="note">オプションやコマンド名は更新が速いので、導入時は公式リポジトリ (github/spec-kit) の README を確認してください。</p>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card">
-    <div class="myth">
-      <p class="q">specify CLI がコードを生成する</p>
-      <p class="a">CLI は土台を配るだけ。文書化も実装も AI エージェント上のスラッシュコマンドで行う。</p>
-    </div>
-    <div class="myth">
-      <p class="q">spec.md に技術スタックも書く</p>
-      <p class="a">spec は「何を・なぜ」だけ。技術の話は plan で初めて出す。分けておくと技術を差し替えても仕様が残る。</p>
-    </div>
-    <div class="myth">
-      <p class="q">一度流せば完成、文書は使い捨て</p>
-      <p class="a">成果物が「唯一の正解」。変更は spec から直して下流に流し直すのが本来の使い方。</p>
-    </div>
-    <div class="myth">
-      <p class="q">全コマンドを毎回使わないといけない</p>
-      <p class="a">必須級は specify → plan → tasks → implement → converge。clarify / checklist / analyze は規模や重要度に応じて追加する。</p>
-    </div>
-    <div class="myth">
-      <p class="q">AI に任せればレビュー不要</p>
-      <p class="a">各工程の間に人間のレビューを挟む前提の設計。特に spec と plan の確認が品質を左右する。</p>
-    </div>
-  </div>
+  <details class="myth"><summary>specify CLI がコードを生成する</summary><p>CLI は土台を配るだけ。文書化も実装も AI エージェント上のスラッシュコマンドで行う。</p></details>
+  <details class="myth"><summary>spec.md に技術スタックも書く</summary><p>spec は「何を・なぜ」だけ。技術の話は plan で初めて出す。分けておくと技術を差し替えても仕様が残る。</p></details>
+  <details class="myth"><summary>一度流せば完成、文書は使い捨て</summary><p>成果物が「唯一の正解」。変更は spec から直して下流に流し直すのが本来の使い方。</p></details>
+  <details class="myth"><summary>全コマンドを毎回使わないといけない</summary><p>必須級は specify → plan → tasks → implement → converge。clarify / checklist / analyze は規模や重要度に応じて追加する。</p></details>
+  <details class="myth"><summary>AI に任せればレビュー不要</summary><p>各工程の間に人間のレビューを挟む前提の設計。特に spec と plan の確認が品質を左右する。</p></details>
+
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

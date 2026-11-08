@@ -17,12 +17,10 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-ok: #15803d;
-  --c-ng: #b91c1c;
-  --c-a: #c2410c;
+  --c-a: #be185d;
   --c-b: #15803d;
   --c-c: #7c3aed;
-  --c-d: #b45309;
+  --c-d: #4d7c0f;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -33,9 +31,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-ok: #4ade80;
-    --c-ng: #f87171;
-    --c-a: #fb923c;
+    --c-a: #f472b6;
     --c-b: #4ade80;
     --c-c: #c4b5fd;
     --c-d: #fbbf24;
@@ -97,8 +93,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 .muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
@@ -107,7 +101,7 @@ pre code { background: none; padding: 0; word-break: normal; }
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .big { font-size: 1.05rem; font-weight: 700; }
@@ -165,8 +159,6 @@ input[type="text"], textarea, input[type="number"] {
 }
 .ok { color: var(--c-ok); font-weight: 700; }
 .ng { color: var(--c-ng); font-weight: 700; }
-.myth { margin-bottom: 10px; }
-.myth p { margin: 4px 0; }
 
 svg.fig { width: 100%; height: auto; display: block; }
 svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--fg); }
@@ -216,12 +208,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .gcwrap .ctrl { display: flex; gap: 6px; flex-wrap: wrap; }
 #gc .node rect { fill: var(--surface); stroke: var(--line); stroke-width: 2; transition: all .25s; }
 #gc .node text { font: 700 13px 'JetBrains Mono', monospace; text-anchor: middle; }
-#gc .node.root rect { stroke: var(--accent); }
+#gc .node.root rect { stroke: var(--fg-2); }
 #gc .node.marked rect { stroke: var(--c-b); fill: color-mix(in srgb, var(--c-b) 18%, var(--surface)); }
 #gc .node.freed { opacity: .15; }
 #gc .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; marker-end: url(#arrow); transition: opacity .25s; }
 #gc .edge.freed { opacity: .1; }
-.gcmsg { font-size: 0.85rem; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border-radius: 8px; padding: 8px 12px; min-height: 3em; }
+.gcmsg { font-size: 0.85rem; background: color-mix(in srgb, var(--fg-2) 8%, var(--surface)); border-radius: 8px; padding: 8px 12px; min-height: 3em; }
 .gen { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
 .gen > div { border-radius: 8px; padding: 10px; font-size: 0.82rem; }
 .gen .young { background: color-mix(in srgb, var(--c-d) 16%, transparent); }
@@ -361,9 +353,10 @@ fn print_len(s: &amp;String) { println!("{}", s.len()); }</code></pre>
   </ol>
 
   <h2 id="myths">よくある誤解</h2>
-  <div class="card myth"><p><span class="ng">✗</span> GC のある言語ではメモリリークは起きない</p><p><span class="ok">✓</span> 不要な参照が残っていれば回収されない。リスナー・タイマー・キャッシュが典型的な原因。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> スタックが速いのは、速い種類のメモリだから</p><p><span class="ok">✓</span> どちらも同じ RAM。確保がポインタを動かすだけで済み、連続していてキャッシュに乗りやすいから速い。</p></div>
-  <div class="card myth"><p><span class="ng">✗</span> 変数に null を入れれば、その場でメモリが解放される</p><p><span class="ok">✓</span> 参照が 1 つ減るだけ。他に参照がなければ回収の対象になり、その後 GC が動いたときに回収される（いつになるかはランタイム次第）。</p></div>
+  <details class="myth"><summary>GC のある言語ではメモリリークは起きない</summary><p>不要な参照が残っていれば回収されない。リスナー・タイマー・キャッシュが典型的な原因。</p></details>
+  <details class="myth"><summary>スタックが速いのは、速い種類のメモリだから</summary><p>どちらも同じ RAM。確保がポインタを動かすだけで済み、連続していてキャッシュに乗りやすいから速い。</p></details>
+  <details class="myth"><summary>変数に null を入れれば、その場でメモリが解放される</summary><p>参照が 1 つ減るだけ。他に参照がなければ回収の対象になり、その後 GC が動いたときに回収される（いつになるかはランタイム次第）。</p></details>
+
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

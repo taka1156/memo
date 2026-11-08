@@ -17,6 +17,7 @@
   --line: #dde1e8;
   --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
   --chip: #eceff4;
+  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -27,6 +28,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
+    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -75,8 +77,6 @@ pre {
   border-radius: 10px;
   padding: 16px 18px;
 }
-.summary { border-left: 3px solid var(--accent); }
-.summary li { margin-left: 1.2em; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -110,9 +110,9 @@ footer#memo-backlink a {
 }
 footer#memo-backlink a:hover { color: var(--accent); }
 
-:root { --c-ok: #1f8a50; --c-warn: #b45309; --c-ng: #c0392b; --c-sub: #7c3aed; }
+:root { --c-sub: #7c3aed; }
 @media (prefers-color-scheme: dark) {
-  :root { --c-ok: #4ade80; --c-warn: #fbbf24; --c-ng: #f87171; --c-sub: #c4b5fd; }
+  :root { --c-sub: #c4b5fd; }
 }
 a { color: var(--accent); }
 h3 { font-size: 0.98rem; margin: 22px 0 8px; }
@@ -136,13 +136,13 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .btn.on { border-color: var(--accent); color: var(--accent); }
 .ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
 .stepmsg {
-  border-left: 3px solid var(--accent); background: var(--surface);
+  border-left: 3px solid var(--line); background: var(--surface);
   border-radius: 0 8px 8px 0; padding: 10px 14px; min-height: 4.6em; font-size: 0.9rem;
 }
-.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); display: block; }
+.stepmsg .n { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); display: block; }
 .anat { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
 .anat .card { padding: 10px 14px; }
-.anat b { font-size: 0.85rem; color: var(--accent); }
+.anat b { font-size: 0.85rem; color: var(--fg); }
 .anat p { font-size: 0.8rem; margin: 2px 0 0; color: var(--fg-2); }
 .panel { margin-top: 0; }
 .panel h4 { font-size: 0.9rem; margin: 10px 0 4px; }
@@ -151,10 +151,6 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .tag-ok { color: var(--c-ok); font-weight: 700; }
 .tag-ng { color: var(--c-ng); font-weight: 700; }
 .tag-warn { color: var(--c-warn); font-weight: 700; }
-details.myth { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
-details.myth summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
-details.myth summary::before { content: '✗ '; color: var(--c-ng); }
-details.myth p { font-size: 0.86rem; }
 .related { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .related a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font-size: 0.75rem; font-weight: 600; }
 .related a:hover { color: var(--accent); }
@@ -166,7 +162,7 @@ details.myth p { font-size: 0.86rem; }
 }
 .node b { display: block; font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; }
 .node span { color: var(--fg-2); }
-.node.hl { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.node.hl { border-color: var(--c-key); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-key) 18%, transparent); }
 .node.dim { opacity: .45; }
 .arrow { align-self: center; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
 @media (max-width: 640px) {
@@ -178,7 +174,7 @@ details.myth p { font-size: 0.86rem; }
 /* 3 段の図 */
 .three { display: grid; grid-template-columns: 1fr 24px 1.2fr 24px 1fr; gap: 6px; align-items: center; }
 .three .card { padding: 10px 12px; font-size: 0.78rem; }
-.three .card > b { display: block; font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); margin-bottom: 4px; }
+.three .card > b { display: block; font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); margin-bottom: 4px; }
 .three .arrow { text-align: center; }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.72rem; }
 .kv dt { color: var(--fg-2); }
@@ -192,7 +188,7 @@ details.myth p { font-size: 0.86rem; }
 .ent .sym { color: var(--c-sub); }
 .ent.broken { color: var(--c-ng); text-decoration: line-through; }
 .ino { border: 1.5px solid var(--line); border-radius: 6px; padding: 4px 8px; margin: 4px 0; font: 500 0.74rem 'JetBrains Mono', ui-monospace, monospace; animation: pop .25s ease-out; }
-.ino b { color: var(--accent); }
+.ino b { color: var(--fg); }
 .ino.free { border-style: dashed; opacity: .5; }
 @keyframes pop { from { transform: scale(.94); opacity: 0; } to { transform: none; opacity: 1; } }
 .term { font: 500 0.78rem 'JetBrains Mono', ui-monospace, monospace; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-top: 8px; min-height: 2.4em; white-space: pre-wrap; }
@@ -205,16 +201,16 @@ details.myth p { font-size: 0.86rem; }
 .special { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0; font-size: 0.8rem; }
 .special label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
 .permout { display: flex; flex-wrap: wrap; gap: 14px; align-items: baseline; margin: 8px 0; }
-.permout .big { font: 700 1.4rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); }
+.permout .big { font: 700 1.4rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); }
 .permout .sy { font: 700 1.1rem 'JetBrains Mono', ui-monospace, monospace; }
 .presets { display: flex; flex-wrap: wrap; gap: 6px; }
 /* 判定フロー */
 .decide { display: flex; flex-direction: column; gap: 6px; }
 .decide .card { padding: 8px 12px; font-size: 0.84rem; display: flex; gap: 10px; align-items: baseline; }
-.decide .q { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--accent); white-space: nowrap; }
+.decide .q { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); white-space: nowrap; }
 /* マウント */
 .mtree { font: 500 0.8rem/1.8 'JetBrains Mono', ui-monospace, monospace; white-space: pre; overflow-x: auto; }
-.mtree .m { color: var(--accent); font-weight: 700; }
+.mtree .m { color: var(--fg); font-weight: 700; }
 .mtree .c { color: var(--fg-2); }
 @media (max-width: 640px) {
   .three { grid-template-columns: 1fr; }
@@ -382,18 +378,11 @@ details.myth p { font-size: 0.86rem; }
   </ul>
 
   <h2 id="myth">よくある誤解</h2>
-  <details class="myth"><summary>読み取り専用（444）のファイルは消せない</summary>
-    <p>消すのはディレクトリの表から 1 行を取り除く操作なので、必要なのは親ディレクトリの w と x。ファイル自身の権限は関係ない。他人のファイルを消されたくない共有ディレクトリには sticky ビットを立てる。</p>
-  </details>
-  <details class="myth"><summary>大きなログを rm したのに、df の空き容量が増えない</summary>
-    <p>まだそのファイルを開いているプロセスがあると、名前が消えても inode とデータは残る（<code>du</code> には出ないが <code>df</code> には残る）。<code>lsof +L1</code> で見つけて、そのプロセスを再起動するか、ファイルを <code>: &gt; file</code> で空にしてから消す。</p>
-  </details>
-  <details class="myth"><summary>困ったら chmod 777 にすれば動く</summary>
-    <p>誰でも書き換えられるファイルは、他のユーザーや侵入したプロセスが中身を差し替えられる。たいていの原因は所有者の違いかパスの途中の x 不足なので、<code>namei -l</code> と <code>ls -l</code> で見て、所有者（<code>chown</code>）かグループで解決する。</p>
-  </details>
-  <details class="myth"><summary>ctime はファイルを作った日時</summary>
-    <p>ctime は inode を最後に変えた時刻（change）。<code>chmod</code> でも <code>mv</code> でも変わる。作成時刻が欲しいときは <code>stat</code> の Birth を見る（ファイルシステムが記録していれば出る）。</p>
-  </details>
+  <details class="myth"><summary>読み取り専用（444）のファイルは消せない</summary><p>消すのはディレクトリの表から 1 行を取り除く操作なので、必要なのは親ディレクトリの w と x。ファイル自身の権限は関係ない。他人のファイルを消されたくない共有ディレクトリには sticky ビットを立てる。</p></details>
+  <details class="myth"><summary>大きなログを rm したのに、df の空き容量が増えない</summary><p>まだそのファイルを開いているプロセスがあると、名前が消えても inode とデータは残る（<code>du</code> には出ないが <code>df</code> には残る）。<code>lsof +L1</code> で見つけて、そのプロセスを再起動するか、ファイルを <code>: &gt; file</code> で空にしてから消す。</p></details>
+  <details class="myth"><summary>困ったら chmod 777 にすれば動く</summary><p>誰でも書き換えられるファイルは、他のユーザーや侵入したプロセスが中身を差し替えられる。たいていの原因は所有者の違いかパスの途中の x 不足なので、<code>namei -l</code> と <code>ls -l</code> で見て、所有者（<code>chown</code>）かグループで解決する。</p></details>
+  <details class="myth"><summary>ctime はファイルを作った日時</summary><p>ctime は inode を最後に変えた時刻（change）。<code>chmod</code> でも <code>mv</code> でも変わる。作成時刻が欲しいときは <code>stat</code> の Birth を見る（ファイルシステムが記録していれば出る）。</p></details>
+
 
   <h2 id="cmd">コマンド例</h2>
 <pre>ls -li                        <span class="cm"># 先頭が inode 番号、権限の次がリンク数</span>
