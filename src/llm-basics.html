@@ -244,7 +244,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
 
   <h2 id="token">トークン — LLM が読み書きする単位</h2>
-  <p>文章は単語でも文字でもなく、よく出る文字列のかたまり（<b>トークン</b>）に分割され、それぞれが番号（ID）になる。料金・速度・上限はすべてトークン数で決まる。</p>
+  <p>文章は単語でも文字でもなく、よく出る文字列のかたまり（<b>トークン</b>）に分割され、それぞれが番号（ID）になる。料金・速度・上限は主にトークン数で決まる。</p>
   <div class="card">
     <span class="label">例示（実際の分け方はモデルごとに違う）</span>
     <div class="tok"><span>Token</span><span>ization</span><span> is</span><span> fun</span><span>!</span></div>
@@ -271,6 +271,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <li><b>低い temperature</b>: 一番確からしいものばかり選ぶ。抽出・分類・コード向き。</li>
     <li><b>高い temperature</b>: 意外な候補も選ぶ。アイデア出し向き。上げすぎると支離滅裂になる。</li>
     <li>temperature 0 でも、計算の並び順などの影響で<b>完全に同じ出力になる保証はない</b>。</li>
+    <li><b>注意</b>: これは仕組みの説明。最近のモデル（Claude の現行モデルや一部の推論モデルなど）は temperature・top-p を API で指定できず、送るとエラーになることもある。出力のばらつきを抑えたいときは、指示の書き方や構造化出力（JSON Schema の指定）を使う。</li>
   </ul>
 
   <h2 id="context">コンテキストウィンドウ — モデルが「見えている」すべて</h2>
@@ -422,10 +423,10 @@ compute(); draw();
     "ref": "#rag"
   },
   {
-    "q": "問い合わせメールから「注文番号・カテゴリ」を JSON で抜き出す処理。出力のばらつきを抑えたい。temperature はどうする？",
+    "q": "問い合わせメールから「注文番号・カテゴリ」を JSON で抜き出す処理。temperature を指定できるモデルで、出力のばらつきを抑えたい。temperature はどうする？",
     "choices": ["高めにして多様な候補から選ばせる", "低めにして確率の高いトークンを選ばせる", "temperature は出力形式に影響しないので気にしなくてよい"],
     "answer": 1,
-    "explain": "低い temperature は分布を尖らせ、最も確からしい選択に寄せる。抽出や分類のように正解が決まっているタスク向き。",
+    "explain": "低い temperature は分布を尖らせ、最も確からしい選択に寄せる。抽出や分類のように正解が決まっているタスク向き。temperature を指定できないモデルでは、構造化出力（JSON Schema の指定）でそろえる。",
     "ref": "#predict"
   },
   {
