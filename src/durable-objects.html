@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Durable Objects と celld</title>
+<meta name="description" content="名前で呼べる「状態を持つ 1 つの実体」Durable Objects の仕組み・ライフサイクル・設計と課金のツボ、自前のサーバーで同じコードを動かす celld の仕組みと違いを図解。">
+<meta name="memo:tags" content="インフラ, バックエンド, 設計">
+<meta name="memo:date" content="2026-11-13">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-cf: #0a6fb8;    /* Cloudflare 側 */
+  --c-self: #1a7f6e;  /* 自前のサーバー（celld）側 */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-cf: #58a6ff;
+    --c-self: #3ccfb4;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 20px 0 6px; }
+p { margin: 8px 0; }
+ul.plain { margin: 8px 0 8px 1.3em; }
+ul.plain li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.note { font-size: 0.85rem; color: var(--fg-2); }
+.cap { font-size: 0.8rem; color: var(--fg-2); margin-top: 6px; }
+
+/* 図 */
+.diagram { margin: 10px 0; }
+.diagram svg { width: 100%; height: auto; display: block; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-sub { fill: var(--chip); stroke: var(--line); stroke-width: 1; }
+.d-hl { fill: var(--surface); stroke: var(--c-hl); stroke-width: 2.2; }
+.d-cf { fill: var(--surface); stroke: var(--c-cf); stroke-width: 1.8; }
+.d-self { fill: var(--surface); stroke: var(--c-self); stroke-width: 1.8; }
+.d-t { fill: var(--fg); font: 500 13px 'Noto Sans JP', system-ui, sans-serif; }
+.d-s { fill: var(--fg-2); font: 400 11px 'Noto Sans JP', system-ui, sans-serif; }
+.d-m { fill: var(--fg); font: 700 12px 'JetBrains Mono', ui-monospace, monospace; }
+.d-arrow { stroke: var(--fg-2); stroke-width: 1.6; fill: none; }
+.d-ok { stroke: var(--c-ok); stroke-width: 1.8; fill: none; }
+.d-dash { stroke: var(--fg-2); stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.78rem; color: var(--fg-2); margin-top: 6px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 2px solid; vertical-align: -2px; margin-right: 4px; }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+.tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
+@media (min-width: 640px) { .tbl td:first-child { white-space: nowrap; } }
+.tag-cf { color: var(--c-cf); font-weight: 700; }
+.tag-self { color: var(--c-self); font-weight: 700; }
+
+/* 2 列 */
+.vs { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 10px 0; }
+@media (min-width: 640px) { .vs { grid-template-columns: 1fr 1fr; } }
+.vs > div { min-width: 0; }
+.vs h3 { margin-top: 0; }
+.ok-h { color: var(--c-ok); }
+.ng-h { color: var(--c-ng); }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Durable Objects と celld</h1>
+  <p class="subtitle">名前で呼べる「状態を持つ 1 つの実体」と、それを自前のサーバーで動かすしくみ</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>Durable Objects は、名前ごとに世界で 1 つだけ存在し、専用の SQLite を持つ Worker の一種。</li>
+      <li>1 オブジェクトは 1 スレッドで動き、使われないと休止してメモリを捨て、呼ばれると起き直す。</li>
+      <li>celld は同じコードを自前のサーバーとバケットで動かす OSS。配置・エッジ機能は自分で持つ。</li>
+    </ul>
+  </div>
+
+  <h2 id="why">なぜ必要か</h2>
+  <p>普通の Worker は <b>ステートレス</b> で、同じユーザーのリクエストでも世界中の別々の場所・別々のインスタンスで動きます。そのため「チャットルームの参加者一覧」「残り 3 席の座席」のように、<b>全員が同じ 1 つの状態を見て、順番に更新したいもの</b> を置く場所がありません。KV は書き込みが各地に届くまで時間がかかり、外部 DB に置くとロックや競合の扱いが必要になります。</p>
+  <p>Durable Object (DO) はその「1 か所」を作るしくみです。<code>room-42</code> という名前で呼べば、東京からでもロンドンからでも <b>同じ 1 つのオブジェクト</b> に届き、そのオブジェクトだけが自分の SQLite を読み書きします。</p>
+
+  <div class="diagram card" role="img" aria-label="東京・ロンドン・ニューヨークの Worker が、名前 room-42 で同じ 1 つの Durable Object に届く図。オブジェクトは JS のクラスとメモリ、専用の SQLite を持つ">
+    <svg viewBox="0 0 480 250" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color: var(--fg-2)"/></marker>
+      </defs>
+      <rect class="d-box" x="10" y="20" width="120" height="44" rx="8"/>
+      <text class="d-t" x="70" y="40" text-anchor="middle">Worker（東京）</text>
+      <text class="d-s" x="70" y="56" text-anchor="middle">ステートレス</text>
+      <rect class="d-box" x="10" y="103" width="120" height="44" rx="8"/>
+      <text class="d-t" x="70" y="123" text-anchor="middle">Worker（ロンドン）</text>
+      <text class="d-s" x="70" y="139" text-anchor="middle">ステートレス</text>
+      <rect class="d-box" x="10" y="186" width="120" height="44" rx="8"/>
+      <text class="d-t" x="70" y="206" text-anchor="middle">Worker（NY）</text>
+      <text class="d-s" x="70" y="222" text-anchor="middle">ステートレス</text>
+
+      <path class="d-arrow" d="M130,42 C200,42 210,110 268,118" marker-end="url(#ah)"/>
+      <path class="d-arrow" d="M130,125 L268,125" marker-end="url(#ah)"/>
+      <path class="d-arrow" d="M130,208 C200,208 210,140 268,132" marker-end="url(#ah)"/>
+      <text class="d-s" x="196" y="118" text-anchor="middle">getByName</text>
+      <text class="d-m" x="196" y="145" text-anchor="middle">"room-42"</text>
+
+      <rect class="d-hl" x="270" y="40" width="200" height="170" rx="10"/>
+      <text class="d-t" x="370" y="64" text-anchor="middle">Durable Object</text>
+      <text class="d-m" x="370" y="82" text-anchor="middle">room-42</text>
+      <rect class="d-sub" x="285" y="94" width="170" height="44" rx="6"/>
+      <text class="d-t" x="370" y="113" text-anchor="middle">JS クラス＋メモリ</text>
+      <text class="d-s" x="370" y="129" text-anchor="middle">1 スレッドで 1 件ずつ</text>
+      <rect class="d-sub" x="285" y="148" width="170" height="48" rx="6"/>
+      <text class="d-t" x="370" y="168" text-anchor="middle">専用の SQLite</text>
+      <text class="d-s" x="370" y="185" text-anchor="middle">他のオブジェクトからは見えない</text>
+    </svg>
+    <div class="legend"><span><i style="border-color: var(--c-hl)"></i>注目: 名前で決まる 1 つの実体</span></div>
+  </div>
+
+  <p class="note">アクターモデルとしての性質（1 件ずつ処理・入力ゲートと出力ゲート）は <a href="concurrency-models.html#durable-objects">並行処理のモデル</a>、KV・D1 との整合性の比較は <a href="distributed-basics.html#cloudflare">分散システムの基本</a> にまとめています。</p>
+
+  <h2 id="addressing">名前で呼ぶ：ID・stub・RPC</h2>
+  <p>DO は「クラス（種類）」と「インスタンス（1 つ 1 つ）」の 2 段です。Worker にはクラスごとの <b>名前空間 (namespace)</b> がバインディングとして渡され、そこから ID を作って <b>stub</b>（そのオブジェクトへの窓口）を得ます。インスタンスは最初に呼ばれたときに自動で作られるので、作成・削除の API を呼ぶ必要はありません。</p>
+
+  <div class="tbl-wrap">
+  <table class="tbl">
+    <tr><th>作り方</th><th>何が決まるか</th><th>向く場面</th></tr>
+    <tr><td><code>getByName("room-42")</code><br><code>idFromName()</code> → <code>get()</code></td><td>同じ名前なら必ず同じオブジェクト</td><td>部屋 ID・ユーザー ID・ドキュメント ID など、すでに名前があるもの</td></tr>
+    <tr><td><code>newUniqueId()</code></td><td>ランダムな ID。<code>toString()</code> を保存しておかないと二度と届かない</td><td>新しく作るセッションやジョブなど、名前を付ける必要がないもの</td></tr>
+  </table>
+  </div>
+
+  <pre><code>// src/index.ts
+import { DurableObject } from "cloudflare:workers";
+
+export class ChatRoom extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
+    // 起動のたびに走る。テーブルが無ければ作る
+    ctx.storage.sql.exec(
+      "CREATE TABLE IF NOT EXISTS msgs (id INTEGER PRIMARY KEY, body TEXT)");
+  }
+  async post(body) {                      // RPC メソッド
+    this.ctx.storage.sql.exec("INSERT INTO msgs (body) VALUES (?)", body);
+    return this.ctx.storage.sql.exec("SELECT count(*) AS n FROM msgs").one().n;
+  }
+}
+
+export default {
+  async fetch(req, env) {
+    const room = env.CHAT_ROOM.getByName("room-42");  // stub
+    const n = await room.post(await req.text());      // 別の場所で動くオブジェクトを呼ぶ
+    return new Response(`${n} 件目`);
+  },
+};</code></pre>
+  <pre><code>// wrangler.jsonc（抜粋）
+{
+  "durable_objects": {
+    "bindings": [{ "name": "CHAT_ROOM", "class_name": "ChatRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChatRoom"] }]
+}</code></pre>
+  <p class="note">stub のメソッドを呼ぶ形が <b>RPC</b>。HTTP で受けたいなら DO 側に <code>fetch()</code> を書き、<code>stub.fetch(req)</code> で渡す。新しいクラスは <code>migrations</code> の <code>new_sqlite_classes</code> で宣言する（SQLite を使う形）。</p>
+
+  <h2 id="lifecycle">ライフサイクル：起きる・休む・起き直す</h2>
+  <p>DO は常に動き続けるサーバーではありません。リクエストが来たら起き、しばらく何もなければ <b>休止 (hibernation)</b> してメモリを手放します。</p>
+  <ol class="steps">
+    <li><b>最初の呼び出し</b>オブジェクトが作られ、最初のリクエストに近いデータセンターに置かれる（ロケーションヒントで地域を指定することもできる）。<code>constructor</code> が走る。</li>
+    <li><b>処理中</b>リクエスト・RPC・WebSocket のメッセージ・アラームを 1 スレッドで順に処理する。メンバー変数をキャッシュとして使える。</li>
+    <li><b>アイドル</b>何もない状態が約 10 秒続くと休止する。タイマー・終わっていない I/O・標準 API の WebSocket があって休止できないときも、70〜140 秒ほどでメモリから追い出される。<b>どちらでもメモリ上の状態は消える</b>。デプロイなどで予告なく止まることもあるので、残したいものはその都度ストレージに書いておく。</li>
+    <li><b>また呼ばれる</b>同じ名前で呼ばれると起き直し、<code>constructor</code> がもう一度走る。ストレージの中身はそのまま残っている。</li>
+    <li><b>アラーム</b><code>ctx.storage.setAlarm(時刻)</code> で、誰からも呼ばれなくても決めた時刻に起こせる（<code>alarm()</code> ハンドラが呼ばれる）。1 オブジェクトに 1 つ。期限切れの掃除や定期集計に使う。</li>
+  </ol>
+
+  <h2 id="storage">ストレージ：オブジェクト専用の SQLite</h2>
+  <p>各オブジェクトは自分専用のストレージを持ち、<b>トランザクションがあり、強い整合性</b>（書いた直後の読み取りに必ず反映される）です。他のオブジェクトからは直接読めません。</p>
+  <ul class="plain">
+    <li><b>SQL API</b>: <code>ctx.storage.sql.exec(sql, ...params)</code>。テーブル・インデックス・JOIN が使える。いまの標準（新しいクラスはこちら）。</li>
+    <li><b>KV API</b>: <code>ctx.storage.get / put / delete / list</code>。SQLite を使うクラスでも同じメソッドが使える。</li>
+    <li><b>まとめて書く</b>: <code>ctx.storage.transactionSync(() =&gt; { ... })</code>。中で例外が出たら全部取り消し。</li>
+    <li><b>大きさ</b>: 有料プランで 1 オブジェクト 10 GB まで。それを超えそうなら、オブジェクトを分けるか D1 / R2 に逃がす。</li>
+  </ul>
+  <p>SQLite はオブジェクトと同じスレッド・同じマシンで動くので、<code>sql.exec()</code> は同期的に呼べて非常に速く、ネットワーク越しの DB のような往復の待ちがありません。書き込みの確定を待たずにコードが進んでも、<b>出力ゲート</b> が確定するまで応答を止めるので「保存できていないのに成功を返す」ことは起きません（詳しくは <a href="concurrency-models.html#gates">入力ゲートと出力ゲート</a>）。</p>
+
+  <h2 id="websocket">WebSocket は休止できる形で受ける</h2>
+  <p>チャットや共同編集では、DO が部屋の全員の WebSocket を持ち、届いたメッセージを他の全員に配ります。受け方は 2 通りあり、課金が大きく変わります。</p>
+  <div class="vs">
+    <div class="card">
+      <h3 class="ng-h">ws.accept()（標準 API）</h3>
+      <p>接続を開いている間、オブジェクトはずっと起きている。誰も話していなくても <b>接続中はずっと実行時間が課金される</b>。</p>
+    </div>
+    <div class="card">
+      <h3 class="ok-h">ctx.acceptWebSocket(ws)（Hibernation API）</h3>
+      <p>接続は Cloudflare 側が保ったまま、オブジェクトは休止できる。メッセージが来たら起きて <code>webSocketMessage()</code> が呼ばれる。<b>静かな時間は課金されない</b>。</p>
+    </div>
+  </div>
+  <pre><code>export class ChatRoom extends DurableObject {
+  async fetch(req) {
+    const [client, server] = Object.values(new WebSocketPair());
+    this.ctx.acceptWebSocket(server);              // 休止できる形で受ける
+    return new Response(null, { status: 101, webSocket: client });
+  }
+  async webSocketMessage(ws, msg) {                 // 起きるたびに呼ばれる
+    for (const peer of this.ctx.getWebSockets()) peer.send(msg);
+  }
+}</code></pre>
+  <p class="note">休止から起きるとメモリは空なので、接続ごとの情報（ユーザー名など）は <code>ws.serializeAttachment()</code> で接続に付けておく。通信方式の比較は <a href="realtime-comm.html#scale">リアルタイム通信</a>。</p>
+
+  <h2 id="design">設計：どう分けるか</h2>
+  <p>1 オブジェクトは 1 スレッドなので、処理できる量に上限があります（目安は 1 秒あたり 1,000 リクエストほどのソフトリミットで、超えると overloaded エラー）。速くしたいときは 1 つを強くするのではなく、<b>同時に触られる単位でオブジェクトを細かく分けます</b>。オブジェクトの数に上限はありません。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="d-good">良い分け方</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="d-bad">失敗しやすい分け方</button>
+  </div>
+  <div class="panel card" id="d-good">
+    <ul class="plain">
+      <li><b>チャットルーム 1 つ = 1 オブジェクト</b>: 部屋の中のメッセージ順と参加者一覧を 1 か所で決められる。</li>
+      <li><b>公演 1 つ（または座席ブロック 1 つ）= 1 オブジェクト</b>: 同じ席の二重予約を、ロックなしで防げる。</li>
+      <li><b>ドキュメント 1 つ = 1 オブジェクト</b>: 共同編集の操作をここで順番に並べ、全員に配る。</li>
+      <li><b>ユーザー 1 人 = 1 オブジェクト</b>: レート制限・AI エージェントの会話状態など、その人だけのもの。</li>
+    </ul>
+  </div>
+  <div class="panel card" id="d-bad" hidden>
+    <ul class="plain">
+      <li><b>全ユーザー共通のカウンターを 1 オブジェクトに</b>: 全リクエストが 1 本のスレッドに集まり、詰まる。必要なら分割して後で合計する。</li>
+      <li><b>オブジェクトをまたぐ集計を毎回する</b>: 「全部屋の発言数ランキング」を毎回全オブジェクトに聞きに行くと遅い。集計用の DB（D1 など）へ書き出しておく。</li>
+      <li><b>メモリだけに状態を持つ</b>: 休止や再起動で消える。正しさに関わる値は必ずストレージに書く。</li>
+      <li><b>外部 API の <code>await</code> をまたいで読み書き</b>: その間に別のリクエストが割り込める。前後で読み直すか、待ちの前に書き込みを済ませる。</li>
+    </ul>
+  </div>
+
+  <h3>いつ DO を選ぶか</h3>
+  <div class="tbl-wrap">
+  <table class="tbl">
+    <tr><th>やりたいこと</th><th>向くもの</th></tr>
+    <tr><td>部屋・在庫・座席など、同時更新を 1 か所で正しく</td><td>Durable Objects</td></tr>
+    <tr><td>WebSocket で多人数をつなぐ</td><td>Durable Objects（Hibernation API）</td></tr>
+    <tr><td>全データを横断して検索・集計する普通のテーブル</td><td>D1 や外部 DB（<a href="cloudflare-databases.html">D1 と Hyperdrive</a>）</td></tr>
+    <tr><td>読み込み中心の設定値・キャッシュ</td><td>KV</td></tr>
+    <tr><td>画像・ファイル</td><td>R2</td></tr>
+  </table>
+  </div>
+
+  <h2 id="pricing">課金のツボ</h2>
+  <p>料金は「リクエスト数」「実行時間 (duration)」「ストレージ（読んだ行・書いた行・保存量）」の組み合わせです。単価より、<b>何が課金対象になるか</b> を押さえておくと設計で困りません。</p>
+  <ul class="plain">
+    <li><b>実行時間は壁時計で数える</b>: CPU を使っていなくても、オブジェクトが起きていて休止できない間は課金される（メモリ 128 MB 分）。</li>
+    <li><b>休止できない原因を作らない</b>: <code>ws.accept()</code> した WebSocket、終わっていない <code>fetch</code> やタイマーはオブジェクトを起こしたままにする。</li>
+    <li><b>WebSocket の受信メッセージは割安</b>: 20 件で 1 リクエストとして数える。送信は数えない。</li>
+    <li><b>ストレージは行単位</b>: 読んだ行・書いた行で課金される。インデックスの無い全件スキャンは読んだ行が増える。</li>
+  </ul>
+  <p class="note">無料プランでも SQLite を使う DO は使える（無料枠を超えるとその種類の操作がエラーになる）。正確な単価と無料枠は Cloudflare の料金ページで確認する。</p>
+
+  <h2 id="celld">celld：同じコードを自前のサーバーで</h2>
+  <p><b>celld</b> は、Deno 社（Node.js・Deno の作者 Ryan Dahl）が 2026 年 8 月に公開したオープンソース (Apache-2.0) のデーモンです。Workers と Durable Objects のアプリを、<b>手持ちの <code>wrangler.json</code> のまま自分のマシンで動かします</b>。KV・Queues・D1・R2・Workflows・Cron Triggers・静的アセットにも対応します。2026 年 10 月時点の版は v0.6.3 で、ベータ版の扱いです。なお 2026 年 10 月、Deno のチームが Cloudflare に加わり、celld のコードと考え方を Workers のランタイム workerd に取り込んで、workerd を自前で動かせるようにしていく方針が発表されました。今後は workerd 側の動きもあわせて確認してください。</p>
+  <p>celld では 1 つのオブジェクトを <b>セル (cell)</b> と呼びます。KV の名前空間やキューはそれぞれ 1 つのセルで、Workflow はインスタンスごとに 1 つのセルとして動きます。D1 のデータベースもセルの中の SQLite として持たれ、どれも DO と同じしくみで複製・引き継ぎされます。</p>
+
+  <h3 id="celld-arch">しくみ：バケットが「誰の担当か」を決める</h3>
+  <div class="diagram card" role="img" aria-label="ロードバランサの後ろに celld ノード A・B・C が並ぶ。ノード A が room-42 の担当で、書き込みの記録を B と C に送り、あとでバケットに上げる。担当の記録 own.json はバケットにあり、条件付き書き込みで取り合う">
+    <svg viewBox="0 0 480 320" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color: var(--fg-2)"/></marker>
+        <marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color: var(--c-ok)"/></marker>
+      </defs>
+      <rect class="d-box" x="150" y="8" width="180" height="34" rx="8"/>
+      <text class="d-t" x="240" y="30" text-anchor="middle">ロードバランサ（TLS 終端）</text>
+      <path class="d-arrow" d="M200,42 L80,68" marker-end="url(#ah2)"/>
+      <path class="d-arrow" d="M240,42 L240,68" marker-end="url(#ah2)"/>
+      <path class="d-arrow" d="M280,42 L400,68" marker-end="url(#ah2)"/>
+
+      <rect class="d-self" x="10" y="70" width="140" height="90" rx="8"/>
+      <text class="d-t" x="80" y="90" text-anchor="middle">ノード A</text>
+      <rect class="d-hl" x="22" y="100" width="116" height="48" rx="6"/>
+      <text class="d-m" x="80" y="120" text-anchor="middle">room-42</text>
+      <text class="d-s" x="80" y="138" text-anchor="middle">担当（SQLite）</text>
+
+      <rect class="d-self" x="170" y="70" width="140" height="90" rx="8"/>
+      <text class="d-t" x="240" y="90" text-anchor="middle">ノード B</text>
+      <text class="d-s" x="240" y="116" text-anchor="middle">B に来た room-42 宛ては</text>
+      <text class="d-s" x="240" y="132" text-anchor="middle">A に転送</text>
+
+      <rect class="d-self" x="330" y="70" width="140" height="90" rx="8"/>
+      <text class="d-t" x="400" y="90" text-anchor="middle">ノード C</text>
+      <text class="d-s" x="400" y="116" text-anchor="middle">別のセルを担当</text>
+      <text class="d-s" x="400" y="132" text-anchor="middle">／空きなら予備</text>
+
+      <path class="d-ok" d="M100,160 L100,182 L400,182 L400,164" marker-end="url(#ah3)"/>
+      <path class="d-ok" d="M240,182 L240,164" marker-end="url(#ah3)"/>
+      <text class="d-s" x="262" y="200">① 他ノード 1〜2 台のディスクへ → 確定</text>
+
+      <path class="d-dash" d="M36,160 L36,250" marker-end="url(#ah2)"/>
+      <path class="d-arrow" d="M130,160 C130,215 230,215 262,250" marker-end="url(#ah2)"/>
+      <text class="d-s" x="274" y="245">② あとでアップロード</text>
+
+      <rect class="d-box" x="10" y="226" width="460" height="86" rx="10" style="fill: none"/>
+      <text class="d-s" x="462" y="306" text-anchor="end">バケット（S3 互換・GCS・Azure Blob）</text>
+      <rect class="d-sub" x="18" y="252" width="190" height="40" rx="6"/>
+      <text class="d-m" x="113" y="270" text-anchor="middle">…/room-42/own.json</text>
+      <text class="d-s" x="113" y="285" text-anchor="middle">担当と epoch（条件付きで取る）</text>
+      <rect class="d-sub" x="228" y="252" width="234" height="40" rx="6"/>
+      <text class="d-m" x="345" y="270" text-anchor="middle">…/room-42/ltx/…</text>
+      <text class="d-s" x="345" y="285" text-anchor="middle">DB の中身（長期の正本）</text>
+    </svg>
+    <div class="legend"><span><i style="border-color: var(--c-self)"></i>自前のサーバー（celld ノード）</span><span><i style="border-color: var(--c-hl)"></i>注目しているセル</span><span><i style="border-color: var(--c-ok)"></i>書き込みが確定する経路</span></div>
+  </div>
+  <ol class="steps">
+    <li><b>ノードとフリート</b>1 台のマシンで 1 つの <code>celld</code> プロセス（ノード）を動かす。同じバケットを共有するノードの集まりが <b>フリート (fleet)</b>。各ノードは V8 を内蔵する。<code>celld deploy</code> が Wrangler 形式のプロジェクトを esbuild でバンドルしてバケットに置き、各ノードがそれを読み込んで実行する。</li>
+    <li><b>担当を取る</b>セルごとの担当記録 <code>own.json</code> を、バケットの <b>条件付き書き込み</b>（「無ければ作る」「読んだときから変わっていなければ上書き」）で取り合う。成功するのは 1 ノードだけなので、<b>1 つのセルを同時に 2 台が担当することがない</b>。合意プロトコル（Raft など）や管理サーバーは要らない。</li>
+    <li><b>epoch で古い担当を締め出す</b>セルを起動するたびに（別ノードへの引き継ぎでも、同じノードで起き直すときでも）番号 (epoch) が進み、書き込み先のパスに入る。担当を失った古いノードがまだ書いても、もう使われない場所に書くだけになる（フェンシング）。</li>
+    <li class="is-ok"><b>書き込みを確定させる</b>SQLite への書き込みは LTX という形式で記録される。2 台以上のフリートでは他の 1〜2 台のディスクに届いた時点で確定し、バケットへはその後で上げる。<b>1 台だけだと毎回バケットへの書き込みを待つので、かなり遅い</b>。</li>
+    <li><b>引き継ぐ</b>ノードが止まったり、休止中のセルを別のノードが起こしたりすると、新しい担当がバケットから DB を復元して続きを動かす。ノードは使い捨てで、バケットが正本。</li>
+  </ol>
+  <p class="note">要は「バケットの条件付き書き込みが正しく動くこと」が全体の土台です。S3 互換ストレージの違いは <a href="s3-compatible.html">S3 互換ストレージの仕組み</a>。</p>
+
+  <h3 id="celld-diff">Cloudflare との違い</h3>
+  <div class="tbl-wrap">
+  <table class="tbl">
+    <tr><th></th><th><span class="tag-cf">Cloudflare DO</span></th><th><span class="tag-self">celld</span></th></tr>
+    <tr><td>どこで動くか</td><td>Cloudflare の世界中のデータセンター。最初の利用者の近くに自動で置く</td><td>自分のフリートのどれかのノード。配置・地域の指定（jurisdiction など）はない</td></tr>
+    <tr><td>運用</td><td>マシン・ルーティング・障害時の切り替えは Cloudflare が持つ</td><td>ノードの監視・再起動（systemd・Kubernetes など）、TLS 終端、内部ネットワークの保護は自分で持つ</td></tr>
+    <tr><td>保存先</td><td>Cloudflare 内部のストレージ</td><td>自分のバケット。条件付き書き込みに対応したもの（S3・R2・Tigris・GCS・Azure Blob）が必要</td></tr>
+    <tr><td>使えるサービス</td><td>Workers AI・Vectorize・Hyperdrive・Browser Rendering なども含む全部</td><td>Workers・DO・KV・Queues・D1・R2・Workflows・Cron など。ネットワークや GPU が要るものは対象外</td></tr>
+    <tr><td>Cache API</td><td>エッジの共有キャッシュ</td><td>共有キャッシュが無いので常にミス</td></tr>
+    <tr><td>WebSocket</td><td>休止しても接続は保たれる</td><td>同じノードでの休止は保たれるが、<b>セルが別ノードに移ると切れる</b>。クライアント側で再接続が必要</td></tr>
+    <tr><td>設定ファイル</td><td><code>wrangler.toml / .json / .jsonc</code></td><td><code>wrangler.json / .jsonc</code> のみ。<code>routes</code> など未対応のキーがあるとデプロイが止まる</td></tr>
+    <tr><td>コスト</td><td>リクエスト・実行時間・ストレージの従量課金</td><td>ノードのマシン代とバケット代。動いていないセルはバケットに置いてあるだけなので、ほぼかからない</td></tr>
+  </table>
+  </div>
+
+  <h3>試す</h3>
+  <pre><code># ローカルで 1 ノード（バケットなし。状態は .celld/dev に残る）
+celld dev
+
+# 本番: バケットにデプロイして、各マシンでノードを起動
+celld deploy . --bucket s3://my-cells-bucket
+celld --bucket s3://my-cells-bucket --listen 0.0.0.0:8080 \
+  --internal-listen 10.0.0.12:8081 --advertise 10.0.0.12:8081
+
+# バケットが条件付き書き込みに対応しているかを確かめる
+celld diagnose --bucket s3://my-cells-bucket</code></pre>
+  <p class="note">8080 はロードバランサ経由で公開し、8081（ノード同士の通信）はプライベートネットワークか WireGuard・Tailscale などの暗号化された経路だけに置く。ノード同士の通信は TLS なしの平文 HTTP。HMAC で確かめるのはトンネルの確立と制御リクエストだけで、トンネル内の通信には署名がなく、内部リスナーの運用 API にも認証のない経路がある。</p>
+
+  <h3>どちらを選ぶか</h3>
+  <ul class="plain">
+    <li><b>Cloudflare DO</b>: 運用を持ちたくない、世界中のユーザーの近くで動かしたい、Workers AI などのサービスも使いたい。</li>
+    <li><b>celld</b>: データを自分のクラウド・自分のバケットに置きたい、常時動くオブジェクトが多く従量課金が重い、Cloudflare 以外の場所でも同じコードを動かせるようにしておきたい。ただしベータ版で、ノードとネットワークの運用は自分の仕事になる。</li>
+  </ul>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>Durable Object はずっとメモリに載っている常駐サーバーだ</summary><p>使われていなければ十数秒で休止し（休止できなくても数分以内に追い出され）、メモリ上の値は消える。起き直すと <code>constructor</code> から作り直されるので、残したい値はストレージに書く。</p></details>
+  <details class="myth"><summary>Durable Objects を使えばどれだけアクセスが集中しても大丈夫</summary><p>1 オブジェクトは 1 スレッドなので、1 つに集中すると詰まる。部屋・ユーザー・ドキュメントなど、同時に触られる単位でオブジェクトを分ける。</p></details>
+  <details class="myth"><summary>WebSocket をつないでいれば、どちらの API で受けても料金は同じ</summary><p><code>ws.accept()</code> は接続中ずっとオブジェクトを起こしておくので、静かな時間も実行時間が課金される。<code>ctx.acceptWebSocket()</code>（Hibernation API）なら静かな間は休止できる。</p></details>
+  <details class="myth"><summary>celld なら Cloudflare と同じく世界中のエッジで動く</summary><p>celld が動くのは自分で用意したノードだけ。世界中に置くならその分のノードを用意し、配置や地域の制御もない。Cloudflare のネットワークが必要なサービス（Workers AI など）も使えない。</p></details>
+  <details class="myth"><summary>S3 互換ストレージならどれでも celld のバケットに使える</summary><p>担当の取り合いに条件付き書き込みを使うので、それを正しく実装したストレージが必要。対応していないものでは 2 台が同じセルを担当してしまう恐れがあり、<code>celld diagnose</code> で確かめる。</p></details>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Durable Object のメンバー変数に「今日のアクセス数」を持たせたら、ときどき 0 に戻る。主な原因は？",
+    "choices": ["別の Worker から同じ変数が上書きされている", "アイドルで休止して、メモリ上の値が消えた", "SQLite の容量上限に達した"],
+    "answer": 1,
+    "explain": "DO は使われないと休止し、起き直すと constructor から作り直される。失いたくない値はストレージに書く。",
+    "ref": "#lifecycle"
+  },
+  {
+    "q": "サイト全体のいいね数を 1 つの Durable Object で数えたところ、アクセスが増えると遅くなりエラーも出始めた。まず考える対策は？",
+    "choices": ["オブジェクトを分割して数え、合計は後でまとめる", "メモリの割り当てを増やす", "KV に切り替えて毎回書き込む"],
+    "answer": 0,
+    "explain": "1 オブジェクトは 1 スレッドなので処理量に上限がある。分割して並列にし、合計は集計用に別で持つ。KV は書き込みが各地に届くまで時間がかかり、カウンターには向かない。",
+    "ref": "#design"
+  },
+  {
+    "q": "夜はほとんど発言のないチャットルームを Durable Object で作る。実行時間の課金を抑えるには WebSocket をどう受ける？",
+    "choices": ["ws.accept() で受けて、静かな間は ping を止める", "接続ごとに別の Durable Object を作る", "ctx.acceptWebSocket() で受け、休止できるようにする"],
+    "answer": 2,
+    "explain": "Hibernation API なら接続を保ったままオブジェクトが休止でき、静かな時間は課金されない。ws.accept() だと接続中ずっと起きている。",
+    "ref": "#websocket"
+  },
+  {
+    "q": "celld で、同じセルを 2 台のノードが同時に担当しないようにしているしくみは？",
+    "choices": ["ノード同士で Raft による合意を取る", "バケットの条件付き書き込みで担当記録を取り合い、epoch で古い担当を締め出す", "ロードバランサがセルごとに固定のノードへ振り分ける"],
+    "answer": 1,
+    "explain": "own.json への条件付き書き込みは 1 ノードしか成功しない。セルを起動するたびに epoch が進むので、古いノードの書き込みは使われない場所に入る。",
+    "ref": "#celld-arch"
+  },
+  {
+    "q": "celld のフリートで、セルが別のノードに移った直後にクライアントの WebSocket が切れた。どう扱うのが正しい？",
+    "choices": ["celld の仕様なので、クライアント側で再接続する", "バケットの設定ミスなので diagnose で直す", "Hibernation API をやめれば切れなくなる"],
+    "answer": 0,
+    "explain": "celld では WebSocket の接続は別ノードへ移れないので、セルが移ると切れる。必要な情報はストレージに残し、クライアントが再接続する前提で作る。",
+    "ref": "#celld-diff"
+  }
+]
+</script>
+</body>
+</html>
