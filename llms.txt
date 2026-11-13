@@ -4,6 +4,7 @@
 
 ## Memos
 
+- [bubblewrap と socat](https://memo.taka1156.site/md/bubblewrap-socat.md): bwrap でコマンドを閉じ込め、socat とプロキシで許可した通信だけ通す仕組みを、AI エージェントでの使われ方とともに図解。（Linux, セキュリティ, AI / 2026-11-14）
 - [Durable Objects と celld](https://memo.taka1156.site/md/durable-objects.md): 名前で呼べる「状態を持つ 1 つの実体」Durable Objects の仕組み・ライフサイクル・設計と課金のツボ、自前のサーバーで同じコードを動かす celld の仕組みと違いを図解。（インフラ, バックエンド, 設計 / 2026-11-13）
 - [実装起因の脆弱性（リクエストと権限）](https://memo.taka1156.site/md/request-vulnerabilities.md): CSRF・セッションハイジャック・SSRF・オープンリダイレクト・認可不備（IDOR）を、攻撃の流れと NG/OK コードで図解。Cookie の自動送信・サーバーからの URL 取得・権限の確認漏れを突く攻撃の防ぎ方。（セキュリティ, バックエンド / 2026-11-08）
 - [仮想メモリとページング](https://memo.taka1156.site/md/virtual-memory.md): OS がプロセスごとに専用のメモリ空間を見せるしくみ。ページとページテーブルによるアドレス変換、TLB と huge page、ページフォルトの種類、オーバーコミットと OOM killer、fork の copy-on-write、mmap と共有、VIRT と RES の読み方までを図解。（CS基礎, Linux / 2026-11-07）

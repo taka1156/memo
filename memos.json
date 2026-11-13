@@ -1,5 +1,17 @@
 [
  {
+  "file": "bubblewrap-socat.html",
+  "title": "bubblewrap と socat",
+  "desc": "bwrap でコマンドを閉じ込め、socat とプロキシで許可した通信だけ通す仕組みを、AI エージェントでの使われ方とともに図解。",
+  "tags": [
+   "Linux",
+   "セキュリティ",
+   "AI"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 5
+ },
+ {
   "file": "durable-objects.html",
   "title": "Durable Objects と celld",
   "desc": "名前で呼べる「状態を持つ 1 つの実体」Durable Objects の仕組み・ライフサイクル・設計と課金のツボ、自前のサーバーで同じコードを動かす celld の仕組みと違いを図解。",
