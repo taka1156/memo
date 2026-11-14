@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PKI と証明書チェーン</title>
+<meta name="description" content="証明書が信頼されるしくみを、発行（CSR と ACME の HTTP-01・DNS-01・TLS-ALPN-01）、検証の手順、失効（CRL・OCSP の終わりと短命証明書）、Certificate Transparency、有効期限の短縮、社内 CA と mTLS まで図解する">
+<meta name="memo:tags" content="セキュリティ, ネットワーク">
+<meta name="memo:date" content="2026-11-14">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 20px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+ul.plain { padding-left: 1.2em; }
+ul.plain li { margin: 4px 0; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 登場人物 */
+.actors { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.actors .card { padding: 10px 12px; }
+.actors b { display: block; font-size: 0.88rem; }
+.actors .en { font: 600 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.actors p { font-size: 0.78rem; color: var(--fg-2); margin: 4px 0 0; }
+
+/* 証明書の中身 */
+.cert { font: 0.8rem/1.6 'JetBrains Mono', ui-monospace, monospace; display: grid; grid-template-columns: 9em 1fr; gap: 2px 10px; }
+.cert dt { color: var(--fg-2); }
+.cert dd { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .cert { grid-template-columns: 1fr; } .cert dd { margin-bottom: 6px; } }
+
+/* 有効期限の推移 */
+.life { display: grid; gap: 6px; }
+.life-row { display: grid; grid-template-columns: 8.5em 1fr; gap: 10px; align-items: center; font-size: 0.8rem; }
+.life-row .when { font: 600 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.life-bar { height: 20px; border-radius: 4px; background: var(--c-days); display: flex; align-items: center; padding: 0 6px; font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--bg); min-width: 4.6em; white-space: nowrap; }
+@media (max-width: 480px) { .life-row { grid-template-columns: 1fr; gap: 2px; } }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-size: 0.78rem; }
+.t-chal { min-width: 600px; }
+.t-err { min-width: 560px; }
+.t-rev { min-width: 560px; }
+
+:root { --c-days: #0969da; }
+@media (prefers-color-scheme: dark) { :root { --c-days: #58a6ff; } }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="PKI と証明書チェーン">
+<meta property="og:description" content="証明書が信頼されるしくみを、発行（CSR と ACME の HTTP-01・DNS-01・TLS-ALPN-01）、検証の手順、失効（CRL・OCSP の終わりと短命証明書）、Certificate Transparency、有効期限の短縮、社内 CA と mTLS まで図解する">
+<meta property="og:url" content="https://memo.taka1156.site/pki-certificates.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>PKI と証明書チェーン</h1>
+  <p class="subtitle">証明書はどう発行され、どう信頼され、どう取り消されるか ── ACME・CT・短命化・社内 CA</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>PKI は「この公開鍵はこのドメインのもの」を、信頼ストアのルート CA から続く署名の連鎖で保証するしくみ。</li>
+      <li>CA はドメインを持っていることを ACME のチャレンジで確かめて発行し、発行した証明書は公開ログ（CT）に必ず載る。</li>
+      <li>失効の確認は当てにしにくいので、期限を短くして自動更新する方向に進んでおり、2029 年には最長 47 日になる。</li>
+    </ul>
+  </div>
+
+  <p>署名・公開鍵の意味と、ルート CA → 中間 CA → サーバー証明書という連鎖の形は <a href="crypto-basics.html">暗号の基礎</a> にあります。このメモはその先の、<b>証明書が発行されてから使われ、取り消されるまでの運用</b>を扱います。</p>
+
+  <h2 id="actors">登場人物</h2>
+  <div class="actors">
+    <div class="card"><b>サイト運営者</b><span class="en">subscriber</span><p>鍵ペアを作り、CA に証明書を申請する。秘密鍵は自分のサーバーから出さない。</p></div>
+    <div class="card"><b>認証局</b><span class="en">CA (certificate authority)</span><p>申請者がそのドメインを本当に管理しているかを確かめ、証明書に署名する。</p></div>
+    <div class="card"><b>信頼ストア</b><span class="en">root store</span><p>OS やブラウザに入っているルート CA の一覧。Mozilla・Apple・Google・Microsoft がそれぞれ管理し、CA に厳しい基準を課す。</p></div>
+    <div class="card"><b>CT ログ</b><span class="en">Certificate Transparency</span><p>発行された証明書を誰でも見られる形で記録する公開ログ。誤発行を後から見つけられる。</p></div>
+    <div class="card"><b>CA/Browser Forum</b><span class="en">CA/B Forum</span><p>CA とブラウザの業界団体。有効期限の上限など、公開の証明書の決まり（Baseline Requirements）を決める。</p></div>
+  </div>
+
+  <h2 id="inside">証明書に書いてあること</h2>
+  <div class="card">
+    <dl class="cert">
+      <dt>Subject / SAN</dt><dd>example.com, www.example.com（ブラウザが照合するのは SAN（Subject Alternative Name）の一覧）</dd>
+      <dt>公開鍵</dt><dd>ECDSA P-256 または RSA 2048 ビットなど</dd>
+      <dt>Issuer</dt><dd>この証明書に署名した CA（中間 CA）の名前</dd>
+      <dt>有効期間</dt><dd>Not Before 〜 Not After</dd>
+      <dt>用途</dt><dd>Key Usage・Extended Key Usage（サーバー認証、クライアント認証など）</dd>
+      <dt>SCT</dt><dd>CT ログに載せた証拠（Signed Certificate Timestamp）</dd>
+      <dt>署名</dt><dd>上の内容全体に対する、発行した CA の署名</dd>
+    </dl>
+  </div>
+  <pre><code><span class="cm"># サーバーが送ってくるチェーンと、証明書の中身を見る</span>
+openssl s_client -connect example.com:443 -servername example.com -showcerts &lt;/dev/null
+openssl x509 -in cert.pem -noout -subject -issuer -dates -ext subjectAltName</code></pre>
+
+  <h2 id="issue">発行：ドメインを持っている証拠を見せる</h2>
+  <ol class="steps">
+    <li><b>鍵ペアを作り、CSR を作る</b>CSR（証明書署名要求）は「この公開鍵とこの名前で証明書がほしい」を自分の秘密鍵で署名したもの。秘密鍵そのものは送らない。</li>
+    <li><b>CA がチャレンジを出す</b>「このドメインを管理しているなら、この値を決まった場所に置いてみせて」と頼む。</li>
+    <li><b>値を置いて CA に確かめてもらう</b>CA が複数の地点からその場所を見に行き、値が合っていれば合格。</li>
+    <li><b>CA が CT ログに登録し、署名した証明書を返す</b>サーバーは証明書と中間 CA の証明書（fullchain）を設定する。</li>
+  </ol>
+  <p>この手順を機械で回すための約束が <b>ACME</b>（RFC 8555）です。Let's Encrypt が広めた方式で、certbot・lego・Caddy の自動 HTTPS などの ACME クライアントが、申請・チャレンジ・更新を全部自動で行います。</p>
+
+  <h3 id="challenge">3 種類のチャレンジ</h3>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="c-http">HTTP-01</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="c-dns">DNS-01</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="c-alpn">TLS-ALPN-01</button>
+  </div>
+  <div class="panel card" id="c-http">
+    <p><code>http://example.com/.well-known/acme-challenge/&lt;トークン&gt;</code> にファイルを置き、CA が<b>ポート 80</b> で取りに来ます。いちばん手軽で、Web サーバーがある環境ならたいていこれです。</p>
+    <ul class="plain">
+      <li>ポート 80 を外から開けておく必要がある（HTTPS へのリダイレクトはあってよい）</li>
+      <li>ワイルドカード証明書（<code>*.example.com</code>）は取れない</li>
+      <li>LB の後ろに複数台あるときは、どの台に来ても同じファイルを返せるようにする</li>
+    </ul>
+  </div>
+  <div class="panel card" id="c-dns" hidden>
+    <p><code>_acme-challenge.example.com</code> に TXT レコードを置き、CA が DNS を引いて確かめます。サーバーに外から入れなくても使えます。</p>
+    <ul class="plain">
+      <li><b>ワイルドカード証明書はこれでしか取れない</b></li>
+      <li>DNS を API で書き換える権限が ACME クライアントに要る。その API トークンが漏れると、ドメインの DNS を書き換えられてしまうので、権限を TXT レコードだけに絞れる DNS サービスを選ぶ</li>
+      <li>社内だけのサーバー（外から見えない）にも公開の証明書を取れる</li>
+    </ul>
+  </div>
+  <div class="panel card" id="c-alpn" hidden>
+    <p>CA が<b>ポート 443</b> に TLS でつなぎ、ALPN で <code>acme-tls/1</code> を指定したときだけ、特別な自己署名証明書を返すことで答えます。ポート 80 を開けられない環境向けです。</p>
+    <ul class="plain">
+      <li>TLS を終端するソフト自身が ACME に対応している必要がある（Caddy などは対応）</li>
+      <li>手前に CDN や TLS を解く LB があると使えない</li>
+    </ul>
+  </div>
+
+  <div class="table-wrap">
+    <table class="t-chal">
+      <thead><tr><th>確認の段階</th><th>CA が確かめること</th><th>今の使われ方</th></tr></thead>
+      <tbody>
+        <tr><td>DV（ドメイン認証）</td><td>そのドメインを管理していること</td><td>ほとんどの証明書。ACME で自動発行できる</td></tr>
+        <tr><td>OV（組織認証）</td><td>ドメイン＋申請した組織が実在すること</td><td>組織名が証明書に入るが、ブラウザの表示は DV と同じ</td></tr>
+        <tr><td>EV（拡張認証）</td><td>OV より厳しい書類審査</td><td>かつてのアドレスバーの緑の組織名表示は主要ブラウザでなくなった</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="verify">クライアントが確かめること</h2>
+  <ol class="steps">
+    <li><b>チェーンをルートまでたどる</b>サーバー証明書の Issuer に当たる中間 CA の証明書で署名を検証し、それをさらに上へ。最後に、信頼ストアにあるルート CA に着けば合格。</li>
+    <li><b>名前を照合する</b>アクセスした名前が SAN の一覧のどれかと一致するか。<code>*.example.com</code> は <code>a.example.com</code> には合うが、<code>example.com</code> や <code>a.b.example.com</code> には合わない。</li>
+    <li><b>期限と用途を確かめる</b>今が有効期間の中か、サーバー認証に使ってよい証明書か。</li>
+    <li><b>CT に載っているかを確かめる</b>Chrome・Safari・Firefox（デスクトップ版、135 以降）は、SCT が付いていない公開の証明書を受け付けない。</li>
+    <li><b>（できれば）失効していないかを確かめる</b>下の「失効」のとおり、ここは確実ではない。</li>
+  </ol>
+
+  <h3 id="errors">よくあるエラーと原因</h3>
+  <div class="table-wrap">
+    <table class="t-err">
+      <thead><tr><th>症状</th><th>よくある原因</th><th>直し方</th></tr></thead>
+      <tbody>
+        <tr><td>ブラウザでは平気、curl や古い Android で失敗</td><td>中間証明書を送っていない（ブラウザは手元のキャッシュや AIA で補っている）</td><td>サーバー証明書だけでなく <code>fullchain.pem</code> を設定する</td></tr>
+        <tr><td>名前が一致しない</td><td>SAN に入っていない名前でアクセスした。<code>www</code> の有無、ワイルドカードの階層</td><td>必要な名前を全部 SAN に入れて取り直す</td></tr>
+        <tr><td>期限切れ</td><td>自動更新が止まっていた（DNS の API トークン切れ、ポート 80 を閉じた）</td><td>更新ジョブを直し、期限の監視を入れる</td></tr>
+        <tr><td>まだ有効でない・期限切れと出るが新しいはず</td><td>端末の時計がずれている</td><td>NTP で時刻を合わせる</td></tr>
+        <tr><td>信頼されていない発行者</td><td>自己署名、社内 CA のルートが端末に入っていない</td><td>公開の CA で取る。社内なら社内ルートを配布する</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="revoke">失効：取り消しは当てにしにくい</h2>
+  <p>秘密鍵が漏れたら、期限前でも証明書を無効にしたい。その知らせ方は 3 つありましたが、どれも決め手になりませんでした。</p>
+  <div class="table-wrap">
+    <table class="t-rev">
+      <thead><tr><th>方式</th><th>しくみ</th><th>問題</th></tr></thead>
+      <tbody>
+        <tr><td>CRL</td><td>CA が失効した証明書の一覧を公開する</td><td>一覧が大きくなる。ブラウザは自前で集めて圧縮した一覧を配る形に移った</td></tr>
+        <tr><td>OCSP</td><td>接続のたびに CA に「この証明書は有効か」を問い合わせる</td><td>遅い、CA に閲覧先が知られる。応答がないと多くのブラウザは素通しする（ソフトフェイル）</td></tr>
+        <tr><td>OCSP ステープリング</td><td>サーバーが OCSP の応答を取ってきて、TLS の中で一緒に渡す</td><td>サーバー側の対応がまちまちで広まりきらなかった</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Let's Encrypt は 2025 年に OCSP をやめ、証明書には CRL の URL だけを載せる形にしました。代わりに業界が選んだのが、<b>期限そのものを短くする</b>ことです。漏れても数日〜数週間で使えなくなるなら、失効の知らせが届かなくても被害が限られます。Let's Encrypt は 6 日ほどで切れる短命証明書を選べるようにしていて、これには失効の情報（OCSP・CRL の URL）が入っていません。</p>
+
+  <h2 id="lifetime">有効期限の短縮</h2>
+  <p>CA/Browser Forum は 2025 年 4 月に、公開の TLS 証明書の最長有効期間を段階的に縮める案（Ballot SC-081v3）を可決しました。</p>
+  <div class="card life">
+    <div class="life-row"><span class="when">〜2026/3/14</span><span class="life-bar" style="width:100%">398 日</span></div>
+    <div class="life-row"><span class="when">2026/3/15〜</span><span class="life-bar" style="width:50.3%">200 日</span></div>
+    <div class="life-row"><span class="when">2027/3/15〜</span><span class="life-bar" style="width:25.1%">100 日</span></div>
+    <div class="life-row"><span class="when">2029/3/15〜</span><span class="life-bar" style="width:11.8%">47 日</span></div>
+    <p class="note">棒の長さは日数に比例。ドメインの確認結果を使い回せる期間も、2029 年には 10 日まで縮む。</p>
+  </div>
+  <p>年に 1 回の手作業の更新は成り立たなくなります。<b>ACME での自動更新と、期限の監視</b>が前提です。更新は期限の 3 分の 1 ほどを残して始め、失敗したら通知が来るようにしておきます。ACME の ARI（ACME Renewal Information、RFC 9773）に対応したクライアントなら、CA が「そろそろ更新して」と勧める時期に合わせて更新できます。</p>
+
+  <h2 id="ct">Certificate Transparency：誤発行を見つける</h2>
+  <p>CA が誤って、あるいは乗っ取られて、他人のドメインの証明書を発行してしまうことがあります。CT は、発行された証明書をすべて追記しかできない公開ログに載せ、<b>誰でも後から調べられる</b>ようにするしくみです。</p>
+  <ul class="plain">
+    <li>自分のドメインの証明書を crt.sh などで検索し、心当たりのない発行がないかを監視できる。</li>
+    <li>逆に、証明書に入れた名前はすべて公開される。<code>staging-secret.example.com</code> のような社内向けの名前も見える。名前を隠したいならワイルドカード証明書にする。</li>
+    <li>DNS の CAA レコードで「このドメインはこの CA だけが発行してよい」と宣言しておくと、ほかの CA の誤発行を防げる（<a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a>）。</li>
+  </ul>
+
+  <h2 id="private">社内 CA と mTLS</h2>
+  <p>社内のサービス同士の通信や、サーバーがクライアントを確かめたいときは、自分たちで CA を持つことがあります。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="p-ca">社内 CA</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-mtls">mTLS</button>
+  </div>
+  <div class="panel card" id="p-ca">
+    <ul class="plain">
+      <li>ルート CA の秘密鍵はオフラインで保管し、普段の発行は中間 CA で行う（公開の CA と同じ形）。</li>
+      <li>ルートを端末やコンテナの信頼ストアに配る手間がかかる。配り漏れた端末では「信頼されていない発行者」になる。</li>
+      <li>step-ca、HashiCorp Vault の PKI、クラウドのマネージドな私設 CA などを使えば、社内でも ACME や API で短命の証明書を自動発行できる。</li>
+      <li>公開のサイトには使わない。訪問者の端末に社内ルートは入っていない。</li>
+    </ul>
+  </div>
+  <div class="panel card" id="p-mtls" hidden>
+    <p>普通の TLS はクライアントがサーバーを確かめるだけですが、<b>mTLS（相互 TLS）</b>ではサーバーもクライアントに証明書を求め、社内 CA の署名を確かめます。パスワードやトークンなしで「このサービスからの通信だ」と分かります。</p>
+    <ul class="plain">
+      <li>サービスメッシュ（Istio・Linkerd など）は、サービスごとの短命の証明書を自動で配り、サービス間を mTLS にする。</li>
+      <li>LB や CDN で TLS を一度解く構成では、その先との間を別に mTLS にする（<a href="lb-proxy-cdn.html">ロードバランサ・リバースプロキシ・CDN</a>）。</li>
+    </ul>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>証明書を失効させれば、その証明書はすぐ使えなくなる</summary><p>失効を確かめないクライアントや、確認に失敗すると素通しするクライアントがある。Let's Encrypt も OCSP をやめた。漏れたときの被害を抑えるいちばん確かな手は、有効期限を短くしておくこと。</p></details>
+  <details class="myth"><summary>EV 証明書のほうが安全な通信になる</summary><p>暗号の強さは DV と同じ。違うのは発行前の審査だけで、主要ブラウザは組織名の特別な表示もやめている。</p></details>
+  <details class="myth"><summary>ワイルドカード証明書はどの階層のサブドメインにも使える</summary><p><code>*.example.com</code> が合うのは 1 階層だけ。<code>example.com</code> 自身や <code>a.b.example.com</code> には合わないので、必要なら SAN に別に入れる。</p></details>
+  <details class="myth"><summary>証明書に入れた社内向けのサブドメインは外から分からない</summary><p>公開の CA が発行した証明書は CT ログに載り、誰でも名前を検索できる。名前を出したくないならワイルドカード証明書にする。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="crypto-basics.html">暗号の基礎</a> — 署名と公開鍵、証明書チェーンの形と TLS 1.3 のハンドシェイク</li>
+    <li><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a> — 証明書を検証する TLS の流れと、CAA レコード</li>
+    <li><a href="lb-proxy-cdn.html">ロードバランサ・リバースプロキシ・CDN</a> — どこで TLS を解くかと、後ろ側の mTLS</li>
+    <li><a href="security-headers.html">セキュリティヘッダー</a> — HTTPS を強制する HSTS</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://www.rfc-editor.org/rfc/rfc8555">RFC 8555: Automatic Certificate Management Environment (ACME)</a></li>
+    <li><a href="https://cabforum.org/2025/04/11/ballot-sc081v3-introduce-schedule-of-reducing-validity-and-data-reuse-periods/">CA/Browser Forum: Ballot SC-081v3</a></li>
+    <li><a href="https://letsencrypt.org/2024/12/05/ending-ocsp/">Let's Encrypt: Ending OCSP Support in 2025</a></li>
+    <li><a href="https://letsencrypt.org/2025/01/16/6-day-and-ip-certs/">Let's Encrypt: Announcing Six Day and IP Address Certificate Options</a></li>
+    <li><a href="https://certificate.transparency.dev/">Certificate Transparency</a></li>
+  </ul>
+  <p class="note">2026 年 11 月に確認。</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "社内向けの管理画面にも公開の証明書を付けたいが、サーバーは外からアクセスできない。合う ACME のチャレンジは？",
+    "choices": ["HTTP-01（ポート 80 でファイルを取りに来てもらう）", "DNS-01（TXT レコードを置いて DNS で確かめてもらう）", "TLS-ALPN-01（ポート 443 で特別な証明書を返す）"],
+    "answer": 1,
+    "explain": "DNS-01 は CA が DNS を引くだけなので、サーバーに外から入れなくてよい。ほかの 2 つは CA がサーバーに直接つなぎに来る。",
+    "ref": "#challenge"
+  },
+  {
+    "q": "新しく設定したサーバーが、ブラウザでは正常なのに curl では証明書エラーになる。よくある原因は？",
+    "choices": ["サーバーが中間証明書を送っておらず、ブラウザだけが手元で補っている", "curl が TLS 1.3 に対応していない", "証明書が EV ではなく DV だから"],
+    "answer": 0,
+    "explain": "ブラウザはキャッシュや AIA で中間証明書を補えるが、curl などは補わない。サーバーにはチェーン全体（fullchain）を設定する。",
+    "ref": "#errors"
+  },
+  {
+    "q": "証明書の秘密鍵が漏れた疑いがある。失効の手続きに加えて、被害を抑えるために前もってしておくと効くことは？",
+    "choices": ["有効期限の長い証明書にしておき、更新の手間を減らす", "OCSP の応答がないときはブラウザが必ず接続を止めると考えて、失効だけに頼る", "有効期限を短くして ACME で自動更新し、漏れた証明書がすぐ切れるようにしておく"],
+    "answer": 2,
+    "explain": "失効の確認は素通しされることがあり当てにしにくい。期限が短ければ、知らせが届かなくても漏れた証明書はすぐ使えなくなる。",
+    "ref": "#revoke"
+  },
+  {
+    "q": "誰かが自分のドメインの証明書を勝手に取っていないか確かめたい。使える仕組みは？",
+    "choices": ["OCSP ステープリングを有効にする", "Certificate Transparency のログで自分のドメインの発行を検索・監視する", "EV 証明書に切り替える"],
+    "answer": 1,
+    "explain": "公開の CA が発行した証明書は CT ログに載るので、心当たりのない発行を見つけられる。CAA レコードで発行してよい CA を絞るのも効く。",
+    "ref": "#ct"
+  },
+  {
+    "q": "社内のマイクロサービス同士で、パスワードやトークンなしに「確かにこのサービスからの通信だ」と確かめたい。合うのは？",
+    "choices": ["社内 CA で各サービスに証明書を配り、mTLS で互いの証明書を確かめる", "公開の CA のワイルドカード証明書を全サービスで共有する", "HTTP のまま通信し、送信元 IP だけで判断する"],
+    "answer": 0,
+    "explain": "mTLS ではサーバーもクライアントの証明書を検証する。サービスメッシュなら短命の証明書の配布と更新も自動でできる。",
+    "ref": "#private"
+  }
+]
+</script>
+</body>
+</html>

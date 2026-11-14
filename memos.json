@@ -1,5 +1,29 @@
 [
  {
+  "file": "supply-chain-security.html",
+  "title": "サプライチェーンセキュリティ",
+  "desc": "依存パッケージ・CI・公開の経路から悪意あるコードが入る手口（タイポスクワッティング・依存関係かく乱・アカウント乗っ取り・xz・tj-actions・Shai-Hulud）と、インストール時の守り（ロックファイル・スクリプト停止・公開後の待ち時間）、SBOM、署名と来歴（Sigstore・SLSA・trusted publishing）を図解する",
+  "tags": [
+   "セキュリティ",
+   "開発ツール",
+   "JavaScript"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 5
+ },
+ {
+  "file": "secrets-management.html",
+  "title": "シークレット管理",
+  "desc": "API キーやパスワードがどこから漏れるか、置き場所の段階（.env・プラットフォームの Secrets・Vault などのシークレットマネージャー・動的シークレット・OIDC で持たない）、SOPS で Git に暗号化して置く方法、ローテーションと漏れたときの手順を図解する",
+  "tags": [
+   "セキュリティ",
+   "インフラ",
+   "開発ツール"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 5
+ },
+ {
   "file": "schema-migration.html",
   "title": "スキーマ設計とマイグレーション",
   "desc": "正規化と制約でテーブルを設計し、ORM とマイグレーションツールで変更を管理し、拡張→移行→縮小の手順とロックの少ない DDL で、サービスを止めずにスキーマを変える方法を図解する。",
@@ -19,6 +43,17 @@
    "設計",
    "バックエンド",
    "インフラ"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 5
+ },
+ {
+  "file": "pki-certificates.html",
+  "title": "PKI と証明書チェーン",
+  "desc": "証明書が信頼されるしくみを、発行（CSR と ACME の HTTP-01・DNS-01・TLS-ALPN-01）、検証の手順、失効（CRL・OCSP の終わりと短命証明書）、Certificate Transparency、有効期限の短縮、社内 CA と mTLS まで図解する",
+  "tags": [
+   "セキュリティ",
+   "ネットワーク"
   ],
   "date": "2026-11-14",
   "quizzes": 5
