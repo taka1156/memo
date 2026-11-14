@@ -58,7 +58,7 @@ h3 { font-size: 0.95rem; margin: 18px 0 6px; }
 p { margin: 8px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -89,7 +89,6 @@ pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: norm
 ul.list li { margin-left: 1.2em; }
 ul.list { margin: 8px 0; }
 ul.list li { margin-bottom: 4px; }
-.note { font-size: 0.83rem; color: var(--fg-2); }
 .warn-box {
   border-left: 3px solid var(--c-warn);
   background: color-mix(in srgb, var(--c-warn) 8%, var(--surface));
@@ -147,7 +146,6 @@ ul.list li { margin-bottom: 4px; }
 }
 
 /* 表 */
-.tbl { overflow-x: auto; margin: 10px 0; }
 table { border-collapse: collapse; width: 100%; font-size: 0.83rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th {
@@ -315,7 +313,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <a class="sink" href="#idor"><div class="to">「誰のデータか」の確認漏れ</div><div class="v">認可不備 (IDOR)</div></a>
   </div>
 
-  <div class="tbl"><table>
+  <div class="table-wrap"><table>
     <thead><tr><th>脆弱性</th><th>何が起きる</th><th>根本対策</th><th>補助・多層防御</th></tr></thead>
     <tbody>
       <tr><td><a href="#csrf">CSRF</a></td><td>ログイン中のユーザーに、意図しない操作をさせる</td><td>SameSite Cookie ＋ トークン or Origin / Sec-Fetch-Site 検証</td><td>重要操作の再認証</td></tr>
@@ -329,6 +327,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <!-- ======================== CSRF ======================== -->
   <h2 id="csrf">CSRF<span class="en">Cross-Site Request Forgery</span></h2>
   <p>ブラウザは、どのサイトから送られたリクエストでも、<b>宛先サイトの Cookie を自動で付けてきた</b>。これを利用して、ログイン中のユーザーに罠サイトから「送金」「パスワード変更」などのリクエストを送らせる攻撃です。攻撃者はレスポンスを読めませんが、<b>操作が実行されれば十分</b>です。</p>
+  <p class="note">このページの攻撃の流れでは、<b>赤い番号の段で攻撃が成立する</b>（対策はその段を止めること）。</p>
   <ol class="flow">
     <li>被害者は <code>bank.example</code> にログイン中（Cookie あり）</li>
     <li>罠サイト <code>evil.example</code> を開く</li>
@@ -371,7 +370,7 @@ app.use((req, res, next) =&gt; {
 });</code></pre></div>
   </div>
 
-  <div class="tbl"><table>
+  <div class="table-wrap"><table>
     <thead><tr><th>対策</th><th>仕組み</th><th>注意点</th></tr></thead>
     <tbody>
       <tr><td><code>SameSite=Lax</code> / <code>Strict</code></td><td>別サイトからの POST・iframe・fetch に Cookie を付けない</td><td>Lax は<b>トップレベルの GET 遷移では送る</b>ので、GET で状態を変えると防げない。SameSite の「サイト」は登録ドメイン単位なので、<b>脆弱なサブドメイン</b>からは同一サイト扱いで送られる</td></tr>
@@ -391,7 +390,7 @@ app.use((req, res, next) =&gt; {
     <button class="tab" role="tab" aria-selected="false" data-panel="ses-fix">セッション固定</button>
   </div>
   <div class="panel" id="ses-ways">
-    <div class="tbl"><table>
+    <div class="table-wrap"><table>
       <thead><tr><th>手口</th><th>対策</th></tr></thead>
       <tbody>
         <tr><td><b>盗聴</b>: http 通信や SSL ストリップで Cookie を見る</td><td>全ページ https、Cookie に <code>Secure</code>、<a href="security-headers.html#hsts">HSTS</a></td></tr>

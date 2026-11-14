@@ -207,4 +207,10 @@ print(ok)                         # 可になる最小の W。O(n log(合計))
 
 ✓ 正しくは: 「条件が一方向に切り替わる」ものなら何でもよい。答えの値、時刻、コミットの並びなど。
 
-関連: [データ構造と計算量](https://memo.taka1156.site/md/data-structures.md) [動的計画法](https://memo.taka1156.site/md/dynamic-programming.md) [グラフ探索と最短経路](https://memo.taka1156.site/md/graph-algorithms.md) [暗号の基礎](https://memo.taka1156.site/md/crypto-basics.md) [Git の内部構造](https://memo.taka1156.site/md/git-internals.md)
+## 関連メモ
+
+- [データ構造と計算量の早見表](https://memo.taka1156.site/md/data-structures.md) — 手法と組み合わせるデータ構造と計算量
+- [動的計画法（DP）](https://memo.taka1156.site/md/dynamic-programming.md) — 動的計画法の組み立て方を詳しく
+- [グラフ探索と最短経路](https://memo.taka1156.site/md/graph-algorithms.md) — BFS・DFS・ダイクストラなどグラフの手法
+- [暗号の基礎](https://memo.taka1156.site/md/crypto-basics.md) — 繰り返し二乗法が使われる RSA など公開鍵暗号の全体像
+- [Git の内部構造](https://memo.taka1156.site/md/git-internals.md) — 親をたどってつながるコミットの仕組み（git bisect が二分探索する履歴の形）

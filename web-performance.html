@@ -64,7 +64,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -90,8 +90,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -134,7 +132,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -152,10 +149,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -242,9 +235,9 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="metrics">3 つの指標と基準値</h2>
   <div class="vit">
-    <div class="card"><h3>LCP</h3><p class="muted">Largest Contentful Paint</p><p>画面内で一番大きい画像やテキストブロックが描かれた時刻。「メインの中身が見えた」の代わり。</p><div class="scale3"><span></span><span></span><span></span></div><div class="th"><span>良好</span><span>2.5s</span><span>4.0s</span><span>不良</span></div></div>
-    <div class="card"><h3>INP</h3><p class="muted">Interaction to Next Paint</p><p>クリック・タップ・キー入力から、次に画面が描かれるまで。ページ滞在中の操作のうちほぼ最悪のもの。</p><div class="scale3"><span></span><span></span><span></span></div><div class="th"><span>良好</span><span>200ms</span><span>500ms</span><span>不良</span></div></div>
-    <div class="card"><h3>CLS</h3><p class="muted">Cumulative Layout Shift</p><p>予期しないレイアウトのズレの大きさ。ズレた面積 × 移動距離の割合で、一番ひどいまとまり（5 秒の窓）の合計。</p><div class="scale3"><span></span><span></span><span></span></div><div class="th"><span>良好</span><span>0.1</span><span>0.25</span><span>不良</span></div></div>
+    <div class="card"><h3>LCP</h3><p class="note">Largest Contentful Paint</p><p>画面内で一番大きい画像やテキストブロックが描かれた時刻。「メインの中身が見えた」の代わり。</p><div class="scale3"><span></span><span></span><span></span></div><div class="th"><span>良好</span><span>2.5s</span><span>4.0s</span><span>不良</span></div></div>
+    <div class="card"><h3>INP</h3><p class="note">Interaction to Next Paint</p><p>クリック・タップ・キー入力から、次に画面が描かれるまで。ページ滞在中の操作のうちほぼ最悪のもの。</p><div class="scale3"><span></span><span></span><span></span></div><div class="th"><span>良好</span><span>200ms</span><span>500ms</span><span>不良</span></div></div>
+    <div class="card"><h3>CLS</h3><p class="note">Cumulative Layout Shift</p><p>予期しないレイアウトのズレの大きさ。ズレた面積 × 移動距離の割合で、一番ひどいまとまり（5 秒の窓）の合計。</p><div class="scale3"><span></span><span></span><span></span></div><div class="th"><span>良好</span><span>0.1</span><span>0.25</span><span>不良</span></div></div>
   </div>
   <p class="note">ユーザー操作の直後 0.5 秒以内のズレ（アコーディオンを開いたなど）は CLS に数えない。INP は 2024 年に FID（最初の入力の待ち時間だけを測る指標）を置き換えた。</p>
 
@@ -336,10 +329,15 @@ const send = (m) =&gt; navigator.sendBeacon('/rum', JSON.stringify({
 onLCP(send); onINP(send); onCLS(send);</pre>
   <p class="note"><code>attribution</code> 付きで集めると、LCP の要素や 4 分割の内訳、INP を起こした操作の対象まで送れる。数字だけ集めても直す場所がわからない。</p>
 
-  <h2>関連メモ</h2>
-  <p class="related"><a href="browser-rendering.html">ブラウザのレンダリング</a><a href="rendering-strategies.html">レンダリング戦略</a><a href="http-cache.html">HTTP キャッシュ</a><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="browser-rendering.html">ブラウザのレンダリング</a> — 描画の流れのどこが遅いか</li>
+    <li><a href="rendering-strategies.html">レンダリング戦略</a> — HTML をいつ作るかで LCP が変わる</li>
+    <li><a href="http-cache.html">HTTP キャッシュ</a> — 2 回目以降を速くするキャッシュ</li>
+    <li><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a> — 最初のバイトが届くまでの DNS・TLS・HTTP</li>
+  </ul>
 
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://web.dev/articles/vitals">web.dev: Web Vitals</a></li>
     <li><a href="https://web.dev/articles/optimize-lcp">web.dev: Optimize LCP</a></li>

@@ -155,7 +155,11 @@ my-repo/ ├── package.json ← "workspaces": ["apps/*", "packages/*"]（pnp
 
 ## 関連メモ
 
-[Vite ツールチェーン](https://memo.taka1156.site/md/vite-toolchain.md) [JS ランタイム比較](https://memo.taka1156.site/md/js-runtimes.md) [TypeScript](https://memo.taka1156.site/md/typescript.md) [JS と Web 標準の決まり方](https://memo.taka1156.site/md/js-web-standards.md) [テスト戦略](https://memo.taka1156.site/md/testing-strategy.md)
+- [Vite ツールチェーン図解](https://memo.taka1156.site/md/vite-toolchain.md) — モジュールを束ねて配る側
+- [JS ランタイム比較](https://memo.taka1156.site/md/js-runtimes.md) — Node.js・Bun・Workers の API と Node 互換の違い
+- [TypeScript 学習フローと仕組み](https://memo.taka1156.site/md/typescript.md) — tsconfig の module 設定と型チェック
+- [JS と Web 標準の決まり方](https://memo.taka1156.site/md/js-web-standards.md) — ESM や import maps を決める団体
+- [テスト戦略](https://memo.taka1156.site/md/testing-strategy.md) — モックで差し替えてよい境界と、差し替えない内部
 
 ## 参考
 

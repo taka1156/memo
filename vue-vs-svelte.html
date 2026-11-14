@@ -61,7 +61,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -85,7 +85,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
 .label {
@@ -124,7 +123,6 @@ pre code { background: none; padding: 0; word-break: normal; }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* トークン表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -132,7 +130,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 
 /* 誤解 */
 
-.related a { display: inline-block; margin: 4px 8px 4px 0; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -222,7 +219,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <li>両者は近づいている。Svelte 5 は runes でシグナルに移り、Vue は 3.6 の <b>Vapor Mode</b> で仮想 DOM なしのコンパイルを選べるようになる</li>
     </ul>
   </div>
-  <p class="muted">方式そのものの説明は <a href="reactivity-models.html">UI 更新の3つの方式</a> にまとめてある。</p>
+  <p class="note">方式そのものの説明は <a href="reactivity-models.html">UI 更新の3つの方式</a> にまとめてある。</p>
 
   <h2 id="counter">同じカウンターを書く</h2>
   <div class="side">
@@ -239,7 +236,7 @@ const doubled = computed(() =&gt; count.value * 2)
     {{ count }}（×2 = {{ doubled }}）
   &lt;/button&gt;
 &lt;/template&gt;</code></pre>
-      <p class="muted">script では <code>count.value</code>、テンプレートでは自動で <code>.value</code> が外れる。</p>
+      <p class="note">script では <code>count.value</code>、テンプレートでは自動で <code>.value</code> が外れる。</p>
     </div>
     <div class="card k-svelte">
       <div class="ttl">Svelte 5（Counter.svelte）</div>
@@ -251,7 +248,7 @@ const doubled = computed(() =&gt; count.value * 2)
 &lt;button onclick={() =&gt; count++}&gt;
   {count}（×2 = {doubled}）
 &lt;/button&gt;</code></pre>
-      <p class="muted"><code>$state</code> などの <b>runes</b> はコンパイラへの目印。普通の変数のように読み書きでき、裏でシグナルに変換される。</p>
+      <p class="note"><code>$state</code> などの <b>runes</b> はコンパイラへの目印。普通の変数のように読み書きでき、裏でシグナルに変換される。</p>
     </div>
   </div>
 
@@ -278,7 +275,7 @@ const doubled = computed(() =&gt; count.value * 2)
           <button type="button" id="b-name">state.name を変更</button>
           <button type="button" id="b-other">state.unused++</button>
         </div>
-        <p class="muted" style="margin-top:8px">unused はどの処理からも読まれていないので、変えても何も起きない。</p>
+        <p class="note" style="margin-top:8px">unused はどの処理からも読まれていないので、変えても何も起きない。</p>
       </div>
       <div>
         <div class="eff" id="e1"><b>Counter の描画</b>読む：state.count<div class="runs">実行回数 <span>1</span></div></div>
@@ -287,7 +284,7 @@ const doubled = computed(() =&gt; count.value * 2)
       </div>
     </div>
   </div>
-  <p class="muted">Vue 3.6 では、このリアクティブの仕組みが alien-signals という高速なシグナル実装をもとに作り直された。</p>
+  <p class="note">Vue 3.6 では、このリアクティブの仕組みが alien-signals という高速なシグナル実装をもとに作り直された。</p>
 
   <h3>コンパイラによる最適化</h3>
   <p>Vue の仮想 DOM は「素朴に全部比べる」わけではない。テンプレートをコンパイルするときに、動的な部分に<b>パッチフラグ</b>を付け、静的な部分は使い回す。</p>
@@ -306,7 +303,7 @@ function render(ctx, _cache) {
     <pre><code>&lt;script setup vapor&gt;
 // 書き方は同じ。vapor を付けたコンポーネントだけが新方式でコンパイルされる
 &lt;/script&gt;</code></pre>
-    <p class="muted">Vue 3.6 で導入。2026年7月にリリース候補 (RC) 段階に入り、Vapor Mode に予定していた機能がそろった。従来のコンポーネントと混在でき、少しずつ移行できるのが特徴。<code>&lt;script setup&gt;</code>（または template だけの SFC）で使い、Options API や <code>v-memo</code> には対応しない。</p>
+    <p class="note">Vue 3.6 で導入。2026年7月にリリース候補 (RC) 段階に入り、Vapor Mode に予定していた機能がそろった。従来のコンポーネントと混在でき、少しずつ移行できるのが特徴。<code>&lt;script setup&gt;</code>（または template だけの SFC）で使い、Options API や <code>v-memo</code> には対応しない。</p>
   </div>
 
   <h2 id="svelte-internals">Svelte の内部</h2>
@@ -368,9 +365,11 @@ $.delegate(['click'])</code></pre>
   <details class="myth"><summary>Vue は仮想 DOM だから遅い</summary><p>依存追跡で更新するコンポーネントを絞り、パッチフラグで比較対象も絞っているので、素朴な仮想 DOM よりずっと効率的。Vapor Mode ではベンチマーク上 Solid や Svelte 5 と並ぶ。</p></details>
   <details class="myth"><summary>Svelte 5 は Svelte 4 の書き方を少し変えただけ</summary><p>「代入の検知」から「シグナル」へと、内部の仕組みが丸ごと作り直された。書き方の変化はその結果。</p></details>
 
-
-  <h2>関連メモ</h2>
-  <p class="related"><a href="reactivity-models.html">← UI 更新の3つの方式</a> <a href="react-vs-solid.html">← React と Solid</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="reactivity-models.html">UI 更新の3つの方式</a> — 仮想 DOM・シグナル・コンパイラの 3 方式の地図</li>
+    <li><a href="react-vs-solid.html">React と Solid</a> — もう 2 つのフレームワーク（React の仮想 DOM と Solid のシグナル）の内部</li>
+  </ul>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

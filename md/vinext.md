@@ -202,7 +202,7 @@ npx vinext init    # 非破壊で移行（既存の next dev もそのまま動�
 npm run dev:vinext # ポート 3001 で vinext 版を起動して見比べる
 ```
 
-## 出典
+## 参考
 
 - [cloudflare/vinext README（GitHub）](https://github.com/cloudflare/vinext)
 - [How we rebuilt Next.js with AI in one week（Cloudflare Blog）](https://blog.cloudflare.com/vinext/)

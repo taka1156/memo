@@ -17,12 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
   --chip: #eceff4;
-  --c-key: #0f766e; /* 図の強調（このページの色と見分けやすい色） */
   --c-gcc: #be185d;
-  --c-clang: #6d4fd8;
-  --c-fe: #2a9d8f;
-  --c-mid: #8a5cf6;
-  --c-be: #e07a1f;
+  --c-clang: #0369a1;
+  --c-fe: #0f766e;
+  --c-mid: #4d7c0f;
+  --c-be: #a21caf;
   --c-ext: #7d8b9d;
 }
 @media (prefers-color-scheme: dark) {
@@ -34,12 +33,11 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #2dd4bf; /* 図の強調（このページの色と見分けやすい色） */
     --c-gcc: #f472b6;
-    --c-clang: #b195ff;
-    --c-fe: #4fd1c5;
-    --c-mid: #b195ff;
-    --c-be: #a3e635;
+    --c-clang: #7dd3fc;
+    --c-fe: #2dd4bf;
+    --c-mid: #a3e635;
+    --c-be: #f0abfc;
     --c-ext: #7d8b9d;
   }
 }
@@ -71,7 +69,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -96,7 +94,6 @@ pre code { background: none; padding: 0; font-size: inherit; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .series { font-size: 0.8rem; color: var(--fg-2); margin: -16px 0 22px; }
 .series a, .series b { display: inline-block; margin-right: 10px; }
 .series b { color: var(--fg); }
@@ -152,10 +149,8 @@ pre code { background: none; padding: 0; font-size: inherit; }
 .st b { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.76rem; }
 .st small { display: block; color: var(--fg-2); font-size: 0.7rem; }
 .st.fe { --k: var(--c-fe); } .st.mid { --k: var(--c-mid); } .st.be { --k: var(--c-be); } .st.ext { --k: var(--c-ext); }
-.st.hl { outline: 2px solid var(--c-key); outline-offset: 1px; }
+.st.hl { outline: 2px solid var(--c-hl); outline-offset: 1px; }
 .arrow { text-align: center; color: var(--fg-2); font-size: 0.75rem; line-height: 1; margin: 2px 0; }
-.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); margin-bottom: 8px; }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 @media (max-width: 560px) {
   .lanes { grid-template-columns: 1fr; }
 }
@@ -165,8 +160,7 @@ th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: lef
 th { color: var(--fg-2); font-weight: 600; font-size: 0.75rem; }
 th.gcc, th.clang { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 td:first-child { font-weight: 600; white-space: nowrap; }
-.tblwrap { overflow-x: auto; }
-.tblwrap table { min-width: 560px; }
+.table-wrap table { min-width: 560px; }
 
 /* 場面別 */
 .pick { display: grid; gap: 8px; }
@@ -190,10 +184,6 @@ details + details { margin-top: 8px; }
 summary { cursor: pointer; font-weight: 600; }
 details p { font-size: 0.88rem; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -391,7 +381,7 @@ add:
   </div>
 
   <h2 id="design">設計の違いを表で</h2>
-  <div class="tblwrap"><table>
+  <div class="table-wrap"><table>
     <tr><th>観点</th><th class="gcc">GCC</th><th class="clang">Clang / LLVM</th></tr>
     <tr><td>作りの単位</td><td>言語ごとのコンパイラ本体（cc1・cc1plus・f951 など）に、フロントからバックエンドまでが一体でリンクされている</td><td>LLVM はライブラリの集まり。clang・rustc・swiftc がそれぞれ必要な部品をリンクして使う</td></tr>
     <tr><td>中間表現</td><td>GENERIC → GIMPLE → RTL の 3 種類。GCC の内部形式で、外部向けの安定した仕様ではない</td><td>LLVM IR に一本化（バックエンド内は MIR）。仕様書 (LangRef) があり、テキスト・ビットコードで外に出せる</td></tr>
@@ -462,10 +452,16 @@ clang -O2 -Rpass-missed=loop-vectorize -c x.c
 aarch64-linux-gnu-gcc -O2 -S x.c          # GCC: ターゲット専用のコンパイラ
 clang --target=aarch64-linux-gnu -O2 -S x.c   # Clang: 同じ clang で切り替え</code></pre>
 
-  <h2>関連メモ</h2>
-  <p class="related"><a href="llvm.html">LLVM の構成と仕組み</a><a href="rust.html">Rust</a><a href="webassembly.html">WebAssembly</a><a href="linux-process.html">Linux のプロセス</a><a href="language-genealogy.html">プログラミング言語の系譜</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="llvm.html">LLVM の構成と仕組み</a> — Clang の後段の LLVM を詳しく</li>
+    <li><a href="rust.html">Rust 学習フローと仕組み</a> — LLVM を使う言語の例</li>
+    <li><a href="webassembly.html">WebAssembly</a> — LLVM が出力できる先の 1 つ</li>
+    <li><a href="linux-process.html">Linux プロセスの仕組み</a> — できた実行ファイルが動くとき</li>
+    <li><a href="language-genealogy.html">プログラミング言語の系譜</a> — C 系の言語のつながり</li>
+  </ul>
 
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://gcc.gnu.org/onlinedocs/gccint/">GNU Compiler Collection (GCC) Internals</a></li>
     <li><a href="https://gcc.gnu.org/onlinedocs/gccint/GIMPLE.html">GCC Internals: GIMPLE</a></li>

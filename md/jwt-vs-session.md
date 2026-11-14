@@ -201,4 +201,4 @@ SPA
 
 ## 関連メモ
 
-[← OAuth 2.0 / OIDC のフロー](https://memo.taka1156.site/md/oauth-oidc.md)
+- [OAuth 2.0 / OIDC のフロー](https://memo.taka1156.site/md/oauth-oidc.md) — トークンを受け取るまでのフロー

@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #0f766e; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #be185d;
   --c-b: #15803d;
   --c-c: #7c3aed;
@@ -32,7 +31,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #2dd4bf; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #f472b6;
     --c-b: #4ade80;
     --c-c: #c4b5fd;
@@ -69,7 +67,7 @@ ul.dots, ol.dots { margin: 6px 0 6px 1.3em; }
 ul.dots li, ol.dots li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -95,7 +93,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .label {
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
@@ -115,14 +112,12 @@ pre code { background: none; padding: 0; word-break: normal; }
 }
 .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .panel[hidden] { display: none; }
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 560px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
 td:first-child { font-weight: 700; white-space: nowrap; }
 .ok { color: var(--c-ok); font-weight: 700; }
 .ng { color: var(--c-ng); font-weight: 700; }
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
 input[type="range"] { width: 100%; accent-color: var(--accent); }
 footer#memo-backlink {
   margin-top: 40px;
@@ -160,7 +155,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .ds .card { margin: 0; }
 .ds .pic { display: flex; gap: 3px; flex-wrap: wrap; align-items: center; margin: 6px 0 4px; font: 600 0.72rem 'JetBrains Mono', monospace; }
 .cell { border: 1px solid var(--line); background: var(--chip); border-radius: 4px; padding: 2px 7px; }
-.cell.hl { border-color: var(--c-key); color: var(--c-key); }
+.cell.hl { border-color: var(--c-hl); color: var(--c-hl); }
 .ar { color: var(--fg-2); }
 .pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .pick .card { margin: 0; }
@@ -210,7 +205,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="nline">n = <span id="n-val">1,000</span></div>
     <input type="range" id="n-range" min="1" max="7" step="1" value="3" aria-label="データの個数 n（10 の何乗か）">
     <div id="growth-rows"></div>
-    <p class="muted" id="growth-note"></p>
+    <p class="note" id="growth-note"></p>
   </div>
   <div class="table-wrap">
   <table>
@@ -234,35 +229,35 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="card">
       <span class="label">ARRAY</span><b> 配列（動的配列）</b>
       <div class="pic"><span class="cell">3</span><span class="cell hl">8</span><span class="cell">1</span><span class="cell">5</span><span class="cell">9</span></div>
-      <p class="muted">メモリ上に隙間なく並ぶ。番号から位置を計算できるので i 番目を一発で読める。途中に入れると後ろを全部ずらす。JS の Array、Python の list、Go の slice、Rust の Vec。</p>
+      <p class="note">メモリ上に隙間なく並ぶ。番号から位置を計算できるので i 番目を一発で読める。途中に入れると後ろを全部ずらす。JS の Array、Python の list、Go の slice、Rust の Vec。</p>
     </div>
     <div class="card">
       <span class="label">LINKED LIST</span><b> 連結リスト</b>
       <div class="pic"><span class="cell">3</span><span class="ar">→</span><span class="cell">8</span><span class="ar">→</span><span class="cell hl">1</span><span class="ar">→</span><span class="cell">5</span></div>
-      <p class="muted">各要素が次の要素を指す。位置が分かっていれば付け替えだけで O(1) で挿入・削除できるが、i 番目に行くには先頭からたどる。LRU キャッシュの内部などで使う。</p>
+      <p class="note">各要素が次の要素を指す。位置が分かっていれば付け替えだけで O(1) で挿入・削除できるが、i 番目に行くには先頭からたどる。LRU キャッシュの内部などで使う。</p>
     </div>
     <div class="card">
       <span class="label">HASH TABLE</span><b> ハッシュ表</b>
       <div class="pic"><span class="cell">"id"</span><span class="ar">→ hash →</span><span class="cell hl">[2]</span><span class="ar">→</span><span class="cell">値</span></div>
-      <p class="muted">キーをハッシュ関数で番号に変え、配列のその位置に置く。キーで引く・入れる・消すが平均 O(1)。順序や範囲での検索は苦手。JS の Map / Set / オブジェクト、Python の dict / set。</p>
+      <p class="note">キーをハッシュ関数で番号に変え、配列のその位置に置く。キーで引く・入れる・消すが平均 O(1)。順序や範囲での検索は苦手。JS の Map / Set / オブジェクト、Python の dict / set。</p>
     </div>
     <div class="card">
       <span class="label">BALANCED TREE</span><b> 平衡二分探索木・B 木</b>
       <div class="pic"><span class="cell hl">50</span><span class="ar">↙</span><span class="cell">20</span><span class="ar">↘</span><span class="cell">80</span></div>
-      <p class="muted">「左は小さく右は大きく」と並べ、高さを log n に保つ。検索・挿入・削除が O(log n) で、<b>順番どおりに取り出す・範囲で絞る</b>ができる。赤黒木（Java の TreeMap、C++ の std::map）、B 木（DB のインデックス）。</p>
+      <p class="note">「左は小さく右は大きく」と並べ、高さを log n に保つ。検索・挿入・削除が O(log n) で、<b>順番どおりに取り出す・範囲で絞る</b>ができる。赤黒木（Java の TreeMap、C++ の std::map）、B 木（DB のインデックス）。</p>
     </div>
     <div class="card">
       <span class="label">HEAP</span><b> ヒープ（優先度付きキュー）</b>
       <div class="pic"><span class="cell hl">1</span><span class="ar">↙</span><span class="cell">4</span><span class="ar">↘</span><span class="cell">3</span><span class="ar">…</span></div>
-      <p class="muted">「親は子より小さい」だけを守る木（配列で表せる）。最小値を見るのは O(1)、取り出し・追加は O(log n)。全体は並んでいないので、検索は O(n)。タイマー、ジョブキュー、ダイクストラ法。</p>
+      <p class="note">「親は子より小さい」だけを守る木（配列で表せる）。最小値を見るのは O(1)、取り出し・追加は O(log n)。全体は並んでいないので、検索は O(n)。タイマー、ジョブキュー、ダイクストラ法。</p>
     </div>
     <div class="card">
       <span class="label">STACK / QUEUE</span><b> スタック・キュー</b>
       <div class="pic"><span class="cell">後入れ先出し</span><span class="ar">/</span><span class="cell">先入れ先出し</span></div>
-      <p class="muted">端だけを出し入れする。どちらも O(1)。スタックは関数呼び出し・undo・深さ優先探索、キューは幅優先探索・処理待ちの列。JS で配列の <code>shift()</code> をキューに使うと先頭を抜くたびに詰め直しが起きうる。</p>
+      <p class="note">端だけを出し入れする。どちらも O(1)。スタックは関数呼び出し・undo・深さ優先探索、キューは幅優先探索・処理待ちの列。JS で配列の <code>shift()</code> をキューに使うと先頭を抜くたびに詰め直しが起きうる。</p>
     </div>
   </div>
-  <p class="muted">ほかに、前方一致に強い<b>トライ (trie)</b>、「入っているかもしれない／絶対ない」を少ないメモリで答える<b>ブルームフィルタ</b>、点と辺の関係を表す<b>グラフ</b>（隣接リスト・隣接行列）などがある。ベクトル検索の近似索引（HNSW）はグラフの応用（<a href="rag-vector-search.html">RAG とベクトル検索</a>）。</p>
+  <p class="note">ほかに、前方一致に強い<b>トライ (trie)</b>、「入っているかもしれない／絶対ない」を少ないメモリで答える<b>ブルームフィルタ</b>、点と辺の関係を表す<b>グラフ</b>（隣接リスト・隣接行列）などがある。ベクトル検索の近似索引（HNSW）はグラフの応用（<a href="rag-vector-search.html">RAG とベクトル検索</a>）。</p>
 
   <h2 id="cheatsheet">操作ごとの計算量</h2>
   <div class="table-wrap">
@@ -276,16 +271,16 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <tr><td>二分ヒープ</td><td>—</td><td><span class="o on">O(n)</span></td><td colspan="3"><span class="o olog">O(log n)</span>（追加）</td><td><span class="o o1">O(1)</span> 見る / <span class="o olog">O(log n)</span> 取り出す</td><td>—</td></tr>
   </table>
   </div>
-  <p class="muted">* 償却 O(1)。† 末尾を指すポインタを持っている場合。‡ 挿入位置のノードがもう分かっている場合（探すのは O(n)）。§ 部分木の大きさを持たせた木の場合。</p>
+  <p class="note">* 償却 O(1)。† 末尾を指すポインタを持っている場合。‡ 挿入位置のノードがもう分かっている場合（探すのは O(n)）。§ 部分木の大きさを持たせた木の場合。</p>
 
   <h2 id="choose">場面ごとの選び方</h2>
   <div class="pick">
-    <div class="card"><p class="q">ID の一覧に含まれるかを何度も調べる</p><p class="a">Set（ハッシュ表）</p><p class="muted">配列の <code>includes</code> は毎回 O(n)。ループの中で使うと全体で O(n²) になる。</p></div>
-    <div class="card"><p class="q">キーから値をすぐ引きたい（順序は要らない）</p><p class="a">Map / dict</p><p class="muted">JS ではキーが文字列以外のとき・頻繁に足し引きするときはオブジェクトより Map。</p></div>
-    <div class="card"><p class="q">「締め切りがいちばん近いもの」を次々取り出す</p><p class="a">ヒープ</p><p class="muted">毎回ソートし直すと O(n log n)。ヒープなら 1 回 O(log n)。</p></div>
-    <div class="card"><p class="q">「2026-01〜03 の注文」のように範囲で絞る</p><p class="a">ソート済みの構造・B 木</p><p class="muted">ハッシュは隣のキーが近くに置かれないので範囲検索に使えない。DB のインデックスが B 木なのはこのため。</p></div>
-    <div class="card"><p class="q">番号順に読み、末尾に足していく</p><p class="a">配列</p><p class="muted">いちばん単純で、多くの場面でいちばん速い。迷ったらまず配列。</p></div>
-    <div class="card"><p class="q">入力補完（前方一致）</p><p class="a">トライ・ソート済み配列＋二分探索</p><p class="muted">共通の接頭辞をまとめて持てる。件数が少ないならソート済み配列で十分。</p></div>
+    <div class="card"><p class="q">ID の一覧に含まれるかを何度も調べる</p><p class="a">Set（ハッシュ表）</p><p class="note">配列の <code>includes</code> は毎回 O(n)。ループの中で使うと全体で O(n²) になる。</p></div>
+    <div class="card"><p class="q">キーから値をすぐ引きたい（順序は要らない）</p><p class="a">Map / dict</p><p class="note">JS ではキーが文字列以外のとき・頻繁に足し引きするときはオブジェクトより Map。</p></div>
+    <div class="card"><p class="q">「締め切りがいちばん近いもの」を次々取り出す</p><p class="a">ヒープ</p><p class="note">毎回ソートし直すと O(n log n)。ヒープなら 1 回 O(log n)。</p></div>
+    <div class="card"><p class="q">「2026-01〜03 の注文」のように範囲で絞る</p><p class="a">ソート済みの構造・B 木</p><p class="note">ハッシュは隣のキーが近くに置かれないので範囲検索に使えない。DB のインデックスが B 木なのはこのため。</p></div>
+    <div class="card"><p class="q">番号順に読み、末尾に足していく</p><p class="a">配列</p><p class="note">いちばん単純で、多くの場面でいちばん速い。迷ったらまず配列。</p></div>
+    <div class="card"><p class="q">入力補完（前方一致）</p><p class="a">トライ・ソート済み配列＋二分探索</p><p class="note">共通の接頭辞をまとめて持てる。件数が少ないならソート済み配列で十分。</p></div>
   </div>
   <h3>よくある O(n²) の直し方</h3>
 <pre><code><span class="cm">// ✗ users ごとに orders を全部なめる: O(users × orders)</span>
@@ -300,7 +295,7 @@ for (const o of orders) {
   byUser.get(o.userId).push(o);
 }
 for (const u of users) u.orders = byUser.get(u.id) ?? [];</code></pre>
-  <p class="muted">DB で同じことが起きるのが N+1 問題。こちらは 1 回のクエリにまとめる（JOIN や IN）のが直し方（<a href="db-index-transaction.html">インデックスとトランザクション</a>）。</p>
+  <p class="note">DB で同じことが起きるのが N+1 問題。こちらは 1 回のクエリにまとめる（JOIN や IN）のが直し方（<a href="db-index-transaction.html">インデックスとトランザクション</a>）。</p>
 
   <h2 id="sort">並べ替えと二分探索</h2>
   <ul class="dots">
@@ -318,7 +313,7 @@ for (const u of users) u.orders = byUser.get(u.id) ?? [];</code></pre>
     <div class="mem"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
     <span class="label" style="color:var(--c-a)">連結リスト</span>
     <div class="mem"><span class="far"></span><span class="gap"></span><span class="gap"></span><span class="far"></span><span class="gap"></span><span class="far"></span><span class="gap"></span><span class="gap"></span><span class="gap"></span><span class="far"></span></div>
-    <p class="muted">「途中に挿入」が O(1) の連結リストでも、挿入位置を探すのに O(n) かかる上に 1 歩ずつ遅い。実際には、配列を詰め直すほうが速いことが多い。</p>
+    <p class="note">「途中に挿入」が O(1) の連結リストでも、挿入位置を探すのに O(n) かかる上に 1 歩ずつ遅い。実際には、配列を詰め直すほうが速いことが多い。</p>
   </div>
   <ul class="dots">
     <li>DB の B 木が二分木ではなく「1 ノードに数百のキー」を持つのも同じ理由。ディスクやメモリから 1 回で読める量に合わせ、読む回数（木の高さ）を減らしている（<a href="db-internals.html">DB のしくみ</a>）。</li>
@@ -330,7 +325,13 @@ for (const u of users) u.orders = byUser.get(u.id) ?? [];</code></pre>
   <details class="myth"><summary>ハッシュ表は常に O(1)</summary><p>平均の話。衝突が多いと遅くなる。外部から送られたキーを入れるときは、衝突を狙った攻撃（hash flooding）に備えて、言語のランタイムがハッシュに乱数の種を混ぜていることが多い。</p></details>
   <details class="myth"><summary>挿入が多いなら連結リスト</summary><p>挿入位置を探すコストとキャッシュの悪さで、配列に負けることが多い。末尾への追加が中心なら配列で十分。</p></details>
 
-  <p class="related">関連: <a href="memory-management.html">メモリ管理</a><a href="db-internals.html">DB のしくみ</a><a href="db-index-transaction.html">インデックスとトランザクション</a><a href="redis-valkey.html">Redis と Valkey</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="memory-management.html">メモリ管理</a> — スタックとヒープ、値がどこに置かれいつ解放されるか</li>
+    <li><a href="db-internals.html">DB のしくみ</a> — DB のページと B 木の置き方</li>
+    <li><a href="db-index-transaction.html">インデックスとトランザクション</a> — B 木インデックスが効く条件</li>
+    <li><a href="redis-valkey.html">Redis と Valkey の仕組み</a> — ハッシュ・ソート済み集合などをそのまま使う DB</li>
+  </ul>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

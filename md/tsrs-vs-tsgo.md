@@ -275,7 +275,7 @@ npx tsrs -p . --noEmit --fast   # 高速プリセット（結果は既定モー�
 npx tsrs --lsp -stdio                            # 言語サーバー（実験的）
 ```
 
-## 出典
+## 参考
 
 - [Introducing tsrs: a Port of TypeScript to Rust（Cloudflare Blog, 2026-10-20）](https://blog.cloudflare.com/typescript-rust-port/)
 - [A deep dive into tsrs（flaviocopes.com）](https://flaviocopes.com/tsrs/)

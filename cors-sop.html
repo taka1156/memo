@@ -61,7 +61,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -85,7 +85,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
 .label {
@@ -124,7 +123,6 @@ pre code { background: none; padding: 0; word-break: normal; }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* トークン表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -132,7 +130,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 
 /* 誤解 */
 
-.related a { display: inline-block; margin: 4px 8px 4px 0; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -275,9 +272,9 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <span class="op-p">443<small>ポート</small></span>
       <span class="op-x">/users?id=1<small>関係なし</small></span>
     </div>
-    <p class="muted">基準：<code>https://app.example.com</code> で動いているページから見て、次の URL は同じオリジン？（クリックで判定）</p>
+    <p class="note">基準：<code>https://app.example.com</code> で動いているページから見て、次の URL は同じオリジン？（クリックで判定）</p>
     <div class="judge" id="judge"></div>
-    <p class="muted" style="margin-top:12px">自分で URL を入力して試す：</p>
+    <p class="note" style="margin-top:12px">自分で URL を入力して試す：</p>
     <div class="custom" style="margin-top:4px">
       <input id="url" type="text" value="https://app.example.com:8080/" aria-label="判定する URL">
     </div>
@@ -332,7 +329,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <line class="ng" x1="205" y1="188" x2="185" y2="212"/>
       <text class="ngt" x="300" y="205">③ JS には渡さない</text>
     </svg>
-    <p class="muted">このため、単純リクエストの POST などは<b>サーバー側で処理が完了している</b>こともある。「CORS で失敗したから何も起きていない」とは限らない。プリフライトが必要なリクエストだけは、許可が出るまで本番のリクエスト自体が送られない。</p>
+    <p class="note">このため、単純リクエストの POST などは<b>サーバー側で処理が完了している</b>こともある。「CORS で失敗したから何も起きていない」とは限らない。プリフライトが必要なリクエストだけは、許可が出るまで本番のリクエスト自体が送られない。</p>
   </div>
 
   <h2 id="preflight">単純リクエストとプリフライト</h2>
@@ -384,7 +381,7 @@ Access-Control-Max-Age: 600
 PUT /api/items/42 HTTP/1.1
 Origin: https://app.example.com
 Authorization: Bearer ...</code></pre>
-  <p class="muted"><code>Max-Age</code> の間はプリフライトの結果がキャッシュされ、毎回 OPTIONS が飛ぶのを防げる（ブラウザごとに上限あり）。</p>
+  <p class="note"><code>Max-Age</code> の間はプリフライトの結果がキャッシュされ、毎回 OPTIONS が飛ぶのを防げる（ブラウザごとに上限あり）。</p>
 
   <h2 id="headers">CORS のヘッダー一覧</h2>
   <div class="table-wrap">
@@ -426,7 +423,7 @@ Access-Control-Allow-Credentials: true</code></pre>
       <p>スキーム＋登録可能ドメイン（<code>example.com</code> の部分）。上の2つは<b>同じサイト</b>。</p>
     </div>
   </div>
-  <p class="muted">そのため「サブドメイン違いの API」は、CORS の設定は必要だが、<code>SameSite=Lax</code> の Cookie はそのまま送れる。CSRF 対策との関係は <a href="jwt-vs-session.html">JWT とセッション</a> を参照。</p>
+  <p class="note">そのため「サブドメイン違いの API」は、CORS の設定は必要だが、<code>SameSite=Lax</code> の Cookie はそのまま送れる。CSRF 対策との関係は <a href="jwt-vs-session.html">JWT とセッション</a> を参照。</p>
 
   <h2 id="debug">ハマったときの確認ポイント</h2>
   <div class="tabs" role="tablist">
@@ -453,7 +450,7 @@ export default {
     proxy: { '/api': 'http://localhost:8080' }
   }
 }</code></pre>
-    <p class="muted">本番でも、フロントと API を同じドメインの配下に置く（リバースプロキシ）と CORS 設定が不要になる。<a href="vite-toolchain.html">Vite ツールチェーン</a>も参照。</p>
+    <p class="note">本番でも、フロントと API を同じドメインの配下に置く（リバースプロキシ）と CORS 設定が不要になる。<a href="vite-toolchain.html">Vite ツールチェーン</a>も参照。</p>
   </div>
 
   <h2 id="myths">よくある誤解</h2>
@@ -462,9 +459,11 @@ export default {
   <details class="myth"><summary><code>mode: 'no-cors'</code> にすれば直る</summary><p>エラーは消えるが、レスポンスは中身の読めない「opaque」になる。データを使いたいなら意味がない。CORS はフロントだけでは直せず、サーバーの設定が必要。</p></details>
   <details class="myth"><summary>CORS を設定していれば CSRF は防げる</summary><p>単純リクエスト（フォーム送信と同じ形）は CORS と関係なく送られ、サーバーで処理される。CSRF は SameSite Cookie や CSRF トークンで防ぐ。</p></details>
 
-
-  <h2>関連メモ</h2>
-  <p class="related"><a href="jwt-vs-session.html">JWT とセッション（CSRF と SameSite）→</a> <a href="vite-toolchain.html">Vite ツールチェーン →</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="jwt-vs-session.html">JWT とセッション</a> — CSRF と SameSite（Cookie を送る側の制約）</li>
+    <li><a href="vite-toolchain.html">Vite ツールチェーン図解</a> — 開発サーバーとビルドを担う Vite まわりの道具の全体像</li>
+  </ul>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

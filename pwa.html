@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-must: #be185d;
   --c-rec: #047857;
 }
@@ -30,7 +29,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-must: #f472b6;
     --c-rec: #34d399;
   }
@@ -63,7 +61,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -85,7 +83,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.note { color: var(--fg-2); font-size: 0.85rem; }
 
 /* 3 要素カード */
 .pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
@@ -100,7 +97,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 /* 図 */
 .diagram svg { width: 100%; height: auto; display: block; }
 .d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.d-box.hl { stroke: var(--c-key); stroke-width: 2; }
+.d-box.hl { stroke: var(--c-hl); stroke-width: 2; }
 .d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
 .d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
 .d-label { fill: var(--fg); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
@@ -149,12 +146,11 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
 .tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
-.tbl-wrap { overflow-x: auto; }
 
 /* チェックリスト */
 .progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
-.bar div { height: 100%; width: 0; background: var(--c-key); transition: width .2s; }
+.bar div { height: 100%; width: 0; background: var(--c-hl); transition: width .2s; }
 .count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
 .checklist { list-style: none; }
 .checklist li { border-bottom: 1px solid var(--line); }
@@ -401,7 +397,7 @@ self.addEventListener('fetch', e =&gt; {
   <p class="note">手書きが大変なら Workbox、Vite なら <code>vite-plugin-pwa</code>、Next.js なら <code>@serwist/next</code> で生成できる。</p>
 
   <h2 id="platforms">プラットフォームごとの違い</h2>
-  <div class="card tbl-wrap">
+  <div class="card table-wrap">
     <table class="tbl">
       <thead><tr><th>項目</th><th>Chrome / Edge（Android・PC）</th><th>iOS / iPadOS Safari</th></tr></thead>
       <tbody>
@@ -471,17 +467,15 @@ self.addEventListener('fetch', e =&gt; {
   <details class="myth"><summary>iPhone でもインストールボタンが自動で出る</summary><p>iOS の Safari には自動のプロンプトも <code>beforeinstallprompt</code> もない（Firefox も非対応）。ユーザーに共有メニューから追加してもらう必要がある。</p></details>
 
 
-  <h2>参考</h2>
-  <div class="card">
-    <ul style="margin-left:1.2em;font-size:0.88rem">
-      <li><a href="https://web.dev/install-criteria/">What does it take to be installable?（web.dev）</a></li>
-      <li><a href="https://developer.chrome.com/blog/update-install-criteria">Revisiting Chrome's installability criteria（Chrome for Developers）</a></li>
-      <li><a href="https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/">Web Push for Web Apps on iOS and iPadOS（WebKit）</a></li>
-      <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register">ServiceWorkerContainer: register()（MDN）</a></li>
-      <li><a href="https://caniuse.com/wf-beforeinstallprompt">beforeinstallprompt（Can I use）</a></li>
-    </ul>
-    <p class="note">2026-11-03 時点で確認。</p>
-  </div>
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://web.dev/install-criteria/">What does it take to be installable?（web.dev）</a></li>
+    <li><a href="https://developer.chrome.com/blog/update-install-criteria">Revisiting Chrome's installability criteria（Chrome for Developers）</a></li>
+    <li><a href="https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/">Web Push for Web Apps on iOS and iPadOS（WebKit）</a></li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register">ServiceWorkerContainer: register()（MDN）</a></li>
+    <li><a href="https://caniuse.com/wf-beforeinstallprompt">beforeinstallprompt（Can I use）</a></li>
+  </ul>
+  <p class="note">2026-11-03 時点で確認。</p>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

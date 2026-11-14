@@ -209,7 +209,12 @@ OS やフォントの違いで 1px ずれるだけで差分が出るので、 **
 
 ## 関連メモ
 
-[Vite ツールチェーン](https://memo.taka1156.site/md/vite-toolchain.md) [アクセシビリティ](https://memo.taka1156.site/md/a11y-checklist.md) [GitHub サービス](https://memo.taka1156.site/md/github-services.md) [REST・GraphQL・gRPC・tRPC](https://memo.taka1156.site/md/api-styles.md) [JS のモジュールと依存管理](https://memo.taka1156.site/md/js-modules.md) [DDD とオニオン](https://memo.taka1156.site/md/ddd-onion.md)
+- [Vite ツールチェーン図解](https://memo.taka1156.site/md/vite-toolchain.md) — Vitest を動かす Vite のパイプライン
+- [アクセシビリティ チェックリスト](https://memo.taka1156.site/md/a11y-checklist.md) — 自動テストで拾えるアクセシビリティ
+- [GitHub サービス](https://memo.taka1156.site/md/github-services.md) — CI でテストを回す Actions
+- [REST・GraphQL・gRPC・tRPC](https://memo.taka1156.site/md/api-styles.md) — テストの前提になる API の契約（OpenAPI・スキーマ・型）
+- [JS のモジュールと依存管理](https://memo.taka1156.site/md/js-modules.md) — テスト対象が読み込むモジュールの仕組み（ESM・exports の解決）
+- [DDD とオニオンアーキテクチャ](https://memo.taka1156.site/md/ddd-onion.md) — 依存の向きでテストしやすくする
 
 ## 参考
 

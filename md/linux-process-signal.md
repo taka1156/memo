@@ -1,8 +1,8 @@
 <!-- scripts/memo.py build が自動生成。手で編集しない -->
 
-# Linux 端末・プロセス・シグナル 全体像
+# キー入力から Ctrl+C まで：端末・シェル・カーネルの流れ
 
-> ターミナル・擬似端末・シェル・カーネルがどうつながり、キー入力や Ctrl+C がプロセスに届くまでを 1 枚でたどる入口ページ。
+> キー入力や Ctrl+C が、ターミナル・擬似端末・ラインディシプリン・シェル・カーネルをどう通ってプロセスに届くかを、OS の層の図とステップで 1 本の流れとしてたどる。
 
 - URL: https://memo.taka1156.site/linux-process-signal.html
 - タグ: Linux
@@ -10,11 +10,11 @@
 
 ---
 
-# Linux 端末・プロセス・シグナル
+# キー入力から Ctrl+C まで
 
-全体像 — キー入力と Ctrl+C がプロセスに届くまで
+端末・シェル・カーネルを通って、キー入力とシグナルがプロセスに届く流れ
 
-[全体像](https://memo.taka1156.site/md/linux-process-signal.md) [端末とシェル](https://memo.taka1156.site/md/linux-terminal.md) [プロセス](https://memo.taka1156.site/md/linux-process.md) [シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md)
+[キー入力の流れ](https://memo.taka1156.site/md/linux-process-signal.md) [端末とシェル](https://memo.taka1156.site/md/linux-terminal.md) [プロセス](https://memo.taka1156.site/md/linux-process.md) [シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md)
 
 **ざっくり言うと**
 
@@ -22,7 +22,7 @@
 - プロセスは `fork` （自分を複製）→ `exec` （中身を別のプログラムに入れ替え）→ `wait` （親が終了を回収）で生まれて消える。
 - シグナルはカーネルがプロセスに付ける「割り込みの印」。Ctrl+C も `kill` も、カーネルが印を付け、プロセスが次に動くときに既定動作・ハンドラ・無視のどれかで処理される。
 
-## 全体像: OS の層とシステムコール
+## OS の層とシステムコール
 
 Linux は大きく **ユーザー空間** と **カーネル空間** に分かれる。アプリはハードウェアを直接触れず、必ず **システムコール (system call)** でカーネルに頼む。シェルもターミナルも、ユーザー空間で動くただのプロセス。
 
@@ -97,31 +97,3 @@ USER SPACE
 それぞれの部品の詳細は、 [端末とシェル](https://memo.taka1156.site/md/linux-terminal.md) ・ [プロセス](https://memo.taka1156.site/md/linux-process.md) ・ [シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md) で。
 
 （元のページで操作できます → https://memo.taka1156.site/linux-process-signal.html#path）
-
-## このシリーズの地図
-
-同じ仕組みを 3 つの面から詳しく見る。上の「キー入力の旅」で全体の流れをつかんでから、気になるところへ進む。
-
-**端末とシェル**
-
-キーが届くまでの道のりを担う部品
-
-- ターミナル・擬似端末・ラインディシプリン・シェルの役割
-- カノニカルモードと raw モード、特殊キー
-- エスケープシーケンス、SSH・端末がない場合
-
-**プロセス**
-
-コマンドが動く単位と、その生まれ方・消え方
-
-- プロセスが持つ情報
-- fork → exec → wait、ゾンビと孤児
-- 状態 (R/S/D/T/Z)、fd とパイプ
-
-**シグナルとジョブ制御**
-
-プロセスへの割り込みと、端末からの操作
-
-- 発生 → 処理待ち → 配送 → 処理
-- ハンドラ、主なシグナル図鑑
-- セッション・プロセスグループ・Ctrl+Z / fg / bg

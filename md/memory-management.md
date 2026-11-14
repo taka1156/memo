@@ -148,7 +148,7 @@ fn print_len(s: &String) { println!("{}", s.len()); }
 - 持ち主は常に 1 人なので、二重解放は起きず、通常は解放忘れも起きない（ただし `Rc` の循環や `mem::forget` ではリークしうる）。借用中に持ち主が消えるコード（ダングリング参照）は **コンパイルエラー** になる。
 - 共有の持ち主が本当に必要なときだけ `Rc` / `Arc` （参照カウント）を使う。循環させるなら片方を `Weak` にする。
 
-[Rust 学習フローと仕組み](https://memo.taka1156.site/md/rust.md) [WebAssembly](https://memo.taka1156.site/md/webassembly.md)
+所有権の詳しい仕組みは [Rust 学習フローと仕組み](https://memo.taka1156.site/md/rust.md) を参照。Wasm の線形メモリと WasmGC は [WebAssembly](https://memo.taka1156.site/md/webassembly.md) へ。
 
 ## GC があってもリークする — JS の典型例
 

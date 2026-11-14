@@ -104,7 +104,7 @@ HTML
 
 島だけ
 
-JS hydrate
+JS hyd
 
 **ページは静的な海、動く部品だけが島** 。島ごとに「すぐ」「見えたら」「アイドル時」などハイドレーションの時期を選べる（Astro の `client:visible` など）。ブログ・ドキュメント・LP のように大半が読むだけのページで JS を大きく減らせる。
 
@@ -152,7 +152,11 @@ Server Components はサーバー専用の部品をハイドレーションの�
 
 ## 関連メモ
 
-[vinext と Next.js](https://memo.taka1156.site/md/vinext.md) [React と Solid](https://memo.taka1156.site/md/react-vs-solid.md) [Core Web Vitals](https://memo.taka1156.site/md/web-performance.md) [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) [PWA](https://memo.taka1156.site/md/pwa.md)
+- [vinext と Next.js の比較](https://memo.taka1156.site/md/vinext.md) — Next.js 互換のフレームワークでの実例
+- [React と Solid](https://memo.taka1156.site/md/react-vs-solid.md) — ハイドレーション後に動く更新方式（再レンダーとシグナル）の違い
+- [Core Web Vitals](https://memo.taka1156.site/md/web-performance.md) — LCP・INP で戦略を比べる
+- [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) — SSG・ISR を支える HTTP キャッシュ
+- [PWA の仕組みとチェックリスト](https://memo.taka1156.site/md/pwa.md) — Service Worker でのキャッシュ
 
 ## 参考
 

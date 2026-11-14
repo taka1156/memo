@@ -70,7 +70,7 @@ a { color: var(--accent); }
 ul.plain { margin: 6px 0 6px 1.2em; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -90,7 +90,6 @@ pre {
   border-radius: 10px;
   padding: 16px 18px;
 }
-.note { color: var(--fg-2); font-size: 0.8rem; margin-top: 10px; }
 .go { color: var(--c-go); font-weight: 700; }
 .rs { color: var(--c-rs); font-weight: 700; }
 .ts { color: var(--c-ts); font-weight: 700; }
@@ -199,7 +198,7 @@ pre {
 .memviz { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
 .mem-row { display: flex; gap: 4px; flex-wrap: wrap; }
 .blk {
-  font: 500 0.66rem 'JetBrains Mono', ui-monospace, monospace;
+  font: 500 0.68rem 'JetBrains Mono', ui-monospace, monospace;
   padding: 3px 6px; border-radius: 4px; border: 1px solid var(--line);
   background: var(--surface);
 }
@@ -227,7 +226,6 @@ pre {
 .bar-row.rs .lbl { color: var(--c-rs); }
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 8px; text-align: left; vertical-align: top; }
 th { font: 700 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); background: var(--chip); }
@@ -241,9 +239,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 .choose { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 620px) { .choose { grid-template-columns: 1fr; } }
 
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -491,7 +486,7 @@ npx tsrs -p . --noEmit
 npx tsrs -p . --noEmit --fast   # 高速プリセット（結果は既定モードと突き合わせる）
 npx tsrs --lsp -stdio                            # 言語サーバー（実験的）</pre>
 
-  <h2>出典</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://blog.cloudflare.com/typescript-rust-port/">Introducing tsrs: a Port of TypeScript to Rust（Cloudflare Blog, 2026-10-20）</a></li>
     <li><a href="https://flaviocopes.com/tsrs/">A deep dive into tsrs（flaviocopes.com）</a></li>

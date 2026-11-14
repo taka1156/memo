@@ -160,9 +160,10 @@ git reset --hard ORIG_HEAD     # 直前の rebase / merge / reset を丸ごと�
 
 予定では 2.56（2026年9月）→ 2.98（2026年12月）→ 2.99 と 3.0（2027年春）。3.0 は 2.99 と機能が同じで、破壊的変更のスイッチだけが切り替わる。オブジェクトと ref の考え方自体は変わらない。
 
-## 関連
+## 関連メモ
 
-[GitHub サービス](https://memo.taka1156.site/md/github-services.md) [DB のしくみ（WAL も「先に記録」）](https://memo.taka1156.site/md/db-internals.md)
+- [GitHub サービス](https://memo.taka1156.site/md/github-services.md) — リポジトリの上に乗る GitHub のサービス
+- [DB のしくみ](https://memo.taka1156.site/md/db-internals.md) — 変更を先に WAL に書き、本体は後で書く仕組み
 
 ## 参考
 

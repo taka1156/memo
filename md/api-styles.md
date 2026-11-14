@@ -169,7 +169,11 @@ Content-Type: application/problem+json
 
 ## 関連メモ
 
-[HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) [リアルタイム通信](https://memo.taka1156.site/md/realtime-comm.md) [DDD とオニオン](https://memo.taka1156.site/md/ddd-onion.md) [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) [TypeScript](https://memo.taka1156.site/md/typescript.md)
+- [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) — REST の GET が効かせられる HTTP キャッシュ
+- [リアルタイム通信](https://memo.taka1156.site/md/realtime-comm.md) — サーバーから送る通信（SSE・WebSocket）の選び方
+- [DDD とオニオンアーキテクチャ](https://memo.taka1156.site/md/ddd-onion.md) — API の裏側のドメインの組み立て方
+- [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) — 冪等性とリトライの考え方
+- [TypeScript 学習フローと仕組み](https://memo.taka1156.site/md/typescript.md) — tRPC が頼る TypeScript の型
 
 ## 参考
 

@@ -122,7 +122,11 @@ C/C++ のバッファオーバーフローは **線形メモリの中では普�
 
 ## 関連メモ
 
-[Rust](https://memo.taka1156.site/md/rust.md) [JS ランタイム比較](https://memo.taka1156.site/md/js-runtimes.md) [JS と Web 標準の決まり方](https://memo.taka1156.site/md/js-web-standards.md) [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) [ブラウザのレンダリング](https://memo.taka1156.site/md/browser-rendering.md)
+- [Rust 学習フローと仕組み](https://memo.taka1156.site/md/rust.md) — Wasm を出力する代表的な言語
+- [JS ランタイム比較](https://memo.taka1156.site/md/js-runtimes.md) — ブラウザ外で JS を動かす Node.js・Bun・Workers（isolate）の違い
+- [JS と Web 標準の決まり方](https://memo.taka1156.site/md/js-web-standards.md) — Wasm の仕様を決める W3C
+- [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) — Workers で Wasm を使う例
+- [ブラウザのレンダリング](https://memo.taka1156.site/md/browser-rendering.md) — 画面の更新は JS 側に残る
 
 ## 参考
 

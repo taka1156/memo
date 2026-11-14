@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -28,7 +27,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -59,7 +57,7 @@ h3 { font-size: 0.95rem; margin: 18px 0 6px; }
 p { margin: 8px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -78,7 +76,7 @@ pre {
 }
 pre code { background: none; padding: 0; font-size: inherit; }
 .cm { color: var(--fg-2); }
-.hl { background: color-mix(in srgb, var(--c-key) 18%, transparent); border-radius: 3px; }
+.hl { background: color-mix(in srgb, var(--c-hl) 18%, transparent); border-radius: 3px; }
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -89,7 +87,6 @@ pre code { background: none; padding: 0; font-size: inherit; }
 ul.list li { margin-left: 1.2em; }
 ul.list { margin: 8px 0; }
 ul.list li { margin-bottom: 4px; }
-.note { font-size: 0.83rem; color: var(--fg-2); }
 .warn-box {
   border-left: 3px solid var(--c-warn);
   background: color-mix(in srgb, var(--c-warn) 8%, var(--surface));
@@ -139,7 +136,6 @@ ul.list li { margin-bottom: 4px; }
 .hcard .top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
 
 /* 表 */
-.tbl { overflow-x: auto; margin: 10px 0; }
 table { border-collapse: collapse; width: 100%; font-size: 0.83rem; min-width: 480px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th {
@@ -177,7 +173,7 @@ ol.flow li::before {
   font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace;
   margin-right: 6px;
 }
-ol.flow li.bad { border-color: var(--c-ng); }
+ol.flow li.bad { border-color: var(--c-ng); border-style: dashed; }
 ol.flow li.bad::before { background: var(--c-ng); }
 ol.flow li.good { border-color: var(--c-ok); }
 ol.flow li.good::before { background: var(--c-ok); }
@@ -412,6 +408,8 @@ app.use(helmet({
   <h2 id="csp">Content-Security-Policy (CSP)</h2>
   <p>「このページで<b>どこから来たスクリプト・画像・通信先なら使ってよいか</b>」をブラウザに伝えるヘッダー。XSS でタグを差し込まれても、許可されていないスクリプトは実行されません。XSS 対策の<b>2 枚目の壁</b>です（1 枚目は出力時のエスケープ）。</p>
 
+  <p class="note">このページの流れの図では、<b>赤い破線の段が攻撃が通ってしまう動き</b>、<b>緑の段がヘッダーを付けたときのブラウザの動き</b>。</p>
+
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-panel="csp-dir">主なディレクティブ</button>
     <button class="tab" role="tab" aria-selected="false" data-panel="csp-nonce">nonce 方式</button>
@@ -419,7 +417,7 @@ app.use(helmet({
   </div>
 
   <div class="panel card" id="csp-dir">
-    <div class="tbl"><table>
+    <div class="table-wrap"><table>
       <thead><tr><th>ディレクティブ</th><th>決めること</th><th>よく使う値</th></tr></thead>
       <tbody>
         <tr><td><code>default-src</code></td><td>個別指定がない種類の既定値（フォールバック）</td><td><code>'self'</code></td></tr>
@@ -443,7 +441,7 @@ app.use(helmet({
     <ol class="flow">
       <li>サーバーが<b>レスポンスごとに</b>推測できない乱数（nonce）を作る</li>
       <li>ヘッダーに <code>script-src 'nonce-R4nd0m'</code>、自分の <code>&lt;script nonce="R4nd0m"&gt;</code> にも同じ値を入れる</li>
-      <li class="bad">XSS で差し込まれた <code>&lt;script&gt;</code> や <code>onclick=</code> は nonce を知らない → <b>実行されない</b></li>
+      <li class="good">XSS で差し込まれた <code>&lt;script&gt;</code> や <code>onclick=</code> は nonce を知らない → <b>実行されない</b></li>
       <li class="good"><code>'strict-dynamic'</code> があれば、nonce 付きスクリプトが動的に読み込んだスクリプトも許可（バンドラーやタグマネージャーが動く）</li>
     </ol>
 <pre><code>Content-Security-Policy:
@@ -557,7 +555,7 @@ Content-Security-Policy-Report-Only: script-src 'nonce-R4nd0m' 'strict-dynamic';
     <figcaption>見えている罠のボタンと、見えない本物のボタンの位置を合わせておく</figcaption>
   </figure>
 
-  <div class="tbl"><table>
+  <div class="table-wrap"><table>
     <thead><tr><th>書き方</th><th>意味</th></tr></thead>
     <tbody>
       <tr><td><code>Content-Security-Policy: frame-ancestors 'none'</code></td><td>どこからも埋め込ませない（推奨）</td></tr>
@@ -571,7 +569,7 @@ Content-Security-Policy-Report-Only: script-src 'nonce-R4nd0m' 'strict-dynamic';
   <!-- ======================== Referrer ======================== -->
   <h2 id="referrer">Referrer-Policy</h2>
   <p>リンクや画像の読み込み時に、<b>直前のページの URL</b> を <code>Referer</code> ヘッダーで送るかどうかを決めます。パスワード再設定 URL（<code>/reset?token=…</code>）や検索語などが、外部の画像・広告・解析サービスに漏れるのを防ぎます。</p>
-  <div class="tbl"><table>
+  <div class="table-wrap"><table>
     <thead><tr><th>値</th><th>同じオリジンへ</th><th>別オリジン (https→https)</th><th>https→http</th></tr></thead>
     <tbody>
       <tr><td><code>no-referrer</code></td><td>送らない</td><td>送らない</td><td>送らない</td></tr>
@@ -592,7 +590,7 @@ Content-Security-Policy-Report-Only: script-src 'nonce-R4nd0m' 'strict-dynamic';
   <!-- ======================== COOP/CORP/COEP ======================== -->
   <h2 id="isolation">COOP / CORP / COEP（クロスオリジン分離）</h2>
   <p>Spectre（CPU の投機実行を使ってメモリを読む攻撃）や XS-Leaks（別サイトの状態を間接的に盗み見る攻撃）への対策として加わった 3 つのヘッダーです。名前が似ているので、<b>誰との関係を切るのか</b>で覚えます。</p>
-  <div class="tbl"><table>
+  <div class="table-wrap"><table>
     <thead><tr><th>ヘッダー</th><th>切る関係</th><th>推奨値</th><th>注意</th></tr></thead>
     <tbody>
       <tr>
@@ -621,7 +619,7 @@ Content-Security-Policy-Report-Only: script-src 'nonce-R4nd0m' 'strict-dynamic';
   <h2 id="cookie">Set-Cookie の属性</h2>
   <p>セッション ID を入れた Cookie は「盗まれたらそのままログインされる鍵」です。属性で、<b>どこへ・いつ・誰に</b>送られるかを絞ります。</p>
 <pre><code>Set-Cookie: <span class="hl">__Host-</span>sid=8f3a…; Path=/; <span class="hl">Secure</span>; <span class="hl">HttpOnly</span>; <span class="hl">SameSite=Lax</span>; Max-Age=3600</code></pre>
-  <div class="tbl"><table>
+  <div class="table-wrap"><table>
     <thead><tr><th>属性</th><th>効果</th><th>防ぐもの</th></tr></thead>
     <tbody>
       <tr><td><code>Secure</code></td><td>https の通信でだけ送る</td><td>平文通信での盗聴</td></tr>
@@ -636,7 +634,7 @@ Content-Security-Policy-Report-Only: script-src 'nonce-R4nd0m' 'strict-dynamic';
 
   <!-- ======================== Others ======================== -->
   <h2 id="others">その他、場面によって使うもの</h2>
-  <div class="tbl"><table>
+  <div class="table-wrap"><table>
     <thead><tr><th>ヘッダー</th><th>使う場面</th></tr></thead>
     <tbody>
       <tr><td><code>Cache-Control: no-store</code></td><td>マイページ・明細など個人情報を含むレスポンス。共有 PC のブラウザキャッシュや、設定ミスの CDN に残さない（<a href="http-cache.html">HTTP キャッシュ</a>）</td></tr>
@@ -649,7 +647,7 @@ Content-Security-Policy-Report-Only: script-src 'nonce-R4nd0m' 'strict-dynamic';
   <!-- ======================== Deprecated ======================== -->
   <h2 id="deprecated">もう使わない・古いヘッダー</h2>
   <p>古い記事やチェックツールに出てくるが、今は入れない（または無効化する）ものです。</p>
-  <div class="tbl"><table>
+  <div class="table-wrap"><table>
     <thead><tr><th>ヘッダー</th><th>状況</th><th>どうする</th></tr></thead>
     <tbody>
       <tr><td><code>X-XSS-Protection</code></td><td>ブラウザ内蔵の XSS フィルタ用。主要ブラウザでフィルタは廃止され、フィルタ自体が情報漏れの原因にもなった</td><td><code>0</code> にするか、送らない。代わりに CSP</td></tr>
@@ -669,7 +667,7 @@ Content-Security-Policy-Report-Only: script-src 'nonce-R4nd0m' 'strict-dynamic';
       <button class="btn" id="hdr-check">チェックする</button>
       <button class="btn sub" id="hdr-sample">よくある設定例を入れる</button>
     </div>
-    <div class="tbl" id="result-wrap" hidden><table id="result">
+    <div class="table-wrap" id="result-wrap" hidden><table id="result">
       <thead><tr><th>項目</th><th>判定</th><th>内容</th></tr></thead>
       <tbody></tbody>
     </table></div>

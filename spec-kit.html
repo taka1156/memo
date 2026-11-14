@@ -63,10 +63,10 @@ h2 {
 h3 { font-size: 0.95rem; margin: 14px 0 6px; }
 p { margin: 8px 0; }
 a { color: var(--accent); }
-small, .note { color: var(--fg-2); font-size: 0.82rem; }
+small { color: var(--fg-2); font-size: 0.82rem; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -105,7 +105,6 @@ pre .cm { color: var(--fg-2); }
 .panel[hidden] { display: none; }
 
 /* 凡例 */
-.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 0.78rem; color: var(--fg-2); margin-bottom: 12px; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 12px; height: 12px; border-radius: 3px; border: 2px solid; display: inline-block; }
 .lg-core i { border-color: var(--c-core); }
@@ -181,7 +180,6 @@ pre .cm { color: var(--fg-2); }
 .tbl { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
 .tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 6px; text-align: left; vertical-align: top; }
 .tbl th { color: var(--fg-2); font-weight: 500; font-size: 0.76rem; }
-.tbl-wrap { overflow-x: auto; }
 
 /* 誤解 */
 
@@ -492,7 +490,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
         ├── contracts/
         ├── checklists/
         └── tasks.md          <span class="cm"># 作業リスト</span></pre>
-    <div class="tbl-wrap card">
+    <div class="table-wrap card">
       <table class="tbl">
         <tr><th>ファイル</th><th>中身</th><th>作る工程</th></tr>
         <tr><td><code>constitution.md</code></td><td>全体の原則</td><td>constitution</td></tr>

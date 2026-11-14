@@ -180,4 +180,5 @@ export default {
 
 ## 関連メモ
 
-[JWT とセッション（CSRF と SameSite）→](https://memo.taka1156.site/md/jwt-vs-session.md) [Vite ツールチェーン →](https://memo.taka1156.site/md/vite-toolchain.md)
+- [JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) — CSRF と SameSite（Cookie を送る側の制約）
+- [Vite ツールチェーン図解](https://memo.taka1156.site/md/vite-toolchain.md) — 開発サーバーとビルドを担う Vite まわりの道具の全体像

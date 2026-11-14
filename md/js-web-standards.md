@@ -258,6 +258,17 @@ TC55 には Deno・Igalia（共同議長）、Cloudflare、Bloomberg などが�
 
 ## 関連メモ
 
-[JS ランタイム比較 →](https://memo.taka1156.site/md/js-runtimes.md) [CORS と同一オリジンポリシー →](https://memo.taka1156.site/md/cors-sop.md) [TypeScript 学習フローと仕組み →](https://memo.taka1156.site/md/typescript.md)
+- [JS ランタイム比較](https://memo.taka1156.site/md/js-runtimes.md) — fetch や Request / Response など Web 標準の API を備えるランタイム
+- [CORS と同一オリジンポリシー](https://memo.taka1156.site/md/cors-sop.md) — WHATWG の Fetch 仕様が決めるブラウザの制約
+- [TypeScript 学習フローと仕組み](https://memo.taka1156.site/md/typescript.md) — TC39 の外で型を足す言語
 
-出典: [The TC39 Process](https://tc39.es/process-document/) ／ [W3C と WHATWG の覚書（2019）](https://www.w3.org/2019/04/WHATWG-W3C-MOU.html) ／ [W3C ブログ：WinterTC について（2025）](https://www.w3.org/blog/2025/collaborating-across-w3c-and-ecma-for-web-interoperable-server-runtimes-through-wintertc/) ／ [ECMA-429](https://ecma-international.org/publications-and-standards/standards/ecma-429/) ／ [Minimum common web API](https://min-common-api.proposal.wintertc.org/) ／ [WinterTC の TPAC 2025 発表資料](https://people.igalia.com/abotella/pub/TPAC-2025-WinterTC/) （2026 年 11 月 3 日時点）
+## 参考
+
+- [The TC39 Process](https://tc39.es/process-document/)
+- [W3C と WHATWG の覚書（2019）](https://www.w3.org/2019/04/WHATWG-W3C-MOU.html)
+- [W3C ブログ：WinterTC について（2025）](https://www.w3.org/blog/2025/collaborating-across-w3c-and-ecma-for-web-interoperable-server-runtimes-through-wintertc/)
+- [ECMA-429](https://ecma-international.org/publications-and-standards/standards/ecma-429/)
+- [Minimum common web API](https://min-common-api.proposal.wintertc.org/)
+- [WinterTC の TPAC 2025 発表資料](https://people.igalia.com/abotella/pub/TPAC-2025-WinterTC/)
+
+2026 年 11 月 3 日時点の内容。

@@ -143,4 +143,6 @@ $ docker run -it ubuntu:22.04 bash
 | 起動 | プロセスを起動するだけなので速い | OS のブートが必要で遅め |
 | Mac / Windows | Linux コンテナは裏で軽量な Linux VM の上で動く | そのまま動く |
 
-関連: [Docker イメージの種類](https://memo.taka1156.site/md/docker-images.md) （ベースイメージの選び方）
+## 関連メモ
+
+- [Docker イメージの種類](https://memo.taka1156.site/md/docker-images.md) — ベースイメージの選び方

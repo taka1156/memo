@@ -241,4 +241,4 @@ grant_type=client_credentials
 
 ## 関連メモ
 
-[JWT とセッション →](https://memo.taka1156.site/md/jwt-vs-session.md)
+- [JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) — 受け取ったトークンを保つ方法

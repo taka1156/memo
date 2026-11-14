@@ -222,4 +222,5 @@ Workers
 
 ## 関連メモ
 
-[Cloudflare サービス →](https://memo.taka1156.site/md/cloudflare-services.md) [Vite ツールチェーン →](https://memo.taka1156.site/md/vite-toolchain.md)
+- [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) — Workers と組み合わせるサービス
+- [Vite ツールチェーン図解](https://memo.taka1156.site/md/vite-toolchain.md) — JS をビルドする側の道具

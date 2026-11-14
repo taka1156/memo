@@ -209,4 +209,5 @@ Solid
 
 ## 関連メモ
 
-[← UI 更新の3つの方式](https://memo.taka1156.site/md/reactivity-models.md) [Vue と Svelte →](https://memo.taka1156.site/md/vue-vs-svelte.md)
+- [UI 更新の3つの方式](https://memo.taka1156.site/md/reactivity-models.md) — 仮想 DOM・シグナル・コンパイラの 3 方式の地図
+- [Vue と Svelte](https://memo.taka1156.site/md/vue-vs-svelte.md) — 地図の残り 2 つのフレームワーク（Vue の Proxy リアクティブと Svelte のコンパイラ）の内部

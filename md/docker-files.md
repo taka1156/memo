@@ -426,4 +426,7 @@ Dockerfile にツールを書き足すか features にするか迷ったら: ア
 
 ✓ 正しくは: Dev Container は公開された仕様で、Codespaces・JetBrains・CLI（ `devcontainer up` ）でも読める。エディタ固有の部分は `customizations` の中に分けて書く。
 
-関連: [Docker 動作原理](https://memo.taka1156.site/md/docker.md) ／ [Docker イメージの種類](https://memo.taka1156.site/md/docker-images.md)
+## 関連メモ
+
+- [Docker 動作原理](https://memo.taka1156.site/md/docker.md) — レイヤー・名前空間などコンテナの仕組み
+- [Docker イメージの種類](https://memo.taka1156.site/md/docker-images.md) — FROM に書くベースイメージの選び方

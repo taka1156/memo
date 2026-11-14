@@ -179,4 +179,10 @@ while pq:
 
 ✓ 正しくは: 木にはループがないが、一般のグラフにはある。記録なしだと同じ頂点を何度も訪れ、終わらないか指数的に遅くなる。
 
-関連: [設計手法の全体像](https://memo.taka1156.site/md/algorithm-paradigms.md) [動的計画法](https://memo.taka1156.site/md/dynamic-programming.md) [データ構造と計算量](https://memo.taka1156.site/md/data-structures.md) [TCP/IP](https://memo.taka1156.site/md/tcp-ip.md) [Git の内部構造](https://memo.taka1156.site/md/git-internals.md)
+## 関連メモ
+
+- [アルゴリズム設計手法の全体像](https://memo.taka1156.site/md/algorithm-paradigms.md) — 他の設計手法との使い分け
+- [動的計画法（DP）](https://memo.taka1156.site/md/dynamic-programming.md) — 重なる部分問題を表で解く手法
+- [データ構造と計算量の早見表](https://memo.taka1156.site/md/data-structures.md) — BFS・DFS・ダイクストラで使うキュー・スタック・ヒープの計算量
+- [TCP/IP とネットワーク基礎](https://memo.taka1156.site/md/tcp-ip.md) — ルーティングテーブルでパケットの次の渡し先を決める仕組み
+- [Git の内部構造](https://memo.taka1156.site/md/git-internals.md) — コミットの履歴は有向非巡回グラフ

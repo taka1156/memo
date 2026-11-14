@@ -242,6 +242,10 @@ lsof +L1                      # 消されたのに開かれたままのファイ
 findmnt                       # マウントのツリー（種類とオプション付き）
 ```
 
-## 関連するメモ
+## 関連メモ
 
-[Linux 全体像](https://memo.taka1156.site/md/linux-process-signal.md) [Linux プロセス](https://memo.taka1156.site/md/linux-process.md) [端末とシェル](https://memo.taka1156.site/md/linux-terminal.md) [Docker 動作原理](https://memo.taka1156.site/md/docker.md) [仮想メモリ](https://memo.taka1156.site/md/virtual-memory.md)
+- [キー入力から Ctrl+C まで](https://memo.taka1156.site/md/linux-process-signal.md) — キー入力がシェルとプロセスに届く流れ
+- [Linux プロセスの仕組み](https://memo.taka1156.site/md/linux-process.md) — プロセスが開くファイルディスクリプタ
+- [Linux 端末とシェル](https://memo.taka1156.site/md/linux-terminal.md) — /dev/pts の擬似端末
+- [Docker 動作原理](https://memo.taka1156.site/md/docker.md) — レイヤーを重ねる overlayfs
+- [仮想メモリとページング](https://memo.taka1156.site/md/virtual-memory.md) — ページキャッシュとメモリ

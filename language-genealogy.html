@@ -17,13 +17,12 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-anc: #0369a1;
   --c-anc-bg: #e0f2fe;
   --c-desc: #2b8a3e;
   --c-desc-bg: #e9f7ec;
   --c-edge: #aab3c0;
-  --c-impl: #7c3aed;
+  --c-impl: #be185d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -34,13 +33,12 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-anc: #7dd3fc;
     --c-anc-bg: #0c1f2e;
     --c-desc: #51cf66;
     --c-desc-bg: #0f2416;
     --c-edge: #3a4d63;
-    --c-impl: #b197fc;
+    --c-impl: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -71,7 +69,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -82,7 +80,6 @@ code {
   border-radius: 10px;
   padding: 16px 18px;
 }
-.note { color: var(--fg-2); font-size: 0.82rem; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -138,7 +135,7 @@ code {
 #tree .node rect.box { fill: var(--surface); stroke: var(--fg-2); stroke-width: 1.2; }
 #tree .node text.name { font: 700 11px 'JetBrains Mono', monospace; fill: var(--fg); }
 #tree .node text.badge { font: 700 10px 'Noto Sans JP', sans-serif; text-anchor: end; }
-#tree .node.sel rect.box { fill: var(--c-key); stroke: var(--c-key); }
+#tree .node.sel rect.box { fill: var(--c-hl); stroke: var(--c-hl); }
 #tree .node.sel text.name { fill: var(--bg); }
 #tree .node.anc rect.box { fill: var(--c-anc-bg); stroke: var(--c-anc); stroke-width: 2; }
 #tree .node.anc text.badge { fill: var(--c-anc); }
@@ -174,7 +171,6 @@ code {
 .inherit li { margin-left: 1.2em; font-size: 0.88rem; }
 
 /* 表 */
-.tbl-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 8px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
@@ -597,7 +593,7 @@ const TYPE_ORDER = { d: 0, i: 1, m: 2 };
     tabs.appendChild(btn);
     const panel = document.createElement('div');
     panel.className = 'panel card'; panel.id = 'h-' + id; panel.hidden = idx !== 0;
-    panel.innerHTML = `<div class="tbl-wrap"><table><tr><th>親</th><th>受け継いだもの</th><th>関係</th></tr>${body}</table></div>`
+    panel.innerHTML = `<div class="table-wrap"><table><tr><th>親</th><th>受け継いだもの</th><th>関係</th></tr>${body}</table></div>`
       + (n.extra ? `<p class="note">${n.extra}</p>` : '');
     panels.appendChild(panel);
   });

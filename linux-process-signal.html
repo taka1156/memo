@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Linux 端末・プロセス・シグナル 全体像</title>
-<meta name="description" content="ターミナル・擬似端末・シェル・カーネルがどうつながり、キー入力や Ctrl+C がプロセスに届くまでを 1 枚でたどる入口ページ。">
+<title>キー入力から Ctrl+C まで：端末・シェル・カーネルの流れ</title>
+<meta name="description" content="キー入力や Ctrl+C が、ターミナル・擬似端末・ラインディシプリン・シェル・カーネルをどう通ってプロセスに届くかを、OS の層の図とステップで 1 本の流れとしてたどる。">
 <meta name="memo:tags" content="Linux">
 <meta name="memo:date" content="2026-11-06">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
@@ -68,7 +68,7 @@ ul.dots { margin: 8px 0 8px 1.3em; }
 ul.dots li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -90,9 +90,7 @@ pre .cm { color: var(--fg-2); }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-.table-wrap { overflow-x: auto; margin: 10px 0; }
 table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--surface); }
 th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
 th { background: var(--chip); font-weight: 700; white-space: nowrap; }
@@ -150,13 +148,6 @@ a { color: var(--accent); }
 .series a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font: 600 0.75rem 'Noto Sans JP', system-ui, sans-serif; }
 .series a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .series a:hover:not([aria-current]) { color: var(--accent); }
-.map { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
-.map a { text-decoration: none; color: var(--fg); display: block; }
-.map a:hover .card { border-color: var(--accent); }
-.map .card { height: 100%; }
-.map b { color: var(--fg); font-size: 0.95rem; }
-.map p { font-size: 0.8rem; color: var(--fg-2); }
-.map ul { margin: 6px 0 0 1.1em; font-size: 0.78rem; }
 /* 全体像の層 */
 .layers { display: grid; gap: 6px; }
 .layer { border-radius: 8px; padding: 10px 14px; border: 1px solid var(--line); border-left-width: 4px; }
@@ -239,8 +230,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <meta name="apple-mobile-web-app-title" content="MEMO">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="MEMO">
-<meta property="og:title" content="Linux 端末・プロセス・シグナル 全体像">
-<meta property="og:description" content="ターミナル・擬似端末・シェル・カーネルがどうつながり、キー入力や Ctrl+C がプロセスに届くまでを 1 枚でたどる入口ページ。">
+<meta property="og:title" content="キー入力から Ctrl+C まで：端末・シェル・カーネルの流れ">
+<meta property="og:description" content="キー入力や Ctrl+C が、ターミナル・擬似端末・ラインディシプリン・シェル・カーネルをどう通ってプロセスに届くかを、OS の層の図とステップで 1 本の流れとしてたどる。">
 <meta property="og:url" content="https://memo.taka1156.site/linux-process-signal.html">
 <meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
 <meta property="og:image:width" content="1200">
@@ -252,9 +243,9 @@ footer#memo-backlink a:hover { color: var(--accent); }
 </head>
 <body>
 <div class="wrap">
-  <h1>Linux 端末・プロセス・シグナル</h1>
-  <p class="subtitle">全体像 — キー入力と Ctrl+C がプロセスに届くまで</p>
-  <nav class="series" aria-label="このシリーズのページ"><a href="linux-process-signal.html" aria-current="page">全体像</a><a href="linux-terminal.html">端末とシェル</a><a href="linux-process.html">プロセス</a><a href="linux-signal.html">シグナルとジョブ制御</a></nav>
+  <h1>キー入力から Ctrl+C まで</h1>
+  <p class="subtitle">端末・シェル・カーネルを通って、キー入力とシグナルがプロセスに届く流れ</p>
+  <nav class="series" aria-label="このシリーズのページ"><a href="linux-process-signal.html" aria-current="page">キー入力の流れ</a><a href="linux-terminal.html">端末とシェル</a><a href="linux-process.html">プロセス</a><a href="linux-signal.html">シグナルとジョブ制御</a></nav>
 
   <div class="card summary">
     <strong>ざっくり言うと</strong>
@@ -266,16 +257,16 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
 
   <!-- ===================== 全体像 ===================== -->
-  <h2 id="overview">全体像: OS の層とシステムコール</h2>
+  <h2 id="overview">OS の層とシステムコール</h2>
   <p>Linux は大きく<b>ユーザー空間</b>と<b>カーネル空間</b>に分かれる。アプリはハードウェアを直接触れず、必ず<b>システムコール (system call)</b> でカーネルに頼む。シェルもターミナルも、ユーザー空間で動くただのプロセス。</p>
   <div class="layers">
     <div class="layer user">
-      <b>ユーザー空間 (user space)</b> <span class="muted">— 普通のプロセス。互いのメモリは見えない</span>
+      <b>ユーザー空間 (user space)</b> <span class="note">— 普通のプロセス。互いのメモリは見えない</span>
       <div class="items"><span>ターミナルエミュレータ</span><span>シェル (bash / zsh)</span><span>ls・vim・python …</span><span>sshd</span><span>systemd (PID 1)</span></div>
     </div>
     <div class="syscall">↕ システムコール: <span>read</span> <span>write</span> <span>fork</span> <span>execve</span> <span>wait4</span> <span>kill</span> <span>ioctl</span> …</div>
     <div class="layer kernel">
-      <b>カーネル (kernel)</b> <span class="muted">— 全プロセスの管理者。特権モードで動く</span>
+      <b>カーネル (kernel)</b> <span class="note">— 全プロセスの管理者。特権モードで動く</span>
       <div class="items"><span>プロセス管理・スケジューラ</span><span>シグナル配送</span><span>メモリ管理</span><span>VFS・ファイル</span><span>TTY / PTY・ラインディシプリン</span><span>デバイスドライバ</span><span>ネットワーク</span></div>
     </div>
     <div class="syscall">↕ 割り込み・I/O</div>
@@ -284,7 +275,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="items"><span>CPU</span><span>メモリ</span><span>ディスク</span><span>キーボード・画面</span><span>NIC</span></div>
     </div>
   </div>
-  <p class="muted">システムコールの入口と出口は、カーネルがシグナルを処理する大事なタイミングでもある（後述）。</p>
+  <p class="note">システムコールの入口と出口は、カーネルがシグナルを処理する大事なタイミングでもある（後述）。</p>
 
 
   <!-- ===================== キー入力の旅 ===================== -->
@@ -331,21 +322,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <div class="stepmsg" id="p-msg"></div>
 
-  <p class="muted">それぞれの部品の詳細は、<a href="linux-terminal.html">端末とシェル</a>・<a href="linux-process.html">プロセス</a>・<a href="linux-signal.html">シグナルとジョブ制御</a>で。</p>
-
-  <h2 id="map">このシリーズの地図</h2>
-  <p>同じ仕組みを 3 つの面から詳しく見る。上の「キー入力の旅」で全体の流れをつかんでから、気になるところへ進む。</p>
-  <div class="map">
-    <a href="linux-terminal.html"><div class="card"><b>端末とシェル</b>
-      <p>キーが届くまでの道のりを担う部品</p>
-      <ul><li>ターミナル・擬似端末・ラインディシプリン・シェルの役割</li><li>カノニカルモードと raw モード、特殊キー</li><li>エスケープシーケンス、SSH・端末がない場合</li></ul></div></a>
-    <a href="linux-process.html"><div class="card"><b>プロセス</b>
-      <p>コマンドが動く単位と、その生まれ方・消え方</p>
-      <ul><li>プロセスが持つ情報</li><li>fork → exec → wait、ゾンビと孤児</li><li>状態 (R/S/D/T/Z)、fd とパイプ</li></ul></div></a>
-    <a href="linux-signal.html"><div class="card"><b>シグナルとジョブ制御</b>
-      <p>プロセスへの割り込みと、端末からの操作</p>
-      <ul><li>発生 → 処理待ち → 配送 → 処理</li><li>ハンドラ、主なシグナル図鑑</li><li>セッション・プロセスグループ・Ctrl+Z / fg / bg</li></ul></div></a>
-  </div>
+  <p class="note">それぞれの部品の詳細は、<a href="linux-terminal.html">端末とシェル</a>・<a href="linux-process.html">プロセス</a>・<a href="linux-signal.html">シグナルとジョブ制御</a>で。</p>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

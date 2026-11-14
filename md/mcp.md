@@ -88,8 +88,9 @@ stdio（同じマシンの子プロセス） Streamable HTTP（ネットワー�
 
 ## ツールが呼ばれるまで
 
-1. ホスト → サーバー
-   **一覧を取得する** 。サーバーは名前・説明・入力の JSON Schema を返す。この説明文が LLM への「取扱説明書」になる。
+1. **一覧を取得する**
+   ホスト → サーバー
+   サーバーは名前・説明・入力の JSON Schema を返す。この説明文が LLM への「取扱説明書」になる。
 
 ```
 // tools/list の結果（抜粋）
@@ -112,12 +113,14 @@ stdio（同じマシンの子プロセス） Streamable HTTP（ネットワー�
 }
 ```
 
-2. ホスト → LLM
-   **道具の説明をプロンプトに載せる** 。LLM API の「ツール使用（function calling）」の形式に変換して渡す。
-3. LLM → ホスト
-   **LLM が「このツールをこの引数で使いたい」と返す** 。ホストは必要ならユーザーに許可を求める。
-4. ホスト → サーバー
-   **ツールを実行する** 。
+2. **道具の説明をプロンプトに載せる**
+   ホスト → LLM
+   LLM API の「ツール使用（function calling）」の形式に変換して渡す。
+3. **LLM が「このツールをこの引数で使いたい」と返す**
+   LLM → ホスト
+   ホストは必要ならユーザーに許可を求める。
+4. **ツールを実行する**
+   ホスト → サーバー
 
 ```
 { "jsonrpc": "2.0", "id": 7, "method": "tools/call",
@@ -131,8 +134,9 @@ stdio（同じマシンの子プロセス） Streamable HTTP（ネットワー�
   } }
 ```
 
-5. サーバー → ホスト → LLM
-   **結果を LLM に返す** 。LLM はそれを読んで、次のツールを呼ぶか、ユーザーに答える。
+5. **結果を LLM に返す**
+   サーバー → ホスト → LLM
+   LLM はそれを読んで、次のツールを呼ぶか、ユーザーに答える。
 
 ## 2026-07-28 版で変わったこと
 
@@ -199,4 +203,5 @@ stdio のサーバーは任意のコードを実行できる。 `npx` 1行で入
 
 ## 関連メモ
 
-[CLAUDE.md / AGENTS.md / Skills →](https://memo.taka1156.site/md/agent-instructions.md) [OAuth 2.0 / OIDC（リモート MCP の認可）→](https://memo.taka1156.site/md/oauth-oidc.md)
+- [CLAUDE.md / AGENTS.md / Skills](https://memo.taka1156.site/md/agent-instructions.md) — 同じくコンテキストに載る指示ファイル・Skills との違い
+- [OAuth 2.0 / OIDC のフロー](https://memo.taka1156.site/md/oauth-oidc.md) — リモート MCP の認可に使うフロー

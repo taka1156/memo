@@ -127,7 +127,7 @@ tools
 - ツール結果やWebページに書かれた指示にモデルが従ってしまう **プロンプトインジェクション** に注意。危険な操作は人の確認を挟む。
 - AI アプリと外部のツールやデータをつなぐ方法を標準化したのが MCP。
 
-[MCP の仕組み](https://memo.taka1156.site/md/mcp.md) [CLAUDE.md / AGENTS.md / Skills](https://memo.taka1156.site/md/agent-instructions.md) [Spec Kit](https://memo.taka1156.site/md/spec-kit.md)
+詳しくは [MCP の仕組み](https://memo.taka1156.site/md/mcp.md) ・ [CLAUDE.md / AGENTS.md / Skills](https://memo.taka1156.site/md/agent-instructions.md) を参照。エージェントに仕様から作らせる例は [Spec Kit の流れと役割](https://memo.taka1156.site/md/spec-kit.md) 。
 
 ## よくある誤解
 

@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #7c3aed;
   --c-b: #be185d;
 }
@@ -30,7 +29,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #c4b5fd;
     --c-b: #f472b6;
   }
@@ -65,7 +63,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -91,8 +89,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -135,7 +131,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -153,10 +148,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -191,7 +182,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .fig .dot.old { stroke: var(--fg-2); stroke-dasharray: 4 3; }
 .fig .edge.old { stroke-dasharray: 4 3; opacity: .6; }
 .fig .reflbl { fill: var(--fg); font-weight: 700; }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.8rem; margin-top: 8px; }
 .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; border: 2px solid currentColor; margin-right: 5px; vertical-align: -1px; }
 .areas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
 .areas .box { padding: 12px 6px; }
@@ -270,7 +260,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <path class="edge" d="M350,236L388,56" marker-end="url(#ar)"/>
       <path class="edge" d="M350,252L388,258" marker-end="url(#ar)"/>
     </svg>
-    <div class="legend"><span style="color:var(--c-key)">ref（ポインタ）</span><span style="color:var(--c-a)">commit</span><span style="color:var(--c-ok)">tree</span><span style="color:var(--c-b)">blob</span></div>
+    <div class="legend"><span style="color:var(--c-hl)">ref（ポインタ）</span><span style="color:var(--c-a)">commit</span><span style="color:var(--c-ok)">tree</span><span style="color:var(--c-b)">blob</span></div>
     <p class="note">README は変更していないので、C1 と C2 の tree は<b>同じ blob を共有</b>している。毎回スナップショットでも容量が膨らまないのはこのため（さらに pack ファイルで差分圧縮される）。</p>
   </div>
 
@@ -410,10 +400,13 @@ git reset --hard ORIG_HEAD     <span class="cm"># 直前の rebase / merge / res
     <p class="note">予定では 2.56（2026年9月）→ 2.98（2026年12月）→ 2.99 と 3.0（2027年春）。3.0 は 2.99 と機能が同じで、破壊的変更のスイッチだけが切り替わる。オブジェクトと ref の考え方自体は変わらない。</p>
   </div>
 
-  <h2>関連</h2>
-  <p class="related"><a href="github-services.html">GitHub サービス</a><a href="db-internals.html">DB のしくみ（WAL も「先に記録」）</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="github-services.html">GitHub サービス</a> — リポジトリの上に乗る GitHub のサービス</li>
+    <li><a href="db-internals.html">DB のしくみ</a> — 変更を先に WAL に書き、本体は後で書く仕組み</li>
+  </ul>
 
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://git-scm.com/book/en/v2/Git-Internals-Git-Objects">Pro Git「Git Internals - Git Objects」</a></li>
     <li><a href="https://git-scm.com/docs/git-reset">git-reset ドキュメント</a> / <a href="https://git-scm.com/docs/git-reflog">git-reflog ドキュメント</a></li>

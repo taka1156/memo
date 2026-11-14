@@ -216,4 +216,5 @@ $.delegate(['click'])
 
 ## 関連メモ
 
-[← UI 更新の3つの方式](https://memo.taka1156.site/md/reactivity-models.md) [← React と Solid](https://memo.taka1156.site/md/react-vs-solid.md)
+- [UI 更新の3つの方式](https://memo.taka1156.site/md/reactivity-models.md) — 仮想 DOM・シグナル・コンパイラの 3 方式の地図
+- [React と Solid](https://memo.taka1156.site/md/react-vs-solid.md) — もう 2 つのフレームワーク（React の仮想 DOM と Solid のシグナル）の内部

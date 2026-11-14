@@ -17,11 +17,15 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4f46e5; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #be185d;
   --c-b: #15803d;
   --c-c: #7c3aed;
   --c-d: #4d7c0f;
+  --c-cx-sys: #5b6b84;  /* コンテキストの中身の分類 */
+  --c-cx-tool: #7c3aed;
+  --c-cx-hist: #0369a1;
+  --c-cx-res: #0f766e;
+  --c-cx-out: #15803d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -32,11 +36,15 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a5b4fc; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #f472b6;
     --c-b: #4ade80;
     --c-c: #c4b5fd;
     --c-d: #fbbf24;
+    --c-cx-sys: #94a3b8;
+    --c-cx-tool: #c4b5fd;
+    --c-cx-hist: #7dd3fc;
+    --c-cx-res: #2dd4bf;
+    --c-cx-out: #4ade80;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -69,7 +77,7 @@ ul.dots { margin: 6px 0 6px 1.3em; }
 ul.dots li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -95,7 +103,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .grid2 > .card + .card, .grid3 > .card + .card { margin-top: 0; }
@@ -132,7 +139,6 @@ pre code { background: none; padding: 0; word-break: normal; }
 .box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -167,7 +173,6 @@ svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--f
 svg.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 svg.fig .sub { fill: var(--fg-2); }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -198,7 +203,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .prow { display: grid; grid-template-columns: 5.8em 1fr 3.6em; align-items: center; gap: 8px; font-size: 0.85rem; }
 .prow .w { font-weight: 700; }
 .prow .bar { height: 14px; background: var(--chip); border-radius: 4px; overflow: hidden; }
-.prow .bar span { display: block; height: 100%; background: var(--c-key); transition: width .2s; }
+.prow .bar span { display: block; height: 100%; background: var(--c-hl); transition: width .2s; }
 .prow .bar span.cut { background: var(--line); }
 .prow .v { font: 600 0.75rem 'JetBrains Mono', monospace; text-align: right; color: var(--fg-2); }
 .sliders { display: grid; gap: 8px; }
@@ -207,15 +212,14 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .sample { font-size: 0.9rem; }
 .sample b { color: var(--fg); }
 .ctxbar { display: flex; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); margin: 10px 0 6px; }
-.ctxbar div { display: flex; align-items: center; justify-content: center; font: 600 0.68rem 'JetBrains Mono', monospace; color: #fff; white-space: nowrap; overflow: hidden; }
-.cx-sys { background: #5b6b84; width: 10%; }
-.cx-tool { background: #7c3aed; width: 12%; }
-.cx-hist { background: #0077b6; width: 38%; }
-.cx-res { background: #0f766e; width: 22%; }
-.cx-out { background: #15803d; width: 10%; }
+.ctxbar div { display: flex; align-items: center; justify-content: center; font: 600 0.68rem 'JetBrains Mono', monospace; color: var(--bg); white-space: nowrap; overflow: hidden; }
+@media (max-width: 560px) { .ctxbar div { font-size: 0; } }  /* スマホでは帯の中の文字を出さず、下の凡例で読む */
+.cx-sys { background: var(--c-cx-sys); width: 10%; }
+.cx-tool { background: var(--c-cx-tool); width: 12%; }
+.cx-hist { background: var(--c-cx-hist); width: 38%; }
+.cx-res { background: var(--c-cx-res); width: 22%; }
+.cx-out { background: var(--c-cx-out); width: 10%; }
 .cx-free { background: var(--chip); color: var(--fg-2) !important; width: 8%; }
-.legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.75rem; color: var(--fg-2); }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 .agent { display: grid; gap: 6px; max-width: 560px; }
 .agent .s { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: var(--surface); font-size: 0.85rem; }
 .agent .s b { font-family: 'JetBrains Mono', monospace; color: var(--fg); font-size: 0.78rem; display: block; }
@@ -277,7 +281,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <label>top-p <input type="range" id="topp" min="0.1" max="1" step="0.05" value="1"><span id="pv">1.00</span></label>
     </div>
     <div class="ctrl" style="display:flex;gap:6px;margin-top:10px"><button class="btn primary" id="draw">サンプリングする</button></div>
-    <p class="muted">数値は説明用の架空のもの。灰色は top-p で除外された候補。</p>
+    <p class="note">数値は説明用の架空のもの。灰色は top-p で除外された候補。</p>
   </div>
   <ul class="dots">
     <li><b>低い temperature</b>: 一番確からしいものばかり選ぶ。抽出・分類・コード向き。</li>
@@ -292,11 +296,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="cx-sys">system</div><div class="cx-tool">tools</div><div class="cx-hist">会話履歴</div><div class="cx-res">ツール結果</div><div class="cx-out">出力</div><div class="cx-free">空き</div>
   </div>
   <div class="legend">
-    <span><i style="background:#5b6b84"></i>システムプロンプト（アプリが与える指示）</span>
-    <span><i style="background:#7c3aed"></i>ツールの定義（MCP など）</span>
-    <span><i style="background:#0077b6"></i>これまでのやり取り（CLAUDE.md などの差し込みも含む）</span>
-    <span><i style="background:#0f766e"></i>検索結果・ファイル内容</span>
-    <span><i style="background:#15803d"></i>これから生成する分</span>
+    <span><i class="cx-sys"></i>システムプロンプト（アプリが与える指示）</span>
+    <span><i class="cx-tool"></i>ツールの定義（MCP など）</span>
+    <span><i class="cx-hist"></i>これまでのやり取り（CLAUDE.md などの差し込みも含む）</span>
+    <span><i class="cx-res"></i>検索結果・ファイル内容</span>
+    <span><i class="cx-out"></i>これから生成する分</span>
   </div>
   <ul class="dots">
     <li>あふれた分は、アプリ側が古い履歴を<b>捨てるか要約</b>して収める。「さっき言ったことを忘れた」はこれ。</li>
@@ -328,12 +332,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <circle cx="300" cy="55" r="6" fill="var(--c-b)"/><text x="250" y="40">パスワード再設定</text>
         <circle cx="330" cy="95" r="6" fill="var(--c-b)"/><text x="285" y="118">2 段階認証</text>
         <circle cx="260" cy="170" r="6" fill="var(--c-c)"/><text x="272" y="174">配送料金</text>
-        <circle cx="105" cy="85" r="8" fill="none" stroke="var(--c-key)" stroke-width="3"/>
-        <text x="20" y="185" fill="var(--c-key)" font-weight="700">質問「買った服を返したい」</text>
-        <line x1="90" y1="172" x2="102" y2="94" stroke="var(--c-key)" stroke-dasharray="3 3"/>
+        <circle cx="105" cy="85" r="8" fill="none" stroke="var(--c-hl)" stroke-width="3"/>
+        <text x="20" y="185" fill="var(--c-hl)" font-weight="700">質問「買った服を返したい」</text>
+        <line x1="90" y1="172" x2="102" y2="94" stroke="var(--c-hl)" stroke-dasharray="3 3"/>
       </g>
     </svg>
-    <p class="muted">2 次元に描いた例示。質問のベクトルに近い「返品の手順」「返金ポリシー」が検索で選ばれる。キーワードが一致しなくても意味で引ける。</p>
+    <p class="note">2 次元に描いた例示。質問のベクトルに近い「返品の手順」「返金ポリシー」が検索で選ばれる。キーワードが一致しなくても意味で引ける。</p>
   </div>
   <h3>RAG (Retrieval-Augmented Generation) の流れ</h3>
   <div class="tabs" role="tablist">
@@ -369,7 +373,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <li>ツール結果やWebページに書かれた指示にモデルが従ってしまう<b>プロンプトインジェクション</b>に注意。危険な操作は人の確認を挟む。</li>
     <li>AI アプリと外部のツールやデータをつなぐ方法を標準化したのが MCP。</li>
   </ul>
-  <p class="related"><a href="mcp.html">MCP の仕組み</a><a href="agent-instructions.html">CLAUDE.md / AGENTS.md / Skills</a><a href="spec-kit.html">Spec Kit</a></p>
+  <p class="note">詳しくは <a href="mcp.html">MCP の仕組み</a>・<a href="agent-instructions.html">CLAUDE.md / AGENTS.md / Skills</a> を参照。エージェントに仕様から作らせる例は <a href="spec-kit.html">Spec Kit の流れと役割</a>。</p>
 
   <h2 id="myths">よくある誤解</h2>
   <details class="myth"><summary>会話するたびにモデルが学習して賢くなっていく</summary><p>利用中に重みは変わらない。「覚えている」ように見えるのは、アプリが履歴やメモリ機能の内容をコンテキストに入れているから。</p></details>

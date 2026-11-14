@@ -319,7 +319,11 @@ clang --target=aarch64-linux-gnu -O2 -S x.c   # Clang: 同じ clang で切り替
 
 ## 関連メモ
 
-[LLVM の構成と仕組み](https://memo.taka1156.site/md/llvm.md) [Rust](https://memo.taka1156.site/md/rust.md) [WebAssembly](https://memo.taka1156.site/md/webassembly.md) [Linux のプロセス](https://memo.taka1156.site/md/linux-process.md) [プログラミング言語の系譜](https://memo.taka1156.site/md/language-genealogy.md)
+- [LLVM の構成と仕組み](https://memo.taka1156.site/md/llvm.md) — Clang の後段の LLVM を詳しく
+- [Rust 学習フローと仕組み](https://memo.taka1156.site/md/rust.md) — LLVM を使う言語の例
+- [WebAssembly](https://memo.taka1156.site/md/webassembly.md) — LLVM が出力できる先の 1 つ
+- [Linux プロセスの仕組み](https://memo.taka1156.site/md/linux-process.md) — できた実行ファイルが動くとき
+- [プログラミング言語の系譜](https://memo.taka1156.site/md/language-genealogy.md) — C 系の言語のつながり
 
 ## 参考
 

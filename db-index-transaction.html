@@ -63,7 +63,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -89,8 +89,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -133,7 +131,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -151,10 +148,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -365,8 +358,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <div class="card">
     <p>多くの DB は、更新しても<b>古い版を残しておく</b>（PostgreSQL は新しい行の版を追加し、InnoDB は行を上書きして古い版を undo ログに残す）。各トランザクションは、最初の文を実行した時点（READ COMMITTED では各文の開始時点）のスナップショットに見える版だけを読む。</p>
     <div class="mvcc">
-      <div class="ver dead"><span class="label">版1</span><br>在庫 = 10<br><span class="muted">T100 が作成、T105 が更新して終了</span></div>
-      <div class="ver live"><span class="label">版2（最新）</span><br>在庫 = 9<br><span class="muted">T105 が作成</span></div>
+      <div class="ver dead"><span class="label">版1</span><br>在庫 = 10<br><span class="note">T100 が作成、T105 が更新して終了</span></div>
+      <div class="ver live"><span class="label">版2（最新）</span><br>在庫 = 9<br><span class="note">T105 が作成</span></div>
       <div class="ver"><span class="label">誰に何が見える？</span><br>T105 より前に始まった T103 → <b>版1</b><br>後から始まった T110 → <b>版2</b></div>
     </div>
     <p class="note">おかげで SELECT は UPDATE の完了を待たない。代わりに古い版が溜まるので、PostgreSQL は VACUUM、InnoDB は undo ログの purge で片付ける。長時間開いたままのトランザクションがあると古い版を消せず、PostgreSQL ではテーブルが、InnoDB では undo ログが膨らむ。</p>
@@ -402,11 +395,13 @@ COMMIT;</code></pre>
   <details class="myth"><summary>WHERE に出てくる列全部にインデックスを張れば速くなる</summary><p>書き込みが遅くなり、プランナが使うのは通常1クエリにつき一部だけ。よく使う検索条件の組み合わせに合わせた複合インデックスを少数作る方が効く。</p></details>
   <details class="myth"><summary>トランザクションで囲めば同時実行の問題は全部防げる</summary><p>防げる範囲は分離レベル次第。既定の READ COMMITTED では、読んでから書き戻す処理の取りこぼしは防げない。</p></details>
 
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="db-internals.html">DB のしくみ</a> — ページ・WAL・バッファプールなど 1 段下の仕組み</li>
+    <li><a href="jwt-vs-session.html">JWT とセッション</a> — セッションの保存先として DB を使う方式</li>
+  </ul>
 
-  <h2>関連</h2>
-  <p class="related"><a href="db-internals.html">DB のしくみ</a><a href="jwt-vs-session.html">JWT とセッション</a></p>
-
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://www.postgresql.org/docs/current/transaction-iso.html">PostgreSQL: Transaction Isolation</a></li>
     <li><a href="https://www.postgresql.org/docs/current/indexes-multicolumn.html">PostgreSQL: Multicolumn Indexes</a></li>

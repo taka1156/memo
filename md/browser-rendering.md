@@ -165,7 +165,10 @@ Composite
 
 ## 関連メモ
 
-[Core Web Vitals](https://memo.taka1156.site/md/web-performance.md) [UI 更新の3つの方式](https://memo.taka1156.site/md/reactivity-models.md) [CSS レイアウト](https://memo.taka1156.site/md/css-layout.md) [JS ランタイム比較](https://memo.taka1156.site/md/js-runtimes.md)
+- [Core Web Vitals](https://memo.taka1156.site/md/web-performance.md) — 描画の遅さを LCP・INP・CLS で測る
+- [UI 更新の3つの方式](https://memo.taka1156.site/md/reactivity-models.md) — フレームワークが DOM 更新を減らす 3 つの方式
+- [CSS レイアウト](https://memo.taka1156.site/md/css-layout.md) — レイアウトを決める Flexbox と Grid
+- [JS ランタイム比較](https://memo.taka1156.site/md/js-runtimes.md) — ブラウザ以外で JS を動かす環境との違い
 
 ## 参考
 

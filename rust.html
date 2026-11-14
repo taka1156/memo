@@ -17,8 +17,7 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
-  --c-heap: #8250df;
+  --c-heap: #0f766e;
   --c-p1: #0077b6;
   --c-p2: #be185d;
   --c-p3: #1a7f37;
@@ -32,8 +31,7 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
-    --c-heap: #c297ff;
+    --c-heap: #2dd4bf;
     --c-p1: #00d4ff;
     --c-p2: #f472b6;
     --c-p3: #3fb950;
@@ -67,7 +65,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -93,7 +91,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.note { color: var(--fg-2); font-size: 0.82rem; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -110,7 +107,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .panel[hidden] { display: none; }
 
 /* ロードマップ */
-.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 0.8rem; color: var(--fg-2); margin-bottom: 12px; }
 .legend span::before {
   content: "";
   display: inline-block;
@@ -183,8 +179,8 @@ pre code { background: none; padding: 0; font-size: 1em; }
 }
 .flow .st b { display: block; font-family: 'JetBrains Mono', monospace; color: var(--fg); font-size: 0.85rem; }
 .flow .st span { color: var(--fg-2); }
-.flow .st.hot { border: 2px solid var(--c-key); }
-.flow .st.hot b { color: var(--c-key); }
+.flow .st.hot { border: 2px solid var(--c-hl); }
+.flow .st.hot b { color: var(--c-hl); }
 .flow .ar { align-self: center; color: var(--fg-2); padding: 0 4px; font-family: 'JetBrains Mono', monospace; }
 @media (max-width: 640px) {
   .flow { flex-direction: column; }
@@ -235,7 +231,6 @@ svg.fig .t-heap { fill: var(--c-heap); }
 .refs i.x { border-color: var(--c-ng); color: var(--c-ng); text-decoration: line-through; }
 
 /* 表 */
-.tbl { width: 100%; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.83rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { background: var(--chip); font-weight: 700; }
@@ -595,7 +590,7 @@ match read_config() {
   </div>
 
   <h2 id="memory">メモリ管理の比較</h2>
-  <div class="tbl">
+  <div class="table-wrap">
     <table>
       <thead><tr><th>方式</th><th>代表言語</th><th>解放のタイミング</th><th>安全性</th><th>実行時コスト</th></tr></thead>
       <tbody>

@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #0f766e; /* 図の強調（このページの色と見分けやすい色） */
   --c-src: #7c3aed;
   --c-raw: #be185d;
   --c-stg: #0e7490;
@@ -35,9 +34,8 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #2dd4bf; /* 図の強調（このページの色と見分けやすい色） */
     --c-src: #c4b5fd;
-    --c-raw: #fbbf24;
+    --c-raw: #f472b6;
     --c-stg: #67e8f9;
     --c-mart: #4ade80;
     --c-bi: #a3e635;
@@ -73,10 +71,9 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 ul.list { margin: 6px 0 6px 1.3em; }
 ul.list li { margin: 3px 0; }
-.note { color: var(--fg-2); font-size: 0.8rem; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -93,7 +90,7 @@ pre {
   margin: 8px 0;
 }
 pre .cm { color: var(--fg-2); }
-pre .kw { color: var(--c-key); font-weight: 700; }
+pre .kw { color: var(--c-hl); font-weight: 700; }
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -161,10 +158,11 @@ pre .kw { color: var(--c-key); font-weight: 700; }
   display: grid;
   grid-template-columns: 42px repeat(7, 1fr);
   gap: 2px;
-  font: 500 0.62rem 'JetBrains Mono', ui-monospace, monospace;
+  font: 500 0.68rem 'JetBrains Mono', ui-monospace, monospace;
 }
 .grid .hd { text-align: center; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-bottom: 2px; }
-.grid .hd small { display: block; color: var(--fg-2); }
+.grid .hd small { display: block; color: var(--fg-2); font-size: 1em; }
+@media (max-width: 560px) { .grid .hd { white-space: normal; overflow-wrap: anywhere; line-height: 1.25; align-self: end; } }  /* スマホでは列名を省略せず折り返す */
 .grid .rl { color: var(--fg-2); text-align: right; padding-right: 4px; line-height: 14px; }
 .grid .cell { height: 14px; border-radius: 2px; background: var(--chip); }
 .grid .cell.on { background: var(--c-scan); }
@@ -173,9 +171,8 @@ pre .kw { color: var(--c-key); font-weight: 700; }
 .grid .cell.on.part.clus { background: linear-gradient(90deg, var(--chip) 0 75%, transparent 75%), repeating-linear-gradient(135deg, var(--c-scan) 0 3px, var(--c-scan-soft) 3px 7px); }
 .meter { margin-top: 12px; }
 .bar { height: 12px; background: var(--chip); border-radius: 999px; overflow: hidden; }
-.bar i { display: block; height: 100%; background: var(--c-key); width: 100%; transition: width .3s; min-width: 2px; }
+.bar i { display: block; height: 100%; background: var(--c-hl); width: 100%; transition: width .3s; min-width: 2px; }
 .meter .num { font: 700 1.1rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); }
-.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.72rem; color: var(--fg-2); margin-top: 6px; }
 .legend span::before { content: ''; display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; background: var(--sw); }
 
 /* 図 */
@@ -204,7 +201,6 @@ pre .kw { color: var(--c-key); font-weight: 700; }
 .tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 6px; text-align: left; vertical-align: top; }
 .tbl th { color: var(--fg-2); font-weight: 500; font-size: 0.75rem; }
 .tbl td:first-child { font-weight: 700; white-space: nowrap; }
-.scroll { overflow-x: auto; }
 
 /* 2 列 */
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -626,8 +622,8 @@ items      ARRAY&lt;STRUCT&lt;sku STRING, qty INT64, price NUMERIC&gt;&gt;
     <text x="80" y="66" text-anchor="middle" class="hdr" style="fill: var(--c-bi)">利用者</text>
     <text x="80" y="86" text-anchor="middle" class="sub">Explore で「月」と</text>
     <text x="80" y="101" text-anchor="middle" class="sub">「売上」を選ぶ</text>
-    <rect x="230" y="20" width="180" height="120" rx="8" class="nd" style="stroke: var(--c-key)"/>
-    <text x="320" y="42" text-anchor="middle" class="hdr" style="fill: var(--c-key)">Looker</text>
+    <rect x="230" y="20" width="180" height="120" rx="8" class="nd" style="stroke: var(--c-hl)"/>
+    <text x="320" y="42" text-anchor="middle" class="hdr" style="fill: var(--c-hl)">Looker</text>
     <rect x="245" y="52" width="150" height="36" rx="5" class="nd"/>
     <text x="320" y="67" text-anchor="middle" style="font-size:11px">LookML</text>
     <text x="320" y="81" text-anchor="middle" class="sub">dimension / measure / join</text>
@@ -697,7 +693,7 @@ items      ARRAY&lt;STRUCT&lt;sku STRING, qty INT64, price NUMERIC&gt;&gt;
     </ul>
   </div>
   <div class="panel card" id="l4" hidden>
-    <div class="scroll">
+    <div class="table-wrap">
     <table class="tbl">
       <tr><th></th><th>Looker</th><th>Data Studio（旧 Looker Studio）</th></tr>
       <tr><td>位置づけ</td><td>全社の指標を統制するエンタープライズ BI</td><td>個人・チームの手軽なレポートとダッシュボード</td></tr>
@@ -711,7 +707,7 @@ items      ARRAY&lt;STRUCT&lt;sku STRING, qty INT64, price NUMERIC&gt;&gt;
 
   <!-- ===================================================== -->
   <h2 id="serve">BI ツールへの出し方</h2>
-  <div class="card scroll">
+  <div class="card table-wrap">
     <table class="tbl">
       <tr><th>出し方</th><th>中身</th><th>向いている場面</th></tr>
       <tr><td>ビュー</td><td>SQL を保存するだけ。読むたびに元テーブルを集計</td><td>小さいデータ・常に最新が欲しい</td></tr>
@@ -778,7 +774,7 @@ document.querySelectorAll('.tabs').forEach(group => {
     const h = document.createElement('div');
     h.className = 'hd';
     h.title = c.name;
-    h.innerHTML = c.name + '<small>' + c.gb + 'GB</small>';
+    h.innerHTML = c.name.replace(/_/g, '_<wbr>') + '<small>' + c.gb + 'GB</small>';
     grid.appendChild(h);
   });
   months.forEach((m, r) => {

@@ -203,9 +203,10 @@ UPDATE items SET stock = 9, version = version + 1
 
 ✓ 正しくは: 防げる範囲は分離レベル次第。既定の READ COMMITTED では、読んでから書き戻す処理の取りこぼしは防げない。
 
-## 関連
+## 関連メモ
 
-[DB のしくみ](https://memo.taka1156.site/md/db-internals.md) [JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md)
+- [DB のしくみ](https://memo.taka1156.site/md/db-internals.md) — ページ・WAL・バッファプールなど 1 段下の仕組み
+- [JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) — セッションの保存先として DB を使う方式
 
 ## 参考
 

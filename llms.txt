@@ -29,7 +29,7 @@
 - [Linux 端末とシェル](https://memo.taka1156.site/md/linux-terminal.md): ターミナル・擬似端末・ラインディシプリン・シェルの役割分担と、特殊キー・エスケープシーケンス・端末がない場合の違いを図解。（Linux / 2026-11-06）
 - [Linux シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md): シグナルが発生してから処理されるまで、ハンドラ、主なシグナル、セッションとプロセスグループによる Ctrl+C・Ctrl+Z・fg/bg の仕組みをシミュレーションで追う。（Linux / 2026-11-06）
 - [Linux プロセスの仕組み](https://memo.taka1156.site/md/linux-process.md): プロセスが持つ情報、fork → exec → wait による生成と回収、ゾンビと孤児、状態、ファイルディスクリプタとパイプを図とステップで追う。（Linux / 2026-11-06）
-- [Linux 端末・プロセス・シグナル 全体像](https://memo.taka1156.site/md/linux-process-signal.md): ターミナル・擬似端末・シェル・カーネルがどうつながり、キー入力や Ctrl+C がプロセスに届くまでを 1 枚でたどる入口ページ。（Linux / 2026-11-06）
+- [キー入力から Ctrl+C まで：端末・シェル・カーネルの流れ](https://memo.taka1156.site/md/linux-process-signal.md): キー入力や Ctrl+C が、ターミナル・擬似端末・ラインディシプリン・シェル・カーネルをどう通ってプロセスに届くかを、OS の層の図とステップで 1 本の流れとしてたどる。（Linux / 2026-11-06）
 - [GCC と Clang の構成比較](https://memo.taka1156.site/md/gcc-vs-clang.md): GCC（GENERIC・GIMPLE・RTL の一体型）と Clang/LLVM（ライブラリ型・LLVM IR）の内部構成の違いを、同じ C コードのダンプを並べて比べる（言語, 開発ツール / 2026-11-06）
 - [浮動小数点と数値表現](https://memo.taka1156.site/md/floating-point.md): 0.1 + 0.2 が 0.3 にならない理由を IEEE 754 のビットから確かめ、安全な整数の上限・NaN・お金の扱い・丸め・整数オーバーフローまで実務で困る点を整理する（CS基礎, 言語, JavaScript / 2026-11-06）
 - [日付・時刻・タイムゾーン](https://memo.taka1156.site/md/datetime-timezone.md): 「瞬間」「壁時計の時刻」「日付だけ」を区別し、UTC で保存して表示時に変換する流れ、オフセットとタイムゾーンの違い、夏時間の落とし穴、Temporal API の型の使い分けを整理する（言語, JavaScript, バックエンド / 2026-11-06）

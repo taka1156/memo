@@ -129,9 +129,11 @@ Hyperdrive＋PS
 
 ✓ 正しくは: レプリカは読み取り専用。書き込みが詰まるなら DB を分ける。
 
-## 関連
+## 関連メモ
 
-[Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) [DB のしくみ（SQLite のセクション）](https://memo.taka1156.site/md/db-internals.md) [インデックスとトランザクション](https://memo.taka1156.site/md/db-index-transaction.md)
+- [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) — D1・Hyperdrive 以外のサービスとの組み合わせ
+- [DB のしくみ](https://memo.taka1156.site/md/db-internals.md) — D1 の中の SQLite の仕組み
+- [インデックスとトランザクション](https://memo.taka1156.site/md/db-index-transaction.md) — インデックスと分離レベル
 
 ## 参考
 

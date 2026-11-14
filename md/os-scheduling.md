@@ -170,4 +170,10 @@ cat /proc/loadavg                # ロードアベレージ（Linux では D 状
 
 ✓ 正しくは: 「100ms ごとに合計 100ms まで」。複数のコアで同時に動けるが、合計が上限に達するとその期間の残りは止められる。
 
-関連: [並行処理のモデル](https://memo.taka1156.site/md/concurrency-models.md) [Linux プロセスの仕組み](https://memo.taka1156.site/md/linux-process.md) [Linux シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md) [仮想メモリとページング](https://memo.taka1156.site/md/virtual-memory.md) [JS のイベントループ](https://memo.taka1156.site/md/event-loop.md)
+## 関連メモ
+
+- [並行処理のモデル](https://memo.taka1156.site/md/concurrency-models.md) — スレッドの上に組む並行処理の方式
+- [Linux プロセスの仕組み](https://memo.taka1156.site/md/linux-process.md) — スケジュールされるプロセスの中身
+- [Linux シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md) — 停止・再開を伝えるシグナル
+- [仮想メモリとページング](https://memo.taka1156.site/md/virtual-memory.md) — 切り替えのコストに効くメモリ空間
+- [JS のイベントループと非同期](https://memo.taka1156.site/md/event-loop.md) — 1 本のスレッドで待ちをさばく方式

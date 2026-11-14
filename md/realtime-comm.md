@@ -120,7 +120,12 @@ Alice と Bob が別のサーバーにつながっていると、Server 1 は Bo
 
 ## 関連メモ
 
-[HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) [Redis と Valkey](https://memo.taka1156.site/md/redis-valkey.md) [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) [実装起因の脆弱性（入力の扱い）](https://memo.taka1156.site/md/web-vulnerabilities.md) [実装起因の脆弱性（リクエストと権限）](https://memo.taka1156.site/md/request-vulnerabilities.md)
+- [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) — HTTP/2・3 と QUIC の土台
+- [Redis と Valkey の仕組み](https://memo.taka1156.site/md/redis-valkey.md) — 複数サーバーへ配る Pub/Sub
+- [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) — 再接続のバックオフ＋ジッターと、重複に備える冪等処理
+- [Durable Objects と celld](https://memo.taka1156.site/md/durable-objects.md) — 部屋ごとの WebSocket を Durable Objects で持つ
+- [実装起因の脆弱性（入力の扱い）](https://memo.taka1156.site/md/web-vulnerabilities.md) — 受け取ったメッセージを画面に出すときの XSS
+- [実装起因の脆弱性（リクエストと権限）](https://memo.taka1156.site/md/request-vulnerabilities.md) — CSWSH の土台になる CSRF と Origin の確認
 
 ## 参考
 

@@ -12,7 +12,7 @@
 
 ターミナル・擬似端末・ラインディシプリン・シェル / 特殊キー / エスケープシーケンス
 
-[全体像](https://memo.taka1156.site/md/linux-process-signal.md) [端末とシェル](https://memo.taka1156.site/md/linux-terminal.md) [プロセス](https://memo.taka1156.site/md/linux-process.md) [シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md)
+[キー入力の流れ](https://memo.taka1156.site/md/linux-process-signal.md) [端末とシェル](https://memo.taka1156.site/md/linux-terminal.md) [プロセス](https://memo.taka1156.site/md/linux-process.md) [シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md)
 
 **ざっくり言うと**
 

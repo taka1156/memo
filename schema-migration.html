@@ -63,7 +63,7 @@ ul.dots { margin: 6px 0 6px 1.3em; }
 ul.dots li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -86,8 +86,6 @@ pre .cm { color: var(--fg-2); }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.table-wrap { overflow-x: auto; margin: 10px 0; }
 table { border-collapse: collapse; width: 100%; font-size: 0.84rem; background: var(--surface); }
 th, td { border: 1px solid var(--line); padding: 6px 9px; text-align: left; vertical-align: top; }
 th { background: var(--chip); font-weight: 700; white-space: nowrap; }
@@ -119,8 +117,7 @@ td code { white-space: nowrap; }
 .anom { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
 .anom div { border: 1px solid var(--line); border-left: 3px solid var(--c-ng); border-radius: 0 8px 8px 0; padding: 8px 10px; font-size: 0.8rem; background: var(--surface); }
 .anom b { display: block; font-size: 0.82rem; }
-.keylegend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); margin-top: 6px; }
-.keylegend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; border: 1px solid var(--line); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; border: 1px solid var(--line); }
 
 /* ORM のものさし */
 .spectrum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -256,7 +253,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
         </tbody>
       </table>
     </div>
-    <div class="keylegend"><span><i style="background:color-mix(in srgb, var(--c-warn) 16%, var(--surface))"></i>同じ事実の複製</span><span><i style="background:color-mix(in srgb, var(--c-ng) 14%, var(--surface))"></i>直し漏れで食い違った値</span></div>
+    <div class="legend"><span><i style="background:color-mix(in srgb, var(--c-warn) 16%, var(--surface))"></i>同じ事実の複製</span><span><i style="background:color-mix(in srgb, var(--c-ng) 14%, var(--surface))"></i>直し漏れで食い違った値</span></div>
     <div class="anom">
       <div><b>更新の異常</b>佐藤さんがメールを変えたら全行を直す必要がある。1 行でも漏れると、どれが正しいか分からなくなる。</div>
       <div><b>挿入の異常</b>まだ誰も注文していない新商品は、注文の行がないので登録できない。</div>
@@ -278,7 +275,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <thead><tr><th class="fk pk">order_id</th><th class="fk pk">product_id</th><th>数量</th><th>注文時の単価</th></tr></thead>
         <tbody><tr><td>1001</td><td>10</td><td>2</td><td>300</td></tr><tr><td>1001</td><td>11</td><td>5</td><td>120</td></tr><tr><td>1002</td><td>10</td><td>1</td><td>300</td></tr><tr><td>1003</td><td>12</td><td>3</td><td>100</td></tr></tbody></table></div>
     </div>
-    <div class="keylegend"><span>🔑 主キー</span><span><u style="text-decoration-style:dotted">点線の下線</u> 外部キー（ほかの表の主キーを指す）</span></div>
+    <div class="legend"><span>🔑 主キー</span><span><u style="text-decoration-style:dotted">点線の下線</u> 外部キー（ほかの表の主キーを指す）</span></div>
     <p style="font-size:0.85rem">メールは customers の 1 行を直せば済み、新商品は products に足せ、注文を消しても顧客は残る。</p>
   </div>
   <p>実務では「<b>第 3 正規形</b>（主キー以外の列が、主キーにだけ依存している状態）まで分けて、必要なら意図して崩す」が目安になる。</p>
@@ -313,7 +310,7 @@ CREATE TABLE order_items (
   unit_price numeric(10, 0) NOT NULL,
   PRIMARY KEY (order_id, product_id)
 );</pre>
-  <p class="muted">分散 SQL では、連番や時刻順の主キーが 1 台に書き込みを集めるホットスポットになる（<a href="newsql.html">NewSQL・分散 SQL</a>）。1 台の RDB とは向くキーが違う。</p>
+  <p class="note">分散 SQL では、連番や時刻順の主キーが 1 台に書き込みを集めるホットスポットになる（<a href="newsql.html">NewSQL・分散 SQL</a>）。1 台の RDB とは向くキーが違う。</p>
 
   <!-- ===================== ORM ===================== -->
   <h2 id="orm">ORM・クエリビルダー・生の SQL</h2>
@@ -345,7 +342,7 @@ WHERE customer_id = $1</pre>
       <div class="todo">004_add_customers_full_name.sql<span>未適用</span></div>
     </div>
     <div class="arr">migrate</div>
-    <div class="card" style="padding:10px 12px;font-size:0.8rem"><b style="font-family:'JetBrains Mono',monospace;font-size:0.78rem">履歴表</b><br>001・002・003 を記録済み。今回は 004 だけを流して記録する。<br><span class="muted">名前の例: <code>schema_migrations</code>（Rails）、<code>flyway_schema_history</code>（Flyway）、<code>_prisma_migrations</code>（Prisma）</span></div>
+    <div class="card" style="padding:10px 12px;font-size:0.8rem"><b style="font-family:'JetBrains Mono',monospace;font-size:0.78rem">履歴表</b><br>001・002・003 を記録済み。今回は 004 だけを流して記録する。<br><span class="note">名前の例: <code>schema_migrations</code>（Rails）、<code>flyway_schema_history</code>（Flyway）、<code>_prisma_migrations</code>（Prisma）</span></div>
   </div>
   <div class="table-wrap">
     <table>
@@ -381,7 +378,7 @@ WHERE customer_id = $1</pre>
       </div>
     </div>
   </div>
-  <div class="keylegend"><span><i style="border:1.5px solid var(--c-old)"></i>古い列</span><span><i style="border:1.5px solid var(--c-new)"></i>新しい列</span><span><i style="border:1.5px dashed var(--fg-2)"></i>まだない・消した列</span></div>
+  <div class="legend"><span><i style="border:1.5px solid var(--c-old)"></i>古い列</span><span><i style="border:1.5px solid var(--c-new)"></i>新しい列</span><span><i style="border:1.5px dashed var(--fg-2)"></i>まだない・消した列</span></div>
   <div class="ctrl">
     <button class="btn" id="ec-prev">← 前へ</button>
     <button class="btn primary" id="ec-next">次へ →</button>
@@ -406,7 +403,7 @@ WHERE id BETWEEN 1 AND 5000 AND full_name IS NULL;  <span class="cm">-- 範囲�
       <pre>ALTER TABLE customers DROP COLUMN name;</pre>
       <span class="back">戻すなら: バックアップから復元するしかない</span></li>
   </ol>
-  <p class="muted">表の分割・型の変更・テーブル名の変更も同じ形でできる。手数は増えるが、各段が小さく戻せるので、デプロイのたびに安全に止められる。</p>
+  <p class="note">表の分割・型の変更・テーブル名の変更も同じ形でできる。手数は増えるが、各段が小さく戻せるので、デプロイのたびに安全に止められる。</p>
 
   <!-- ===================== ロック ===================== -->
   <h2 id="locks">重いロックを取る DDL を避ける</h2>
@@ -423,7 +420,7 @@ WHERE id BETWEEN 1 AND 5000 AND full_name IS NULL;  <span class="cm">-- 範囲�
       </tbody>
     </table>
   </div>
-  <p class="muted">MySQL で大きな表を作り直す変更は、gh-ost や pt-online-schema-change のように、空のコピー表（gh-ost では「ゴーストテーブル」）に行を写してから差し替える道具を使うことが多い。どの DDL が危ないかは DB とバージョンで変わるので、本番と同じ版で、同じくらいの大きさのデータで試してから流す。</p>
+  <p class="note">MySQL で大きな表を作り直す変更は、gh-ost や pt-online-schema-change のように、空のコピー表（gh-ost では「ゴーストテーブル」）に行を写してから差し替える道具を使うことが多い。どの DDL が危ないかは DB とバージョンで変わるので、本番と同じ版で、同じくらいの大きさのデータで試してから流す。</p>
 
   <!-- ===================== 誤解 ===================== -->
   <h2 id="myths">よくある誤解</h2>
@@ -432,7 +429,7 @@ WHERE id BETWEEN 1 AND 5000 AND full_name IS NULL;  <span class="cm">-- 範囲�
   <details class="myth"><summary>速く終わる ALTER TABLE なら、本番でいつ流しても安全</summary><p>DDL そのものは一瞬でも、表のロックを取れるまで待つ間、後ろのクエリが全部並んで止まる。長いトランザクションや重いバッチが走っていない時間を選び、<code>lock_timeout</code> で待ちすぎないようにする。</p></details>
 
   <h2 id="related">関連メモ</h2>
-  <ul class="dots">
+  <ul class="related">
     <li><a href="db-internals.html">DB のしくみ</a> — ページ・WAL・ACID</li>
     <li><a href="db-index-transaction.html">インデックスとトランザクション</a> — B 木インデックス・分離レベル・ロック</li>
     <li><a href="ci-cd.html">CI/CD と GitHub Actions</a> — デプロイ方式とマイグレーションの順番</li>

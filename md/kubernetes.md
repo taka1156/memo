@@ -217,6 +217,12 @@ kubectl port-forward svc/web 8080:80       # 手元から Service に直接つ�
 kubectl diff -f web.yaml                   # 適用したら何が変わるか（apply の前に）
 ```
 
-## 関連するメモ
+## 関連メモ
 
-[Docker 動作原理](https://memo.taka1156.site/md/docker.md) [Docker イメージの種類](https://memo.taka1156.site/md/docker-images.md) [LB・リバースプロキシ・CDN](https://memo.taka1156.site/md/lb-proxy-cdn.md) [CI/CD](https://memo.taka1156.site/md/ci-cd.md) [オブザーバビリティ](https://memo.taka1156.site/md/observability.md) [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) [OpenTofu](https://memo.taka1156.site/md/opentofu.md)
+- [Docker 動作原理](https://memo.taka1156.site/md/docker.md) — Pod の中で動くコンテナの仕組み
+- [Docker イメージの種類](https://memo.taka1156.site/md/docker-images.md) — Pod に載せるイメージの選び方
+- [ロードバランサ・リバースプロキシ・CDN](https://memo.taka1156.site/md/lb-proxy-cdn.md) — Service・Ingress の外側にある入口
+- [CI/CD と GitHub Actions](https://memo.taka1156.site/md/ci-cd.md) — マニフェストを適用するまでのパイプライン
+- [オブザーバビリティと OpenTelemetry](https://memo.taka1156.site/md/observability.md) — クラスタの中を追うログ・メトリクス・トレース
+- [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) — レプリカと整合性の前提
+- [OpenTofu 概念図](https://memo.taka1156.site/md/opentofu.md) — クラスタそのものをコードで作る

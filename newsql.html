@@ -63,7 +63,7 @@ ul.dots { margin: 6px 0 6px 1.3em; }
 ul.dots li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -85,8 +85,6 @@ pre .cm { color: var(--fg-2); }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.table-wrap { overflow-x: auto; margin: 10px 0; }
 table { border-collapse: collapse; width: 100%; font-size: 0.84rem; background: var(--surface); }
 th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
 th { background: var(--chip); font-weight: 700; white-space: nowrap; }
@@ -103,7 +101,6 @@ tbody th { white-space: normal; min-width: 7em; }
 .way .pro, .way .con { font-size: 0.78rem; }
 .way .pro::before { content: '＋ '; color: var(--c-ok); font-weight: 700; }
 .way .con::before { content: '− '; color: var(--c-ng); font-weight: 700; }
-.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.76rem; color: var(--fg-2); margin-top: 8px; }
 .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid; vertical-align: -2px; margin-right: 4px; }
 
 /* 2 つの方式 */
@@ -254,7 +251,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <span class="con">仕組みが重く、1 件ごとの遅延は 1 台の RDB より増えやすい</span></div>
   </div>
   <div class="legend"><span><i style="border-color:var(--c-leader)"></i>書き込みを受ける台</span><span><i style="border-color:var(--fg-2)"></i>読み込みだけの台</span></div>
-  <p class="muted">「NewSQL」は 2011 年ごろから使われ始めた呼び名で、いまは「分散 SQL (distributed SQL)」と呼ぶことも多い。どこまでを含めるかは人によって違う。キーと値で横に広げる NoSQL との比較は <a href="nosql-types.html">NoSQL の種類</a>。</p>
+  <p class="note">「NewSQL」は 2011 年ごろから使われ始めた呼び名で、いまは「分散 SQL (distributed SQL)」と呼ぶことも多い。どこまでを含めるかは人によって違う。キーと値で横に広げる NoSQL との比較は <a href="nosql-types.html">NoSQL の種類</a>。</p>
 
   <!-- ===================== 2 つの方式 ===================== -->
   <h2 id="two-ways">2 つの方式</h2>
@@ -303,7 +300,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <p data-c="moved" hidden><span class="k">COMMIT（リーダー交代）</span>範囲 <b class="v-r"></b> の元のリーダーが止まったので、生きている台の中から選挙で <b class="v-l"></b> が新しいリーダーになった。3 台中 2 台が生きていれば過半数がそろうので、<code class="v-key"></code> の書き込みは続けられる（交代の間だけ数秒ほど待たされることがある）。</p>
     <p data-c="ng" hidden><span class="k">UNAVAILABLE</span>範囲 <b class="v-r"></b> は 3 台中 2 台が止まり、過半数がそろわない。古いデータを返したり食い違った書き込みを受けたりしないよう、この範囲の読み書きは止まる（CAP でいう C を選んだ振る舞い）。台が戻れば再開する。</p>
   </div>
-  <p class="muted">3 台に複製すれば 1 台、5 台なら 2 台まで止まっても動き続ける。その代わり、確定のたびに過半数への往復が要るので、台がリージョンをまたぐと書き込みの遅延はリージョン間の往復時間に近づく。CAP と整合性の考え方は <a href="distributed-basics.html">分散システムの基本</a>。</p>
+  <p class="note">3 台に複製すれば 1 台、5 台なら 2 台まで止まっても動き続ける。その代わり、確定のたびに過半数への往復が要るので、台がリージョンをまたぐと書き込みの遅延はリージョン間の往復時間に近づく。CAP と整合性の考え方は <a href="distributed-basics.html">分散システムの基本</a>。</p>
 
   <!-- ===================== 時刻 ===================== -->
   <h2 id="time">台をまたぐトランザクションと時刻</h2>
@@ -358,7 +355,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       </tbody>
     </table>
   </div>
-  <p class="muted">Spanner は REPEATABLE READ、CockroachDB は READ COMMITTED（新しい版では REPEATABLE READ も）を選べる。TiDB は分析用の列指向ストア TiFlash に複製して、同じデータに集計クエリを流せる（HTAP）。YugabyteDB は PostgreSQL のクエリ層を再利用し、Raft で複製する方式 B の DB。</p>
+  <p class="note">Spanner は REPEATABLE READ、CockroachDB は READ COMMITTED（新しい版では REPEATABLE READ も）を選べる。TiDB は分析用の列指向ストア TiFlash に複製して、同じデータに集計クエリを流せる（HTAP）。YugabyteDB は PostgreSQL のクエリ層を再利用し、Raft で複製する方式 B の DB。</p>
 
   <!-- ===================== 落とし穴 ===================== -->
   <h2 id="pitfalls">使うときの落とし穴</h2>
@@ -391,7 +388,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <details class="myth"><summary>Vitess を入れれば、シャードをまたぐトランザクションも 1 台の MySQL と同じく原子的になる</summary><p>既定のモード（<code>multi</code>）では、各シャードに順にコミットするだけなので、途中で失敗すると一部だけ確定しうる。原子的にしたいなら <code>twopc</code> モードを使うが、コミットは遅くなる。そもそもシャードをまたがないように Vindex を設計するのが基本。</p></details>
 
   <h2 id="related">関連メモ</h2>
-  <ul class="dots">
+  <ul class="related">
     <li><a href="db-internals.html">DB のしくみ</a>・<a href="db-index-transaction.html">インデックスとトランザクション</a> — 1 台の RDB の中身と分離レベル</li>
     <li><a href="nosql-types.html">NoSQL の種類</a> — SQL を手放して横に広げる方式</li>
     <li><a href="distributed-basics.html">分散システムの基本</a> — CAP・整合性モデル・冪等性</li>

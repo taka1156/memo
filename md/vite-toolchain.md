@@ -22,6 +22,8 @@ Vite 8 を支える Rust 製ツールチェーンの役割分担と、Vitest・O
 
 ## 全体像：誰が何をしているか
 
+このページの図では、 **枠の色がプロジェクト** （Vite・Rolldown・Oxc・Lightning CSS・Vitest）を表す。Oxlint・Oxfmt のように同じプロジェクトから出ているツールは同じ色、灰色は Vite 8 で置き換えられた従来のツール。
+
 Vite ビルドツール（司令塔）
 
 dev サーバー HMR プラグイン API vite.config フレームワーク連携

@@ -68,7 +68,7 @@ ul.dots { margin: 8px 0 8px 1.3em; }
 ul.dots li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -90,9 +90,7 @@ pre .cm { color: var(--fg-2); }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-.table-wrap { overflow-x: auto; margin: 10px 0; }
 table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--surface); }
 th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
 th { background: var(--chip); font-weight: 700; white-space: nowrap; }
@@ -213,7 +211,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <div class="wrap">
   <h1>Linux 端末とシェル</h1>
   <p class="subtitle">ターミナル・擬似端末・ラインディシプリン・シェル / 特殊キー / エスケープシーケンス</p>
-  <nav class="series" aria-label="このシリーズのページ"><a href="linux-process-signal.html">全体像</a><a href="linux-terminal.html" aria-current="page">端末とシェル</a><a href="linux-process.html">プロセス</a><a href="linux-signal.html">シグナルとジョブ制御</a></nav>
+  <nav class="series" aria-label="このシリーズのページ"><a href="linux-process-signal.html">キー入力の流れ</a><a href="linux-terminal.html" aria-current="page">端末とシェル</a><a href="linux-process.html">プロセス</a><a href="linux-signal.html">シグナルとジョブ制御</a></nav>
 
   <div class="card summary">
     <strong>ざっくり言うと</strong>
@@ -283,7 +281,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <tr><td class="mono">lnext</td><td class="mono">Ctrl+V</td><td>次の 1 キーを特別扱いせず、そのまま文字として渡す</td></tr>
     </table>
   </div>
-  <p class="muted">対話 bash のプロンプトでは readline が端末を非カノニカルにしているので、Ctrl+U や Ctrl+W などの行編集は readline が同じキーを自前で解釈している。ただし <code>isig</code> は有効のままなので、プロンプトでも Ctrl+C・Ctrl+Z をシグナルに変えるのはラインディシプリンで、readline と bash はそのシグナルを受けて入力行を捨てるなどの処理をしている。</p>
+  <p class="note">対話 bash のプロンプトでは readline が端末を非カノニカルにしているので、Ctrl+U や Ctrl+W などの行編集は readline が同じキーを自前で解釈している。ただし <code>isig</code> は有効のままなので、プロンプトでも Ctrl+C・Ctrl+Z をシグナルに変えるのはラインディシプリンで、readline と bash はそのシグナルを受けて入力行を捨てるなどの処理をしている。</p>
 
   <h2 id="escape">画面を動かすエスケープシーケンス</h2>
   <p>プログラムが色を付けたりカーソルを動かしたりするときは、普通の文字に混ぜて <b>ESC（0x1b）で始まる制御用のバイト列</b>を出力する。ターミナルエミュレータがそれを解釈して描画を変える。</p>

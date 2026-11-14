@@ -158,4 +158,9 @@ d[i][j] = min(d[i-1][j] + 1,                         # A の i 文字目を削�
 
 ✓ 正しくは: 1 個までのナップサックは w を大きい方から回す。向きを間違えると、同じ品物を何度も使った答えになる。
 
-関連: [設計手法の全体像](https://memo.taka1156.site/md/algorithm-paradigms.md) [データ構造と計算量](https://memo.taka1156.site/md/data-structures.md) [グラフ探索と最短経路](https://memo.taka1156.site/md/graph-algorithms.md) [Git の内部構造](https://memo.taka1156.site/md/git-internals.md)
+## 関連メモ
+
+- [アルゴリズム設計手法の全体像](https://memo.taka1156.site/md/algorithm-paradigms.md) — 他の設計手法との使い分け
+- [データ構造と計算量の早見表](https://memo.taka1156.site/md/data-structures.md) — 表やメモに使うデータ構造と計算量
+- [グラフ探索と最短経路](https://memo.taka1156.site/md/graph-algorithms.md) — 最短経路も部分問題の積み重ねで解く
+- [Git の内部構造](https://memo.taka1156.site/md/git-internals.md) — 差分は保存せず、表示のたびに 2 つのスナップショットを比べて計算する

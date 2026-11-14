@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #7c3aed;
   --c-b: #be185d;
 }
@@ -30,7 +29,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #c4b5fd;
     --c-b: #f472b6;
   }
@@ -65,7 +63,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -91,8 +89,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -135,7 +131,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -153,10 +148,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -312,7 +303,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="choose">どっちにする？</h2>
   <div class="card chooser">
-    <p class="muted">当てはまるものにチェック。</p>
+    <p class="note">当てはまるものにチェック。</p>
     <div id="qs"></div>
     <div class="meter" id="meter"><div class="m-d1" id="m1">D1</div><div class="m-ps" id="m2">Hyperdrive＋PS</div></div>
     <div class="res" id="res"></div>
@@ -334,11 +325,14 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <details class="myth"><summary>D1 は Postgres と同じように使える</summary><p>SQL の方言は SQLite。型がゆるい、使えない関数や構文がある、などの違いがあり、Postgres 向けの ORM 設定やマイグレーションはそのまま流用できないことが多い。</p></details>
   <details class="myth"><summary>D1 も読み取りレプリカを増やせば書き込みが捌ける</summary><p>レプリカは読み取り専用。書き込みが詰まるなら DB を分ける。</p></details>
 
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="cloudflare-services.html">Cloudflare サービス</a> — D1・Hyperdrive 以外のサービスとの組み合わせ</li>
+    <li><a href="db-internals.html">DB のしくみ</a> — D1 の中の SQLite の仕組み</li>
+    <li><a href="db-index-transaction.html">インデックスとトランザクション</a> — インデックスと分離レベル</li>
+  </ul>
 
-  <h2>関連</h2>
-  <p class="related"><a href="cloudflare-services.html">Cloudflare サービス</a><a href="db-internals.html">DB のしくみ（SQLite のセクション）</a><a href="db-index-transaction.html">インデックスとトランザクション</a></p>
-
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://developers.cloudflare.com/d1/">Cloudflare D1</a> / <a href="https://developers.cloudflare.com/d1/platform/limits/">D1 Limits</a></li>
     <li><a href="https://developers.cloudflare.com/hyperdrive/">Cloudflare Hyperdrive</a> / <a href="https://developers.cloudflare.com/hyperdrive/concepts/query-caching/">Query caching</a></li>
@@ -392,7 +386,7 @@ document.querySelectorAll('.tabs').forEach(group => {
     m1.style.width = p + '%'; m2.style.width = (100 - p) + '%';
     let t, c;
     if (a + b === 0) { t = 'チェックすると、どちらに寄るかが出る。'; c = 'var(--line)'; }
-    else if (a && b && Math.abs(a - b) <= 2) { t = '<b>両方の性質がある</b>：共有データは PlanetScale、テナントごとの状態は D1 という<a href="#combo">組み合わせ</a>を検討。'; c = 'var(--c-key)'; }
+    else if (a && b && Math.abs(a - b) <= 2) { t = '<b>両方の性質がある</b>：共有データは PlanetScale、テナントごとの状態は D1 という<a href="#combo">組み合わせ</a>を検討。'; c = 'var(--c-hl)'; }
     else if (a > b) { t = '<b class="col-d1">D1 が合いそう</b>：テナントごとに DB を分け、書き込みを散らす設計で始める。'; c = 'var(--c-b)'; }
     else { t = '<b class="col-ps">Hyperdrive＋PlanetScale が合いそう</b>：Placement で Worker を DB の近くに置き、最新の値が要る読み取りはキャッシュ無効の Hyperdrive 設定から読む。'; c = 'var(--c-ok)'; }
     res.innerHTML = t; res.style.borderColor = c;

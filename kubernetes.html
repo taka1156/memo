@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -28,7 +27,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -57,7 +55,7 @@ h2 {
 p { margin: 8px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -119,9 +117,7 @@ h3 { font-size: 0.98rem; margin: 22px 0 8px; }
 ul.dots { margin: 8px 0 8px 1.3em; }
 ul.dots li { margin: 3px 0; }
 pre .cm { color: var(--fg-2); }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-.table-wrap { overflow-x: auto; margin: 10px 0; }
 table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--surface); }
 th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
 th { background: var(--chip); font-weight: 700; white-space: nowrap; }
@@ -151,9 +147,6 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .tag-ok { color: var(--c-ok); font-weight: 700; }
 .tag-ng { color: var(--c-ng); font-weight: 700; }
 .tag-warn { color: var(--c-warn); font-weight: 700; }
-.related { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
-.related a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font-size: 0.75rem; font-weight: 600; }
-.related a:hover { color: var(--accent); }
 /* ステップ図 */
 .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; }
 .node {
@@ -162,7 +155,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 }
 .node b { display: block; font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; }
 .node span { color: var(--fg-2); }
-.node.hl { border-color: var(--c-key); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-key) 18%, transparent); }
+.node.hl { border-color: var(--c-hl); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-hl) 18%, transparent); }
 .node.dim { opacity: .45; }
 .arrow { align-self: center; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
 @media (max-width: 640px) {
@@ -230,7 +223,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
     </ul>
   </div>
 
-  <p class="muted">前提: コンテナそのものの仕組みは <a href="docker.html">Docker 動作原理</a>、イメージの作り方は <a href="docker-files.html">Dockerfile と Compose</a>。Kubernetes はそのコンテナを「複数台のマシンで、止まらないように」動かすための仕組み。</p>
+  <p class="note">前提: コンテナそのものの仕組みは <a href="docker.html">Docker 動作原理</a>、イメージの作り方は <a href="docker-files.html">Dockerfile と Compose</a>。Kubernetes はそのコンテナを「複数台のマシンで、止まらないように」動かすための仕組み。</p>
 
   <h2 id="why">Docker Compose との違い</h2>
   <div class="table-wrap">
@@ -281,7 +274,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
     <button class="btn" id="k8-reset">最初から</button>
   </div>
   <div class="stepmsg" id="k8-msg"></div>
-  <p class="muted">ポイントは、部品どうしが直接命令し合わないこと。全員が API サーバーを<b>監視（watch）</b>して、自分の担当の差分を見つけたら動く。だから 1 つの部品が一時的に止まっても、戻れば続きから追いつける。</p>
+  <p class="note">ポイントは、部品どうしが直接命令し合わないこと。全員が API サーバーを<b>監視（watch）</b>して、自分の担当の差分を見つけたら動く。だから 1 つの部品が一時的に止まっても、戻れば続きから追いつける。</p>
 
   <h2 id="objects">主なオブジェクト</h2>
   <div class="tabs" role="tablist">
@@ -304,7 +297,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
         <tr><td><b>Job / CronJob</b></td><td>終わる処理。バッチ、マイグレーション、定期実行</td></tr>
       </table>
     </div>
-    <p class="muted">Pod を直接作ることはほぼない。直接作った Pod は落ちても誰も作り直さないので、必ず上のどれかに作らせる。</p>
+    <p class="note">Pod を直接作ることはほぼない。直接作った Pod は落ちても誰も作り直さないので、必ず上のどれかに作らせる。</p>
   </div>
   <div class="panel card" id="o-net" hidden>
     <div class="objtree"><span class="k">Gateway / Ingress</span>   <span class="c"># 外からの HTTP を、ホスト名やパスで Service へ</span>
@@ -356,7 +349,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
       </ul>
     </div>
   </div>
-  <p class="muted">広く使われていた Ingress コントローラの ingress-nginx（Kubernetes プロジェクト版）は、2026 年 3 月で保守を終えた。既存の環境は動き続けるがセキュリティ修正は出ないため、Kubernetes プロジェクトは Gateway API か別のコントローラへの移行を勧めている。F5 社の「NGINX Ingress Controller」は別物。</p>
+  <p class="note">広く使われていた Ingress コントローラの ingress-nginx（Kubernetes プロジェクト版）は、2026 年 3 月で保守を終えた。既存の環境は動き続けるがセキュリティ修正は出ないため、Kubernetes プロジェクトは Gateway API か別のコントローラへの移行を勧めている。F5 社の「NGINX Ingress Controller」は別物。</p>
 
   <h2 id="yaml">最小の YAML</h2>
 <pre>apiVersion: apps/v1
@@ -404,7 +397,7 @@ spec:
       <p style="font-size:.86rem">CPU は超えると<b>絞られる</b>（遅くなるだけ）。メモリは超えると<b>強制終了</b>（OOMKilled）。メモリの limit は必ず、CPU の limit は遅延が問題になるなら付けない選択もある。</p>
     </div>
   </div>
-  <p class="muted">ローリングアップデートでは、新しい Pod が readiness に通ってから古い Pod を減らす。readiness が無いと、起動途中の Pod にリクエストが流れて更新のたびにエラーが出る。</p>
+  <p class="note">ローリングアップデートでは、新しい Pod が readiness に通ってから古い Pod を減らす。readiness が無いと、起動途中の Pod にリクエストが流れて更新のたびにエラーが出る。</p>
 
   <h2 id="myth">よくある誤解</h2>
   <details class="myth"><summary>Pod はコンテナの別名</summary><p>Pod は 1 つ以上のコンテナのまとまり。同じ Pod のコンテナはネットワーク名前空間（同じ IP・localhost で通じる）とボリュームを共有し、必ず同じノードに置かれる。ログ転送やプロキシを横に添えるサイドカーはこの性質を使う。</p></details>
@@ -423,10 +416,16 @@ kubectl rollout undo deploy/web            <span class="cm"># 1 つ前の Replic
 kubectl port-forward svc/web 8080:80       <span class="cm"># 手元から Service に直接つなぐ</span>
 kubectl diff -f web.yaml                   <span class="cm"># 適用したら何が変わるか（apply の前に）</span></pre>
 
-  <h2>関連するメモ</h2>
-  <div class="related">
-    <a href="docker.html">Docker 動作原理</a><a href="docker-images.html">Docker イメージの種類</a><a href="lb-proxy-cdn.html">LB・リバースプロキシ・CDN</a><a href="ci-cd.html">CI/CD</a><a href="observability.html">オブザーバビリティ</a><a href="distributed-basics.html">分散システムの基本</a><a href="opentofu.html">OpenTofu</a>
-  </div>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="docker.html">Docker 動作原理</a> — Pod の中で動くコンテナの仕組み</li>
+    <li><a href="docker-images.html">Docker イメージの種類</a> — Pod に載せるイメージの選び方</li>
+    <li><a href="lb-proxy-cdn.html">ロードバランサ・リバースプロキシ・CDN</a> — Service・Ingress の外側にある入口</li>
+    <li><a href="ci-cd.html">CI/CD と GitHub Actions</a> — マニフェストを適用するまでのパイプライン</li>
+    <li><a href="observability.html">オブザーバビリティと OpenTelemetry</a> — クラスタの中を追うログ・メトリクス・トレース</li>
+    <li><a href="distributed-basics.html">分散システムの基本</a> — レプリカと整合性の前提</li>
+    <li><a href="opentofu.html">OpenTofu 概念図</a> — クラスタそのものをコードで作る</li>
+  </ul>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

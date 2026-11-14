@@ -221,4 +221,10 @@ cat /sys/kernel/mm/transparent_hugepage/enabled
 
 ✓ 正しくは: 空きはページキャッシュに使われ、必要になれば手放される。見るのは available とスワップの出し入れ。
 
-関連: [メモリ管理](https://memo.taka1156.site/md/memory-management.md) [OS のスケジューリング](https://memo.taka1156.site/md/os-scheduling.md) [Linux プロセスの仕組み](https://memo.taka1156.site/md/linux-process.md) [Docker 動作原理](https://memo.taka1156.site/md/docker.md) [Redis と Valkey](https://memo.taka1156.site/md/redis-valkey.md)
+## 関連メモ
+
+- [メモリ管理](https://memo.taka1156.site/md/memory-management.md) — プロセスの中のスタックとヒープ
+- [OS のスケジューリング](https://memo.taka1156.site/md/os-scheduling.md) — 切り替えと TLB のコスト
+- [Linux プロセスの仕組み](https://memo.taka1156.site/md/linux-process.md) — fork と copy-on-write
+- [Docker 動作原理](https://memo.taka1156.site/md/docker.md) — cgroups のメモリ制限と OOM
+- [Redis と Valkey の仕組み](https://memo.taka1156.site/md/redis-valkey.md) — BGSAVE の fork で起きる copy-on-write

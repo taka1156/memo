@@ -336,7 +336,11 @@ clang -O2 -Rpass=inline -Rpass-missed=loop-vectorize -c x.c
 
 ## 関連メモ
 
-[GCC と Clang の構成比較](https://memo.taka1156.site/md/gcc-vs-clang.md) [Rust](https://memo.taka1156.site/md/rust.md) [WebAssembly](https://memo.taka1156.site/md/webassembly.md) [メモリ管理](https://memo.taka1156.site/md/memory-management.md) [プログラミング言語の系譜](https://memo.taka1156.site/md/language-genealogy.md)
+- [GCC と Clang の構成比較](https://memo.taka1156.site/md/gcc-vs-clang.md) — GCC との構成の違い
+- [Rust 学習フローと仕組み](https://memo.taka1156.site/md/rust.md) — LLVM を使う言語の例
+- [WebAssembly](https://memo.taka1156.site/md/webassembly.md) — LLVM が出力できる先の 1 つ
+- [メモリ管理](https://memo.taka1156.site/md/memory-management.md) — 言語ごとのメモリの解放方式
+- [プログラミング言語の系譜](https://memo.taka1156.site/md/language-genealogy.md) — Rust・Swift など LLVM を使う言語の親子関係
 
 ## 参考
 

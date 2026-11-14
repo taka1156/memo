@@ -117,7 +117,7 @@ default via 192.168.1.1 dev eth0          # どこにも当てはまらなけれ
 - `docker run -p 8080:80` も同じ仕組み（ホストの 8080 宛てをコンテナの 80 に転送）。
 - クラウドのプライベートサブネットから外に出るための「NAT ゲートウェイ」も、これをマネージドにしたもの。
 
-[Docker 動作原理](https://memo.taka1156.site/md/docker.md) [Dockerfile と Compose](https://memo.taka1156.site/md/docker-files.md)
+コンテナのネットワーク名前空間は [Docker 動作原理](https://memo.taka1156.site/md/docker.md) 、 `ports` の書き方は [Dockerfile と Compose の書き方](https://memo.taka1156.site/md/docker-files.md) を参照。
 
 ## ポートとソケット
 
@@ -169,7 +169,7 @@ UDP
 - パケットが 1 つ失われると、後ろのデータは届いていてもアプリに渡せず待たされる（ **Head-of-Line ブロッキング** ）。QUIC はストリームごとに独立させてこれを避ける。
 - 閉じた側には TIME_WAIT 状態がしばらく残る。短い接続を大量に作るとポートが足りなくなる原因になる。
 
-[HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) [リアルタイム通信](https://memo.taka1156.site/md/realtime-comm.md)
+詳しくは [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) ・ [リアルタイム通信](https://memo.taka1156.site/md/realtime-comm.md) を参照。
 
 ## つながらないときの切り分け
 

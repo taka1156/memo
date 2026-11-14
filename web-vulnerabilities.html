@@ -58,7 +58,7 @@ h3 { font-size: 0.95rem; margin: 18px 0 6px; }
 p { margin: 8px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -89,7 +89,6 @@ pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: norm
 ul.list li { margin-left: 1.2em; }
 ul.list { margin: 8px 0; }
 ul.list li { margin-bottom: 4px; }
-.note { font-size: 0.83rem; color: var(--fg-2); }
 .warn-box {
   border-left: 3px solid var(--c-warn);
   background: color-mix(in srgb, var(--c-warn) 8%, var(--surface));
@@ -147,7 +146,6 @@ ul.list li { margin-bottom: 4px; }
 }
 
 /* 表 */
-.tbl { overflow-x: auto; margin: 10px 0; }
 table { border-collapse: collapse; width: 100%; font-size: 0.83rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th {
@@ -331,7 +329,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </div>
   </div>
 
-  <div class="tbl"><table>
+  <div class="table-wrap"><table>
     <thead><tr><th>脆弱性</th><th>何が起きる</th><th>根本対策</th><th>補助・多層防御</th></tr></thead>
     <tbody>
       <tr><td><a href="#xss">XSS</a></td><td>他人のブラウザで攻撃者の JS が動く</td><td>出力先の文脈に合ったエスケープ（テンプレートの自動エスケープ）</td><td>CSP、HttpOnly Cookie</td></tr>
@@ -354,6 +352,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <!-- ======================== XSS ======================== -->
   <h2 id="xss">XSS<span class="en">Cross-Site Scripting</span></h2>
   <p>ユーザー入力が HTML として解釈され、<b>他のユーザーのブラウザで攻撃者の JavaScript が動く</b>。そのページの権限で、表示の書き換え・入力の盗み見・ユーザーになりすましたリクエスト送信ができます。</p>
+
+  <p class="note">このページの攻撃の流れでは、<b>赤い番号の段で攻撃が成立する</b>（対策はその段を止めること）。</p>
 
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-panel="xss-r">反射型</button>
@@ -406,7 +406,7 @@ if (<span class="good">['https:', 'http:'].includes(u.protocol)</span>) link.hre
   </div>
 
   <h3>エスケープは「どこに出すか」で変わる</h3>
-  <div class="tbl"><table>
+  <div class="table-wrap"><table>
     <thead><tr><th>出力先</th><th>例</th><th>必要な処理</th></tr></thead>
     <tbody>
       <tr><td>HTML の本文</td><td><code>&lt;p&gt;{x}&lt;/p&gt;</code></td><td><code>&amp; &lt; &gt;</code> をエスケープ</td></tr>
@@ -532,7 +532,7 @@ if (<span class="good">!net.isIP(host)</span>) return res.status(400).end();
   </div>
 
   <h3>危ない形</h3>
-  <div class="tbl"><table>
+  <div class="table-wrap"><table>
     <thead><tr><th>パターン</th><th>理由</th><th>書き換え例</th></tr></thead>
     <tbody>
       <tr><td><code>(a+)+</code> / <code>(\w+)*</code> / <code>(.*)*</code></td><td>量指定子の入れ子</td><td><code>a+</code> / <code>\w*</code></td></tr>

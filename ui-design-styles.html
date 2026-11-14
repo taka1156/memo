@@ -59,10 +59,9 @@ h2 {
 h3 { font-size: 0.95rem; margin: 14px 0 4px; }
 p { margin: 8px 0; }
 a { color: var(--accent); }
-.note { color: var(--fg-2); font-size: 0.82rem; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -175,7 +174,6 @@ pre {
 .swing.f { color: var(--c-flat); }
 
 /* ===== 比較表 ===== */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 560px; }
 th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 700; font-size: 0.75rem; background: var(--chip); }

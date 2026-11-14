@@ -17,12 +17,11 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-vite: #7c3aed;
   --c-rolldown: #0369a1;
-  --c-oxc: #0b8a6a;
+  --c-oxc: #087259;
   --c-lcss: #c2255c;
-  --c-old: #8a93a5;
+  --c-old: #6b7385;
   --c-test: #4f46e5;
 }
 @media (prefers-color-scheme: dark) {
@@ -34,12 +33,11 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-vite: #b197fc;
     --c-rolldown: #7dd3fc;
     --c-oxc: #38d9a9;
     --c-lcss: #f783ac;
-    --c-old: #6b7789;
+    --c-old: #8b96a8;
     --c-test: #a5b4fc;
   }
 }
@@ -69,10 +67,9 @@ h2 {
 h3 { font-size: 0.95rem; margin: 14px 0 6px; }
 p { margin: 8px 0; }
 a { color: var(--accent); }
-.note { color: var(--fg-2); font-size: 0.82rem; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -113,11 +110,10 @@ pre {
   border: 2px solid var(--c);
   border-radius: 10px;
   padding: 12px 14px;
-  background: color-mix(in srgb, var(--c) 8%, var(--surface));
+  background: color-mix(in srgb, var(--c) 5%, var(--surface));
 }
 .layer .name {
   font: 700 0.95rem 'JetBrains Mono', ui-monospace, monospace;
-  color: var(--c);
 }
 .layer .role { font-size: 0.8rem; color: var(--fg-2); margin-left: 6px; }
 .layer .does { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -160,7 +156,6 @@ svg .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 svg .sub { fill: var(--fg-2); font-size: 11px; }
 
 /* 表 */
-.tbl { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.75rem; }
@@ -218,6 +213,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
 
   <h2 id="overview">全体像：誰が何をしているか</h2>
+  <p>このページの図では、<b>枠の色がプロジェクト</b>（Vite・Rolldown・Oxc・Lightning CSS・Vitest）を表す。Oxlint・Oxfmt のように同じプロジェクトから出ているツールは同じ色、灰色は Vite 8 で置き換えられた従来のツール。</p>
   <div class="card">
     <div class="stack">
       <div class="layer l-vite">
@@ -354,8 +350,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
         </marker>
       </defs>
       <!-- Row A: vp CLI -->
-      <rect x="8" y="8" width="504" height="70" rx="10" fill="color-mix(in srgb, var(--c-key) 7%, var(--surface))" stroke="var(--c-key)" stroke-width="2"/>
-      <text x="18" y="29" class="mono" font-size="13" font-weight="700" style="fill:var(--c-key)">Vite+ （vp）</text>
+      <rect x="8" y="8" width="504" height="70" rx="10" fill="var(--chip)" stroke="var(--fg-2)" stroke-width="2"/>
+      <text x="18" y="29" class="mono" font-size="13" font-weight="700" style="fill:var(--fg)">Vite+ （vp）</text>
       <text x="502" y="29" text-anchor="end" class="sub">vp check = lint + fmt + 型チェック</text>
       <g class="mono" font-size="11.5">
         <rect x="8"   y="40" width="96" height="28" rx="6" fill="var(--surface)" stroke="var(--line)"/>
@@ -432,10 +428,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h3>それぞれ Vite とどうつながっているか</h3>
   <ul class="steps card">
-    <li><code style="color:var(--c-test)">Vitest</code><span>Vite の <b>設定・プラグイン・変換処理をそのまま再利用</b>してテストを実行する。<code>vite.config.ts</code> の <code>resolve.alias</code> や React／Vue プラグインがテストにも効くので、二重設定がいらない。Vite+ なしでも単体で使える。</span></li>
-    <li><code style="color:var(--c-oxc)">Oxlint</code><span>ESLint の代替。Oxc のパーサーで動くので高速。型を使うルールは tsgolint（TypeScript の Go 移植版を利用）が担当。単体なら <code>.oxlintrc.json</code>、Vite+ では <code>vite.config.ts</code> の <code>lint</code> に書く。</span></li>
-    <li><code style="color:var(--c-oxc)">Oxfmt</code><span>Prettier 互換のフォーマッター。JS/TS に加え CSS・JSON・YAML なども整形。単体なら独自の設定ファイル、Vite+ では <code>fmt</code> に書く。</span></li>
-    <li><code style="color:var(--c-rolldown)">tsdown</code><span>Rolldown ベースのライブラリ向けビルドツール（型定義 .d.ts も出力）。アプリは <code>vp build</code>、npm に公開するパッケージは <code>vp pack</code>。</span></li>
+    <li><code>Vitest</code><span>Vite の <b>設定・プラグイン・変換処理をそのまま再利用</b>してテストを実行する。<code>vite.config.ts</code> の <code>resolve.alias</code> や React／Vue プラグインがテストにも効くので、二重設定がいらない。Vite+ なしでも単体で使える。</span></li>
+    <li><code>Oxlint</code><span>ESLint の代替。Oxc のパーサーで動くので高速。型を使うルールは tsgolint（TypeScript の Go 移植版を利用）が担当。単体なら <code>.oxlintrc.json</code>、Vite+ では <code>vite.config.ts</code> の <code>lint</code> に書く。</span></li>
+    <li><code>Oxfmt</code><span>Prettier 互換のフォーマッター。JS/TS に加え CSS・JSON・YAML なども整形。単体なら独自の設定ファイル、Vite+ では <code>fmt</code> に書く。</span></li>
+    <li><code>tsdown</code><span>Rolldown ベースのライブラリ向けビルドツール（型定義 .d.ts も出力）。アプリは <code>vp build</code>、npm に公開するパッケージは <code>vp pack</code>。</span></li>
   </ul>
 
   <div class="tabs" role="tablist" style="margin-top:16px">
@@ -473,18 +469,18 @@ vp check    # Oxfmt → Oxlint → 型チェック をまとめて実行</pre>
     <button class="tab" role="tab" aria-selected="false" data-panel="p-config">設定例</button>
   </div>
   <div class="panel card" id="p-table">
-    <div class="tbl">
+    <div class="table-wrap">
       <table>
         <thead><tr><th>ツール</th><th>種類</th><th>担当</th><th>置き換えた／比べられる相手</th><th>単体で使える？</th></tr></thead>
         <tbody>
-          <tr><td style="color:var(--c-vite)">Vite</td><td>ビルドツール</td><td>dev サーバー・HMR・プラグイン・全体の段取り</td><td>webpack, Parcel</td><td>—</td></tr>
-          <tr><td style="color:var(--c-rolldown)">Rolldown</td><td>バンドラー</td><td>モジュールを束ねてチャンクを出力</td><td>Rollup, esbuild</td><td>使える（1.0：2026-05）</td></tr>
-          <tr><td style="color:var(--c-oxc)">Oxc</td><td>JS/TS ツール群</td><td>パース・解決・変換・圧縮、リンター・フォーマッター</td><td>Babel, SWC, Terser, ESLint, Prettier</td><td>使える（Oxlint など）</td></tr>
-          <tr><td style="color:var(--c-lcss)">Lightning CSS</td><td>CSS 処理系</td><td>CSS のパース・変換・圧縮・プレフィックス</td><td>cssnano, Autoprefixer, postcss-preset-env</td><td>使える</td></tr>
-          <tr><td style="color:var(--c-test)">Vitest</td><td>テストランナー</td><td>Vite のパイプラインでテスト実行</td><td>Jest</td><td>使える（5：2026-09）</td></tr>
-          <tr><td style="color:var(--c-oxc)">Oxlint</td><td>リンター</td><td>静的解析（型対応ルールは tsgolint）</td><td>ESLint, typescript-eslint</td><td>使える</td></tr>
-          <tr><td style="color:var(--c-oxc)">Oxfmt</td><td>フォーマッター</td><td>コード整形</td><td>Prettier</td><td>使える</td></tr>
-          <tr><td style="color:var(--c-key)">Vite+</td><td>統合 CLI</td><td>上の全部を <code>vp</code> と設定 1 枚に束ねる</td><td>個別ツールの寄せ集め</td><td>—（1.0：2026-09 時点）</td></tr>
+          <tr><td>Vite</td><td>ビルドツール</td><td>dev サーバー・HMR・プラグイン・全体の段取り</td><td>webpack, Parcel</td><td>—</td></tr>
+          <tr><td>Rolldown</td><td>バンドラー</td><td>モジュールを束ねてチャンクを出力</td><td>Rollup, esbuild</td><td>使える（1.0：2026-05）</td></tr>
+          <tr><td>Oxc</td><td>JS/TS ツール群</td><td>パース・解決・変換・圧縮、リンター・フォーマッター</td><td>Babel, SWC, Terser, ESLint, Prettier</td><td>使える（Oxlint など）</td></tr>
+          <tr><td>Lightning CSS</td><td>CSS 処理系</td><td>CSS のパース・変換・圧縮・プレフィックス</td><td>cssnano, Autoprefixer, postcss-preset-env</td><td>使える</td></tr>
+          <tr><td>Vitest</td><td>テストランナー</td><td>Vite のパイプラインでテスト実行</td><td>Jest</td><td>使える（5：2026-09）</td></tr>
+          <tr><td>Oxlint</td><td>リンター</td><td>静的解析（型対応ルールは tsgolint）</td><td>ESLint, typescript-eslint</td><td>使える</td></tr>
+          <tr><td>Oxfmt</td><td>フォーマッター</td><td>コード整形</td><td>Prettier</td><td>使える</td></tr>
+          <tr><td>Vite+</td><td>統合 CLI</td><td>上の全部を <code>vp</code> と設定 1 枚に束ねる</td><td>個別ツールの寄せ集め</td><td>—（1.0：2026-09 時点）</td></tr>
         </tbody>
       </table>
     </div>

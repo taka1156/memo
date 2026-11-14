@@ -161,8 +161,6 @@ HTTPS の最初の 1 往復で、ここまでの道具がすべて使われる�
 | Git | ハッシュ（＋署名） | オブジェクト ID は内容のハッシュ。コミット署名は GPG / SSH 鍵による署名 |
 | SSH | 鍵交換＋署名 | 公開鍵認証は、ログイン時にクライアントの秘密鍵で署名して本人確認する |
 
-[JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) [パスキー](https://memo.taka1156.site/md/passkeys.md) [OAuth / OIDC](https://memo.taka1156.site/md/oauth-oidc.md) [HTTP と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) [Git の内部構造](https://memo.taka1156.site/md/git-internals.md)
-
 ## よくある誤解
 
 ✗ 誤解: JWT は暗号化されているので、中に個人情報を入れても安全
@@ -180,3 +178,11 @@ HTTPS の最初の 1 往復で、ここまでの道具がすべて使われる�
 ✗ 誤解: 公開鍵暗号でデータ本体を暗号化している
 
 ✓ 正しくは: 本体は共通鍵暗号。公開鍵の仕組みは、その鍵を共有する（鍵交換）・相手を確かめる（署名）ために使う。
+
+## 関連メモ
+
+- [JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) — JWT の署名（HMAC と公開鍵署名）
+- [パスキー（WebAuthn）](https://memo.taka1156.site/md/passkeys.md) — 公開鍵署名でログインする仕組み
+- [OAuth 2.0 / OIDC のフロー](https://memo.taka1156.site/md/oauth-oidc.md) — PKCE がハッシュで横取りを防ぐ
+- [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) — TLS のハンドシェイクと HTTP/3
+- [Git の内部構造](https://memo.taka1156.site/md/git-internals.md) — オブジェクト ID が内容のハッシュ

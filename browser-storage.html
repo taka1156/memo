@@ -64,7 +64,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -90,8 +90,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -134,7 +132,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -152,10 +149,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -262,7 +255,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div>
       <span class="label">このオリジンの使用量（navigator.storage.estimate）</span>
       <div class="meter"><i id="meter"></i></div>
-      <div class="muted" id="quota">—</div>
+      <div class="note" id="quota">—</div>
     </div>
     <p class="note">書いたあとにページを再読み込みすると、localStorage と IndexedDB は残り、sessionStorage は同じタブなら残る（タブを閉じると消える）。プレビュー環境やプライベートウィンドウでは、保存が拒否されたり閉じると消えたりする。</p>
   </div>
@@ -344,10 +337,18 @@ if (navigator.storage?.persist) {
     </table>
   </div>
 
-  <h2>関連メモ</h2>
-  <p class="related"><a href="jwt-vs-session.html">JWT とセッション</a><a href="pwa.html">PWA</a><a href="security-headers.html">セキュリティヘッダー</a><a href="web-vulnerabilities.html">実装起因の脆弱性（入力の扱い）</a><a href="request-vulnerabilities.html">実装起因の脆弱性（リクエストと権限）</a><a href="http-cache.html">HTTP キャッシュ</a><a href="web-performance.html">Core Web Vitals</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="jwt-vs-session.html">JWT とセッション</a> — トークンを Cookie と localStorage のどちらに置くか</li>
+    <li><a href="pwa.html">PWA の仕組みとチェックリスト</a> — Service Worker のキャッシュでオフライン対応</li>
+    <li><a href="security-headers.html">セキュリティヘッダー</a> — Cookie 属性と保存先を守るヘッダー</li>
+    <li><a href="web-vulnerabilities.html">実装起因の脆弱性（入力の扱い）</a> — localStorage の値も読まれる原因になる XSS の流れと防ぎ方</li>
+    <li><a href="request-vulnerabilities.html">実装起因の脆弱性（リクエストと権限）</a> — Cookie の自動送信を突く CSRF</li>
+    <li><a href="http-cache.html">HTTP キャッシュ</a> — ブラウザが勝手に持つ HTTP キャッシュ</li>
+    <li><a href="web-performance.html">Core Web Vitals</a> — 同期の読み書きで悪化する INP（操作への反応）の分解と改善</li>
+  </ul>
 
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://developer.mozilla.org/ja/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria">MDN: ストレージの割り当てと削除基準</a></li>
     <li><a href="https://web.dev/articles/storage-for-the-web">web.dev: Storage for the web</a></li>

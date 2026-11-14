@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -28,7 +27,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -57,7 +55,7 @@ h2 {
 p { margin: 8px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -119,9 +117,7 @@ h3 { font-size: 0.98rem; margin: 22px 0 8px; }
 ul.dots { margin: 8px 0 8px 1.3em; }
 ul.dots li { margin: 3px 0; }
 pre .cm { color: var(--fg-2); }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-.table-wrap { overflow-x: auto; margin: 10px 0; }
 table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--surface); }
 th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
 th { background: var(--chip); font-weight: 700; white-space: nowrap; }
@@ -151,9 +147,6 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .tag-ok { color: var(--c-ok); font-weight: 700; }
 .tag-ng { color: var(--c-ng); font-weight: 700; }
 .tag-warn { color: var(--c-warn); font-weight: 700; }
-.related { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
-.related a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font-size: 0.75rem; font-weight: 600; }
-.related a:hover { color: var(--accent); }
 /* ステップ図 */
 .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; }
 .node {
@@ -162,7 +155,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 }
 .node b { display: block; font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; }
 .node span { color: var(--fg-2); }
-.node.hl { border-color: var(--c-key); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-key) 18%, transparent); }
+.node.hl { border-color: var(--c-hl); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-hl) 18%, transparent); }
 .node.dim { opacity: .45; }
 .arrow { align-self: center; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
 @media (max-width: 640px) {
@@ -255,7 +248,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
   <div class="three">
     <div class="card"><b>ディレクトリ /home/u</b>
       <dl class="kv"><dt>.</dt><dd>1201</dd><dt>..</dt><dd>1100</dd><dt>memo.txt</dt><dd>4711</dd><dt>photo.jpg</dt><dd>4820</dd></dl>
-      <p class="muted" style="font-size:.72rem;margin-top:4px">ディレクトリも「名前 → inode 番号」の表を中身に持つファイル</p>
+      <p class="note" style="font-size:.72rem;margin-top:4px">ディレクトリも「名前 → inode 番号」の表を中身に持つファイル</p>
     </div>
     <div class="arrow">→</div>
     <div class="card"><b>inode 4711</b>
@@ -310,7 +303,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
       <tr><td>権限</td><td>inode が同じなので共通</td><td>リンク自体は常に <code>rwxrwxrwx</code> と表示され、判定は指す先のもので行う</td></tr>
     </table>
   </div>
-  <p class="muted">同じファイルシステム内の <code>mv</code> はディレクトリの表の書き換え（rename）だけで、inode もデータも動かない。だから巨大なファイルでも一瞬で終わる。別のファイルシステムへの <code>mv</code> はコピーして消す処理になる。</p>
+  <p class="note">同じファイルシステム内の <code>mv</code> はディレクトリの表の書き換え（rename）だけで、inode もデータも動かない。だから巨大なファイルでも一瞬で終わる。別のファイルシステムへの <code>mv</code> はコピーして消す処理になる。</p>
 
   <h2 id="perm">rwx と 8 進数</h2>
   <div class="perm" id="perm-grid">
@@ -330,7 +323,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
     <button class="btn" data-v="2775">2775 共有ディレクトリ</button>
     <button class="btn" data-v="4755">4755 passwd コマンド</button>
   </div>
-  <p class="muted" id="perm-note"></p>
+  <p class="note" id="perm-note"></p>
 
   <h3 id="dir">ディレクトリの rwx は意味が違う</h3>
   <div class="table-wrap">
@@ -354,7 +347,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
     <div class="card"><span class="q">2</span><span>そうでなく、プロセスのグループ（補助グループを含む）にファイルのグループがある → <b>グループの rwx だけ</b>を見る。</span></div>
     <div class="card"><span class="q">3</span><span>どちらでもない → <b>その他の rwx</b>を見る。</span></div>
   </div>
-  <p class="muted">「最初に当てはまった組だけ」なので、<code>chmod 077 file</code> にすると、所有者だけが読めない（グループと他人は読める）という逆転が起きる。ACL（<code>getfacl</code>、<code>ls -l</code> で末尾に <code>+</code>）を使うと、特定のユーザーやグループを個別に追加できる。</p>
+  <p class="note">「最初に当てはまった組だけ」なので、<code>chmod 077 file</code> にすると、所有者だけが読めない（グループと他人は読める）という逆転が起きる。ACL（<code>getfacl</code>、<code>ls -l</code> で末尾に <code>+</code>）を使うと、特定のユーザーやグループを個別に追加できる。</p>
 
   <h3 id="special">特殊ビット</h3>
   <div class="table-wrap">
@@ -365,7 +358,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
       <tr><td>sticky</td><td>（今は意味なし）</td><td>w があっても、<b>自分のファイルしか消せない</b>（<code>/tmp</code>）</td><td>その他の x が <code>t</code></td></tr>
     </table>
   </div>
-  <p class="muted">x が立っていないのに特殊ビットだけ立っていると大文字（<code>S</code>・<code>T</code>）で表示される。たいてい設定ミス。</p>
+  <p class="note">x が立っていないのに特殊ビットだけ立っていると大文字（<code>S</code>・<code>T</code>）で表示される。たいてい設定ミス。</p>
 
   <h3 id="umask">umask: 新しく作るときの既定</h3>
   <p>プログラムは普通、ファイルを <code>666</code>、ディレクトリを <code>777</code> で作ろうとし、そこから umask のビットを落としたものが実際の権限になる。umask はプロセスの属性で、子プロセスに引き継がれる（<a href="linux-process.html">Linux プロセス</a>）。</p>
@@ -415,10 +408,14 @@ df -h; df -i                  <span class="cm"># 容量と inode の空き</span
 lsof +L1                      <span class="cm"># 消されたのに開かれたままのファイル</span>
 findmnt                       <span class="cm"># マウントのツリー（種類とオプション付き）</span></pre>
 
-  <h2>関連するメモ</h2>
-  <div class="related">
-    <a href="linux-process-signal.html">Linux 全体像</a><a href="linux-process.html">Linux プロセス</a><a href="linux-terminal.html">端末とシェル</a><a href="docker.html">Docker 動作原理</a><a href="virtual-memory.html">仮想メモリ</a>
-  </div>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="linux-process-signal.html">キー入力から Ctrl+C まで</a> — キー入力がシェルとプロセスに届く流れ</li>
+    <li><a href="linux-process.html">Linux プロセスの仕組み</a> — プロセスが開くファイルディスクリプタ</li>
+    <li><a href="linux-terminal.html">Linux 端末とシェル</a> — /dev/pts の擬似端末</li>
+    <li><a href="docker.html">Docker 動作原理</a> — レイヤーを重ねる overlayfs</li>
+    <li><a href="virtual-memory.html">仮想メモリとページング</a> — ページキャッシュとメモリ</li>
+  </ul>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">
@@ -485,7 +482,7 @@ function stepPlayer(prefix, steps, onRender) {
     dirEl.innerHTML = dir.map(e => {
       const broken = e.sym && !dir.find(d => d.n === e.sym);
       return '<div class="ent' + (broken ? ' broken' : '') + '"><span>' + e.n + (e.sym ? ' <span class="sym">→ ' + e.sym + '</span>' : '') + '</span><span>' + e.i + '</span></div>';
-    }).join('') || '<div class="muted">（空）</div>';
+    }).join('') || '<div class="note">（空）</div>';
     inoEl.innerHTML = Object.entries(ino).map(([k, v]) => {
       const free = v.kind === 'file' && v.links === 0 && !opened;
       const desc = v.kind === 'sym' ? 'シンボリックリンク / 中身 "' + v.data + '"' : '通常ファイル / 中身 "' + v.data + '"';

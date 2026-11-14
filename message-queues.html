@@ -17,9 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #0077b6;
-  --c-b: #8250df;
+  --c-b: #0f766e;
   --c-c: #1a7f37;
   --c-d: #be185d;
 }
@@ -32,11 +31,10 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #00d4ff;
-    --c-b: #bc8cff;
+    --c-b: #2dd4bf;
     --c-c: #3fb950;
-    --c-d: #f0883e;
+    --c-d: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -69,7 +67,7 @@ ul.plain { margin: 6px 0 6px 1.2em; }
 ul.plain li { margin: 2px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -93,13 +91,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.note {
-  font-size: 0.85rem;
-  color: var(--fg-2);
-  border-left: 2px solid var(--line);
-  padding-left: 10px;
-  margin: 10px 0;
-}
 .en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
@@ -112,7 +103,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .diagram { margin: 8px 0; }
 .diagram svg { width: 100%; height: auto; display: block; }
 .d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.d-box.hl { stroke: var(--c-key); stroke-width: 2; }
+.d-box.hl { stroke: var(--c-hl); stroke-width: 2; }
 .d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
 .d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
 .d-label { fill: var(--fg); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
@@ -157,7 +148,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .panel[hidden] { display: none; }
 
 /* 表 */
-.tbl-wrap { overflow-x: auto; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
 .tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
@@ -218,8 +208,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .badge.d { color: var(--c-d); }
 .series { display: flex; flex-wrap: wrap; gap: 6px; margin: -16px 0 22px; font-size: 0.78rem; }
 .series a { background: var(--chip); border-radius: 999px; padding: 2px 10px; text-decoration: none; }
-.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 .qsim { display: grid; gap: 10px; }
 .qrow { display: grid; grid-template-columns: 80px 1fr 80px; gap: 8px; align-items: center; }
 .qrow b { font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace; text-align: center; }
@@ -331,7 +319,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="ordering">順序の保証</h2>
   <p>順序と並列はトレードオフです。全メッセージを厳密に順番どおり処理するなら、コンシューマーは 1 台しか使えません。そこで多くのしくみは<b>「同じキーの中だけ順序を守る」</b>という形をとります。</p>
-  <div class="tbl-wrap"><table class="tbl">
+  <div class="table-wrap"><table class="tbl">
     <tr><th>しくみ</th><th>順序の単位</th><th>使い方</th></tr>
     <tr><td>Kafka</td><td>パーティション内</td><td>キー（例：<code>user_id</code>）でパーティションが決まるので、同じユーザーのイベントは順番どおり</td></tr>
     <tr><td>SQS FIFO</td><td>メッセージグループ内</td><td><code>MessageGroupId</code> を注文 ID などにする</td></tr>
@@ -339,7 +327,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </table></div>
 
   <h2 id="products">主なサービスの比較</h2>
-  <div class="tbl-wrap"><table class="tbl">
+  <div class="table-wrap"><table class="tbl">
     <tr><th></th><th>Cloudflare Queues</th><th>Amazon SQS</th><th>Apache Kafka</th></tr>
     <tr><td>形</td><td>キュー</td><td>キュー（標準 / FIFO）</td><td>ログ型（パーティション分割されたトピック）</td></tr>
     <tr><td>受け取り方</td><td>Worker に<b>バッチで押し込まれる</b>（push）か、HTTP で取りに行く（pull）</td><td>コンシューマーが取りに行く（ロングポーリング）</td><td>コンシューマーグループが取りに行き、オフセットを記録</td></tr>

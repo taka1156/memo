@@ -158,7 +158,11 @@ ID 参照が境界を越えない
 
 ## 関連メモ
 
-[コンポーネント設計](https://memo.taka1156.site/md/component-design.md) [デザイントークン](https://memo.taka1156.site/md/design-tokens.md) [アクセシビリティ](https://memo.taka1156.site/md/a11y-checklist.md) [UI 更新の3つの方式](https://memo.taka1156.site/md/reactivity-models.md) [レンダリング戦略](https://memo.taka1156.site/md/rendering-strategies.md)
+- [コンポーネント設計](https://memo.taka1156.site/md/component-design.md) — 部品の分け方と Headless UI
+- [デザイントークン](https://memo.taka1156.site/md/design-tokens.md) — Shadow DOM を越えて効く CSS 変数
+- [アクセシビリティ チェックリスト](https://memo.taka1156.site/md/a11y-checklist.md) — 中にネイティブ要素を置く理由と、キーボード・ARIA の確認項目
+- [UI 更新の3つの方式](https://memo.taka1156.site/md/reactivity-models.md) — フレームワークの更新方式との違い
+- [レンダリング戦略](https://memo.taka1156.site/md/rendering-strategies.md) — SSR とハイドレーションの仕組み（Declarative Shadow DOM はその Web Components 版）
 
 ## 参考
 

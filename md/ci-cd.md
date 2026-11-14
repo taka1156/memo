@@ -134,8 +134,6 @@ PR ごとに一時的な環境（URL）を作って、レビュー時に実際�
 - どの方式でも、 **DB マイグレーションは新旧両方のコードで動く形** にする（列の追加 → コード切り替え → 古い列の削除、と分ける）。
 - 「戻す手順」も CD に入れておく。前の成果物を再デプロイするだけで戻れるのが理想。
 
-[GitHub サービス](https://memo.taka1156.site/md/github-services.md) [テスト戦略](https://memo.taka1156.site/md/testing-strategy.md) [Dockerfile と Compose](https://memo.taka1156.site/md/docker-files.md) [暗号の基礎](https://memo.taka1156.site/md/crypto-basics.md)
-
 （元のページで操作できます → https://memo.taka1156.site/ci-cd.html#deploy）
 
 ## よくある誤解
@@ -151,3 +149,10 @@ PR ごとに一時的な環境（URL）を作って、レビュー時に実際�
 ✗ 誤解: Secrets に入れれば、ワークフローのどこからでも安全に使える
 
 ✓ 正しくは: そのステップで動くコード（依存パッケージや外部 Action も含む）からは読める。渡すジョブとステップを絞る。
+
+## 関連メモ
+
+- [GitHub サービス](https://memo.taka1156.site/md/github-services.md) — Actions と並ぶ GitHub のサービス
+- [テスト戦略](https://memo.taka1156.site/md/testing-strategy.md) — パイプラインで流すテストの分け方
+- [Dockerfile と Compose の書き方](https://memo.taka1156.site/md/docker-files.md) — CI でビルドするイメージの書き方
+- [暗号の基礎](https://memo.taka1156.site/md/crypto-basics.md) — OIDC トークンの署名を検証する仕組み

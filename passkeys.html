@@ -63,7 +63,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -89,8 +89,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -133,7 +131,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -151,10 +148,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -327,10 +320,14 @@ await fetch('/webauthn/verify', { method: 'POST', body: JSON.stringify(cred) });
     </ul>
   </div>
 
-  <h2>関連</h2>
-  <p class="related"><a href="oauth-oidc.html">OAuth 2.0 / OIDC のフロー</a><a href="jwt-vs-session.html">JWT とセッション</a><a href="cors-sop.html">CORS と同一オリジンポリシー</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="oauth-oidc.html">OAuth 2.0 / OIDC のフロー</a> — 外部のログインと組み合わせる場合</li>
+    <li><a href="jwt-vs-session.html">JWT とセッション</a> — ログイン後の状態を保つ方法</li>
+    <li><a href="cors-sop.html">CORS と同一オリジンポリシー</a> — オリジンとサイトの違い（パスキーはオリジンではなく RP ID というドメインに紐づく）</li>
+  </ul>
 
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://www.w3.org/TR/webauthn-3/">W3C: Web Authentication Level 3</a></li>
     <li><a href="https://passkeys.dev/">passkeys.dev（実装ガイド）</a></li>

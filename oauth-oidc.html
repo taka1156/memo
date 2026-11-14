@@ -61,7 +61,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -85,7 +85,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
 .label {
@@ -133,7 +132,6 @@ pre code { background: none; padding: 0; word-break: normal; }
 .seq .self { fill: none; stroke: var(--fg-2); stroke-width: 1.5; }
 .seq .note-box { fill: var(--chip); stroke: var(--line); }
 .seq .note { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; text-anchor: middle; }
-.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.8rem; color: var(--fg-2); margin: 6px 0 12px; }
 .legend span::before {
   content: '';
   display: inline-block;
@@ -185,7 +183,6 @@ pre code { background: none; padding: 0; word-break: normal; }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* トークン表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -197,7 +194,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 
 /* 誤解 */
 
-.related a { display: inline-block; margin: 4px 8px 4px 0; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -256,13 +252,13 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <span class="label">AUTHENTICATION / AuthN</span>
       <p class="big">認証 ＝ あなたは誰？</p>
       <p>ホテルのフロントで身分証を見せて、本人だと確認してもらう段階。</p>
-      <p class="muted">担当：OIDC（ID トークン）</p>
+      <p class="note">担当：OIDC（ID トークン）</p>
     </div>
     <div class="card">
       <span class="label">AUTHORIZATION / AuthZ</span>
       <p class="big">認可 ＝ 何をしていい？</p>
       <p>渡されたカードキー。開けられるのは自分の部屋とジムだけで、持っている人が誰かは問わない。</p>
-      <p class="muted">担当：OAuth 2.0（アクセストークン）</p>
+      <p class="note">担当：OAuth 2.0（アクセストークン）</p>
     </div>
   </div>
 
@@ -272,28 +268,28 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="icon">🧑</div>
       <b>ユーザー</b>
       <div class="en">Resource Owner</div>
-      <p class="muted">データの持ち主。ブラウザを操作する人。</p>
+      <p class="note">データの持ち主。ブラウザを操作する人。</p>
     </div>
     <div class="card role">
       <div class="icon">📱</div>
       <b>クライアント</b>
       <div class="en">Client</div>
-      <p class="muted">ユーザーのデータを使いたいアプリ。</p>
+      <p class="note">ユーザーのデータを使いたいアプリ。</p>
     </div>
     <div class="card role">
       <div class="icon">🔐</div>
       <b>認可サーバー</b>
       <div class="en">Authorization Server</div>
-      <p class="muted">ログイン画面を出し、トークンを発行する（Google、Auth0、Keycloak など）。</p>
+      <p class="note">ログイン画面を出し、トークンを発行する（Google、Auth0、Keycloak など）。</p>
     </div>
     <div class="card role">
       <div class="icon">🗄️</div>
       <b>リソースサーバー</b>
       <div class="en">Resource Server</div>
-      <p class="muted">データを持つ API。トークンを検証して応答する。</p>
+      <p class="note">データを持つ API。トークンを検証して応答する。</p>
     </div>
   </div>
-  <p class="muted">OIDC の文脈では、認可サーバーを <b>OP</b>（OpenID Provider）、クライアントを <b>RP</b>（Relying Party）と呼ぶ。</p>
+  <p class="note">OIDC の文脈では、認可サーバーを <b>OP</b>（OpenID Provider）、クライアントを <b>RP</b>（Relying Party）と呼ぶ。</p>
 
   <h2 id="flow">認可コードフロー ＋ PKCE</h2>
   <p>今のブラウザアプリやスマホアプリで使うべき、標準のフロー。矢印をクリックするか、ボタンで1ステップずつ進められる。</p>
@@ -402,7 +398,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <span class="arrow">→</span>
       <div class="box">認可サーバーがハッシュして照合<small>一致したときだけトークン発行</small></div>
     </div>
-    <p class="muted">コードを盗んでも、verifier を知らない攻撃者はトークンに交換できない。セキュリティのベストプラクティス（RFC 9700）は client_secret を持つサーバー側アプリにも PKCE を推奨しており、策定中の OAuth 2.1 では原則として必須になっている。</p>
+    <p class="note">コードを盗んでも、verifier を知らない攻撃者はトークンに交換できない。セキュリティのベストプラクティス（RFC 9700）は client_secret を持つサーバー側アプリにも PKCE を推奨しており、策定中の OAuth 2.1 では原則として必須になっている。</p>
   </div>
 
   <h3>state と nonce の違い</h3>
@@ -430,22 +426,22 @@ footer#memo-backlink a:hover { color: var(--accent); }
   "nonce": "n-0S6_WzA2Mj",
   "email": "taro@example.com"
 }</code></pre>
-      <p class="muted">ユーザーを識別するキーは <code>sub</code>（発行者 <code>iss</code> と組で一意）。メールアドレスは変わりうるので主キーにしない。</p>
+      <p class="note">ユーザーを識別するキーは <code>sub</code>（発行者 <code>iss</code> と組で一意）。メールアドレスは変わりうるので主キーにしない。</p>
     </div>
     <div class="card">
       <span class="label">ほかに足されるもの</span>
-      <p><b>UserInfo エンドポイント</b><br><span class="muted">アクセストークンで叩くと、名前やメールなどのプロフィールが返る。</span></p>
-      <p><b>Discovery</b><br><span class="muted"><code>/.well-known/openid-configuration</code> に、各エンドポイントの URL や署名鍵（JWKS）の場所がまとまっている。</span></p>
-      <p><b>標準スコープ</b><br><span class="muted"><code>openid</code>（必須）、<code>profile</code>、<code>email</code> など。</span></p>
+      <p><b>UserInfo エンドポイント</b><br><span class="note">アクセストークンで叩くと、名前やメールなどのプロフィールが返る。</span></p>
+      <p><b>Discovery</b><br><span class="note"><code>/.well-known/openid-configuration</code> に、各エンドポイントの URL や署名鍵（JWKS）の場所がまとまっている。</span></p>
+      <p><b>標準スコープ</b><br><span class="note"><code>openid</code>（必須）、<code>profile</code>、<code>email</code> など。</span></p>
     </div>
   </div>
 
   <h2 id="tokens">3つのトークンは「宛先」が違う</h2>
   <div class="card">
     <div class="aud">
-      <div class="t"><b>ID トークン</b></div><div class="arrow">→</div><div>クライアント宛て<br><span class="muted">誰がログインしたかを知るため。API には送らない</span></div>
-      <div class="t"><b>アクセストークン</b></div><div class="arrow">→</div><div>API（リソースサーバー）宛て<br><span class="muted">クライアントは中身を解釈せず、そのまま渡すだけ</span></div>
-      <div class="t"><b>リフレッシュトークン</b></div><div class="arrow">→</div><div>認可サーバー宛て<br><span class="muted">新しいアクセストークンをもらうためだけに使う</span></div>
+      <div class="t"><b>ID トークン</b></div><div class="arrow">→</div><div>クライアント宛て<br><span class="note">誰がログインしたかを知るため。API には送らない</span></div>
+      <div class="t"><b>アクセストークン</b></div><div class="arrow">→</div><div>API（リソースサーバー）宛て<br><span class="note">クライアントは中身を解釈せず、そのまま渡すだけ</span></div>
+      <div class="t"><b>リフレッシュトークン</b></div><div class="arrow">→</div><div>認可サーバー宛て<br><span class="note">新しいアクセストークンをもらうためだけに使う</span></div>
     </div>
   </div>
   <div class="table-wrap" style="margin-top:12px">
@@ -474,7 +470,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 grant_type=client_credentials
 &amp;client_id=...&amp;client_secret=...
 &amp;scope=reports:read</code></pre>
-    <p class="muted">「ユーザーの代わり」ではなく「アプリ自身」の権限になる。ID トークンは出ない。</p>
+    <p class="note">「ユーザーの代わり」ではなく「アプリ自身」の権限になる。ID トークンは出ない。</p>
   </div>
   <div class="panel card" id="g3" hidden>
     <p><b>使う場面</b>：入力が不便な機器（テレビ、CLI ツール、IoT）。</p>
@@ -483,7 +479,7 @@ grant_type=client_credentials
   <div class="panel card" id="g4" hidden>
     <p><b>インプリシット</b>：トークンを URL のフラグメントで直接返していた SPA 向けの旧方式。漏えいしやすく、今は認可コード＋PKCE に置き換え。</p>
     <p><b>リソースオーナーパスワード (ROPC)</b>：アプリがユーザーのパスワードを直接受け取る方式。OAuth の目的（パスワードを渡さない）に反するので使わない。</p>
-    <p class="muted">どちらも RFC 9700 で非推奨とされ、OAuth 2.1 のドラフトでは削除されている。</p>
+    <p class="note">どちらも RFC 9700 で非推奨とされ、OAuth 2.1 のドラフトでは削除されている。</p>
   </div>
 
   <h2 id="myths">よくある誤解</h2>
@@ -492,9 +488,10 @@ grant_type=client_credentials
   <details class="myth"><summary>PKCE はスマホアプリだけのもの</summary><p>今はすべてのクライアントで使うのが推奨。client_secret があっても付けておく。</p></details>
   <details class="myth"><summary>アクセストークンは JWT</summary><p>仕様上は形式自由。中身を読めるかどうかに依存せず、クライアントにとっては「意味のわからない文字列」として扱う。</p></details>
 
-
-  <h2>関連メモ</h2>
-  <p class="related"><a href="jwt-vs-session.html">JWT とセッション →</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="jwt-vs-session.html">JWT とセッション</a> — 受け取ったトークンを保つ方法</li>
+  </ul>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

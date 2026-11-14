@@ -150,7 +150,13 @@ if (navigator.storage?.persist) {
 
 ## 関連メモ
 
-[JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) [PWA](https://memo.taka1156.site/md/pwa.md) [セキュリティヘッダー](https://memo.taka1156.site/md/security-headers.md) [実装起因の脆弱性（入力の扱い）](https://memo.taka1156.site/md/web-vulnerabilities.md) [実装起因の脆弱性（リクエストと権限）](https://memo.taka1156.site/md/request-vulnerabilities.md) [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) [Core Web Vitals](https://memo.taka1156.site/md/web-performance.md)
+- [JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) — トークンを Cookie と localStorage のどちらに置くか
+- [PWA の仕組みとチェックリスト](https://memo.taka1156.site/md/pwa.md) — Service Worker のキャッシュでオフライン対応
+- [セキュリティヘッダー](https://memo.taka1156.site/md/security-headers.md) — Cookie 属性と保存先を守るヘッダー
+- [実装起因の脆弱性（入力の扱い）](https://memo.taka1156.site/md/web-vulnerabilities.md) — localStorage の値も読まれる原因になる XSS の流れと防ぎ方
+- [実装起因の脆弱性（リクエストと権限）](https://memo.taka1156.site/md/request-vulnerabilities.md) — Cookie の自動送信を突く CSRF
+- [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) — ブラウザが勝手に持つ HTTP キャッシュ
+- [Core Web Vitals](https://memo.taka1156.site/md/web-performance.md) — 同期の読み書きで悪化する INP（操作への反応）の分解と改善
 
 ## 参考
 

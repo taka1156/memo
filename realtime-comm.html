@@ -18,7 +18,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #7c3aed;
   --c-b: #be185d;
 }
@@ -31,7 +30,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #c4b5fd;
     --c-b: #f472b6;
   }
@@ -66,7 +64,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -92,8 +90,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -136,7 +132,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -154,10 +149,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -339,7 +330,7 @@ w.write(new Uint8Array([x, y]));   <span class="cm">// 落ちても再送しな�
       <rect class="nd" x="10" y="140" width="90" height="34" rx="6"/><text x="55" y="162" text-anchor="middle" font-size="12">Bob</text>
       <rect class="nd" x="190" y="20" width="120" height="34" rx="6"/><text x="250" y="42" text-anchor="middle" font-size="12">Server 1</text>
       <rect class="nd" x="190" y="140" width="120" height="34" rx="6"/><text x="250" y="162" text-anchor="middle" font-size="12">Server 2</text>
-      <rect class="nd" x="420" y="80" width="150" height="40" rx="6" style="stroke:var(--c-key)"/><text x="495" y="98" text-anchor="middle" font-size="12">Pub/Sub</text><text class="sub" x="495" y="113" text-anchor="middle" font-size="10">Redis / NATS など</text>
+      <rect class="nd" x="420" y="80" width="150" height="40" rx="6" style="stroke:var(--c-hl)"/><text x="495" y="98" text-anchor="middle" font-size="12">Pub/Sub</text><text class="sub" x="495" y="113" text-anchor="middle" font-size="10">Redis / NATS など</text>
       <path class="edge" d="M100 37 H188"/><path class="edge" d="M100 157 H188"/>
       <path class="edge" d="M310 37 L418 92" marker-end="url(#ar5)"/><path class="edge" d="M418 108 L310 157" marker-end="url(#ar5)"/>
       <text class="sub" x="320" y="58" font-size="10">① publish</text><text class="sub" x="320" y="150" font-size="10">② 購読中の全員へ</text>
@@ -356,10 +347,17 @@ w.write(new Uint8Array([x, y]));   <span class="cm">// 落ちても再送しな�
     <li><b>古いデータを捨ててでも遅延を減らしたい／ブラウザ同士でつなぎたい</b>WebTransport ／ WebRTC。</li>
   </ol>
 
-  <h2>関連メモ</h2>
-  <p class="related"><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a><a href="redis-valkey.html">Redis と Valkey</a><a href="distributed-basics.html">分散システムの基本</a><a href="cloudflare-services.html">Cloudflare サービス</a><a href="web-vulnerabilities.html">実装起因の脆弱性（入力の扱い）</a><a href="request-vulnerabilities.html">実装起因の脆弱性（リクエストと権限）</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a> — HTTP/2・3 と QUIC の土台</li>
+    <li><a href="redis-valkey.html">Redis と Valkey の仕組み</a> — 複数サーバーへ配る Pub/Sub</li>
+    <li><a href="distributed-basics.html">分散システムの基本</a> — 再接続のバックオフ＋ジッターと、重複に備える冪等処理</li>
+    <li><a href="durable-objects.html">Durable Objects と celld</a> — 部屋ごとの WebSocket を Durable Objects で持つ</li>
+    <li><a href="web-vulnerabilities.html">実装起因の脆弱性（入力の扱い）</a> — 受け取ったメッセージを画面に出すときの XSS</li>
+    <li><a href="request-vulnerabilities.html">実装起因の脆弱性（リクエストと権限）</a> — CSWSH の土台になる CSRF と Origin の確認</li>
+  </ul>
 
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://html.spec.whatwg.org/multipage/server-sent-events.html">HTML Standard: Server-sent events</a></li>
     <li><a href="https://www.rfc-editor.org/rfc/rfc6455">RFC 6455: The WebSocket Protocol</a></li>

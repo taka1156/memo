@@ -12,7 +12,7 @@
 
 プロセスの中身 / fork → exec → wait / 状態 / ゾンビと孤児 / fd とパイプ
 
-[全体像](https://memo.taka1156.site/md/linux-process-signal.md) [端末とシェル](https://memo.taka1156.site/md/linux-terminal.md) [プロセス](https://memo.taka1156.site/md/linux-process.md) [シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md)
+[キー入力の流れ](https://memo.taka1156.site/md/linux-process-signal.md) [端末とシェル](https://memo.taka1156.site/md/linux-terminal.md) [プロセス](https://memo.taka1156.site/md/linux-process.md) [シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md)
 
 **ざっくり言うと**
 

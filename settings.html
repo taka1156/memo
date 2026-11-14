@@ -167,7 +167,8 @@ code, .mono { font-family: 'JetBrains Mono', monospace; }
 .steps { padding-left: 1.4em; font-size: 0.85rem; margin-bottom: 14px; }
 .steps li + li { margin-top: 4px; }
 details { margin-top: 14px; font-size: 0.82rem; color: var(--fg-2); }
-details summary { cursor: pointer; }
+details summary { cursor: pointer; min-height: 24px; }
+@media (max-width: 599px) { .auto input[type=checkbox] { width: 24px; height: 24px; } }
 details pre { margin-top: 8px; padding: 10px 12px; background: var(--chip); border-radius: 8px; color: var(--fg); font: 0.8rem/1.6 'JetBrains Mono', monospace; overflow-x: auto; }
 .copied { color: var(--ok); font-size: 0.75rem; }
 footer { margin-top: 40px; font-size: 0.75rem; color: var(--fg-2); text-align: center; }

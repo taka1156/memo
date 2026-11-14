@@ -150,9 +150,11 @@ await fetch('/webauthn/verify', { method: 'POST', body: JSON.stringify(cred) });
 - **WebAuthn Level 3** ：2026年8月に W3C 勧告（正式な標準）になった。オートフィル中にパスキーを作る conditional create、削除などをマネージャーに伝える Signal API、対応機能を問い合わせる `getClientCapabilities()` 、JSON 変換ヘルパーなどが入り、主要ブラウザで実装が進んでいる。
 - **パスキーの引っ越し（CXP / CXF）** ：FIDO Alliance が、パスワードマネージャー間でパスキーを安全に移す仕組みを作っている。データ形式の CXF は 2025年8月に Proposed Standard になったが、受け渡しの手順を決める CXP はまだ草案の段階。Apple は OS 26 系で対応を始めているが、マネージャー間の自由な移行はまだ広がりつつある段階。
 
-## 関連
+## 関連メモ
 
-[OAuth 2.0 / OIDC のフロー](https://memo.taka1156.site/md/oauth-oidc.md) [JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) [CORS と同一オリジンポリシー](https://memo.taka1156.site/md/cors-sop.md)
+- [OAuth 2.0 / OIDC のフロー](https://memo.taka1156.site/md/oauth-oidc.md) — 外部のログインと組み合わせる場合
+- [JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) — ログイン後の状態を保つ方法
+- [CORS と同一オリジンポリシー](https://memo.taka1156.site/md/cors-sop.md) — オリジンとサイトの違い（パスキーはオリジンではなく RP ID というドメインに紐づく）
 
 ## 参考
 

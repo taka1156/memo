@@ -151,7 +151,10 @@ onLCP(send); onINP(send); onCLS(send);
 
 ## 関連メモ
 
-[ブラウザのレンダリング](https://memo.taka1156.site/md/browser-rendering.md) [レンダリング戦略](https://memo.taka1156.site/md/rendering-strategies.md) [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md)
+- [ブラウザのレンダリング](https://memo.taka1156.site/md/browser-rendering.md) — 描画の流れのどこが遅いか
+- [レンダリング戦略](https://memo.taka1156.site/md/rendering-strategies.md) — HTML をいつ作るかで LCP が変わる
+- [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) — 2 回目以降を速くするキャッシュ
+- [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) — 最初のバイトが届くまでの DNS・TLS・HTTP
 
 ## 参考
 

@@ -61,7 +61,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -85,7 +85,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
 .label {
@@ -124,7 +123,6 @@ pre code { background: none; padding: 0; word-break: normal; }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* トークン表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -132,7 +130,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 
 /* 誤解 */
 
-.related a { display: inline-block; margin: 4px 8px 4px 0; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -253,7 +250,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <p><b>localStorage など</b>：JS で読み書きし、自分でヘッダーに付けて送る。</p>
     </div>
   </div>
-  <p class="muted">JWT を Cookie に入れることも、セッション ID をヘッダーで送ることもできる。この2軸の組み合わせは<a href="#matrix">後半の表</a>で整理する。</p>
+  <p class="note">JWT を Cookie に入れることも、セッション ID をヘッダーで送ることもできる。この2軸の組み合わせは<a href="#matrix">後半の表</a>で整理する。</p>
 
   <h2 id="contents">JWT の中身</h2>
   <p>JWT (JSON Web Token) は <code>.</code> で区切られた3つの部分からなる。色の付いた部分にカーソルを乗せる（タップする）と、デコード結果と対応する。</p>
@@ -277,12 +274,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="card">
       <span class="label">HS256（共通鍵）</span>
       <p>同じ秘密鍵で署名も検証もする。発行元と検証側が同じサーバーなら手軽。</p>
-      <p class="muted">検証する側全員に秘密鍵を配る必要があり、鍵を持つ検証側の誰もがトークンを偽造できてしまう。</p>
+      <p class="note">検証する側全員に秘密鍵を配る必要があり、鍵を持つ検証側の誰もがトークンを偽造できてしまう。</p>
     </div>
     <div class="card">
       <span class="label">RS256 / ES256（公開鍵）</span>
       <p>秘密鍵で署名し、公開鍵で検証する。検証側は署名を作れない。</p>
-      <p class="muted">OIDC の ID トークンは RS256 が既定（HS256 も仕様上は使える）。公開鍵は JWKS（<code>/.well-known/jwks.json</code> など）で配り、ヘッダーの <code>kid</code> でどの鍵かを指す。</p>
+      <p class="note">OIDC の ID トークンは RS256 が既定（HS256 も仕様上は使える）。公開鍵は JWKS（<code>/.well-known/jwks.json</code> など）で配り、ヘッダーの <code>kid</code> でどの鍵かを指す。</p>
     </div>
   </div>
 
@@ -297,7 +294,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <span class="arrow">↓</span>
         <div class="box">user_id=42, role=editor</div>
       </div>
-      <p class="muted">毎回ストアへの問い合わせが発生する代わりに、ストアから消せば即ログアウト。</p>
+      <p class="note">毎回ストアへの問い合わせが発生する代わりに、ストアから消せば即ログアウト。</p>
     </div>
     <div class="card">
       <span class="label">JWT（ステートレス）</span>
@@ -308,7 +305,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <span class="arrow">↓</span>
         <div class="box">sub=42, role=editor</div>
       </div>
-      <p class="muted">ストア不要でどのサーバーでも検証できる代わりに、有効期限までは取り消せない。</p>
+      <p class="note">ストア不要でどのサーバーでも検証できる代わりに、有効期限までは取り消せない。</p>
     </div>
   </div>
 
@@ -357,7 +354,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <tr><td>localStorage</td><td>読み出されて外部に送られ、攻撃者の手元で使い放題になる</td><td>自動送信されないので基本的に起きない</td></tr>
     </table>
   </div>
-  <p class="muted">SPA で外部の認可サーバーを使う場合は、トークンをブラウザに置かず、同じドメインのバックエンドが保持してブラウザとは HttpOnly のセッション Cookie でやり取りする <b>BFF (Backend for Frontend)</b> パターンが推奨されている。</p>
+  <p class="note">SPA で外部の認可サーバーを使う場合は、トークンをブラウザに置かず、同じドメインのバックエンドが保持してブラウザとは HttpOnly のセッション Cookie でやり取りする <b>BFF (Backend for Frontend)</b> パターンが推奨されている。</p>
 
   <h2 id="usage">使い分け</h2>
   <div class="tabs" role="tablist">
@@ -392,9 +389,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <details class="myth"><summary>JWT にすればログアウト処理が要らない</summary><p>クライアントから消しても、盗まれたコピーは期限まで有効。サーバー側でリフレッシュトークンを無効化する処理は必要。</p></details>
   <details class="myth"><summary>HttpOnly Cookie なら XSS は怖くない</summary><p>トークンを盗まれないだけで、XSS が起きればそのページ上から本人として API を叩ける。XSS 対策そのものは必須。</p></details>
 
-
-  <h2>関連メモ</h2>
-  <p class="related"><a href="oauth-oidc.html">← OAuth 2.0 / OIDC のフロー</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="oauth-oidc.html">OAuth 2.0 / OIDC のフロー</a> — トークンを受け取るまでのフロー</li>
+  </ul>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

@@ -124,7 +124,7 @@ function load() {
 - **マイクロタスクでは譲れない** 。 `await Promise.resolve()` を挟んでも同じタスクの続きとして空になるまで実行されるので、描画の機会は来ない。
 - 本当に重い計算（画像処理・パースなど）は **Web Worker** へ。別スレッドで動き、結果は `postMessage` で受け取る（受け取りはタスク）。
 
-[Core Web Vitals](https://memo.taka1156.site/md/web-performance.md) [ブラウザのレンダリング](https://memo.taka1156.site/md/browser-rendering.md)
+詳しくは [Core Web Vitals](https://memo.taka1156.site/md/web-performance.md) ・ [ブラウザのレンダリング](https://memo.taka1156.site/md/browser-rendering.md) を参照。
 
 （元のページで操作できます → https://memo.taka1156.site/event-loop.html#block）
 
@@ -140,7 +140,7 @@ timers setTimeout / setInterval → pending 持ち越された I/O コールバ�
 - メインのスクリプトから呼んだ `setTimeout(fn, 0)` と `setImmediate` の順は不定。I/O コールバックの中からなら `setImmediate` が必ず先。
 - 同期 API（ `fs.readFileSync` など）や重い JSON 処理は、サーバー全体のリクエスト処理を止める。
 
-[JS ランタイム比較](https://memo.taka1156.site/md/js-runtimes.md)
+Node.js・Bun・Workers の内部の層構造（libuv やスレッドプールなど）の違いは [JS ランタイム比較](https://memo.taka1156.site/md/js-runtimes.md) を参照。
 
 ## よくある誤解
 

@@ -68,7 +68,7 @@ a { color: var(--accent); }
 ul.dots { margin: 6px 0 6px 1.2em; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -80,7 +80,6 @@ code {
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 
 /* 団体の色 */
 .k-tc39 { --k: var(--c-tc39); }
@@ -193,7 +192,6 @@ code {
 .box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.84rem; min-width: 480px; }
 th, td { border-bottom: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.76rem; white-space: nowrap; }
@@ -209,9 +207,6 @@ th { color: var(--fg-2); font-weight: 500; font-size: 0.76rem; white-space: nowr
 
 /* 誤解 */
 
-.related a { display: inline-block; margin: 4px 8px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); margin-top: 20px; }
-.sources a { word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -286,7 +281,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="who-row k-w3c" data-k="w3c"><code>.list { display: grid; }</code><span class="spec">CSS<span class="org">W3C</span></span></div>
     <div class="who-row k-tc55" data-k="tc55"><code>export default { fetch: (req) =&gt; new Response('ok') }</code><span class="spec">サーバーで <code>Request</code> / <code>Response</code> が使えること（ECMA-429）<span class="org">TC55</span></span></div>
   </div>
-  <p class="muted">TC55 の行に注目。<code>Response</code> そのものの仕様は WHATWG の Fetch ですが、「サーバー側のランタイムでもこれを用意する」と決めているのが TC55 です。</p>
+  <p class="note">TC55 の行に注目。<code>Response</code> そのものの仕様は WHATWG の Fetch ですが、「サーバー側のランタイムでもこれを用意する」と決めているのが TC55 です。</p>
 
   <h2 id="bodies">4 つの団体</h2>
   <div class="orgs">
@@ -344,11 +339,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="ly base k-tc39"><b>TC39</b> ECMAScript<small>ブラウザと同じ</small></div>
     </div>
   </div>
-  <p class="muted">ECMAScript には「いつ非同期処理を実行するか」の仕組みは書かれていません。それを用意するのは実行環境（ホスト）の役目で、ブラウザでは HTML 仕様のイベントループ、Node は libuv を使った自前の実装です。<code>setTimeout</code> の細かい挙動がブラウザと Node で違うことがあるのはこのためです。</p>
+  <p class="note">ECMAScript には「いつ非同期処理を実行するか」の仕組みは書かれていません。それを用意するのは実行環境（ホスト）の役目で、ブラウザでは HTML 仕様のイベントループ、Node は libuv を使った自前の実装です。<code>setTimeout</code> の細かい挙動がブラウザと Node で違うことがあるのはこのためです。</p>
 
   <h2 id="tc39">TC39：提案が仕様になるまで</h2>
   <p>新しい機能は「提案（proposal）」として出され、ステージを 1 つずつ進みます。ステージを押すと条件が出ます。</p>
-  <p class="muted">Candidate・Finished などの英語の呼び名は旧版のもので、今の公式プロセス文書は主に番号と目的で説明しています（Stage 0 だけは今も strawperson と呼ばれます）。</p>
+  <p class="note">Candidate・Finished などの英語の呼び名は旧版のもので、今の公式プロセス文書は主に番号と目的で説明しています（Stage 0 だけは今も strawperson と呼ばれます）。</p>
   <div class="stages" id="stages"></div>
   <div class="card" id="stage-detail" aria-live="polite"></div>
 
@@ -362,7 +357,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <span class="arrow">→</span>
     <div class="box k-tc39">ES20XX<small>その年の版</small></div>
   </div>
-  <p class="muted">「ES2026 の新機能」は、その年の版に入った Stage 4 の提案のこと。ブラウザは版の発行を待たず、Stage 3 の段階から順に実装していきます。</p>
+  <p class="note">「ES2026 の新機能」は、その年の版に入った Stage 4 の提案のこと。ブラウザは版の発行を待たず、Stage 3 の段階から順に実装していきます。</p>
 
   <h2 id="whatwg-w3c">WHATWG と W3C の関係</h2>
   <p>HTML と DOM は、2019 年の合意から <b>WHATWG の Living Standard が唯一の本体</b>です。W3C は別の HTML を書くのではなく、その一時点のコピーに「勧告」という承認を付けます。</p>
@@ -383,7 +378,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       </tbody>
     </table>
   </div>
-  <p class="muted">web-platform-tests（WPT）は両団体とブラウザが共有するテスト集。仕様どおりに実装されているかはここで確かめます。</p>
+  <p class="note">web-platform-tests（WPT）は両団体とブラウザが共有するテスト集。仕様どおりに実装されているかはここで確かめます。</p>
 
   <h2 id="tc55">TC55（WinterTC）：サーバー側の共通 API</h2>
   <div class="flow">
@@ -423,7 +418,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h3>実際のコードでの意味</h3>
   <p>複数のランタイムで動かしたいライブラリは、<b>Minimum Common API の範囲で書く</b>のが目安になります。Hono のように <code>Request</code> を受けて <code>Response</code> を返す形のフレームワークが Node.js でも Workers でも動くのは、この共通部分の上に乗っているからです。</p>
-  <p class="muted">TC55 には Deno・Igalia（共同議長）、Cloudflare、Bloomberg などが関わっています。Bun は正式なメンバーではありません。Bun にも <code>fetch</code> や <code>Response</code> はありますが、ECMA-429 に沿うことを約束しているわけではないので、Bun でも動くかは個別に確かめます。</p>
+  <p class="note">TC55 には Deno・Igalia（共同議長）、Cloudflare、Bloomberg などが関わっています。Bun は正式なメンバーではありません。Bun にも <code>fetch</code> や <code>Response</code> はありますが、ECMA-429 に沿うことを約束しているわけではないので、Bun でも動くかは個別に確かめます。</p>
 
   <h2 id="myths">よくある誤解</h2>
   <details class="myth"><summary><code>setTimeout</code> や <code>console</code> は JavaScript の言語機能</summary><p>HTML Standard と Console Standard（WHATWG）で決まっている。ECMAScript には入っていない</p></details>
@@ -431,11 +426,23 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <details class="myth"><summary>Stage 3 になった機能はどのブラウザでも使える</summary><p>Stage 3 は「実装を始めてよい」段階。使えるかどうかは各ブラウザの実装状況で確かめる</p></details>
   <details class="myth"><summary>TC55 はサーバー専用の新しい API を作る団体</summary><p>中心は既存の Web API から共通セットを選ぶこと。サーバーで違う動きが必要な点は WHATWG や W3C の仕様に戻して直す</p></details>
 
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="js-runtimes.html">JS ランタイム比較</a> — fetch や Request / Response など Web 標準の API を備えるランタイム</li>
+    <li><a href="cors-sop.html">CORS と同一オリジンポリシー</a> — WHATWG の Fetch 仕様が決めるブラウザの制約</li>
+    <li><a href="typescript.html">TypeScript 学習フローと仕組み</a> — TC39 の外で型を足す言語</li>
+  </ul>
 
-  <h2>関連メモ</h2>
-  <p class="related"><a href="js-runtimes.html">JS ランタイム比較 →</a> <a href="cors-sop.html">CORS と同一オリジンポリシー →</a> <a href="typescript.html">TypeScript 学習フローと仕組み →</a></p>
-
-  <p class="sources">出典: <a href="https://tc39.es/process-document/">The TC39 Process</a> ／ <a href="https://www.w3.org/2019/04/WHATWG-W3C-MOU.html">W3C と WHATWG の覚書（2019）</a> ／ <a href="https://www.w3.org/blog/2025/collaborating-across-w3c-and-ecma-for-web-interoperable-server-runtimes-through-wintertc/">W3C ブログ：WinterTC について（2025）</a> ／ <a href="https://ecma-international.org/publications-and-standards/standards/ecma-429/">ECMA-429</a> ／ <a href="https://min-common-api.proposal.wintertc.org/">Minimum common web API</a> ／ <a href="https://people.igalia.com/abotella/pub/TPAC-2025-WinterTC/">WinterTC の TPAC 2025 発表資料</a>（2026 年 11 月 3 日時点）</p>
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://tc39.es/process-document/">The TC39 Process</a></li>
+    <li><a href="https://www.w3.org/2019/04/WHATWG-W3C-MOU.html">W3C と WHATWG の覚書（2019）</a></li>
+    <li><a href="https://www.w3.org/blog/2025/collaborating-across-w3c-and-ecma-for-web-interoperable-server-runtimes-through-wintertc/">W3C ブログ：WinterTC について（2025）</a></li>
+    <li><a href="https://ecma-international.org/publications-and-standards/standards/ecma-429/">ECMA-429</a></li>
+    <li><a href="https://min-common-api.proposal.wintertc.org/">Minimum common web API</a></li>
+    <li><a href="https://people.igalia.com/abotella/pub/TPAC-2025-WinterTC/">WinterTC の TPAC 2025 発表資料</a></li>
+  </ul>
+  <p class="note">2026 年 11 月 3 日時点の内容。</p>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

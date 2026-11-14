@@ -63,7 +63,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -89,8 +89,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -133,7 +131,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -151,10 +148,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -236,7 +229,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="pipeline">SQL が結果になるまで</h2>
   <div class="card">
-    <p class="muted">各段階を押すと説明が出る。例：<code>SELECT name FROM users WHERE email = 'a@example.com';</code></p>
+    <p class="note">各段階を押すと説明が出る。例：<code>SELECT name FROM users WHERE email = 'a@example.com';</code></p>
     <div class="pipe" id="pipe">
       <button aria-pressed="true" data-s="0">Parser<small>構文解析</small></button>
       <button aria-pressed="false" data-s="1">Analyzer<small>意味解析</small></button>
@@ -439,11 +432,13 @@ console.log(db.prepare('SELECT * FROM todos').all());</code></pre>
   <details class="myth"><summary>SQL を書いた順番どおりに処理される</summary><p>JOIN の順番や使うインデックスはプランナが決める。同じ SQL でもデータ量や統計情報が変わると実行計画が変わり、急に遅くなることがある。</p></details>
   <details class="myth"><summary>メモリを増やせば DB は無限に速くなる</summary><p>効くのは「よく使うページがバッファプールに収まるまで」。それ以降は実行計画（インデックスの有無）や書き込み量の方が支配的になる。</p></details>
 
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="db-index-transaction.html">インデックスとトランザクション</a> — B 木インデックスと分離レベル</li>
+    <li><a href="git-internals.html">Git の内部構造</a> — 中身（オブジェクト）を先に書き、最後にポインタ（ref）だけを動かす仕組み</li>
+  </ul>
 
-  <h2>関連</h2>
-  <p class="related"><a href="db-index-transaction.html">インデックスとトランザクション</a><a href="git-internals.html">Git の内部構造</a></p>
-
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://www.postgresql.org/docs/current/query-path.html">PostgreSQL: The Path of a Query</a></li>
     <li><a href="https://www.postgresql.org/docs/current/wal-intro.html">PostgreSQL: Write-Ahead Logging (WAL)</a></li>

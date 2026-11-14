@@ -12,7 +12,7 @@
 
 発生 → 処理待ち → 配送 → 処理 / ハンドラ / シグナル図鑑 / セッションとジョブ制御
 
-[全体像](https://memo.taka1156.site/md/linux-process-signal.md) [端末とシェル](https://memo.taka1156.site/md/linux-terminal.md) [プロセス](https://memo.taka1156.site/md/linux-process.md) [シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md)
+[キー入力の流れ](https://memo.taka1156.site/md/linux-process-signal.md) [端末とシェル](https://memo.taka1156.site/md/linux-terminal.md) [プロセス](https://memo.taka1156.site/md/linux-process.md) [シグナルとジョブ制御](https://memo.taka1156.site/md/linux-signal.md)
 
 **ざっくり言うと**
 

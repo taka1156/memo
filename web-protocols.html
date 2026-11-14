@@ -18,7 +18,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #7c3aed;
   --c-b: #be185d;
 }
@@ -31,7 +30,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #c4b5fd;
     --c-b: #f472b6;
   }
@@ -66,7 +64,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -92,8 +90,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -136,7 +132,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -154,10 +149,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -203,7 +194,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .s-tls { background: var(--c-warn); }
 .s-quic { background: var(--c-ok); }
 .s-req { background: var(--chip); }
-.legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.75rem; color: var(--fg-2); margin-top: 10px; }
+.rtt .seg.s-req { color: var(--fg); border: 1px solid var(--line); }
+.legend i.s-req { box-shadow: inset 0 0 0 1px var(--fg-2); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
 </style>
 <!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
@@ -324,7 +316,7 @@ Accept-Encoding: gzip, br</pre>
   <h2 id="hol">ヘッドオブライン・ブロッキングの違い</h2>
   <div class="card">
     <div class="svgwrap"><svg class="fig" viewBox="0 0 720 190" role="img" aria-label="パケットが1つ失われたときの HTTP/2 と HTTP/3 の違い">
-      <text x="10" y="22" font-size="12" style="fill:var(--c-key)">HTTP/2 (TCP)</text>
+      <text x="10" y="22" font-size="12" style="fill:var(--c-hl)">HTTP/2 (TCP)</text>
       <text class="sub" x="10" y="40" font-size="10">1 列に並んだバイト列</text>
       <g font-size="11">
         <rect x="140" y="12" width="56" height="30" rx="5" style="fill:var(--c-a);opacity:.85"/><text x="168" y="32" text-anchor="middle" style="fill:var(--bg)">A1</text>
@@ -335,7 +327,7 @@ Accept-Encoding: gzip, br</pre>
       </g>
       <text class="sub" x="450" y="24" font-size="11">B1 の再送が届くまで</text>
       <text class="sub" x="450" y="40" font-size="11">A も C も渡せない</text>
-      <text x="10" y="102" font-size="12" style="fill:var(--c-key)">HTTP/3 (QUIC)</text>
+      <text x="10" y="102" font-size="12" style="fill:var(--c-hl)">HTTP/3 (QUIC)</text>
       <text class="sub" x="10" y="120" font-size="10">ストリームごとに独立</text>
       <g font-size="11">
         <text class="sub" x="140" y="88" font-size="10">A</text>
@@ -380,11 +372,16 @@ openssl s_client -connect example.com:443 -servername example.com &lt;/dev/null 
   <details class="myth"><summary>HTTP/2 なら JS を 1 ファイルに結合しなくていい</summary><p>接続の制限はなくなったが、リクエストごとのオーバーヘッドや、import が深くつながると往復が重なる問題（ウォーターフォール）は残る。ほどよく分割してまとめる、が今のバンドラーの方針。</p></details>
   <details class="myth"><summary>HTTP/3 は常に HTTP/2 より速い</summary><p>効くのは主に RTT が長い・パケットロスが多い・回線が切り替わる環境。安定した有線では差が小さく、UDP の処理が重い環境では逆に遅いこともある。</p></details>
 
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="http-cache.html">HTTP キャッシュ</a> — HTTP のヘッダーで決まるキャッシュ</li>
+    <li><a href="security-headers.html">セキュリティヘッダー</a> — HSTS で https を強制する</li>
+    <li><a href="realtime-comm.html">リアルタイム通信</a> — HTTP の上でつなぎっぱなしにする方式</li>
+    <li><a href="web-performance.html">Core Web Vitals</a> — 接続の速さが LCP に効く</li>
+    <li><a href="cloudflare-services.html">Cloudflare サービス</a> — TLS 終端と CDN を担う例</li>
+  </ul>
 
-  <h2>関連メモ</h2>
-  <p class="related"><a href="http-cache.html">HTTP キャッシュ</a><a href="security-headers.html">セキュリティヘッダー</a><a href="realtime-comm.html">リアルタイム通信</a><a href="web-performance.html">Core Web Vitals</a><a href="cloudflare-services.html">Cloudflare サービス</a></p>
-
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://www.rfc-editor.org/rfc/rfc9110">RFC 9110: HTTP Semantics</a></li>
     <li><a href="https://www.rfc-editor.org/rfc/rfc9113">RFC 9113: HTTP/2</a></li>

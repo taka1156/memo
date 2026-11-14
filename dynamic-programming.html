@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #0f766e; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #be185d;
   --c-b: #15803d;
   --c-c: #7c3aed;
@@ -32,7 +31,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #2dd4bf; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #f472b6;
     --c-b: #4ade80;
     --c-c: #c4b5fd;
@@ -69,7 +67,7 @@ ul.dots, ol.dots { margin: 6px 0 6px 1.3em; }
 ul.dots li, ol.dots li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -95,7 +93,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .label {
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
@@ -115,14 +112,12 @@ pre code { background: none; padding: 0; word-break: normal; }
 }
 .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .panel[hidden] { display: none; }
-.table-wrap { overflow-x: auto; }
 table.t { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 560px; }
 table.t th, table.t td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 table.t th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
 table.t td:first-child { font-weight: 700; white-space: nowrap; }
 .ok { color: var(--c-ok); font-weight: 700; }
 .ng { color: var(--c-ng); font-weight: 700; }
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
 footer#memo-backlink {
   margin-top: 40px;
   padding-top: 16px;
@@ -158,7 +153,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .grid td { width: 30px; height: 28px; text-align: center; border-radius: 4px; background: var(--chip); border: 1px solid transparent; transition: background .15s; }
 .grid td.empty { color: transparent; background: color-mix(in srgb, var(--chip) 45%, transparent); }
 .grid td.base { color: var(--fg-2); }
-.grid td.cur { border-color: var(--c-key); background: color-mix(in srgb, var(--c-key) 22%, var(--surface)); }
+.grid td.cur { border-color: var(--c-hl); background: color-mix(in srgb, var(--c-hl) 22%, var(--surface)); }
 .grid td.src { border-color: var(--c-d); background: color-mix(in srgb, var(--c-d) 22%, var(--surface)); }
 .grid td.path { border-color: var(--c-b); background: color-mix(in srgb, var(--c-b) 25%, var(--surface)); }
 .explain { font: 500 0.8rem 'JetBrains Mono', monospace; background: var(--chip); border-radius: 8px; padding: 8px 10px; min-height: 2.4em; overflow-x: auto; }
@@ -167,7 +162,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .items span.pick { border-color: var(--c-b); color: var(--c-b); font-weight: 700; }
 .row-in { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 0.85rem; margin-bottom: 6px; }
 .row-in input[type="text"] { width: 130px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: 600 0.9rem 'JetBrains Mono', monospace; }
-.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.75rem; color: var(--fg-2); margin-top: 4px; }
 .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; border: 1px solid; }
 </style>
 <!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
@@ -213,11 +207,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <h2 id="steps">組み立て方 — 状態・遷移・初期値</h2>
   <p>例: 階段を 1 段か 2 段ずつ上る。n 段目まで上る方法は何通り？</p>
   <div class="steps3">
-    <div class="card"><div class="num">1</div><b>状態を決める</b><p class="muted"><code>dp[i]</code> ＝「i 段目にちょうど着く方法の数」。<b>答えが表のどこかに入る</b>ように、しかも小さい問題から順に作れるように決める。</p></div>
-    <div class="card"><div class="num">2</div><b>遷移を書く</b><p class="muted">i 段目の直前は i−1 段目か i−2 段目のどちらか。<code>dp[i] = dp[i−1] + dp[i−2]</code>。「最後の 1 手で場合分け」が基本の発想。</p></div>
-    <div class="card"><div class="num">3</div><b>初期値と順番</b><p class="muted"><code>dp[0] = 1</code>（何もしない 1 通り）、<code>dp[1] = 1</code>。i の小さい順に埋めれば、使う値はいつも計算済み。答えは <code>dp[n]</code>。</p></div>
+    <div class="card"><div class="num">1</div><b>状態を決める</b><p class="note"><code>dp[i]</code> ＝「i 段目にちょうど着く方法の数」。<b>答えが表のどこかに入る</b>ように、しかも小さい問題から順に作れるように決める。</p></div>
+    <div class="card"><div class="num">2</div><b>遷移を書く</b><p class="note">i 段目の直前は i−1 段目か i−2 段目のどちらか。<code>dp[i] = dp[i−1] + dp[i−2]</code>。「最後の 1 手で場合分け」が基本の発想。</p></div>
+    <div class="card"><div class="num">3</div><b>初期値と順番</b><p class="note"><code>dp[0] = 1</code>（何もしない 1 通り）、<code>dp[1] = 1</code>。i の小さい順に埋めれば、使う値はいつも計算済み。答えは <code>dp[n]</code>。</p></div>
   </div>
-  <p class="muted">同じ問題でも状態の決め方は 1 つではない。状態が多すぎて間に合わないときは、「本当に区別する必要がある情報は何か」を考えて状態を減らす。</p>
+  <p class="note">同じ問題でも状態の決め方は 1 つではない。状態が多すぎて間に合わないときは、「本当に区別する必要がある情報は何か」を考えて状態を減らす。</p>
 
   <h2 id="styles">2 つの書き方 — メモ化再帰とボトムアップ</h2>
   <div class="tabs" role="tablist">
@@ -234,7 +228,7 @@ def ways(i):
     return ways(i - 1) + ways(i - 2)
 
 print(ways(50))</code></pre>
-    <p class="muted">漸化式をそのまま書いて、結果を覚えるだけ。計算の順番を考えなくてよく、<b>実際に必要になった状態だけ</b>を計算する。再帰が深くなると Python では上限（既定は 1000 段）に当たるので、<code>sys.setrecursionlimit</code> で上げるかボトムアップに書き直す。</p>
+    <p class="note">漸化式をそのまま書いて、結果を覚えるだけ。計算の順番を考えなくてよく、<b>実際に必要になった状態だけ</b>を計算する。再帰が深くなると Python では上限（既定は 1000 段）に当たるので、<code>sys.setrecursionlimit</code> で上げるかボトムアップに書き直す。</p>
   </div>
   <div class="panel" id="p-bu" hidden>
 <pre><code>dp = [0] * (n + 2)          <span class="cm"># n = 0 でも dp[1] に書けるよう 1 つ多めに取る</span>
@@ -248,7 +242,7 @@ a, b = 1, 1
 for _ in range(n - 1):
     a, b = b, a + b
 print(b)                    <span class="cm"># 答えは b</span></code></pre>
-    <p class="muted">表を小さい方から埋める。関数呼び出しがない分速く、再帰の深さの心配もない。<b>使い終わった行を捨てて</b>メモリを減らせる。ただし「どの順番なら使う値が計算済みか」を自分で決める必要がある。</p>
+    <p class="note">表を小さい方から埋める。関数呼び出しがない分速く、再帰の深さの心配もない。<b>使い終わった行を捨てて</b>メモリを減らせる。ただし「どの順番なら使う値が計算済みか」を自分で決める必要がある。</p>
   </div>
 
   <h2 id="knapsack">ナップサック — 表が埋まる様子</h2>
@@ -263,7 +257,7 @@ print(b)                    <span class="cm"># 答えは b</span></code></pre>
     </div>
     <div class="table-wrap"><table class="grid" id="ks-grid"></table></div>
     <div class="explain" id="ks-explain"></div>
-    <div class="legend"><span><i style="border-color:var(--c-key);background:color-mix(in srgb, var(--c-key) 22%, var(--surface))"></i>いま計算するマス</span><span><i style="border-color:var(--c-d);background:color-mix(in srgb, var(--c-d) 22%, var(--surface))"></i>使う値</span><span><i style="border-color:var(--c-b);background:color-mix(in srgb, var(--c-b) 25%, var(--surface))"></i>答えをたどった道</span></div>
+    <div class="legend"><span><i style="border-color:var(--c-hl);background:color-mix(in srgb, var(--c-hl) 22%, var(--surface))"></i>いま計算するマス</span><span><i style="border-color:var(--c-d);background:color-mix(in srgb, var(--c-d) 22%, var(--surface))"></i>使う値</span><span><i style="border-color:var(--c-b);background:color-mix(in srgb, var(--c-b) 25%, var(--surface))"></i>答えをたどった道</span></div>
   </div>
 <pre><code><span class="cm"># i 個目を「入れない」か「入れる」かの 2 通りを比べる</span>
 dp[i][w] = max(dp[i-1][w],                       <span class="cm"># 入れない</span>
@@ -319,7 +313,13 @@ dp[i][w] = max(dp[i-1][w],                       <span class="cm"># 入れない
   <details class="myth"><summary>メモ化すればどんな再帰も速くなる</summary><p>速さは状態の数で決まる。引数に「選んだものの一覧」を丸ごと入れると状態が 2ⁿ 通りになり、メモしても速くならない。状態に入れる情報を絞るのが設計の中心。</p></details>
   <details class="myth"><summary>2 次元の表を 1 次元にしても、ループの向きは同じでよい</summary><p>1 個までのナップサックは w を大きい方から回す。向きを間違えると、同じ品物を何度も使った答えになる。</p></details>
 
-  <p class="related">関連: <a href="algorithm-paradigms.html">設計手法の全体像</a><a href="data-structures.html">データ構造と計算量</a><a href="graph-algorithms.html">グラフ探索と最短経路</a><a href="git-internals.html">Git の内部構造</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="algorithm-paradigms.html">アルゴリズム設計手法の全体像</a> — 他の設計手法との使い分け</li>
+    <li><a href="data-structures.html">データ構造と計算量の早見表</a> — 表やメモに使うデータ構造と計算量</li>
+    <li><a href="graph-algorithms.html">グラフ探索と最短経路</a> — 最短経路も部分問題の積み重ねで解く</li>
+    <li><a href="git-internals.html">Git の内部構造</a> — 差分は保存せず、表示のたびに 2 つのスナップショットを比べて計算する</li>
+  </ul>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
 <link rel="stylesheet" href="assets/memo-quiz.css">

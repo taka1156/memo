@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
   --chip: #eceff4;
-  --c-key: #4f46e5; /* 図の強調（このページの色と見分けやすい色） */
   --c-user: #1f8a50;
   --c-kernel: #be185d;
   --c-hw: #6b7280;
@@ -33,7 +32,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a5b4fc; /* 図の強調（このページの色と見分けやすい色） */
     --c-user: #4ade80;
     --c-kernel: #f472b6;
     --c-hw: #94a3b8;
@@ -70,7 +68,7 @@ ul.dots { margin: 8px 0 8px 1.3em; }
 ul.dots li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -92,9 +90,7 @@ pre .cm { color: var(--fg-2); }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-.table-wrap { overflow-x: auto; margin: 10px 0; }
 table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--surface); }
 th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
 th { background: var(--chip); font-weight: 700; white-space: nowrap; }
@@ -179,7 +175,7 @@ a { color: var(--accent); }
 .pbox .nm { font: 700 0.95rem 'JetBrains Mono', ui-monospace, monospace; }
 .pbox .meta { font: 500 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
 .pbox .nt { font-size: 0.75rem; margin-top: 4px; }
-.pbox.hl { border-color: var(--c-key); }
+.pbox.hl { border-color: var(--c-hl); }
 .pbox.zombie { border-style: dashed; border-color: var(--c-dead); color: var(--fg-2); }
 .pbox.wait { opacity: .7; }
 @keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -254,7 +250,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <div class="wrap">
   <h1>Linux プロセスの仕組み</h1>
   <p class="subtitle">プロセスの中身 / fork → exec → wait / 状態 / ゾンビと孤児 / fd とパイプ</p>
-  <nav class="series" aria-label="このシリーズのページ"><a href="linux-process-signal.html">全体像</a><a href="linux-terminal.html">端末とシェル</a><a href="linux-process.html" aria-current="page">プロセス</a><a href="linux-signal.html">シグナルとジョブ制御</a></nav>
+  <nav class="series" aria-label="このシリーズのページ"><a href="linux-process-signal.html">キー入力の流れ</a><a href="linux-terminal.html">端末とシェル</a><a href="linux-process.html" aria-current="page">プロセス</a><a href="linux-signal.html">シグナルとジョブ制御</a></nav>
 
   <div class="card summary">
     <strong>ざっくり言うと</strong>
@@ -301,7 +297,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <tr><td>PGID / SID / 制御端末</td><td>引き継ぐ</td><td>そのまま</td></tr>
     </table>
   </div>
-  <p class="muted"><code>nohup cmd</code> が効くのはこの性質のおかげ。nohup は SIGHUP を「無視」に設定してから <code>exec</code> するので、無視が新しいプログラムにも残る。</p>
+  <p class="note"><code>nohup cmd</code> が効くのはこの性質のおかげ。nohup は SIGHUP を「無視」に設定してから <code>exec</code> するので、無視が新しいプログラムにも残る。</p>
 
   <h3 id="states">プロセスの状態（ps の STAT 列）</h3>
   <div class="table-wrap">
@@ -348,7 +344,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </div>
   </div>
   <p>シェルは <code>pipe()</code> で読み口・書き口の fd を作り、2 回 <code>fork</code> し、それぞれの子で <code>dup2</code> を使って 0 番・1 番に付け替えてから <code>exec</code> する。コマンド側は「0 番から読んで 1 番に書く」だけで、相手がパイプか端末かファイルかを知らない。エラー (fd 2) は端末のままなので、パイプやリダイレクトの後でも画面に出る。</p>
-  <p class="muted">読み手（grep）が先に終わると、書き手（ls）の次の write は SIGPIPE を受けて終了する。<code>yes | head -1</code> がすぐ終わるのはこのため（<a href="linux-signal.html#sigdict">SIGPIPE</a>）。</p>
+  <p class="note">読み手（grep）が先に終わると、書き手（ls）の次の write は SIGPIPE を受けて終了する。<code>yes | head -1</code> がすぐ終わるのはこのため（<a href="linux-signal.html#sigdict">SIGPIPE</a>）。</p>
 
 
   <h2 id="misc">よくある誤解</h2>

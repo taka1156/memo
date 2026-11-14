@@ -297,9 +297,10 @@ console.log(db.prepare('SELECT * FROM todos').all());
 
 ✓ 正しくは: 効くのは「よく使うページがバッファプールに収まるまで」。それ以降は実行計画（インデックスの有無）や書き込み量の方が支配的になる。
 
-## 関連
+## 関連メモ
 
-[インデックスとトランザクション](https://memo.taka1156.site/md/db-index-transaction.md) [Git の内部構造](https://memo.taka1156.site/md/git-internals.md)
+- [インデックスとトランザクション](https://memo.taka1156.site/md/db-index-transaction.md) — B 木インデックスと分離レベル
+- [Git の内部構造](https://memo.taka1156.site/md/git-internals.md) — 中身（オブジェクト）を先に書き、最後にポインタ（ref）だけを動かす仕組み
 
 ## 参考
 

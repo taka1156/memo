@@ -48,7 +48,7 @@ CLAUDE.md
 
 説明
 
-MCP ツール名
+MCP
 
 SKILL.md 本文
 
@@ -223,4 +223,4 @@ description から「今の作業に該当する」と判断されたときに�
 
 ## 関連メモ
 
-[← MCP の仕組み](https://memo.taka1156.site/md/mcp.md)
+- [MCP の仕組み](https://memo.taka1156.site/md/mcp.md) — 外部ツールをつなぐ側の仕組み（ツール名がコンテキストに載る理由）

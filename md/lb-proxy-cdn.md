@@ -251,6 +251,11 @@ server {
 
 オープンソース版の nginx のヘルスチェックはパッシブ（ `max_fails` ）だけ。定期的に叩くアクティブチェックは NGINX Plus・HAProxy・Envoy などにある。
 
-## 関連するメモ
+## 関連メモ
 
-[TCP/IP](https://memo.taka1156.site/md/tcp-ip.md) [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) [リアルタイム通信](https://memo.taka1156.site/md/realtime-comm.md) [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md)
+- [TCP/IP とネットワーク基礎](https://memo.taka1156.site/md/tcp-ip.md) — L4 で振り分けるときの TCP/IP
+- [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) — TLS ハンドシェイクと HTTP/2・3 の違い
+- [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) — CDN がキャッシュを判断するヘッダー
+- [リアルタイム通信](https://memo.taka1156.site/md/realtime-comm.md) — つなぎっぱなしの接続とアイドルタイムアウト
+- [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) — CDN とエッジの実例
+- [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) — リトライと冪等性

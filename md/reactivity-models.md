@@ -226,4 +226,5 @@ Vue 3.6 の Vapor Mode（2026年7月から RC）はコンポーネント単位�
 
 ## 関連メモ
 
-[React と Solid →](https://memo.taka1156.site/md/react-vs-solid.md) [Vue と Svelte →](https://memo.taka1156.site/md/vue-vs-svelte.md)
+- [React と Solid](https://memo.taka1156.site/md/react-vs-solid.md) — 仮想 DOM とシグナルの内部を同じカウンターで
+- [Vue と Svelte](https://memo.taka1156.site/md/vue-vs-svelte.md) — Proxy とコンパイラの内部を同じカウンターで

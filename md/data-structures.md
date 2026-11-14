@@ -185,4 +185,9 @@ CPU はメモリをまとめて（キャッシュライン単位で）読み込�
 
 ✓ 正しくは: 挿入位置を探すコストとキャッシュの悪さで、配列に負けることが多い。末尾への追加が中心なら配列で十分。
 
-関連: [メモリ管理](https://memo.taka1156.site/md/memory-management.md) [DB のしくみ](https://memo.taka1156.site/md/db-internals.md) [インデックスとトランザクション](https://memo.taka1156.site/md/db-index-transaction.md) [Redis と Valkey](https://memo.taka1156.site/md/redis-valkey.md)
+## 関連メモ
+
+- [メモリ管理](https://memo.taka1156.site/md/memory-management.md) — スタックとヒープ、値がどこに置かれいつ解放されるか
+- [DB のしくみ](https://memo.taka1156.site/md/db-internals.md) — DB のページと B 木の置き方
+- [インデックスとトランザクション](https://memo.taka1156.site/md/db-index-transaction.md) — B 木インデックスが効く条件
+- [Redis と Valkey の仕組み](https://memo.taka1156.site/md/redis-valkey.md) — ハッシュ・ソート済み集合などをそのまま使う DB
