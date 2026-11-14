@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NewSQL・分散 SQL</title>
+<meta name="description" content="SQL とトランザクションを残したまま台を増やす 2 つの方式（Vitess のようなシャーディング層と、Spanner・CockroachDB・TiDB のような分散 SQL）を、キー範囲の分割・合意による複製・時刻の扱いから図解する。">
+<meta name="memo:tags" content="データベース, 設計">
+<meta name="memo:date" content="2026-11-14">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-leader: #1d4ed8;
+  --c-follower: #6b7280;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-leader: #60a5fa;
+    --c-follower: #94a3b8;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 40px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.98rem; margin: 20px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.dots { margin: 6px 0 6px 1.3em; }
+ul.dots li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  line-height: 1.6;
+}
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.muted { color: var(--fg-2); font-size: 0.85rem; }
+.table-wrap { overflow-x: auto; margin: 10px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.84rem; background: var(--surface); }
+th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 700; white-space: nowrap; }
+tbody th { white-space: normal; min-width: 7em; }
+
+/* 4 つの広げ方 */
+.ways { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.way { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; font-size: 0.82rem; display: flex; flex-direction: column; gap: 6px; }
+.way b { font-size: 0.9rem; }
+.way .fig { display: flex; gap: 4px; align-items: flex-end; justify-content: center; min-height: 58px; padding: 6px 0; }
+.db { background: var(--chip); border: 1.5px solid var(--fg-2); border-radius: 6px; font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); display: grid; place-items: center; width: 34px; height: 30px; }
+.db.big { width: 58px; height: 52px; }
+.db.w { border-color: var(--c-leader); color: var(--c-leader); }
+.way .pro, .way .con { font-size: 0.78rem; }
+.way .pro::before { content: '＋ '; color: var(--c-ok); font-weight: 700; }
+.way .con::before { content: '− '; color: var(--c-ng); font-weight: 700; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.76rem; color: var(--fg-2); margin-top: 8px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid; vertical-align: -2px; margin-right: 4px; }
+
+/* 2 つの方式 */
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.arch { display: grid; gap: 4px; margin: 10px 0 6px; }
+.arch .row { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+.arch .box { border: 1.5px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 0.74rem; background: var(--chip); text-align: center; }
+.arch .box.lay { flex: 1; }
+.arch .box small { display: block; color: var(--fg-2); font-size: 0.66rem; }
+.arch .ar { text-align: center; color: var(--fg-2); font-size: 0.72rem; line-height: 1.1; }
+
+/* シミュレーション */
+.btn {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); }
+.btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+.ctrl .lb { font-size: 0.78rem; color: var(--fg-2); margin-right: 2px; }
+.cluster { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+.node { background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px; transition: opacity .2s, border-color .2s; }
+.node > b { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; display: flex; justify-content: space-between; }
+.node > b span { font-weight: 600; color: var(--fg-2); }
+.node.down { opacity: .5; border-style: dashed; border-color: var(--c-ng); }
+.node.down > b span { color: var(--c-ng); }
+.rep { display: flex; justify-content: space-between; align-items: center; font-size: 0.76rem; border: 1.5px solid var(--c-follower); color: var(--fg); border-radius: 6px; padding: 3px 8px; margin-top: 6px; }
+.rep em { font-style: normal; font: 600 0.66rem 'JetBrains Mono', ui-monospace, monospace; color: var(--c-follower); }
+.rep.leader { border-color: var(--c-leader); background: color-mix(in srgb, var(--c-leader) 9%, var(--surface)); }
+.rep.leader em { color: var(--c-leader); }
+.rep.hit { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-hl) 40%, transparent); }
+.rep.ng { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-ng) 40%, transparent); }
+.simmsg { border-left: 3px solid var(--line); background: var(--surface); border-radius: 0 8px 8px 0; padding: 10px 14px; min-height: 4.4em; font-size: 0.88rem; }
+.simmsg p { margin: 0; }
+.simmsg p[hidden] { display: none; }
+.simmsg .k { display: block; font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); letter-spacing: .06em; }
+.simmsg.ok { border-left-color: var(--c-ok); }
+.simmsg.ng { border-left-color: var(--c-ng); }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+.tline { display: grid; grid-template-columns: 7.5em 1fr; gap: 6px 12px; font-size: 0.85rem; margin: 8px 0; }
+.tline dt { color: var(--fg-2); font-size: 0.8rem; }
+.bar { position: relative; height: 48px; margin: 12px 0 4px; }
+.bar::before { content: ''; position: absolute; left: 0; right: 0; top: 13px; border-top: 1px solid var(--line); }
+.bar .unc { position: absolute; top: 4px; height: 18px; padding: 0 6px; border-radius: 4px; background: color-mix(in srgb, var(--c-warn) 25%, transparent); border: 1px dashed var(--c-warn); font: 600 0.68rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; }
+.bar .unc.wait { background: transparent; }
+.bar .pt { position: absolute; top: 0; width: 2px; height: 26px; background: var(--fg); }
+.bar .pt span { position: absolute; top: 28px; left: -40px; width: 80px; text-align: center; font: 600 0.68rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+
+@media (max-width: 720px) {
+  .ways { grid-template-columns: 1fr 1fr; }
+  .two { grid-template-columns: 1fr; }
+}
+@media (max-width: 460px) {
+  .ways { grid-template-columns: 1fr; }
+  .cluster { grid-template-columns: 1fr; }
+  .tline { grid-template-columns: 1fr; gap: 0; }
+  .tline dd { margin-bottom: 6px; }
+}
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NewSQL・分散 SQL</h1>
+  <p class="subtitle">SQL とトランザクションのまま、書き込みを複数台に広げる</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>NewSQL は、RDB の SQL とトランザクションを保ったまま、書き込みまで複数台に広げられるようにした DB の総称。</li>
+      <li>既存の MySQL の前にルーターを置いて分割する方式（Vitess）と、最初から分割と合意による複製を組み込んだ方式（Spanner など）がある。</li>
+      <li>台をまたぐ処理ほど往復が増えて遅くなるので、1 台＋レプリカで足りるうちは使わず、主キーの選び方でホットスポットを避ける。</li>
+    </ul>
+  </div>
+
+  <!-- ===================== なぜ ===================== -->
+  <h2 id="why">なぜ要るのか: RDB の広げ方 4 つ</h2>
+  <p>1 台の RDB が苦しくなったときの打ち手は、大きく 4 つある。読み込みはレプリカで増やせるが、<b>書き込みを複数台に分けたい</b>ところで選択肢が分かれる。</p>
+  <div class="ways">
+    <div class="way"><b>① 縦に大きく</b>
+      <div class="fig" aria-hidden="true"><div class="db big w">DB</div></div>
+      <span class="pro">アプリは何も変えなくてよい</span>
+      <span class="con">1 台の上限と値段で頭打ち。止まると全部止まる</span></div>
+    <div class="way"><b>② リードレプリカ</b>
+      <div class="fig" aria-hidden="true"><div class="db w">P</div><div class="db">R</div><div class="db">R</div></div>
+      <span class="pro">読み込みは台数で増やせる</span>
+      <span class="con">書き込みは 1 台（プライマリ）のまま。レプリカは少し遅れる</span></div>
+    <div class="way"><b>③ 手で分割（シャーディング）</b>
+      <div class="fig" aria-hidden="true"><div class="db w">1</div><div class="db w">2</div><div class="db w">3</div></div>
+      <span class="pro">書き込みも台数で増やせる</span>
+      <span class="con">どの台に行くかをアプリが決める。台をまたぐ JOIN・トランザクション・分け直しが大変</span></div>
+    <div class="way"><b>④ NewSQL・分散 SQL</b>
+      <div class="fig" aria-hidden="true"><div class="db w">1</div><div class="db w">2</div><div class="db w">3</div></div>
+      <span class="pro">③ の振り分け・分け直し・台をまたぐ処理を DB 側が引き受ける</span>
+      <span class="con">仕組みが重く、1 件ごとの遅延は 1 台の RDB より増えやすい</span></div>
+  </div>
+  <div class="legend"><span><i style="border-color:var(--c-leader)"></i>書き込みを受ける台</span><span><i style="border-color:var(--fg-2)"></i>読み込みだけの台</span></div>
+  <p class="muted">「NewSQL」は 2011 年ごろから使われ始めた呼び名で、いまは「分散 SQL (distributed SQL)」と呼ぶことも多い。どこまでを含めるかは人によって違う。キーと値で横に広げる NoSQL との比較は <a href="nosql-types.html">NoSQL の種類</a>。</p>
+
+  <!-- ===================== 2 つの方式 ===================== -->
+  <h2 id="two-ways">2 つの方式</h2>
+  <div class="two">
+    <div class="card"><b>A. 既存の RDB の前にシャーディング層を置く</b>
+      <div class="arch" aria-hidden="true">
+        <div class="row"><div class="box lay">アプリ<small>MySQL のつもりで接続</small></div></div>
+        <div class="ar">↓</div>
+        <div class="row"><div class="box lay">VTGate（ルーター）<small>どのシャードかを決めて転送</small></div></div>
+        <div class="ar">↓</div>
+        <div class="row"><div class="box">MySQL<small>シャード 1</small></div><div class="box">MySQL<small>シャード 2</small></div><div class="box">MySQL<small>シャード 3</small></div></div>
+      </div>
+      <p style="font-size:0.85rem">例: <b>Vitess</b>。中身は普通の MySQL で、1 台の中のトランザクションや複製は MySQL がそのまま担う。ルーターは、行をどのシャードに置くかを決める列（Vindex）を見て転送し、シャードの分け直しもオンラインで行える。</p>
+    </div>
+    <div class="card"><b>B. 分割と複製を組み込んだ DB を作る</b>
+      <div class="arch" aria-hidden="true">
+        <div class="row"><div class="box lay">アプリ<small>PostgreSQL / MySQL 互換などで接続</small></div></div>
+        <div class="ar">↓</div>
+        <div class="row"><div class="box lay">SQL 層<small>状態を持たない。どのノードに繋いでもよい</small></div></div>
+        <div class="ar">↓</div>
+        <div class="row"><div class="box lay">分散 KV ストア<small>キー範囲ごとに分割し、各範囲を 3 台に合意で複製</small></div></div>
+      </div>
+      <p style="font-size:0.85rem">例: <b>Spanner</b>・<b>CockroachDB</b>・<b>TiDB</b>・YugabyteDB。表とインデックスをキーの順に並べた 1 本の巨大なキー空間とみなし、それを範囲で切って配る。台をまたぐトランザクションも DB が原子的に処理する。</p>
+    </div>
+  </div>
+
+  <!-- ===================== 中身 ===================== -->
+  <h2 id="inside">分散 SQL の中身: 範囲で分けて、過半数で書く</h2>
+  <p>方式 B の DB は、キー空間を<b>範囲 (range)</b> ごとに切り、各範囲を複数台（既定は 3 台が多い）に複製する。各範囲には<b>リーダー</b>が 1 台いて、書き込みはリーダーが受け、<b>過半数の台が記録したら確定</b>する（合意アルゴリズム Raft や Paxos）。範囲が大きくなったり負荷が偏ったりすると、自動で分割・移動される。</p>
+  <p>下のクラスタは 3 ノード・3 範囲。キーを選んで書き込み、ノードを止めると何が起きるかを試せる。</p>
+  <div class="ctrl" id="sim-keys"><span class="lb">書き込む行:</span>
+    <button class="btn" data-key="apple" data-r="A">id = apple</button>
+    <button class="btn" data-key="kiwi" data-r="B">id = kiwi</button>
+    <button class="btn" data-key="sushi" data-r="C">id = sushi</button>
+  </div>
+  <div class="ctrl" id="sim-nodes"><span class="lb">ノードを止める:</span>
+    <button class="btn" aria-pressed="false" data-n="0">n1</button>
+    <button class="btn" aria-pressed="false" data-n="1">n2</button>
+    <button class="btn" aria-pressed="false" data-n="2">n3</button>
+  </div>
+  <div class="cluster" id="cluster"></div>
+  <div class="legend"><span><i style="border-color:var(--c-leader)"></i>リーダー（書き込みを受ける）</span><span><i style="border-color:var(--c-follower)"></i>フォロワー（複製を持つ）</span><span><i style="border-color:var(--c-hl)"></i>今書き込んだ範囲の複製</span><span>範囲 A = a〜h、B = i〜q、C = r〜z</span></div>
+  <div class="simmsg" id="sim-msg" aria-live="polite">
+    <p data-c="idle"><span class="k">READY</span>書き込む行を選ぶ。止めたノードはもう一度押すと戻る。</p>
+    <p data-c="ok" hidden><span class="k">COMMIT</span><code class="v-key"></code> は範囲 <b class="v-r"></b> に入る。リーダー <b class="v-l"></b> が書き込みを受け、自分を含む過半数（3 台中 2 台）が記録した時点で確定する。残りの 1 台は後から追いつけばよい。</p>
+    <p data-c="moved" hidden><span class="k">COMMIT（リーダー交代）</span>範囲 <b class="v-r"></b> の元のリーダーが止まったので、生きている台の中から選挙で <b class="v-l"></b> が新しいリーダーになった。3 台中 2 台が生きていれば過半数がそろうので、<code class="v-key"></code> の書き込みは続けられる（交代の間だけ数秒ほど待たされることがある）。</p>
+    <p data-c="ng" hidden><span class="k">UNAVAILABLE</span>範囲 <b class="v-r"></b> は 3 台中 2 台が止まり、過半数がそろわない。古いデータを返したり食い違った書き込みを受けたりしないよう、この範囲の読み書きは止まる（CAP でいう C を選んだ振る舞い）。台が戻れば再開する。</p>
+  </div>
+  <p class="muted">3 台に複製すれば 1 台、5 台なら 2 台まで止まっても動き続ける。その代わり、確定のたびに過半数への往復が要るので、台がリージョンをまたぐと書き込みの遅延はリージョン間の往復時間に近づく。CAP と整合性の考え方は <a href="distributed-basics.html">分散システムの基本</a>。</p>
+
+  <!-- ===================== 時刻 ===================== -->
+  <h2 id="time">台をまたぐトランザクションと時刻</h2>
+  <p>範囲が別々の台にあると、1 つのトランザクションが複数のリーダーにまたがる。各 DB は内部で<b>2 相コミット (two-phase commit)</b> に近い手順を踏み、全部の範囲で確定するか全部取り消すかをそろえる。もう 1 つの難題が「どちらが先か」を決める<b>時刻</b>で、ここに各 DB の個性が出る。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="t-spanner">Spanner</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-crdb">CockroachDB</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-tidb">TiDB</button>
+  </div>
+  <div class="panel card" id="t-spanner">
+    <b>TrueTime と commit wait</b>
+    <p>マネージド版では、GPS 受信機と原子時計に同期した時刻サーバーを使い、時刻を「この幅のどこか」という<b>誤差つきの区間</b>として返す（TrueTime）。コミット時刻 s を区間の遅い側の端に決めたら、区間の早い側の端でさえ s を過ぎる（s が確実に過去になる）まで待ってから結果を見せる（commit wait）。</p>
+    <div class="bar" aria-hidden="true"><div class="unc" style="left:16%;width:24%">今の時刻の幅</div><div class="unc wait" style="left:40%;width:24%">commit wait</div><div class="pt" style="left:40%"><span>commit 時刻 s</span></div><div class="pt" style="left:64%"><span>結果を見せる</span></div></div>
+    <dl class="tline">
+      <dt>得られるもの</dt><dd>外部整合性 (external consistency)。現実の時間で T1 が終わってから T2 が始まったなら、T2 は必ず T1 の後の時刻を持つ。</dd>
+      <dt>払うもの</dt><dd>誤差の幅だけコミットが待たされる。主に Google Cloud のマネージドサービスとして使うが、2026 年 9 月からは自前の環境で動かせる Spanner Omni（TrueTime をソフトウェアで実現）も一般提供されている。</dd>
+    </dl>
+  </div>
+  <div class="panel card" id="t-crdb" hidden>
+    <b>ハイブリッド論理クロック (HLC) と不確実性区間 (uncertainty interval)</b>
+    <p>普通の NTP で合わせた時計に、論理的な番号を足したハイブリッド論理クロックで時刻を付ける。各ノードの時計のずれには上限（既定 500ms）を置き、読み込んだ時刻より少しだけ新しい値（ずれの上限の範囲内）が見つかると、どちらが先か断定できないので<b>読み直す・リトライする</b>。</p>
+    <div class="bar" aria-hidden="true"><div class="pt" style="left:25%"><span>読む時刻</span></div><div class="unc" style="left:25%;width:40%">不確実性区間（〜ずれの上限）</div></div>
+    <dl class="tline">
+      <dt>得られるもの</dt><dd>特別な機材なしで、既定で SERIALIZABLE（直列化可能）。</dd>
+      <dt>払うもの</dt><dd>競合や時計のずれでリトライが起きるので、アプリ側にもリトライ処理が要る。ずれが上限に近づいたノードは、整合性を守るため自分から止まる。</dd>
+    </dl>
+  </div>
+  <div class="panel card" id="t-tidb" hidden>
+    <b>PD のタイムスタンプ発行 (TSO)</b>
+    <p>クラスタを管理する PD (Placement Driver) が、トランザクションの開始・コミットの時刻を<b>1 か所から番号として配る</b>。時計のずれを考えなくてよい代わりに、時刻をもらうたびに PD への往復が要る。</p>
+    <div class="bar" aria-hidden="true"><div class="pt" style="left:20%"><span>start_ts</span></div><div class="pt" style="left:70%"><span>commit_ts</span></div></div>
+    <dl class="tline">
+      <dt>得られるもの</dt><dd>単純で分かりやすい順序。既定の分離レベルはスナップショット分離（MySQL に合わせて REPEATABLE READ と名乗る）。</dd>
+      <dt>払うもの</dt><dd>PD から遠いリージョンほど時刻の取得が遅くなる。SERIALIZABLE は使えない。</dd>
+    </dl>
+  </div>
+
+  <!-- ===================== 比較 ===================== -->
+  <h2 id="compare">比較表</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th></th><th>Spanner</th><th>CockroachDB</th><th>TiDB</th><th>Vitess</th></tr></thead>
+      <tbody>
+        <tr><th>方式</th><td>B（分散 SQL）</td><td>B（分散 SQL）</td><td>B（分散 SQL）</td><td>A（MySQL の前のシャーディング層）</td></tr>
+        <tr><th>アプリから見ると</th><td>GoogleSQL か PostgreSQL の方言</td><td>PostgreSQL 互換（ワイヤプロトコル）</td><td>MySQL 互換</td><td>MySQL 互換</td></tr>
+        <tr><th>分割の単位</th><td>split（キー範囲）</td><td>range（キー範囲）</td><td>Region（キー範囲）</td><td>shard（Vindex で決まるキー範囲）</td></tr>
+        <tr><th>複製</th><td>Paxos</td><td>Raft</td><td>Raft（TiKV）</td><td>MySQL のレプリケーション</td></tr>
+        <tr><th>時刻の決め方</th><td>TrueTime</td><td>HLC</td><td>PD の TSO</td><td>各 MySQL に任せる</td></tr>
+        <tr><th>既定の分離レベル</th><td>SERIALIZABLE（外部整合性）</td><td>SERIALIZABLE</td><td>スナップショット分離</td><td>各 MySQL の設定（InnoDB の既定は REPEATABLE READ）</td></tr>
+        <tr><th>台をまたぐ書き込み</th><td>原子的</td><td>原子的</td><td>原子的</td><td>既定は best effort（一部だけ確定しうる）。<code>twopc</code> モードで原子的に</td></tr>
+        <tr><th>主な使い方</th><td>Google Cloud のマネージド、または Spanner Omni を自前で運用</td><td>自前で運用、またはクラウド版</td><td>OSS を自前で運用、または TiDB Cloud</td><td>OSS を自前で運用、または PlanetScale</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="muted">Spanner は REPEATABLE READ、CockroachDB は READ COMMITTED（新しい版では REPEATABLE READ も）を選べる。TiDB は分析用の列指向ストア TiFlash に複製して、同じデータに集計クエリを流せる（HTAP）。YugabyteDB は PostgreSQL のクエリ層を再利用し、Raft で複製する方式 B の DB。</p>
+
+  <!-- ===================== 落とし穴 ===================== -->
+  <h2 id="pitfalls">使うときの落とし穴</h2>
+  <ol class="steps">
+    <li><b>連番の主キーはホットスポットになる</b>キー範囲で分割する DB では、自動採番や時刻順の主キーだと新しい行がすべて「いちばん後ろの範囲」に集まり、1 台のリーダーに書き込みが集中する。UUID（v4）などのばらけるキーにするか、各 DB の機能（Spanner のビット反転シーケンス、CockroachDB のハッシュシャードインデックス（hash-sharded index）、TiDB の <code>AUTO_RANDOM</code> など）を使う。</li>
+    <li><b>リトライ処理はアプリの仕事</b>SERIALIZABLE で競合すると、DB は片方のトランザクションを中止してリトライを求める。トランザクション全体をやり直せるように書き、外部 API の呼び出しなどはトランザクションの外に出しておく。</li>
+    <li><b>台をまたぐほど遅い</b>関係の深い行（ユーザーとその注文など）が同じ範囲・同じシャードに入るように主キーやシャードのキーを設計すると、1 台で完結する処理が増えて速くなる。Vitess で全シャードに問い合わせる（scatter）クエリも同じく重い。</li>
+    <li><b>リージョンをまたぐと物理の壁</b>書き込みの確定には過半数への往復が要るので、東京と米国にまたがる構成では 1 回の書き込みに 100ms 前後かかりうる。読み込みは近くの複製から少し古い値を読む機能（stale read・follower read）で速くできる。</li>
+  </ol>
+
+  <!-- ===================== 選び方 ===================== -->
+  <h2 id="choose">選び方の目安</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>状況</th><th>まず検討するもの</th></tr></thead>
+      <tbody>
+        <tr><td>書き込みはまだ 1 台で足りる（多くのサービスはここ）</td><td>普通の PostgreSQL / MySQL ＋ リードレプリカ・キャッシュ。インデックスとクエリを先に見直す（<a href="db-index-transaction.html">インデックスとトランザクション</a>）</td></tr>
+        <tr><td>MySQL の資産があり、書き込みが 1 台に収まらなくなってきた</td><td>Vitess（または PlanetScale）。アプリをほぼそのままにシャーディングできる</td></tr>
+        <tr><td>複数リージョンにまたがって、強い整合性のまま書きたい</td><td>Spanner、CockroachDB、YugabyteDB</td></tr>
+        <tr><td>MySQL 互換のまま広げたく、集計クエリも同じ DB で回したい</td><td>TiDB（TiFlash）</td></tr>
+        <tr><td>多くの小さな DB に分けられる（テナントごと・ユーザーごと）</td><td>DB を分ける設計も検討する（例: <a href="cloudflare-databases.html">D1</a>・<a href="durable-objects.html">Durable Objects</a>）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===================== 誤解 ===================== -->
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>分散 SQL は台をまたぐので、NoSQL と同じく結果整合性になる</summary><p>方式 B の DB は、合意による複製と分散トランザクションで、既定では強い整合性（SERIALIZABLE など）を保つ。わざわざ古い値を読むのは、stale read のように明示したときだけ。</p></details>
+  <details class="myth"><summary>NewSQL にすれば、設計を変えずにどこまでも速くなる</summary><p>台数で増えるのは全体の処理量（スループット）で、1 件ごとの遅延はむしろ 1 台の RDB より増えやすい。連番の主キーや台をまたぐ JOIN のように 1 か所に集中・往復が増える設計だと、台を足しても速くならない。</p></details>
+  <details class="myth"><summary>Vitess を入れれば、シャードをまたぐトランザクションも 1 台の MySQL と同じく原子的になる</summary><p>既定のモード（<code>multi</code>）では、各シャードに順にコミットするだけなので、途中で失敗すると一部だけ確定しうる。原子的にしたいなら <code>twopc</code> モードを使うが、コミットは遅くなる。そもそもシャードをまたがないように Vindex を設計するのが基本。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="dots">
+    <li><a href="db-internals.html">DB のしくみ</a>・<a href="db-index-transaction.html">インデックスとトランザクション</a> — 1 台の RDB の中身と分離レベル</li>
+    <li><a href="nosql-types.html">NoSQL の種類</a> — SQL を手放して横に広げる方式</li>
+    <li><a href="distributed-basics.html">分散システムの基本</a> — CAP・整合性モデル・冪等性</li>
+    <li><a href="cloudflare-databases.html">D1 と Hyperdrive＋PlanetScale</a> — Vitess を使ったマネージド MySQL の例</li>
+  </ul>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+/* ---------- 範囲と過半数のシミュレーション（説明文は HTML 側の #sim-msg にある） ---------- */
+(() => {
+  const names = ['n1', 'n2', 'n3'];
+  const ranges = ['A', 'B', 'C'];
+  const leader = { A: 0, B: 1, C: 2 };
+  const down = [false, false, false];
+  let last = null;
+  const cl = document.getElementById('cluster');
+  const box = document.getElementById('sim-msg');
+
+  function render(hit, ng) {
+    cl.innerHTML = names.map((n, i) =>
+      '<div class="node' + (down[i] ? ' down' : '') + '"><b>' + n + '<span>' + (down[i] ? '停止' : '稼働') + '</span></b>' +
+      ranges.map(r => {
+        const cls = ['rep'];
+        if (leader[r] === i && !down[i]) cls.push('leader');
+        if (hit && hit.r === r && !down[i]) cls.push('hit');
+        if (ng === r && !down[i]) cls.push('ng');
+        return '<div class="' + cls.join(' ') + '">範囲 ' + r + '<em>' + (leader[r] === i && !down[i] ? 'LEADER' : 'FOLLOWER') + '</em></div>';
+      }).join('') + '</div>').join('');
+  }
+  function say(c, vals) {
+    box.className = 'simmsg' + (c === 'ng' ? ' ng' : c === 'idle' ? '' : ' ok');
+    box.querySelectorAll('p').forEach(p => { p.hidden = p.dataset.c !== c; });
+    const p = box.querySelector('p[data-c="' + c + '"]');
+    if (!vals) return;
+    p.querySelectorAll('.v-key').forEach(e => { e.textContent = vals.key; });
+    p.querySelectorAll('.v-r').forEach(e => { e.textContent = vals.r; });
+    p.querySelectorAll('.v-l').forEach(e => { e.textContent = vals.l; });
+  }
+  function write(key, r) {
+    last = { key, r };
+    const alive = down.filter(d => !d).length;
+    if (alive < 2) { render(null, r); say('ng', { key, r }); return; }
+    let moved = false;
+    if (down[leader[r]]) { leader[r] = down.findIndex(d => !d); moved = true; }
+    render({ r }, null);
+    say(moved ? 'moved' : 'ok', { key, r, l: names[leader[r]] });
+  }
+  document.getElementById('sim-keys').addEventListener('click', e => {
+    const b = e.target.closest('.btn'); if (!b) return;
+    write(b.dataset.key, b.dataset.r);
+  });
+  document.getElementById('sim-nodes').addEventListener('click', e => {
+    const b = e.target.closest('.btn'); if (!b) return;
+    const i = +b.dataset.n;
+    down[i] = !down[i];
+    b.setAttribute('aria-pressed', String(down[i]));
+    if (last) write(last.key, last.r); else render(null, null);
+  });
+  render(null, null);
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "MySQL で動くサービスの書き込みが 1 台に収まらなくなった。アプリの SQL をほとんど変えずに書き込みを複数台に分けたい。まず検討するのは？",
+    "choices": [
+      "リードレプリカを増やす",
+      "MySQL の前にシャーディング層（Vitess など）を置く",
+      "MySQL のサーバーをより大きなインスタンスに替え続ける",
+      "キーバリュー型の NoSQL に移して SQL をやめる"
+    ],
+    "answer": 1,
+    "explain": "レプリカで増えるのは読み込みだけ。Vitess は MySQL のふりをするルーターで、行をシャードに振り分けるので、アプリの変更を抑えたまま書き込みを分けられる。",
+    "ref": "#two-ways"
+  },
+  {
+    "q": "3 台に複製した分散 SQL で、ある範囲のリーダーのノードが止まった。残り 2 台は動いている。その範囲への書き込みはどうなる？",
+    "choices": [
+      "3 台すべてが戻るまで書き込めない",
+      "残った台がそれぞれ別々に書き込みを受け、後で突き合わせる",
+      "新しいリーダーが選ばれ、2 台（過半数）で確定して書き込みを続けられる",
+      "止まったノードの分のデータが失われる"
+    ],
+    "answer": 2,
+    "explain": "合意アルゴリズムは過半数がそろえば確定できる。3 台中 2 台が生きていれば新しいリーダーを選んで続行でき、2 台止まると過半数がなくなり止まる。",
+    "ref": "#inside"
+  },
+  {
+    "q": "CockroachDB や Spanner で、主キーを自動採番の連番にした注文テーブルへの書き込みが、台数を増やしても速くならない。主な原因は？",
+    "choices": [
+      "新しい行がキー範囲の末尾に集中し、1 台のリーダーに書き込みが偏るから",
+      "連番だとインデックスが作られないから",
+      "SERIALIZABLE では連番が使えず毎回リトライになるから",
+      "連番の主キーは複製されないから"
+    ],
+    "answer": 0,
+    "explain": "キー範囲で分割する DB では、増え続けるキーは常に最後の範囲に入る。UUID v4 のようなばらけるキーや、各 DB のハッシュ化の機能で書き込みを散らす。",
+    "ref": "#pitfalls"
+  },
+  {
+    "q": "Vitess の既定の設定で、2 つのシャードにまたがる更新をコミットしたら、途中で片方のシャードが落ちた。起こりうることは？",
+    "choices": [
+      "必ず両方とも取り消される",
+      "Vitess が自動で 2 相コミットに切り替えて両方確定する",
+      "落ちたシャードが戻るまでコミットが待たされ、必ずそろう",
+      "片方のシャードだけ確定した状態が残りうる"
+    ],
+    "answer": 3,
+    "explain": "既定の multi モードは各シャードに順にコミットする best effort で、原子性はない。原子的にするには twopc モードを選ぶか、またがない設計にする。",
+    "ref": "#myths"
+  },
+  {
+    "q": "CockroachDB で、競合したトランザクションがリトライを求めるエラーで中止された。アプリ側で用意しておくべきことは？",
+    "choices": [
+      "分離レベルを下げれば中止は二度と起きないので、何もしなくてよい",
+      "トランザクション全体を最初からやり直せるようにし、外部への副作用はトランザクションの外に出す",
+      "エラーを無視して COMMIT をもう一度送る",
+      "中止されたら別のノードに同じ COMMIT を送り直す"
+    ],
+    "answer": 1,
+    "explain": "SERIALIZABLE の DB は、直列に並べられない競合を中止で解決する。読み直しを含めてトランザクション全体を再実行する必要があり、メール送信のような副作用は中に入れない。",
+    "ref": "#time"
+  }
+]
+</script>
+</body>
+</html>
