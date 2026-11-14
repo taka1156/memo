@@ -61,7 +61,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -83,7 +83,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .t { color: var(--c-type); font-weight: 700; }
 .j { color: var(--c-js); font-weight: 700; }
 
@@ -151,7 +150,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .fig .arrow-t { stroke: var(--c-type); stroke-width: 1.5; fill: none; stroke-dasharray: 4 3; }
 .fig .ah { fill: var(--fg-2); }
 .fig .ah-t { fill: var(--c-type); }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.8rem; color: var(--fg-2); margin-top: 8px; }
 .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 2px solid; vertical-align: -1px; margin-right: 4px; }
 
 /* 2 カラム */
@@ -160,7 +158,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .label { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .06em; margin-bottom: 6px; }
 
 /* 表 */
-.tbl-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; background: var(--surface); border-radius: 10px; overflow: hidden; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { background: var(--chip); font-weight: 700; white-space: nowrap; }
@@ -322,10 +319,10 @@ function greet(u) {
 }
 
 greet({ id: 1, name: "Ann" });</code></pre>
-      <p class="muted">型定義と <code>: User</code> などの注釈が消えただけ。ロジックはそのまま。</p>
+      <p class="note">型定義と <code>: User</code> などの注釈が消えただけ。ロジックはそのまま。</p>
     </div>
   </div>
-  <p class="muted">だから「実行時に型で分岐する」ことはできない。外部から来るデータ（API レスポンスなど）は <code>zod</code> などで実行時に検証する必要がある。</p>
+  <p class="note">だから「実行時に型で分岐する」ことはできない。外部から来るデータ（API レスポンスなど）は <code>zod</code> などで実行時に検証する必要がある。</p>
 
   <h2 id="tools">2 つの仕事を誰がやるか</h2>
   <p>「型チェック」と「JS への変換」は分けられる。今はツールごとに担当が違う。</p>
@@ -340,7 +337,7 @@ greet({ id: 1, name: "Ann" });</code></pre>
 <pre><code>npx tsc --init   # tsconfig.json を作る
 npx tsc          # チェック ＋ 出力
 npx tsc --noEmit # チェックだけ（CI でよく使う）</code></pre>
-    <p class="muted">TypeScript 7 では tsc 自体が Go で書き直され（ネイティブ版）、大規模プロジェクトのビルドが大幅に速くなった。</p>
+    <p class="note">TypeScript 7 では tsc 自体が Go で書き直され（ネイティブ版）、大規模プロジェクトのビルドが大幅に速くなった。</p>
   </div>
   <div class="panel card" id="w2" hidden>
     <h3>変換は高速ツール、チェックは tsc / エディタ</h3>
@@ -353,7 +350,7 @@ CI    : tsc --noEmit      ← ここで型を検査</code></pre>
     <h3>ランタイムがそのまま実行</h3>
     <p>Deno・Bun は <code>.ts</code> を直接実行できる。Node.js も最近のバージョンでは<strong>型注釈を取り除いて</strong>そのまま実行できる（type stripping）。</p>
 <pre><code>node app.ts   # 型を削って実行（チェックはしない）</code></pre>
-    <p class="muted">Node の型除去は「消すだけ」なので、<code>enum</code> など JS コードを生成する構文は使えない（以前あった <code>--experimental-transform-types</code> フラグは Node 26 で削除された）。<code>erasableSyntaxOnly</code> オプションで事前に検出できる。</p>
+    <p class="note">Node の型除去は「消すだけ」なので、<code>enum</code> など JS コードを生成する構文は使えない（以前あった <code>--experimental-transform-types</code> フラグは Node 26 で削除された）。<code>erasableSyntaxOnly</code> オプションで事前に検出できる。</p>
   </div>
 
   <h2 id="structural">型チェックの考え方：構造的型付け</h2>
@@ -381,7 +378,7 @@ CI    : tsc --noEmit      ← ここで型を検査</code></pre>
 
       <line class="arrow" x1="228" y1="68" x2="192" y2="68" marker-end="url(#ah2)"/>
     </svg>
-    <p class="muted">※ オブジェクトリテラルを直接書いた場合だけは、余分なプロパティもエラーになる（excess property check）。</p>
+    <p class="note">※ オブジェクトリテラルを直接書いた場合だけは、余分なプロパティもエラーになる（excess property check）。</p>
   </div>
 
   <!-- ===== 学習フロー ===== -->
@@ -477,7 +474,7 @@ type A = Unwrap&lt;Promise&lt;string&gt;&gt;; // string</code></pre>
   </ol>
 
   <h2 id="learn">学び方の比較</h2>
-  <div class="tbl-wrap">
+  <div class="table-wrap">
     <table>
       <thead><tr><th>方法</th><th>向いている段階</th><th>ポイント</th></tr></thead>
       <tbody>

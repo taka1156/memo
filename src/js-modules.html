@@ -64,7 +64,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -90,8 +90,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -134,7 +132,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -152,10 +149,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -355,11 +348,16 @@ module.exports = { load };</pre>
   <details class="myth"><summary>main を書いておけば exports はいらない</summary><p><code>main</code> は 1 つの入口しか表せず、条件分岐もサブパスの公開・非公開もできない。新しいパッケージは <code>exports</code> を書き、古いツール向けに <code>main</code> も残す。</p></details>
   <details class="myth"><summary>ロックファイルは衝突が面倒だから .gitignore</summary><p>入れないと、開発者・CI・本番で違う版が入り、「手元では動く」が起きる。衝突したら手で直さず、マネージャーにもう一度 install させて作り直す。</p></details>
 
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="vite-toolchain.html">Vite ツールチェーン図解</a> — モジュールを束ねて配る側</li>
+    <li><a href="js-runtimes.html">JS ランタイム比較</a> — Node.js・Bun・Workers の API と Node 互換の違い</li>
+    <li><a href="typescript.html">TypeScript 学習フローと仕組み</a> — tsconfig の module 設定と型チェック</li>
+    <li><a href="js-web-standards.html">JS と Web 標準の決まり方</a> — ESM や import maps を決める団体</li>
+    <li><a href="testing-strategy.html">テスト戦略</a> — モックで差し替えてよい境界と、差し替えない内部</li>
+  </ul>
 
-  <h2>関連メモ</h2>
-  <p class="related"><a href="vite-toolchain.html">Vite ツールチェーン</a><a href="js-runtimes.html">JS ランタイム比較</a><a href="typescript.html">TypeScript</a><a href="js-web-standards.html">JS と Web 標準の決まり方</a><a href="testing-strategy.html">テスト戦略</a></p>
-
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://nodejs.org/api/esm.html">Node.js: ECMAScript modules</a></li>
     <li><a href="https://nodejs.org/api/packages.html">Node.js: Packages（type・exports・条件）</a></li>

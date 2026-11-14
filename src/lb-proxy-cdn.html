@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -28,7 +27,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -57,7 +55,7 @@ h2 {
 p { margin: 8px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -119,9 +117,7 @@ h3 { font-size: 0.98rem; margin: 22px 0 8px; }
 ul.dots { margin: 8px 0 8px 1.3em; }
 ul.dots li { margin: 3px 0; }
 pre .cm { color: var(--fg-2); }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-.table-wrap { overflow-x: auto; margin: 10px 0; }
 table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--surface); }
 th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
 th { background: var(--chip); font-weight: 700; white-space: nowrap; }
@@ -151,9 +147,6 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .tag-ok { color: var(--c-ok); font-weight: 700; }
 .tag-ng { color: var(--c-ng); font-weight: 700; }
 .tag-warn { color: var(--c-warn); font-weight: 700; }
-.related { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
-.related a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font-size: 0.75rem; font-weight: 600; }
-.related a:hover { color: var(--accent); }
 /* ステップ図 */
 .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; }
 .node {
@@ -162,7 +155,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 }
 .node b { display: block; font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; }
 .node span { color: var(--fg-2); }
-.node.hl { border-color: var(--c-key); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-key) 18%, transparent); }
+.node.hl { border-color: var(--c-hl); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-hl) 18%, transparent); }
 .node.dim { opacity: .45; }
 .arrow { align-self: center; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
 @media (max-width: 640px) {
@@ -179,7 +172,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .srv.down { border-style: dashed; opacity: .55; }
 .srv.down b::after { content: ' 停止'; font: 600 0.68rem 'Noto Sans JP', sans-serif; color: var(--c-ng); }
 .bar { height: 8px; background: var(--chip); border-radius: 4px; margin: 6px 0 2px; overflow: hidden; }
-.bar i { display: block; height: 100%; background: var(--c-key); transition: width .2s; }
+.bar i { display: block; height: 100%; background: var(--c-hl); transition: width .2s; }
 .srv .stat { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); font-size: 0.72rem; }
 .srv.flash { border-color: var(--line); }
 .simlog { font: 500 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); min-height: 1.6em; margin-top: 6px; }
@@ -240,7 +233,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
       <li>ヘルスチェックで死んだ台を外し、戻ったら入れる</li>
       <li>入れ替え時は新規の接続だけ止めて、処理中の接続は終わるまで待つ（ドレイニング）</li>
     </ul>
-    <p class="muted">例: AWS の ALB（L7）・NLB（L4）、Google Cloud Load Balancing、HAProxy、nginx の <code>upstream</code>、Envoy、Kubernetes の Service（L4 相当）</p>
+    <p class="note">例: AWS の ALB（L7）・NLB（L4）、Google Cloud Load Balancing、HAProxy、nginx の <code>upstream</code>、Envoy、Kubernetes の Service（L4 相当）</p>
   </div>
   <div class="panel card" id="r-rp" hidden>
     <p><b>目的: 外からの入口を 1 つにまとめ、後ろの構成を隠して加工する。</b>台数が 1 台でも置く価値がある点が LB との違い。</p>
@@ -249,7 +242,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
       <li>TLS 終端・HTTP/2・HTTP/3 の受け口、圧縮、ヘッダーの付け替え</li>
       <li>静的ファイルの配信、遅いクライアントの吸収（バッファリング）、認証の前段、レート制限</li>
     </ul>
-    <p class="muted">「フォワードプロキシ」は逆向き: クライアント側に立って外へ出るリクエストを代理する（社内プロキシなど）。リバースプロキシはサーバー側に立つ。</p>
+    <p class="note">「フォワードプロキシ」は逆向き: クライアント側に立って外へ出るリクエストを代理する（社内プロキシなど）。リバースプロキシはサーバー側に立つ。</p>
   </div>
   <div class="panel card" id="r-cdn" hidden>
     <p><b>目的: ユーザーの近く（エッジ）で応答し、遠いオリジンまで行かせない。</b>世界中の拠点に置かれた、巨大な分散リバースプロキシと考えるとよい。</p>
@@ -258,7 +251,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
       <li>キャッシュしない応答も、TLS をユーザーの近くで張り、オリジンまでは混んでいない経路・張りっぱなしの接続で運ぶので速くなる</li>
       <li>DDoS の吸収・WAF・ボット対策・画像変換など、入口でやると得な処理が集まっている</li>
     </ul>
-    <p class="muted">例: Cloudflare、Amazon CloudFront、Fastly、Akamai。Cloudflare の範囲は <a href="cloudflare-services.html">Cloudflare サービス</a>。</p>
+    <p class="note">例: Cloudflare、Amazon CloudFront、Fastly、Akamai。Cloudflare の範囲は <a href="cloudflare-services.html">Cloudflare サービス</a>。</p>
   </div>
 
   <h3>同じソフトが兼ねる範囲</h3>
@@ -294,7 +287,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
       </ul>
     </div>
   </div>
-  <p class="muted">HTTP/2 や gRPC の長い接続を L4 で分けると、接続を張った時点の 1 台に全リクエストが寄り続けて偏る。gRPC を複数台に均等に分けたいなら L7 で分ける（<a href="api-styles.html">API スタイル</a>）。</p>
+  <p class="note">HTTP/2 や gRPC の長い接続を L4 で分けると、接続を張った時点の 1 台に全リクエストが寄り続けて偏る。gRPC を複数台に均等に分けたいなら L7 で分ける（<a href="api-styles.html">API スタイル</a>）。</p>
 
   <h2 id="algo">振り分け方とヘルスチェック</h2>
   <p>3 台のうち <b>B だけ処理が遅い</b>（1 件に 3 倍かかる）状況で、リクエストを流してみる。棒は「今処理中の件数」。</p>
@@ -396,12 +389,17 @@ server {
     }
     location / { root /srv/front; try_files $uri /index.html; }
 }</pre>
-  <p class="muted">オープンソース版の nginx のヘルスチェックはパッシブ（<code>max_fails</code>）だけ。定期的に叩くアクティブチェックは NGINX Plus・HAProxy・Envoy などにある。</p>
+  <p class="note">オープンソース版の nginx のヘルスチェックはパッシブ（<code>max_fails</code>）だけ。定期的に叩くアクティブチェックは NGINX Plus・HAProxy・Envoy などにある。</p>
 
-  <h2>関連するメモ</h2>
-  <div class="related">
-    <a href="tcp-ip.html">TCP/IP</a><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a><a href="http-cache.html">HTTP キャッシュ</a><a href="realtime-comm.html">リアルタイム通信</a><a href="cloudflare-services.html">Cloudflare サービス</a><a href="distributed-basics.html">分散システムの基本</a>
-  </div>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="tcp-ip.html">TCP/IP とネットワーク基礎</a> — L4 で振り分けるときの TCP/IP</li>
+    <li><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a> — TLS ハンドシェイクと HTTP/2・3 の違い</li>
+    <li><a href="http-cache.html">HTTP キャッシュ</a> — CDN がキャッシュを判断するヘッダー</li>
+    <li><a href="realtime-comm.html">リアルタイム通信</a> — つなぎっぱなしの接続とアイドルタイムアウト</li>
+    <li><a href="cloudflare-services.html">Cloudflare サービス</a> — CDN とエッジの実例</li>
+    <li><a href="distributed-basics.html">分散システムの基本</a> — リトライと冪等性</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

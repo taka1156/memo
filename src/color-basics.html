@@ -17,9 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #0077b6;
-  --c-b: #8250df;
+  --c-b: #0f766e;
   --c-c: #1a7f37;
   --c-d: #be185d;
 }
@@ -32,11 +31,10 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #00d4ff;
-    --c-b: #bc8cff;
+    --c-b: #2dd4bf;
     --c-c: #3fb950;
-    --c-d: #f0883e;
+    --c-d: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -69,7 +67,7 @@ ul.plain { margin: 6px 0 6px 1.2em; }
 ul.plain li { margin: 2px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -93,13 +91,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.note {
-  font-size: 0.85rem;
-  color: var(--fg-2);
-  border-left: 2px solid var(--line);
-  padding-left: 10px;
-  margin: 10px 0;
-}
 .en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
@@ -112,7 +103,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .diagram { margin: 8px 0; }
 .diagram svg { width: 100%; height: auto; display: block; }
 .d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.d-box.hl { stroke: var(--c-key); stroke-width: 2; }
+.d-box.hl { stroke: var(--c-hl); stroke-width: 2; }
 .d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
 .d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
 .d-label { fill: var(--fg); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
@@ -157,7 +148,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .panel[hidden] { display: none; }
 
 /* 表 */
-.tbl-wrap { overflow-x: auto; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
 .tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
@@ -167,7 +157,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 /* チェックリスト */
 .progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
-.bar div { height: 100%; width: 0; background: var(--c-key); transition: width .2s; }
+.bar div { height: 100%; width: 0; background: var(--c-hl); transition: width .2s; }
 .count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
 .checklist { list-style: none; }
 .checklist li { border-bottom: 1px solid var(--line); }
@@ -235,10 +225,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .presets button { border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font: 600 0.72rem 'JetBrains Mono', ui-monospace, monospace; cursor: pointer; }
 
 .strip { display: grid; grid-template-columns: repeat(6, 1fr); border-radius: 8px; overflow: hidden; margin: 4px 0 2px; }
-.strip div { height: 48px; display: flex; align-items: flex-end; justify-content: center; font: 700 0.62rem 'JetBrains Mono', ui-monospace, monospace; padding-bottom: 4px; color: #000; }
+.strip div { height: 48px; display: flex; align-items: flex-end; justify-content: center; font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace; padding-bottom: 4px; color: #000; }
 .strip-label { font: 600 0.75rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-top: 10px; }
 .ramp { display: grid; grid-template-columns: repeat(9, 1fr); border-radius: 8px; overflow: hidden; }
-.ramp div { height: 40px; display: flex; align-items: flex-end; justify-content: center; font: 700 0.58rem 'JetBrains Mono', ui-monospace, monospace; padding-bottom: 3px; }
+.ramp div { height: 40px; display: flex; align-items: flex-end; justify-content: center; font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace; padding-bottom: 3px; }
 .slider-row { display: grid; grid-template-columns: 70px 1fr 60px; gap: 8px; align-items: center; font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace; margin: 4px 0; }
 .slider-row input { width: 100%; accent-color: var(--accent); }
 .dm-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
@@ -265,7 +255,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="contrast">コントラスト比</h2>
   <p>2 色の<b>相対輝度</b>（人の目に感じる明るさに近づけた値）の比で、1:1（同じ色）〜 21:1（白と黒）。アクセシビリティ基準 WCAG の AA レベルが実務の目安です。</p>
-  <div class="tbl-wrap"><table class="tbl">
+  <div class="table-wrap"><table class="tbl">
     <tr><th>対象</th><th>AA（目安）</th><th>AAA</th></tr>
     <tr><td>本文などの通常の文字</td><td><b>4.5 : 1</b></td><td>7 : 1</td></tr>
     <tr><td>大きな文字（約 24px 以上、太字なら約 18.66px 以上）</td><td><b>3 : 1</b></td><td>4.5 : 1</td></tr>
@@ -349,7 +339,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <span class="btn" style="background:#00d4ff;color:#0a0e14">ボタン</span>
     </div>
   </div>
-  <div class="tbl-wrap" style="margin-top:10px"><table class="tbl">
+  <div class="table-wrap" style="margin-top:10px"><table class="tbl">
     <tr><th>ポイント</th><th>理由</th></tr>
     <tr><td>背景は純黒を避ける</td><td>純白の文字との差が大きすぎて文字がにじんで見える（ハレーション）。#0a0e14 程度の暗色に。</td></tr>
     <tr><td>重なりは「明るさ」で表す</td><td>暗い背景では影がほとんど見えない。上にあるものほど少し明るい面にする。</td></tr>

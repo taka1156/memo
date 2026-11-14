@@ -63,7 +63,7 @@ ul.plain { margin: 8px 0 8px 1.3em; }
 ul.plain li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -85,7 +85,6 @@ pre code { background: none; padding: 0; font-size: inherit; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.note { font-size: 0.85rem; color: var(--fg-2); }
 .cap { font-size: 0.8rem; color: var(--fg-2); margin-top: 6px; }
 
 /* 図 */
@@ -102,11 +101,9 @@ pre code { background: none; padding: 0; font-size: inherit; }
 .d-arrow { stroke: var(--fg-2); stroke-width: 1.6; fill: none; }
 .d-ok { stroke: var(--c-ok); stroke-width: 1.8; fill: none; }
 .d-dash { stroke: var(--fg-2); stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; }
-.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.78rem; color: var(--fg-2); margin-top: 6px; }
 .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 2px solid; vertical-align: -2px; margin-right: 4px; }
 
 /* 表 */
-.tbl-wrap { overflow-x: auto; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
 .tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
@@ -212,7 +209,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <h2 id="addressing">名前で呼ぶ：ID・stub・RPC</h2>
   <p>DO は「クラス（種類）」と「インスタンス（1 つ 1 つ）」の 2 段です。Worker にはクラスごとの <b>名前空間 (namespace)</b> がバインディングとして渡され、そこから ID を作って <b>stub</b>（そのオブジェクトへの窓口）を得ます。インスタンスは最初に呼ばれたときに自動で作られるので、作成・削除の API を呼ぶ必要はありません。</p>
 
-  <div class="tbl-wrap">
+  <div class="table-wrap">
   <table class="tbl">
     <tr><th>作り方</th><th>何が決まるか</th><th>向く場面</th></tr>
     <tr><td><code>getByName("room-42")</code><br><code>idFromName()</code> → <code>get()</code></td><td>同じ名前なら必ず同じオブジェクト</td><td>部屋 ID・ユーザー ID・ドキュメント ID など、すでに名前があるもの</td></tr>
@@ -320,7 +317,7 @@ export default {
   </div>
 
   <h3>いつ DO を選ぶか</h3>
-  <div class="tbl-wrap">
+  <div class="table-wrap">
   <table class="tbl">
     <tr><th>やりたいこと</th><th>向くもの</th></tr>
     <tr><td>部屋・在庫・座席など、同時更新を 1 か所で正しく</td><td>Durable Objects</td></tr>
@@ -397,13 +394,13 @@ export default {
     <li><b>ノードとフリート</b>1 台のマシンで 1 つの <code>celld</code> プロセス（ノード）を動かす。同じバケットを共有するノードの集まりが <b>フリート (fleet)</b>。各ノードは V8 を内蔵する。<code>celld deploy</code> が Wrangler 形式のプロジェクトを esbuild でバンドルしてバケットに置き、各ノードがそれを読み込んで実行する。</li>
     <li><b>担当を取る</b>セルごとの担当記録 <code>own.json</code> を、バケットの <b>条件付き書き込み</b>（「無ければ作る」「読んだときから変わっていなければ上書き」）で取り合う。成功するのは 1 ノードだけなので、<b>1 つのセルを同時に 2 台が担当することがない</b>。合意プロトコル（Raft など）や管理サーバーは要らない。</li>
     <li><b>epoch で古い担当を締め出す</b>セルを起動するたびに（別ノードへの引き継ぎでも、同じノードで起き直すときでも）番号 (epoch) が進み、書き込み先のパスに入る。担当を失った古いノードがまだ書いても、もう使われない場所に書くだけになる（フェンシング）。</li>
-    <li class="is-ok"><b>書き込みを確定させる</b>SQLite への書き込みは LTX という形式で記録される。2 台以上のフリートでは他の 1〜2 台のディスクに届いた時点で確定し、バケットへはその後で上げる。<b>1 台だけだと毎回バケットへの書き込みを待つので、かなり遅い</b>。</li>
+    <li><b>書き込みを確定させる</b>SQLite への書き込みは LTX という形式で記録される。2 台以上のフリートでは他の 1〜2 台のディスクに届いた時点で確定し、バケットへはその後で上げる。<b>1 台だけだと毎回バケットへの書き込みを待つので、かなり遅い</b>。</li>
     <li><b>引き継ぐ</b>ノードが止まったり、休止中のセルを別のノードが起こしたりすると、新しい担当がバケットから DB を復元して続きを動かす。ノードは使い捨てで、バケットが正本。</li>
   </ol>
   <p class="note">要は「バケットの条件付き書き込みが正しく動くこと」が全体の土台です。S3 互換ストレージの違いは <a href="s3-compatible.html">S3 互換ストレージの仕組み</a>。</p>
 
   <h3 id="celld-diff">Cloudflare との違い</h3>
-  <div class="tbl-wrap">
+  <div class="table-wrap">
   <table class="tbl">
     <tr><th></th><th><span class="tag-cf">Cloudflare DO</span></th><th><span class="tag-self">celld</span></th></tr>
     <tr><td>どこで動くか</td><td>Cloudflare の世界中のデータセンター。最初の利用者の近くに自動で置く</td><td>自分のフリートのどれかのノード。配置・地域の指定（jurisdiction など）はない</td></tr>

@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #0f766e; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #be185d;
   --c-b: #15803d;
   --c-c: #7c3aed;
@@ -32,7 +31,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #2dd4bf; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #f472b6;
     --c-b: #4ade80;
     --c-c: #c4b5fd;
@@ -69,7 +67,7 @@ ul.dots { margin: 6px 0 6px 1.3em; }
 ul.dots li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -95,7 +93,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .grid2 > .card + .card, .grid3 > .card + .card { margin-top: 0; }
@@ -132,7 +129,6 @@ pre code { background: none; padding: 0; word-break: normal; }
 .box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -167,7 +163,6 @@ svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--f
 svg.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 svg.fig .sub { fill: var(--fg-2); }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -245,12 +240,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <h2 id="structure">GitHub Actions の構造</h2>
   <div class="card struct">
     <div class="wf">
-      <span class="t" style="color:var(--c-key)">workflow</span> <span class="muted">.github/workflows/ci.yml — <code>on:</code> のイベントで起動</span>
+      <span class="t" style="color:var(--c-hl)">workflow</span> <span class="note">.github/workflows/ci.yml — <code>on:</code> のイベントで起動</span>
       <div class="jobs">
-        <div class="job"><span class="t" style="color:var(--c-a)">job: test</span> <span class="muted">runner A</span>
+        <div class="job"><span class="t" style="color:var(--c-a)">job: test</span> <span class="note">runner A</span>
           <div class="step">uses: actions/checkout</div><div class="step">uses: actions/setup-node</div><div class="step">run: npm ci</div><div class="step">run: npm test</div>
         </div>
-        <div class="job"><span class="t" style="color:var(--c-a)">job: deploy</span> <span class="muted">runner B · needs: test</span>
+        <div class="job"><span class="t" style="color:var(--c-a)">job: deploy</span> <span class="note">runner B · needs: test</span>
           <div class="step">uses: actions/checkout</div><div class="step">run: ./deploy.sh</div>
         </div>
       </div>
@@ -318,13 +313,19 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <li>どの方式でも、<b>DB マイグレーションは新旧両方のコードで動く形</b>にする（列の追加 → コード切り替え → 古い列の削除、と分ける）。</li>
     <li>「戻す手順」も CD に入れておく。前の成果物を再デプロイするだけで戻れるのが理想。</li>
   </ul>
-  <p class="related"><a href="github-services.html">GitHub サービス</a><a href="testing-strategy.html">テスト戦略</a><a href="docker-files.html">Dockerfile と Compose</a><a href="crypto-basics.html">暗号の基礎</a></p>
 
   <h2 id="myths">よくある誤解</h2>
   <details class="myth"><summary>CI が緑ならデプロイしても安全</summary><p>テストが書かれている範囲で壊れていないだけ。段階的な展開と監視・ロールバックと組み合わせる。</p></details>
   <details class="myth"><summary><code>actions/xxx@v5</code> のようにタグを書けば、中身は固定されている</summary><p>タグは後から別のコミットに付け替えられる。固定したいならコミット SHA を書く。推移的な依存まで固定できる workflow lockfile（<code>.github/workflows/actions.lock</code>。2026 年 10 月にプレビューを経て一般提供）も使える。</p></details>
   <details class="myth"><summary>Secrets に入れれば、ワークフローのどこからでも安全に使える</summary><p>そのステップで動くコード（依存パッケージや外部 Action も含む）からは読める。渡すジョブとステップを絞る。</p></details>
 
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="github-services.html">GitHub サービス</a> — Actions と並ぶ GitHub のサービス</li>
+    <li><a href="testing-strategy.html">テスト戦略</a> — パイプラインで流すテストの分け方</li>
+    <li><a href="docker-files.html">Dockerfile と Compose の書き方</a> — CI でビルドするイメージの書き方</li>
+    <li><a href="crypto-basics.html">暗号の基礎</a> — OIDC トークンの署名を検証する仕組み</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

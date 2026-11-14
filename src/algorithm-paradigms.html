@@ -67,7 +67,7 @@ ul.dots, ol.dots { margin: 6px 0 6px 1.3em; }
 ul.dots li, ol.dots li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -93,7 +93,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .label {
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
@@ -113,14 +112,12 @@ pre code { background: none; padding: 0; word-break: normal; }
 }
 .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .panel[hidden] { display: none; }
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
 td:first-child { font-weight: 700; white-space: nowrap; }
 .ok { color: var(--c-ok); font-weight: 700; }
 .ng { color: var(--c-ng); font-weight: 700; }
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
 input[type="range"] { width: 100%; accent-color: var(--accent); }
 footer#memo-backlink {
   margin-top: 40px;
@@ -170,7 +167,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 #fib-svg text { font: 700 11px 'JetBrains Mono', monospace; fill: var(--fg); text-anchor: middle; dominant-baseline: central; }
 .toggle { display: inline-flex; gap: 6px; align-items: center; font-size: 0.85rem; cursor: pointer; }
 .toggle input { accent-color: var(--accent); width: 16px; height: 16px; }
-.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.75rem; color: var(--fg-2); margin-top: 6px; }
 .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
 .calls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
 .calls div { background: var(--chip); border-radius: 8px; padding: 8px 10px; }
@@ -213,7 +209,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="arrow">↓ 別の角度から</div>
     <div class="step"><div class="qq">「答えが x なら条件を満たすか」を判定でき、x を大きくすると<b>不可→可</b>が一度だけ切り替わる？</div><div class="go"><a href="#binary">→ 答えで二分探索</a></div></div>
   </div>
-  <p class="muted">実際の問題では組み合わせて使う。たとえば「二分探索の判定の中身が貪欲法」「グラフの最短経路（ダイクストラ法）は貪欲法」など。データの持ち方は <a href="data-structures.html">データ構造と計算量</a>。</p>
+  <p class="note">実際の問題では組み合わせて使う。たとえば「二分探索の判定の中身が貪欲法」「グラフの最短経路（ダイクストラ法）は貪欲法」など。データの持ち方は <a href="data-structures.html">データ構造と計算量</a>。</p>
 
   <h2 id="size">入力の大きさから計算量を見積もる</h2>
   <p>単純な処理なら 1 秒に<b>およそ 10⁸ 回（1 億回）</b>が目安。入力の上限 n を見れば、使える計算量の形がおおよそ決まる。</p>
@@ -230,7 +226,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <tr><td>それ以上</td><td><span class="o">O(log n)</span>・<span class="o">O(1)</span></td><td>二分探索、繰り返し二乗法、式で直接求める</td></tr>
   </table>
   </div>
-  <p class="muted">あくまで目安。言語（Python は C++ より数十倍遅いことがある）や、1 回の処理の重さで変わる。</p>
+  <p class="note">あくまで目安。言語（Python は C++ より数十倍遅いことがある）や、1 回の処理の重さで変わる。</p>
 
   <h2 id="brute">全探索 — まず「全部試すといくつか」を数える</h2>
   <ul class="dots">
@@ -252,8 +248,8 @@ for mask in range(1 &lt;&lt; n):          <span class="cm"># 2^n 通り</span>
   <h2 id="greedy">貪欲法 — その場の最善を選び続ける</h2>
   <p>毎回「今いちばん良く見えるもの」を選び、後から選び直さない。速くて書きやすいが、<b>最適になることを示せる問題でしか正しくない</b>。</p>
   <div class="cmp">
-    <div class="card"><span class="label" style="color:var(--c-ok)">最適になる例</span><p><b>区間スケジューリング</b>: 会議室に入る予定の数を最大にするなら、<b>終了時刻が早い順</b>に、重ならないものを取っていく。</p><p class="muted">ほかに、ダイクストラ法・クラスカル法（<a href="graph-algorithms.html">グラフ</a>）、ハフマン符号。「最適解の選択を貪欲の選択に入れ替えても悪くならない」（交換論法）で正しさを示せる。</p></div>
-    <div class="card"><span class="label" style="color:var(--c-ng)">最適にならない例</span><p><b>開始時刻が早い順</b>や<b>短い順</b>に取ると、区間スケジューリングでも反例がある。</p><p class="muted">硬貨の枚数を最小にする問題も、硬貨の種類によっては大きい順に取ると失敗する（下で試せる）。</p></div>
+    <div class="card"><span class="label" style="color:var(--c-ok)">最適になる例</span><p><b>区間スケジューリング</b>: 会議室に入る予定の数を最大にするなら、<b>終了時刻が早い順</b>に、重ならないものを取っていく。</p><p class="note">ほかに、ダイクストラ法・クラスカル法（<a href="graph-algorithms.html">グラフ</a>）、ハフマン符号。「最適解の選択を貪欲の選択に入れ替えても悪くならない」（交換論法）で正しさを示せる。</p></div>
+    <div class="card"><span class="label" style="color:var(--c-ng)">最適にならない例</span><p><b>開始時刻が早い順</b>や<b>短い順</b>に取ると、区間スケジューリングでも反例がある。</p><p class="note">硬貨の枚数を最小にする問題も、硬貨の種類によっては大きい順に取ると失敗する（下で試せる）。</p></div>
   </div>
   <h3 id="coin">試す: 硬貨の最小枚数</h3>
   <div class="card">
@@ -261,12 +257,12 @@ for mask in range(1 &lt;&lt; n):          <span class="cm"># 2^n 通り</span>
       <button class="tab" role="tab" aria-selected="true" data-set="odd">1・3・4 円</button>
       <button class="tab" role="tab" aria-selected="false" data-set="jp">1・5・10・50・100・500 円</button>
     </div>
-    <div class="row-in"><label for="coin-amt">金額</label><input type="number" id="coin-amt" min="1" max="999" value="6"><span class="muted">（1〜999）</span></div>
+    <div class="row-in"><label for="coin-amt">金額</label><input type="number" id="coin-amt" min="1" max="999" value="6"><span class="note">（1〜999）</span></div>
     <div class="coin-out">
       <div class="card"><span class="label">貪欲（大きい順）</span><div class="big" id="g-cnt"></div><div class="coins" id="g-coins"></div></div>
       <div class="card"><span class="label">最適（動的計画法）</span><div class="big" id="d-cnt"></div><div class="coins" id="d-coins"></div></div>
     </div>
-    <p class="muted" id="coin-note"></p>
+    <p class="note" id="coin-note"></p>
   </div>
 
   <h2 id="divide">分割統治法 — 分けて解いて、合わせる</h2>
@@ -274,7 +270,7 @@ for mask in range(1 &lt;&lt; n):          <span class="cm"># 2^n 通り</span>
   <div class="card">
     <span class="label">MERGE SORT</span>
     <div class="ms" id="ms"></div>
-    <p class="muted">分けるのは log₂8 = 3 段。各段で合わせる手間は合計 n。全体で <b>n × log n</b>、つまり <span class="o">O(n log n)</span>。</p>
+    <p class="note">分けるのは log₂8 = 3 段。各段で合わせる手間は合計 n。全体で <b>n × log n</b>、つまり <span class="o">O(n log n)</span>。</p>
   </div>
   <ul class="dots">
     <li>計算量は「1 回で何個に分けるか・どれだけ小さくなるか・合わせる手間」で決まる。マージソートは「2 つに・半分に・n」で <code>T(n) = 2T(n/2) + O(n)</code> → <span class="o">O(n log n)</span>（マスター定理）。</li>
@@ -311,7 +307,7 @@ for mask in range(1 &lt;&lt; n):          <span class="cm"># 2^n 通り</span>
   <p>二分探索はソート済み配列を探すだけのものではない。「答えが x なら条件を満たすか」を判定する関数があり、x を大きくすると<b>不可 → 可</b>が一度だけ切り替わる（単調）なら、その境目を二分探索で探せる。</p>
   <div class="card">
     <p><b>例</b>: 重さ <code>weights</code> の荷物を、この順番のまま D 日以内に運びたい。1 日に積める重さの上限 W を最小でいくつにすればよいか。</p>
-    <p class="muted">W を決めれば「何日かかるか」は前から貪欲に積むだけで分かる。W を大きくするほど日数は減る（単調）ので、W を二分探索する。</p>
+    <p class="note">W を決めれば「何日かかるか」は前から貪欲に積むだけで分かる。W を大きくするほど日数は減る（単調）ので、W を二分探索する。</p>
   </div>
 <pre><code>def can(W):                       <span class="cm"># 上限 W で D 日以内に運べるか</span>
     days, load = 1, 0
@@ -344,7 +340,14 @@ print(ok)                         <span class="cm"># 可になる最小の W。O
   <details class="myth"><summary>貪欲法は近似なので、正しい答えは出ない</summary><p>最適になることを示せる問題（区間スケジューリング、ダイクストラ法、クラスカル法）では正確な答えが出る。示せないのに使うと、反例で間違う。</p></details>
   <details class="myth"><summary>二分探索はソート済み配列専用</summary><p>「条件が一方向に切り替わる」ものなら何でもよい。答えの値、時刻、コミットの並びなど。</p></details>
 
-  <p class="related">関連: <a href="data-structures.html">データ構造と計算量</a><a href="dynamic-programming.html">動的計画法</a><a href="graph-algorithms.html">グラフ探索と最短経路</a><a href="crypto-basics.html">暗号の基礎</a><a href="git-internals.html">Git の内部構造</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="data-structures.html">データ構造と計算量の早見表</a> — 手法と組み合わせるデータ構造と計算量</li>
+    <li><a href="dynamic-programming.html">動的計画法（DP）</a> — 動的計画法の組み立て方を詳しく</li>
+    <li><a href="graph-algorithms.html">グラフ探索と最短経路</a> — BFS・DFS・ダイクストラなどグラフの手法</li>
+    <li><a href="crypto-basics.html">暗号の基礎</a> — 繰り返し二乗法が使われる RSA など公開鍵暗号の全体像</li>
+    <li><a href="git-internals.html">Git の内部構造</a> — 親をたどってつながるコミットの仕組み（git bisect が二分探索する履歴の形）</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

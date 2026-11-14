@@ -72,7 +72,7 @@ ul.list { margin: 6px 0 6px 1.3em; }
 ul.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -94,7 +94,6 @@ pre code { background: none; padding: 0; font-size: inherit; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.note { color: var(--fg-2); font-size: 0.85rem; }
 
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -168,7 +167,6 @@ svg text { font-family: 'Noto Sans JP', system-ui, sans-serif; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
 .tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; vertical-align: top; }
 .tbl th { color: var(--fg-2); font-weight: 600; font-size: 0.78rem; }
-.tbl-scroll { overflow-x: auto; }
 .mx td, .mx th { text-align: center; }
 .mx td:first-child, .mx th:first-child { text-align: left; }
 .ok { color: var(--c-ok); font-weight: 700; }
@@ -402,7 +400,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
 
   <h3>import してよい方向</h3>
-  <div class="card tbl-scroll">
+  <div class="card table-wrap">
     <table class="tbl mx">
       <tr><th>import する側 ＼ される側</th><th>domain</th><th>application</th><th>infrastructure</th><th>presentation</th><th>Web フレームワーク / DB の型</th></tr>
       <tr><td><span class="lyr d">domain</span></td><td class="ok">○</td><td class="ng">✕</td><td class="ng">✕</td><td class="ng">✕</td><td class="ng">✕</td></tr>

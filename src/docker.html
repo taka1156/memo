@@ -68,7 +68,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -94,7 +94,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -110,7 +109,6 @@ pre .cm { color: var(--fg-2); }
 ol.steps .who { font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-left: 6px; }
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 480px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -336,7 +334,11 @@ $ docker inspect &lt;container&gt; --format '{{json .GraphDriver.Data}}'
       </tbody>
     </table>
   </div>
-  <p class="note">関連: <a href="docker-images.html">Docker イメージの種類</a>（ベースイメージの選び方）</p>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="docker-images.html">Docker イメージの種類</a> — ベースイメージの選び方</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

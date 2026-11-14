@@ -18,7 +18,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #7c3aed;
   --c-b: #0369a1;
 }
@@ -31,7 +30,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #c4b5fd;
     --c-b: #7dd3fc;
   }
@@ -66,7 +64,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -92,8 +90,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -136,7 +132,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -154,10 +149,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -250,7 +241,7 @@ instance.exports.blur(ptr, width, height);   <span class="cm">// Wasm が公開�
   <h2 id="memory">線形メモリと境界のコスト</h2>
   <div class="card">
     <div class="bridge">
-      <div class="side" style="border-color:var(--c-key)"><b>JS の世界</b><small>オブジェクト・文字列・DOM・GC</small></div>
+      <div class="side" style="border-color:var(--c-hl)"><b>JS の世界</b><small>オブジェクト・文字列・DOM・GC</small></div>
       <div class="mid">文字列・配列はコピー<div></div>数値・参照は素通り</div>
       <div class="side" style="border-color:var(--c-a)"><b>Wasm の世界</b><small>数値・参照と線形メモリ</small></div>
     </div>
@@ -293,7 +284,7 @@ instance.exports.blur(ptr, width, height);   <span class="cm">// Wasm が公開�
           <div class="ly" style="border-color:var(--c-b)"><b>コンポーネント B</b><small>Go や Python 製</small></div>
         </div>
         <div class="wit">↕ WIT で型付きのインターフェースを定義し、言語をまたいで呼び合う</div>
-        <div class="ly" style="border-color:var(--c-key)"><b>WASI</b><small>ファイル・時計・乱数・ソケット・HTTP などの標準 API</small></div>
+        <div class="ly" style="border-color:var(--c-hl)"><b>WASI</b><small>ファイル・時計・乱数・ソケット・HTTP などの標準 API</small></div>
         <div class="wit">↓</div>
         <div class="ly"><b>ランタイム</b><small>Wasmtime・WasmEdge・エッジ基盤など</small></div>
       </div>
@@ -311,10 +302,16 @@ instance.exports.blur(ptr, width, height);   <span class="cm">// Wasm が公開�
     <li><b>ダウンロードサイズは許容できるか？</b>.wasm は数百 KB〜数 MB になることがある。必要になったときに遅延読み込みし、Worker で動かしてメインスレッドを空ける。</li>
   </ol>
 
-  <h2>関連メモ</h2>
-  <p class="related"><a href="rust.html">Rust</a><a href="js-runtimes.html">JS ランタイム比較</a><a href="js-web-standards.html">JS と Web 標準の決まり方</a><a href="cloudflare-services.html">Cloudflare サービス</a><a href="browser-rendering.html">ブラウザのレンダリング</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="rust.html">Rust 学習フローと仕組み</a> — Wasm を出力する代表的な言語</li>
+    <li><a href="js-runtimes.html">JS ランタイム比較</a> — ブラウザ外で JS を動かす Node.js・Bun・Workers（isolate）の違い</li>
+    <li><a href="js-web-standards.html">JS と Web 標準の決まり方</a> — Wasm の仕様を決める W3C</li>
+    <li><a href="cloudflare-services.html">Cloudflare サービス</a> — Workers で Wasm を使う例</li>
+    <li><a href="browser-rendering.html">ブラウザのレンダリング</a> — 画面の更新は JS 側に残る</li>
+  </ul>
 
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://webassembly.org/">WebAssembly</a></li>
     <li><a href="https://developer.mozilla.org/ja/docs/WebAssembly">MDN: WebAssembly</a></li>

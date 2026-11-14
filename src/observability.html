@@ -17,9 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #0077b6;
-  --c-b: #8250df;
+  --c-b: #0f766e;
   --c-c: #1a7f37;
   --c-d: #be185d;
 }
@@ -32,11 +31,10 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #00d4ff;
-    --c-b: #bc8cff;
+    --c-b: #2dd4bf;
     --c-c: #3fb950;
-    --c-d: #f0883e;
+    --c-d: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -69,7 +67,7 @@ ul.plain { margin: 6px 0 6px 1.2em; }
 ul.plain li { margin: 2px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -93,13 +91,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.note {
-  font-size: 0.85rem;
-  color: var(--fg-2);
-  border-left: 2px solid var(--line);
-  padding-left: 10px;
-  margin: 10px 0;
-}
 .en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
@@ -112,7 +103,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .diagram { margin: 8px 0; }
 .diagram svg { width: 100%; height: auto; display: block; }
 .d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.d-box.hl { stroke: var(--c-key); stroke-width: 2; }
+.d-box.hl { stroke: var(--c-hl); stroke-width: 2; }
 .d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
 .d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
 .d-label { fill: var(--fg); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
@@ -157,7 +148,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .panel[hidden] { display: none; }
 
 /* 表 */
-.tbl-wrap { overflow-x: auto; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
 .tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
@@ -218,8 +208,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .badge.d { color: var(--c-d); }
 .series { display: flex; flex-wrap: wrap; gap: 6px; margin: -16px 0 22px; font-size: 0.78rem; }
 .series a { background: var(--chip); border-radius: 999px; padding: 2px 10px; text-decoration: none; }
-.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 .wf { display: grid; gap: 4px; }
 .wf-row { display: grid; grid-template-columns: minmax(110px, 34%) 1fr; gap: 8px; align-items: center; font-size: 0.75rem; cursor: pointer; border-radius: 4px; padding: 2px 4px; }
 .wf-row:hover, .wf-row.sel { background: var(--chip); }
@@ -271,7 +259,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <div class="panel card" id="s-metrics">
     <p><b>数値の時系列。</b>「1 分あたりのリクエスト数」「p99 レイテンシ」など。集計済みなので軽く、長期間保存してグラフ・アラートに使う。</p>
-    <div class="tbl-wrap"><table class="tbl">
+    <div class="table-wrap"><table class="tbl">
       <tr><th>種類</th><th>意味</th><th>例</th></tr>
       <tr><td>Counter</td><td>増えるだけの累計</td><td>リクエスト総数・エラー総数</td></tr>
       <tr><td>Gauge</td><td>今の値（上下する）</td><td>メモリ使用量・キューの長さ</td></tr>
@@ -344,7 +332,7 @@ new NodeSDK({
   </div>
 
   <h2 id="slo">何をアラートにするか：SLI と SLO</h2>
-  <div class="tbl-wrap"><table class="tbl">
+  <div class="table-wrap"><table class="tbl">
     <tr><th>用語</th><th>意味</th><th>例</th></tr>
     <tr><td>SLI</td><td>ユーザー体験を表す指標</td><td>成功したリクエストの割合・300ms 以内に返った割合</td></tr>
     <tr><td>SLO</td><td>SLI の目標値</td><td>30 日間で 99.9% が成功</td></tr>

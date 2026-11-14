@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -28,7 +27,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -57,7 +55,7 @@ h2 {
 p { margin: 8px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -119,9 +117,7 @@ h3 { font-size: 0.98rem; margin: 22px 0 8px; }
 ul.dots { margin: 8px 0 8px 1.3em; }
 ul.dots li { margin: 3px 0; }
 pre .cm { color: var(--fg-2); }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-.table-wrap { overflow-x: auto; margin: 10px 0; }
 table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--surface); }
 th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
 th { background: var(--chip); font-weight: 700; white-space: nowrap; }
@@ -151,9 +147,6 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 .tag-ok { color: var(--c-ok); font-weight: 700; }
 .tag-ng { color: var(--c-ng); font-weight: 700; }
 .tag-warn { color: var(--c-warn); font-weight: 700; }
-.related { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
-.related a { text-decoration: none; border: 1px solid var(--line); background: var(--chip); color: var(--fg-2); border-radius: 999px; padding: 3px 12px; font-size: 0.75rem; font-weight: 600; }
-.related a:hover { color: var(--accent); }
 /* ステップ図 */
 .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; }
 .node {
@@ -162,7 +155,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
 }
 .node b { display: block; font: 700 0.82rem 'JetBrains Mono', ui-monospace, monospace; }
 .node span { color: var(--fg-2); }
-.node.hl { border-color: var(--c-key); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-key) 18%, transparent); }
+.node.hl { border-color: var(--c-hl); transform: translateY(-2px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-hl) 18%, transparent); }
 .node.dim { opacity: .45; }
 .arrow { align-self: center; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
 @media (max-width: 640px) {
@@ -216,7 +209,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
     </ul>
   </div>
 
-  <p class="muted">前提: RDB の中身（B-Tree・WAL・MVCC）は <a href="db-internals.html">DB のしくみ</a>、インデックスとトランザクションは <a href="db-index-transaction.html">インデックスとトランザクション</a>。</p>
+  <p class="note">前提: RDB の中身（B-Tree・WAL・MVCC）は <a href="db-internals.html">DB のしくみ</a>、インデックスとトランザクションは <a href="db-index-transaction.html">インデックスとトランザクション</a>。</p>
 
   <h2 id="types">同じデータを 4 つの形で持つ</h2>
   <p>EC サイトの「ユーザー u1、その注文 2 件、フォローしているユーザー」を、それぞれの種類で持つとこうなる。</p>
@@ -287,7 +280,7 @@ WHERE NOT (me)-[:BOUGHT]-&gt;(p) RETURN p, count(*) ORDER BY count(*) DESC</div>
   <p>やりたい問い合わせを選ぶと、どの種類が素直に応えられるかを表示する（○ 得意 / △ できるが工夫が要る / × 向かない）。</p>
   <div class="qlist" id="qlist"></div>
   <div class="score" id="score"></div>
-  <p class="muted" id="q-note"></p>
+  <p class="note" id="q-note"></p>
 
   <h2 id="design">問い合わせから設計する</h2>
   <div class="row2">
@@ -321,7 +314,7 @@ WHERE NOT (me)-[:BOUGHT]-&gt;(p) RETURN p, count(*) ORDER BY count(*) DESC</div>
   </div>
   <div class="ring" id="ring"></div>
   <div class="ctrl"><button class="btn primary" id="pk-send">今日の書き込みを 24 件流す</button></div>
-  <p class="muted" id="pk-note"></p>
+  <p class="note" id="pk-note"></p>
 
   <h2 id="consistency">分散と整合性</h2>
   <ul class="dots">
@@ -347,11 +340,16 @@ WHERE NOT (me)-[:BOUGHT]-&gt;(p) RETURN p, count(*) ORDER BY count(*) DESC</div>
   <details class="myth"><summary>ドキュメント DB なら、関連するものは全部 1 つに埋め込むのが正解</summary><p>一緒に読むものは埋め込み、際限なく増えるもの・単独で更新されるもの・多くの場所から参照されるものは別のドキュメントにして ID で参照する。注文を全部ユーザーに埋め込むと、ドキュメントの上限サイズ（MongoDB は 16MB）に当たったり、毎回巨大なドキュメントを読み書きすることになる。</p></details>
   <details class="myth"><summary>グラフ DB は SNS のためのもの</summary><p>「つながりを何段もたどる」問い合わせがあれば対象になる。不正検知（同じ端末・同じ住所でつながった口座）、権限（グループの中のグループ）、マイクロサービスの依存関係、部品表など。逆に SNS でも、タイムラインの表示はワイドカラムや KV の方が向くことが多い。</p></details>
 
-
-  <h2>関連するメモ</h2>
-  <div class="related">
-    <a href="db-internals.html">DB のしくみ</a><a href="db-index-transaction.html">インデックスとトランザクション</a><a href="redis-valkey.html">Redis と Valkey</a><a href="cloudflare-databases.html">D1 と Hyperdrive</a><a href="distributed-basics.html">分散システムの基本</a><a href="rag-vector-search.html">RAG とベクトル検索</a><a href="data-structures.html">データ構造</a>
-  </div>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="db-internals.html">DB のしくみ</a> — RDB の中身（比べる相手）</li>
+    <li><a href="db-index-transaction.html">インデックスとトランザクション</a> — RDB のインデックスとトランザクション</li>
+    <li><a href="redis-valkey.html">Redis と Valkey の仕組み</a> — キーバリュー型の代表</li>
+    <li><a href="cloudflare-databases.html">D1 と Hyperdrive＋PlanetScale</a> — エッジから使う DB の選び方</li>
+    <li><a href="distributed-basics.html">分散システムの基本</a> — CAP と整合性モデル</li>
+    <li><a href="rag-vector-search.html">RAG とベクトル検索</a> — ベクトル検索という別の問い合わせ方</li>
+    <li><a href="data-structures.html">データ構造と計算量の早見表</a> — ハッシュ表・木など中で使う構造</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

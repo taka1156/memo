@@ -61,7 +61,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -85,7 +85,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
 .label {
@@ -124,7 +123,6 @@ pre code { background: none; padding: 0; word-break: normal; }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* トークン表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -132,7 +130,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 
 /* 誤解 */
 
-.related a { display: inline-block; margin: 4px 8px 4px 0; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -215,7 +212,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <li><b>Solid</b> はコンポーネント関数を<b>最初の1回だけ</b>実行して DOM を組み立て、以後はシグナルに依存する箇所だけを直接書き換える</li>
     </ul>
   </div>
-  <p class="muted">方式そのものの説明は <a href="reactivity-models.html">UI 更新の3つの方式</a> にまとめてある。このページは2つのフレームワークの内部に絞る。</p>
+  <p class="note">方式そのものの説明は <a href="reactivity-models.html">UI 更新の3つの方式</a> にまとめてある。このページは2つのフレームワークの内部に絞る。</p>
 
   <h2 id="counter">同じカウンターを書く</h2>
   <div class="side">
@@ -231,7 +228,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     &lt;/button&gt;
   );
 }</code></pre>
-      <p class="muted"><code>count</code> はただの数値。毎回の実行で、その時点の値が入った新しい変数になる。</p>
+      <p class="note"><code>count</code> はただの数値。毎回の実行で、その時点の値が入った新しい変数になる。</p>
     </div>
     <div class="card k-solid">
       <div class="ttl">Solid</div>
@@ -245,7 +242,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     &lt;/button&gt;
   );
 }</code></pre>
-      <p class="muted"><code>count</code> は<b>値を返す関数</b>（ゲッター）。呼び出した場所が「count に依存する場所」として記録される。</p>
+      <p class="note"><code>count</code> は<b>値を返す関数</b>（ゲッター）。呼び出した場所が「count に依存する場所」として記録される。</p>
     </div>
   </div>
 
@@ -281,7 +278,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <div class="panel card" id="r1">
     <p>React はコンポーネントの木を <b>Fiber</b> というノードの連結リストで管理する。Render フェーズは Fiber を1つずつ処理する小さな仕事に分かれているので、途中で中断して、ユーザー入力のような急ぎの更新を先に処理できる。</p>
-    <p class="muted"><code>startTransition</code> で「急がない更新」と印を付けると、入力欄の反応を保ったまま重いリストの再描画を後回しにできる（並行レンダリング）。</p>
+    <p class="note"><code>startTransition</code> で「急がない更新」と印を付けると、入力欄の反応を保ったまま重いリストの再描画を後回しにできる（並行レンダリング）。</p>
   </div>
   <div class="panel card" id="r2" hidden>
     <p><code>useState</code> の値は、コンポーネントに対応する Fiber の中に<b>呼び出し順で</b>並んだリストとして保存されている。関数は毎回最初から実行されるので、React は「1番目の useState、2番目の useState…」という順番で値を取り出す。</p>
@@ -324,7 +321,7 @@ function Counter() {
 &lt;For each={items()}&gt;{i =&gt; &lt;Row item={i} /&gt;}&lt;/For&gt;</code></pre>
     </div>
   </div>
-  <p class="muted">Solid のコンポーネントは再実行されないので、三項演算子や <code>map</code> を素で書くと「その時点の結果」で固定されてしまう（実際はコンパイラが式を関数で包むので多くは動くが、リストの効率的な差分更新には <code>&lt;For&gt;</code> が必要）。</p>
+  <p class="note">Solid のコンポーネントは再実行されないので、三項演算子や <code>map</code> を素で書くと「その時点の結果」で固定されてしまう（実際はコンパイラが式を関数で包むので多くは動くが、リストの効率的な差分更新には <code>&lt;For&gt;</code> が必要）。</p>
 
   <h3>Solid 2.0</h3>
   <div class="card">
@@ -380,9 +377,11 @@ function Counter() {
   <details class="myth"><summary>React Compiler を使えば React も細粒度更新になる</summary><p>減るのは「不要な再実行」で、更新の単位はコンポーネントのまま。仮想 DOM の差分計算もなくならない。</p></details>
   <details class="myth"><summary>速い Solid のほうが常に良い</summary><p>多くのアプリでは React の速度で十分で、採用・ライブラリ・情報量の差のほうが効く。Solid が活きるのは、更新頻度が高く大量の要素を扱う UI や、ランタイムを小さくしたい場面。</p></details>
 
-
-  <h2>関連メモ</h2>
-  <p class="related"><a href="reactivity-models.html">← UI 更新の3つの方式</a> <a href="vue-vs-svelte.html">Vue と Svelte →</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="reactivity-models.html">UI 更新の3つの方式</a> — 仮想 DOM・シグナル・コンパイラの 3 方式の地図</li>
+    <li><a href="vue-vs-svelte.html">Vue と Svelte</a> — 地図の残り 2 つのフレームワーク（Vue の Proxy リアクティブと Svelte のコンパイラ）の内部</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

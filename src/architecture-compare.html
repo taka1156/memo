@@ -17,9 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #0077b6;
-  --c-b: #8250df;
+  --c-b: #0f766e;
   --c-c: #1a7f37;
   --c-d: #be185d;
 }
@@ -32,11 +31,10 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #00d4ff;
-    --c-b: #bc8cff;
+    --c-b: #2dd4bf;
     --c-c: #3fb950;
-    --c-d: #f0883e;
+    --c-d: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -69,7 +67,7 @@ ul.plain { margin: 6px 0 6px 1.2em; }
 ul.plain li { margin: 2px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -93,13 +91,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.note {
-  font-size: 0.85rem;
-  color: var(--fg-2);
-  border-left: 2px solid var(--line);
-  padding-left: 10px;
-  margin: 10px 0;
-}
 .en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
@@ -112,7 +103,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .diagram { margin: 8px 0; }
 .diagram svg { width: 100%; height: auto; display: block; }
 .d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.d-box.hl { stroke: var(--c-key); stroke-width: 2; }
+.d-box.hl { stroke: var(--c-hl); stroke-width: 2; }
 .d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
 .d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
 .d-label { fill: var(--fg); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
@@ -157,7 +148,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .panel[hidden] { display: none; }
 
 /* 表 */
-.tbl-wrap { overflow-x: auto; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
 .tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
@@ -167,7 +157,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 /* チェックリスト */
 .progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
-.bar div { height: 100%; width: 0; background: var(--c-key); transition: width .2s; }
+.bar div { height: 100%; width: 0; background: var(--c-hl); transition: width .2s; }
 .count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
 .checklist { list-style: none; }
 .checklist li { border-bottom: 1px solid var(--line); }
@@ -229,7 +219,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .arch-meta b { display: block; font-size: 0.75rem; color: var(--fg-2); }
 .svg-narrow { max-width: 420px; margin: 0 auto; }
 .map td:not(:first-child) { font-size: 0.82rem; }
-.map tr.hl td { background: color-mix(in srgb, var(--c-key) 8%, transparent); }
+.map tr.hl td { background: color-mix(in srgb, var(--c-hl) 8%, transparent); }
 </style>
 </head>
 <body>
@@ -379,7 +369,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="mapping">用語の対応表</h2>
   <p>同じものを違う名前で呼んでいるだけ、という部分が多いです。横に読むと対応がわかります。</p>
-  <div class="tbl-wrap"><table class="tbl map">
+  <div class="table-wrap"><table class="tbl map">
     <tr><th>役割</th><th>レイヤード</th><th>ヘキサゴナル</th><th>オニオン</th><th>クリーン</th></tr>
     <tr class="hl"><td>業務ルールの中心</td><td>ビジネス層</td><td>アプリケーション（内部）</td><td>ドメインモデル</td><td>Entities</td></tr>
     <tr><td>操作の手順</td><td>ビジネス層（Service）</td><td>アプリケーション（内部）</td><td>アプリケーションサービス</td><td>Use Cases (Interactor)</td></tr>

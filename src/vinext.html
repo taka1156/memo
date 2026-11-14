@@ -62,10 +62,9 @@ h2 {
 }
 h3 { font-size: 0.95rem; margin: 18px 0 6px; }
 p { margin: 8px 0; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -171,7 +170,6 @@ a { color: var(--accent); }
 .faq dt::before { content: "誤解: "; color: var(--c-ng); }
 .faq dd { margin: 4px 0 0; }
 
-.sources li { margin-left: 1.2em; font-size: 0.85rem; overflow-wrap: anywhere; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -232,7 +230,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="bar"><span class="name">vinext</span><span class="track"><span class="fill vin" style="display:block;width:43.2%"></span></span><span class="val">72.9KB</span></div>
     </div>
   </div>
-  <p class="muted">測っているのはビルドとバンドルだけで、本番の配信速度ではない。公平にするため Next.js 側の静的事前生成は無効化している。公式も「方向性を示す参考値」としている。</p>
+  <p class="note">測っているのはビルドとバンドルだけで、本番の配信速度ではない。公平にするため Next.js 側の静的事前生成は無効化している。公式も「方向性を示す参考値」としている。</p>
 
   <h2 id="deploy">vinext アーキテクチャ：3 つのデプロイパターン</h2>
   <div class="card">
@@ -291,7 +289,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="c node"><b>SSR・Server Actions</b><span>middleware・ISR すべて可</span></div>
       <div class="c ssg"><b>静的ページのみ</b><span>SSR・ISR・Server Actions・middleware は不可</span></div>
     </div>
-    <p class="muted" style="margin-top:12px">※ SSG で追加プラグイン不要という点は、README の記述からの推論（静的エクスポートのみでの動作は未検証）。</p>
+    <p class="note" style="margin-top:12px">※ SSG で追加プラグイン不要という点は、README の記述からの推論（静的エクスポートのみでの動作は未検証）。</p>
   </div>
 
   <h2 id="myths">よくある誤解</h2>
@@ -306,7 +304,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 npx vinext init    # 非破壊で移行（既存の next dev もそのまま動く）
 npm run dev:vinext # ポート 3001 で vinext 版を起動して見比べる</pre>
 
-  <h2 id="sources">出典</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://github.com/cloudflare/vinext">cloudflare/vinext README（GitHub）</a></li>
     <li><a href="https://blog.cloudflare.com/vinext/">How we rebuilt Next.js with AI in one week（Cloudflare Blog）</a></li>

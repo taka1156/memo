@@ -64,7 +64,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -90,8 +90,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -134,7 +132,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -152,10 +149,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -327,11 +320,16 @@ Content-Type: application/problem+json
   <details class="myth"><summary>URL に動詞を入れたら REST じゃない</summary><p>リソースで表しにくい操作（<code>POST /orders/42/cancel</code>）は現実によくある。大事なのはメソッドの安全性・冪等性を守ることと、一貫した規則。</p></details>
   <details class="myth"><summary>gRPC はブラウザから使えない</summary><p>そのままでは使えないが、gRPC-Web や Connect で同じ .proto から呼べる。ただし双方向ストリーミングはブラウザでは制限がある。</p></details>
 
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="http-cache.html">HTTP キャッシュ</a> — REST の GET が効かせられる HTTP キャッシュ</li>
+    <li><a href="realtime-comm.html">リアルタイム通信</a> — サーバーから送る通信（SSE・WebSocket）の選び方</li>
+    <li><a href="ddd-onion.html">DDD とオニオンアーキテクチャ</a> — API の裏側のドメインの組み立て方</li>
+    <li><a href="distributed-basics.html">分散システムの基本</a> — 冪等性とリトライの考え方</li>
+    <li><a href="typescript.html">TypeScript 学習フローと仕組み</a> — tRPC が頼る TypeScript の型</li>
+  </ul>
 
-  <h2>関連メモ</h2>
-  <p class="related"><a href="http-cache.html">HTTP キャッシュ</a><a href="realtime-comm.html">リアルタイム通信</a><a href="ddd-onion.html">DDD とオニオン</a><a href="distributed-basics.html">分散システムの基本</a><a href="typescript.html">TypeScript</a></p>
-
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://www.rfc-editor.org/rfc/rfc9110#name-method-definitions">RFC 9110: メソッドの定義（安全・冪等）</a></li>
     <li><a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457: Problem Details for HTTP APIs</a></li>

@@ -63,7 +63,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -88,7 +88,6 @@ pre code { background: none; padding: 0; font-size: inherit; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .series { font-size: 0.8rem; color: var(--fg-2); margin: -16px 0 22px; }
 .series a, .series b { display: inline-block; margin-right: 10px; }
 .series b { color: var(--fg); }
@@ -142,8 +141,6 @@ pre code { background: none; padding: 0; font-size: inherit; }
 .stage span { font-size: 0.7rem; color: var(--fg-2); }
 .stage[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 1px; }
 .stage.fe { --k: var(--c-fe); } .stage.mid { --k: var(--c-mid); } .stage.be { --k: var(--c-be); }
-.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 
 /* IR 構造 */
 .nest { border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 6px; }
@@ -175,7 +172,6 @@ pre code { background: none; padding: 0; font-size: inherit; }
 table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
 th, td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 600; font-size: 0.75rem; }
-.tblwrap { overflow-x: auto; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; }
@@ -185,10 +181,6 @@ details + details { margin-top: 8px; }
 summary { cursor: pointer; font-weight: 600; }
 details p { font-size: 0.88rem; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -348,7 +340,7 @@ if.end:
   </div>
 
   <h3>よく出てくるパス</h3>
-  <div class="tblwrap"><table>
+  <div class="table-wrap"><table>
     <tr><th>パス</th><th>やること</th><th>効く場面</th></tr>
     <tr><td><code>mem2reg</code> / <code>sroa</code></td><td>スタック上の変数を SSA の値に置き換える</td><td>ほぼすべての関数。以降のパスの前提を作る</td></tr>
     <tr><td><code>inline</code></td><td>呼び出し先の本体を埋め込む</td><td>小さな関数・ゲッター。定数が伝わり、他の最適化の入口になる</td></tr>
@@ -410,7 +402,7 @@ max:
   <div class="grid2">
     <div class="card">
       <span class="label">llvm-project に入っている主な部品</span>
-      <div class="tblwrap"><table>
+      <div class="table-wrap"><table>
         <tr><td><code>clang</code></td><td>C / C++ / Objective-C のフロントエンド。<code>clang-format</code> もここ。<code>clangd</code>・<code>clang-tidy</code> は隣の <code>clang-tools-extra</code> に入っている</td></tr>
         <tr><td><code>lld</code></td><td>リンカ。GNU ld より速いことが多い</td></tr>
         <tr><td><code>lldb</code></td><td>デバッガ</td></tr>
@@ -465,10 +457,16 @@ clang -### x.c
 # 最適化で何が起きたか / 起きなかったかの報告
 clang -O2 -Rpass=inline -Rpass-missed=loop-vectorize -c x.c</code></pre>
 
-  <h2>関連メモ</h2>
-  <p class="related"><a href="gcc-vs-clang.html">GCC と Clang の構成比較</a><a href="rust.html">Rust</a><a href="webassembly.html">WebAssembly</a><a href="memory-management.html">メモリ管理</a><a href="language-genealogy.html">プログラミング言語の系譜</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="gcc-vs-clang.html">GCC と Clang の構成比較</a> — GCC との構成の違い</li>
+    <li><a href="rust.html">Rust 学習フローと仕組み</a> — LLVM を使う言語の例</li>
+    <li><a href="webassembly.html">WebAssembly</a> — LLVM が出力できる先の 1 つ</li>
+    <li><a href="memory-management.html">メモリ管理</a> — 言語ごとのメモリの解放方式</li>
+    <li><a href="language-genealogy.html">プログラミング言語の系譜</a> — Rust・Swift など LLVM を使う言語の親子関係</li>
+  </ul>
 
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://llvm.org/">The LLVM Compiler Infrastructure</a></li>
     <li><a href="https://llvm.org/docs/LangRef.html">LLVM Language Reference Manual</a></li>

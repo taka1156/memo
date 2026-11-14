@@ -18,8 +18,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-a: #7c3aed;
-  --c-b: #0369a1;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -30,8 +28,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-a: #c4b5fd;
-    --c-b: #7dd3fc;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -64,7 +60,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -90,8 +86,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -134,7 +128,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -152,10 +145,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -202,14 +191,14 @@ footer#memo-backlink a:hover { color: var(--accent); }
 #flexbox .it.grow { outline: 3px solid var(--c-warn); outline-offset: -3px; }
 #gridbox { display: grid; gap: 8px; grid-template-columns: 160px 1fr; grid-template-rows: auto 1fr auto; grid-template-areas: "head head" "side main" "foot foot"; }
 #gridbox .it { display: flex; align-items: center; justify-content: center; }
-#gridbox .h { grid-area: head; } #gridbox .s { grid-area: side; background: var(--c-a); } #gridbox .m { grid-area: main; background: var(--c-ok); min-height: 70px; } #gridbox .f { grid-area: foot; background: var(--c-b); }
+#gridbox .h { grid-area: head; } #gridbox .s { grid-area: side; } #gridbox .m { grid-area: main; min-height: 70px; } #gridbox .f { grid-area: foot; }
 .codeout { margin-top: 8px; }
 .cascade { display: grid; gap: 6px; }
 .cascade div { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: var(--surface); font-size: 0.85rem; }
 .cascade div b { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); margin-right: 6px; }
 .cq-wrap { resize: horizontal; overflow: auto; border: 2px dashed var(--line); border-radius: 8px; padding: 8px; width: 100%; max-width: 100%; min-width: 180px; container-type: inline-size; }
 .cq-card { display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
-.cq-card .ph { background: var(--c-a); border-radius: 6px; aspect-ratio: 16/9; }
+.cq-card .ph { background: var(--line); border-radius: 6px; aspect-ratio: 16/9; }
 .cq-card p { font-size: 0.8rem; margin: 0; }
 @container (min-width: 380px) { .cq-card { grid-template-columns: 140px 1fr; align-items: center; } .cq-card .ph { aspect-ratio: 1; } }
 </style>
@@ -316,11 +305,16 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <details class="myth"><summary>margin で間隔を空ける</summary><p>並びの間隔は親の <code>gap</code> で。子の margin だと先頭・末尾の余計な余白を消す工夫が要る。gap は Flex でも Grid でも使える。</p></details>
   <details class="myth"><summary>z-index を大きくすれば前に出る</summary><p>z-index は同じ<b>重ね合わせコンテキスト</b>の中でしか比べられない。親に <code>transform</code>・<code>opacity &lt; 1</code>・<code>position + z-index</code> などがあると、そこで新しいコンテキストができ、子をいくら大きくしても親の外には勝てない。</p></details>
 
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="design-tokens.html">デザイントークン</a> — 余白・色を変数で管理する</li>
+    <li><a href="component-design.html">コンポーネント設計</a> — レイアウトを部品に分ける考え方</li>
+    <li><a href="browser-rendering.html">ブラウザのレンダリング</a> — どの CSS 変更がレイアウトからやり直しになるか</li>
+    <li><a href="a11y-checklist.html">アクセシビリティ チェックリスト</a> — 見た目の順と Tab 順をそろえる・拡大や狭い幅でも崩さない</li>
+    <li><a href="ui-design-styles.html">UI デザインスタイル早見表</a> — 見た目のスタイルの実例と CSS</li>
+  </ul>
 
-  <h2>関連メモ</h2>
-  <p class="related"><a href="design-tokens.html">デザイントークン</a><a href="component-design.html">コンポーネント設計</a><a href="browser-rendering.html">ブラウザのレンダリング</a><a href="a11y-checklist.html">アクセシビリティ</a><a href="ui-design-styles.html">UI デザインスタイル</a></p>
-
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://developer.mozilla.org/ja/docs/Learn/CSS/CSS_layout">MDN: CSS レイアウト</a></li>
     <li><a href="https://developer.mozilla.org/ja/docs/Web/CSS/CSS_containment/Container_queries">MDN: コンテナークエリー</a></li>

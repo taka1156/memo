@@ -67,7 +67,7 @@ ul.dots { margin: 6px 0 6px 1.3em; }
 ul.dots li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -93,7 +93,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .grid2 > .card + .card, .grid3 > .card + .card { margin-top: 0; }
@@ -130,7 +129,6 @@ pre code { background: none; padding: 0; word-break: normal; }
 .box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -165,7 +163,6 @@ svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--f
 svg.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 svg.fig .sub { fill: var(--fg-2); }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -241,7 +238,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <tr><td>署名</td><td>完全性＋真正性（誰でも検証できる）</td><td><span class="key k-pub">公開</span><span class="key k-priv">秘密</span></td><td>Ed25519, ECDSA, RSA-PSS</td><td>証明書, JWT の RS256/ES256, パスキー</td></tr>
   </table>
   </div>
-  <p class="muted">Base64 や URL エンコードは<b>暗号ではない</b>。誰でも元に戻せる「表記の変換」にすぎない。</p>
+  <p class="note">Base64 や URL エンコードは<b>暗号ではない</b>。誰でも元に戻せる「表記の変換」にすぎない。</p>
 
   <h2 id="hash">ハッシュ — 鍵のない「指紋」</h2>
   <p>任意の長さのデータを、固定長の値（SHA-256 なら 256 bit）に変換する一方向の関数。</p>
@@ -254,7 +251,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <div class="card hashdemo">
     <span class="label">TRY · SHA-256</span>
     <textarea id="h-in">hello</textarea>
-    <div class="muted">SHA-256（16 進）。直前の値から変わった文字を赤で表示</div>
+    <div class="note">SHA-256（16 進）。直前の値から変わった文字を赤で表示</div>
     <div class="digest" id="h-out">…</div>
   </div>
   <div class="card" id="password">
@@ -301,7 +298,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="keyflow">
       <span class="box">A の秘密 a<small>＋ B の公開</small></span><span class="arrow">=</span><span class="key k-sh">同じ共有鍵</span><span class="arrow">=</span><span class="box">B の秘密 b<small>＋ A の公開</small></span>
     </div>
-    <p class="muted">末尾の E (Ephemeral) は「接続ごとに使い捨ての鍵ペア」の意味。後でサーバーの秘密鍵が漏れても、過去の通信は復号できない（前方秘匿性 / forward secrecy）。</p>
+    <p class="note">末尾の E (Ephemeral) は「接続ごとに使い捨ての鍵ペア」の意味。後でサーバーの秘密鍵が漏れても、過去の通信は復号できない（前方秘匿性 / forward secrecy）。</p>
   </div>
   <div class="panel card" id="pk2" hidden>
     <p><b>署名</b>: 秘密鍵でデータに署名し、誰でも公開鍵で「この秘密鍵の持ち主が、この内容に署名した」と検証できる。内容が 1 bit でも変われば検証に失敗する。</p>
@@ -309,7 +306,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <span class="box">データ</span><span class="arrow">→</span><span class="key k-priv">秘密鍵で署名</span><span class="arrow">→</span><span class="box">データ＋署名</span><span class="arrow">→</span><span class="key k-pub">公開鍵で検証</span><span class="arrow">→</span><span class="box"><span class="ok">OK</span> / <span class="ng">NG</span></span>
     </div>
     <p>MAC との違いは、<b>検証する側が署名を作れない</b>こと。JWT を RS256/ES256 で発行すれば、検証だけする API サーバーには公開鍵だけを配ればよい。パスキーは、サーバーが送ったランダムな値（チャレンジ）に端末の秘密鍵で署名して本人であることを示す。</p>
-    <p class="muted">署名は秘匿しない。署名付き JWT（JWS）の中身は Base64URL なので誰でも読める。</p>
+    <p class="note">署名は秘匿しない。署名付き JWT（JWS）の中身は Base64URL なので誰でも読める。</p>
   </div>
   <div class="panel card" id="pk3" hidden>
     <p>公開鍵で暗号化し、秘密鍵の持ち主だけが復号する使い方（RSA-OAEP など）もある。ただし遅く、扱えるデータも小さいので、<b>実際にはランダムな共通鍵だけを公開鍵で包み、本体は共通鍵で暗号化する</b>（ハイブリッド暗号。HPKE や PGP、S/MIME など）。</p>
@@ -333,7 +330,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </ul>
 
   <h2 id="tls">TLS 1.3 で全部がつながる</h2>
-  <p>HTTPS の最初の 1 往復で、ここまでの道具がすべて使われる。<span class="muted">（🔒 は、ここから暗号化されていることを示す）</span></p>
+  <p>HTTPS の最初の 1 往復で、ここまでの道具がすべて使われる。<span class="note">（🔒 は、ここから暗号化されていることを示す）</span></p>
   <div class="card seq">
     <div class="row c2s"><span class="dir">クライアント → サーバー</span><span class="msg">ClientHello</span><span class="note">対応する暗号の一覧と、使い捨ての <b>鍵交換用の公開鍵</b>（key_share）</span></div>
     <div class="row s2c"><span class="dir">サーバー → クライアント</span><span class="msg">ServerHello</span><span class="note">サーバー側の鍵交換用公開鍵。ここで両者が <b>同じ共通鍵</b> を計算できる（ECDHE。主要ブラウザでは ML-KEM と組み合わせたハイブリッド方式が標準）</span></div>
@@ -343,7 +340,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="row c2s"><span class="dir">クライアント → サーバー</span><span class="msg">Finished<span class="enc">🔒</span></span><span class="note">クライアント側の確認</span></div>
     <div class="row both"><span class="dir">双方向</span><span class="msg">HTTP リクエスト / レスポンス<span class="enc">🔒</span></span><span class="note">共有した鍵で <b>AEAD（AES-GCM など）</b> により暗号化</span></div>
   </div>
-  <p class="muted">鍵の導出にはハッシュベースの HKDF が使われる。つまり 5 つの道具すべてが登場する。</p>
+  <p class="note">鍵の導出にはハッシュベースの HKDF が使われる。つまり 5 つの道具すべてが登場する。</p>
 
   <h2 id="where">他のメモで出てくる場所</h2>
   <div class="table-wrap">
@@ -357,7 +354,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <tr><td>SSH</td><td>鍵交換＋署名</td><td>公開鍵認証は、ログイン時にクライアントの秘密鍵で署名して本人確認する</td></tr>
   </table>
   </div>
-  <p class="related"><a href="jwt-vs-session.html">JWT とセッション</a><a href="passkeys.html">パスキー</a><a href="oauth-oidc.html">OAuth / OIDC</a><a href="web-protocols.html">HTTP と TLS・DNS</a><a href="git-internals.html">Git の内部構造</a></p>
 
   <h2 id="myths">よくある誤解</h2>
   <details class="myth"><summary>JWT は暗号化されているので、中に個人情報を入れても安全</summary><p>通常の JWT は署名されているだけで、中身は誰でも読める。改ざんは検出できるが、隠せはしない。</p></details>
@@ -365,6 +361,14 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <details class="myth"><summary>HTTPS（鍵マークなど）で接続できるサイトは安全なサイト</summary><p>保証されるのは「そのドメインと暗号化された通信をしている」ことだけ。フィッシングサイトも普通に証明書を取れる。Chrome はこの誤解を避けるため、117 から鍵アイコンの表示をやめている。</p></details>
   <details class="myth"><summary>公開鍵暗号でデータ本体を暗号化している</summary><p>本体は共通鍵暗号。公開鍵の仕組みは、その鍵を共有する（鍵交換）・相手を確かめる（署名）ために使う。</p></details>
 
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="jwt-vs-session.html">JWT とセッション</a> — JWT の署名（HMAC と公開鍵署名）</li>
+    <li><a href="passkeys.html">パスキー（WebAuthn）</a> — 公開鍵署名でログインする仕組み</li>
+    <li><a href="oauth-oidc.html">OAuth 2.0 / OIDC のフロー</a> — PKCE がハッシュで横取りを防ぐ</li>
+    <li><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a> — TLS のハンドシェイクと HTTP/3</li>
+    <li><a href="git-internals.html">Git の内部構造</a> — オブジェクト ID が内容のハッシュ</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

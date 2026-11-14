@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-ok-bg: #e8f5ee;
   --c-warn-bg: #fdf3e2;
   --c-ng-bg: #fbecea;
@@ -31,7 +30,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-ok-bg: #12261c;
     --c-warn-bg: #2a2010;
     --c-ng-bg: #2a1614;
@@ -64,10 +62,9 @@ h3 { font-size: 0.95rem; margin: 16px 0 6px; }
 p { margin: 8px 0; }
 a { color: var(--accent); }
 ul.plain { margin: 6px 0 6px 1.2em; }
-.note { color: var(--fg-2); font-size: 0.82rem; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -111,14 +108,14 @@ pre code { background: none; padding: 0; word-break: normal; }
 .fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .fig .sub { fill: var(--fg-2); font-size: 11px; }
 .fig .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.fig .box-acc { fill: var(--chip); stroke: var(--c-key); stroke-width: 1.5; }
+.fig .box-acc { fill: var(--chip); stroke: var(--c-hl); stroke-width: 1.5; }
 .fig .box-ok { fill: var(--surface); stroke: var(--c-ok); stroke-width: 1.5; }
 .fig .box-warn { fill: var(--surface); stroke: var(--c-warn); stroke-width: 1.5; }
 .fig .arrow { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
-.fig .arrow-acc { stroke: var(--c-key); stroke-width: 2; fill: none; }
+.fig .arrow-acc { stroke: var(--c-hl); stroke-width: 2; fill: none; }
 .fig .dash { stroke-dasharray: 4 4; }
 .fig .ah { fill: var(--fg-2); }
-.fig .ah-acc { fill: var(--c-key); }
+.fig .ah-acc { fill: var(--c-hl); }
 .scroll-x { overflow-x: auto; }
 
 /* キーとフォルダ表示 */
@@ -150,7 +147,7 @@ pre code { background: none; padding: 0; word-break: normal; }
   background: var(--chip); border-radius: 8px; padding: 10px 12px; margin-top: 8px;
   word-break: break-all;
 }
-.out .hl { color: var(--c-key); font-weight: 700; }
+.out .hl { color: var(--c-hl); font-weight: 700; }
 .verdict { font-weight: 700; }
 .verdict.ok { color: var(--c-ok); }
 .verdict.ng { color: var(--c-ng); }
@@ -183,6 +180,7 @@ pre code { background: none; padding: 0; word-break: normal; }
 .tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; vertical-align: top; }
 .tbl thead th { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.8rem; }
 .tbl tbody th { color: var(--fg-2); font-weight: 500; white-space: nowrap; }
+.tbl.choose tbody th { white-space: normal; width: 42%; }
 
 /* 誤解 */
 details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
@@ -433,6 +431,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <div class="panel card" id="cs-cond" hidden>
     <p>S3 にはロックがありません。2 つのプロセスが同じキーに同時に PUT すると、後に完了した方が黙って勝ちます。これを防ぐのが<strong>条件付き書き込み (conditional writes)</strong> です。</p>
+    <div class="table-wrap">
     <table class="tbl">
       <thead><tr><th>ヘッダー</th><th>意味</th><th>使い道</th></tr></thead>
       <tbody>
@@ -440,6 +439,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <tr><th><code>If-Match: "&lt;ETag&gt;"</code></th><td>今の ETag が読んだときと同じなら書く</td><td>読み→変更→書き戻しの楽観ロック（マニフェスト・インデックスの更新）</td></tr>
       </tbody>
     </table>
+    </div>
     <p>条件を満たさないと <code>412 Precondition Failed</code> が返ります。AWS S3 では 2024 年に対応しました（8 月に <code>If-None-Match</code>、11 月に <code>If-Match</code>）。<strong>互換ストレージでは未対応・部分対応のこともあり、無視されると競合を検出できないまま上書きされる</strong>ので、使う前に必ず動作を確かめます。</p>
   </div>
 
@@ -506,7 +506,8 @@ response_checksum_validation = when_required</code></pre>
   </div>
 
   <h3 id="choose">どう選ぶ</h3>
-  <table class="tbl">
+  <div class="table-wrap">
+  <table class="tbl choose">
     <thead><tr><th>やりたいこと</th><th>まず検討するもの</th></tr></thead>
     <tbody>
       <tr><th>画像・動画をたくさん配信したい</th><td>egress 無料・安価なもの（R2 など）＋ CDN</td></tr>
@@ -516,6 +517,7 @@ response_checksum_validation = when_required</code></pre>
       <tr><th>アプリをどこにでも持っていけるようにしたい</th><td>コア操作だけに絞って実装し、エンドポイント・リージョン・path-style を設定で差し替えられるようにする</td></tr>
     </tbody>
   </table>
+  </div>
 
   <h2 id="commands">コマンド例</h2>
   <pre><code># 同じ AWS CLI で、エンドポイントだけ差し替えて使う

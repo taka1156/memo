@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-redis: #c8372d;
   --c-valkey: #2f6fdb;
   --c-redis-bg: #fbecea;
@@ -32,7 +31,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-redis: #ff7b6e;
     --c-valkey: #7aa7ff;
     --c-redis-bg: #2a1614;
@@ -66,10 +64,9 @@ h3 { font-size: 0.95rem; margin: 16px 0 6px; }
 p { margin: 8px 0; }
 a { color: var(--accent); }
 ul.plain { margin: 6px 0 6px 1.2em; }
-.note { color: var(--fg-2); font-size: 0.82rem; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -114,14 +111,14 @@ pre code { background: none; padding: 0; }
 .fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .fig .sub { fill: var(--fg-2); font-size: 11px; }
 .fig .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.fig .box-acc { fill: var(--chip); stroke: var(--c-key); stroke-width: 1.5; }
+.fig .box-acc { fill: var(--chip); stroke: var(--c-hl); stroke-width: 1.5; }
 .fig .box-ok { fill: var(--surface); stroke: var(--c-ok); stroke-width: 1.5; }
 .fig .box-warn { fill: var(--surface); stroke: var(--c-warn); stroke-width: 1.5; }
 .fig .arrow { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
-.fig .arrow-acc { stroke: var(--c-key); stroke-width: 2; fill: none; }
+.fig .arrow-acc { stroke: var(--c-hl); stroke-width: 2; fill: none; }
 .fig .dash { stroke-dasharray: 4 4; }
 .fig .ah { fill: var(--fg-2); }
-.fig .ah-acc { fill: var(--c-key); }
+.fig .ah-acc { fill: var(--c-hl); }
 .scroll-x { overflow-x: auto; }
 
 /* イベントループ */
@@ -386,7 +383,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <div class="panel card" id="ex-evict" hidden>
     <p><code>maxmemory</code> に達したときの動き（キーを追い出して削除する＝エビクションをするか、どれを追い出すか）は <code>maxmemory-policy</code> で決まります。</p>
-    <table class="tbl">
+    <div class="table-wrap"><table class="tbl">
       <thead><tr><th>ポリシー</th><th>動き</th><th>向いている用途</th></tr></thead>
       <tbody>
         <tr><th><code>noeviction</code></th><td>何も消さず、書き込みをエラーにする（既定）</td><td>消えては困るデータ（キュー・セッションの主保存先）</td></tr>
@@ -394,7 +391,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <tr><th><code>volatile-lru</code> / <code>-lfu</code> / <code>-ttl</code></th><td>期限付きのキーだけを対象に消す</td><td>キャッシュと永続データを同居させるとき</td></tr>
         <tr><th><code>*-random</code></th><td>ランダムに消す</td><td>アクセスが均等なとき</td></tr>
       </tbody>
-    </table>
+    </table></div>
     <p class="note">LRU / LFU は厳密ではなく、数個をサンプリングして一番古いものを選ぶ近似です（メモリと速度のため）。</p>
   </div>
 
@@ -438,14 +435,14 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <pre><code>SET user:1 ann
 INCR page:views
 HSET user:1 plan pro     ← 書き込みのたびに追記</code></pre>
-    <table class="tbl">
+    <div class="table-wrap"><table class="tbl">
       <thead><tr><th><code>appendfsync</code></th><td>ディスクへの確定 (fsync)</td><td>最悪失うデータ</td></tr></thead>
       <tbody>
         <tr><th><code>always</code></th><td>毎コマンド</td><td>ほぼなし（その分遅い）</td></tr>
         <tr><th><code>everysec</code></th><td>1 秒ごと（既定）</td><td>約 1 秒分</td></tr>
         <tr><th><code>no</code></th><td>OS 任せ</td><td>数十秒分のこともある</td></tr>
       </tbody>
-    </table>
+    </table></div>
     <p>ログは膨らみ続けるので、裏で「今の状態を作る最短のログ」に<strong>書き直し (rewrite)</strong> ます。現在の版では、書き直しの土台を RDB 形式にして後ろに増分ログを足す形が既定です（RDB と AOF のいいとこ取り）。</p>
   </div>
   <div class="panel card" id="ps-which" hidden>
@@ -513,7 +510,7 @@ HSET user:1 plan pro     ← 書き込みのたびに追記</code></pre>
   </div>
 
   <h2 id="compare">いま何が違うか</h2>
-  <div class="card scroll-x">
+  <div class="card table-wrap">
     <table class="tbl" style="min-width:560px">
       <thead><tr><th></th><th class="r">Redis（Open Source 8.x）</th><th class="v">Valkey（9.x）</th></tr></thead>
       <tbody>

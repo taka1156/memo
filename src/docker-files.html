@@ -17,7 +17,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #7c3aed;
   --c-b: #0e7490;
 }
@@ -30,7 +29,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #c4b5fd;
     --c-b: #67e8f9;
   }
@@ -65,7 +63,7 @@ ul.list { margin: 6px 0 6px 1.3em; }
 ul.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -84,7 +82,7 @@ pre {
 }
 pre code { background: none; padding: 0; word-break: normal; }
 pre .cm { color: var(--fg-2); }
-pre .hl { color: var(--c-key); font-weight: 700; }
+pre .hl { color: var(--c-hl); font-weight: 700; }
 pre .ok { color: var(--c-ok); }
 pre .ng { color: var(--c-ng); }
 .file {
@@ -106,7 +104,6 @@ pre .ng { color: var(--c-ng); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
 .grid2 > * { min-width: 0; }
 .label {
@@ -149,7 +146,6 @@ pre .ng { color: var(--c-ng); }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -217,7 +213,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <h2 id="roles">4 つのファイルの役割</h2>
   <div class="roles">
     <div class="card role" style="--k:var(--c-b)"><b>.dockerignore</b><p>ビルドに<b>送らない</b>ファイル。<code>COPY . .</code> の範囲を絞る。</p></div>
-    <div class="card role" style="--k:var(--c-key)"><b>Dockerfile</b><p><b>1 つのイメージ</b>の作り方。<code>docker build</code> が読む。</p></div>
+    <div class="card role" style="--k:var(--c-hl)"><b>Dockerfile</b><p><b>1 つのイメージ</b>の作り方。<code>docker build</code> が読む。</p></div>
     <div class="card role" style="--k:var(--c-warn)"><b>compose.yaml</b><p><b>複数のコンテナ</b>（app・db…）の起動設定。<code>docker compose up</code> が読む。</p></div>
     <div class="card role" style="--k:var(--c-a)"><b>devcontainer.json</b><p>VS Code などが<b>開発環境として入るコンテナ</b>の設定。上の 2 つを参照できる。</p></div>
   </div>
@@ -522,7 +518,11 @@ $ docker compose config          <span class="cm"># 展開後の最終的な設�
   <details class="myth"><summary>depends_on を書けば DB の準備完了まで待ってくれる</summary><p>素の depends_on はコンテナの起動順だけ。接続を受け付けるまで待つには <code>condition: service_healthy</code> ＋ healthcheck が要る。</p></details>
   <details class="myth"><summary>devcontainer.json は VS Code 専用</summary><p>Dev Container は公開された仕様で、Codespaces・JetBrains・CLI（<code>devcontainer up</code>）でも読める。エディタ固有の部分は <code>customizations</code> の中に分けて書く。</p></details>
 
-  <p class="note">関連: <a href="docker.html">Docker 動作原理</a> ／ <a href="docker-images.html">Docker イメージの種類</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="docker.html">Docker 動作原理</a> — レイヤー・名前空間などコンテナの仕組み</li>
+    <li><a href="docker-images.html">Docker イメージの種類</a> — FROM に書くベースイメージの選び方</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

@@ -17,9 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #0077b6;
-  --c-b: #8250df;
+  --c-b: #0f766e;
   --c-c: #1a7f37;
   --c-d: #be185d;
 }
@@ -32,11 +31,10 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #00d4ff;
-    --c-b: #bc8cff;
+    --c-b: #2dd4bf;
     --c-c: #3fb950;
-    --c-d: #f0883e;
+    --c-d: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -69,7 +67,7 @@ ul.plain { margin: 6px 0 6px 1.2em; }
 ul.plain li { margin: 2px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -93,13 +91,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.note {
-  font-size: 0.85rem;
-  color: var(--fg-2);
-  border-left: 2px solid var(--line);
-  padding-left: 10px;
-  margin: 10px 0;
-}
 .en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
@@ -112,7 +103,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .diagram { margin: 8px 0; }
 .diagram svg { width: 100%; height: auto; display: block; }
 .d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.d-box.hl { stroke: var(--c-key); stroke-width: 2; }
+.d-box.hl { stroke: var(--c-hl); stroke-width: 2; }
 .d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
 .d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
 .d-label { fill: var(--fg); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
@@ -157,7 +148,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .panel[hidden] { display: none; }
 
 /* 表 */
-.tbl-wrap { overflow-x: auto; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
 .tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
@@ -218,8 +208,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .badge.d { color: var(--c-d); }
 .series { display: flex; flex-wrap: wrap; gap: 6px; margin: -16px 0 22px; font-size: 0.78rem; }
 .series a { background: var(--chip); border-radius: 999px; padding: 2px 10px; text-decoration: none; }
-.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 .tz { display: grid; gap: 10px; }
 .tz-ctl { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 0.85rem; }
 .tz-ctl input[type=date] { font: 600 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
@@ -282,7 +270,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="step"><b>3. 計算</b><p>集計の「日ごと」は、<b>誰の 1 日か</b>（どのタイムゾーンの 0 時で区切るか）を決めて変換してから行う。</p></div>
     <div class="step"><b>4. 表示</b><p>ユーザーのタイムゾーンに変換して表示。<code>Intl.DateTimeFormat</code> が使える。</p></div>
   </div>
-  <div class="tbl-wrap"><table class="tbl">
+  <div class="table-wrap"><table class="tbl">
     <tr><th>DB の型</th><th>中身</th><th>注意</th></tr>
     <tr><td>PostgreSQL <code>timestamptz</code></td><td>UTC の瞬間として保存し、表示時にセッションのタイムゾーンに変換</td><td>瞬間はこれを使う。名前に反してタイムゾーン名は保存しない</td></tr>
     <tr><td>PostgreSQL <code>timestamp</code></td><td>タイムゾーンなしの壁時計の時刻</td><td>瞬間を入れると、どこの時刻かわからなくなる</td></tr>
@@ -295,7 +283,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <p>来年の「ニューヨーク 10:00 の会議」を今 UTC に変換して保存すると、その後に夏時間のルールが変わったとき、会議が 9:00 や 11:00 にずれます。<b>人が決めた現地の時刻</b>が本体なので、<code>2027-06-01 10:00</code> と <code>America/New_York</code> を保存し、通知の直前に瞬間へ変換します。</p>
 
   <h2 id="dst">夏時間の落とし穴</h2>
-  <div class="tbl-wrap"><table class="tbl">
+  <div class="table-wrap"><table class="tbl">
     <tr><th>現象</th><th>例（America/New_York）</th><th>対策</th></tr>
     <tr><td>存在しない時刻</td><td>3 月の切り替え日、2:00 → 3:00 に飛ぶので 2:30 は無い</td><td>どちらに寄せるかを決める（Temporal の <code>disambiguation</code>）</td></tr>
     <tr><td>2 回ある時刻</td><td>11 月の切り替え日、1:30 が 2 回来る</td><td>オフセットで区別する（<code>-04:00</code> と <code>-05:00</code>）</td></tr>
@@ -310,7 +298,7 @@ new Date('2026-11-06')          <span class="cm">// UTC の 0 時として解釈
 new Date('2026-11-06T00:00')    <span class="cm">// 実行環境のローカル時刻の 0 時として解釈</span>
 const d = new Date(); d.setMonth(1);  <span class="cm">// 元のオブジェクトを書き換える（可変）</span></code></pre>
   <p><code>Date</code> の中身は「瞬間」1 種類だけで、日付だけ・壁時計の時刻を表す型がありません。Temporal は種類ごとに型を分け、すべて変更不可 (immutable) です。</p>
-  <div class="tbl-wrap"><table class="tbl">
+  <div class="table-wrap"><table class="tbl">
     <tr><th>型</th><th>持つもの</th><th>用途</th></tr>
     <tr><td><code>Temporal.Instant</code></td><td>瞬間（ナノ秒）</td><td>ログ・保存用の時刻</td></tr>
     <tr><td><code>Temporal.ZonedDateTime</code></td><td>瞬間＋タイムゾーン</td><td>「東京の 10:00」として計算・表示する</td></tr>
@@ -326,7 +314,7 @@ Temporal.PlainDate.from('2026-01-31').add({ months: 1 });  <span class="cm">// 2
   <p class="note">Temporal は Firefox・Chrome・Edge・Node.js 26 以降で使える。Safari は 2026 年半ばの時点で安定版が未対応だったので、ブラウザで使うときは対応状況を確認し、必要なら polyfill（提案の champion が始めた <code>@js-temporal/polyfill</code> や <code>temporal-polyfill</code>）を入れる。</p>
 
   <h2 id="formats">書式と Unix 時刻</h2>
-  <div class="tbl-wrap"><table class="tbl">
+  <div class="table-wrap"><table class="tbl">
     <tr><th>形式</th><th>例</th><th>注意</th></tr>
     <tr><td>RFC 3339</td><td><code>2026-11-06T10:15:00+09:00</code></td><td>API でのやり取りはこれ。オフセットか <code>Z</code> を必ず付ける</td></tr>
     <tr><td>Unix 時刻</td><td><code>1793927700</code></td><td>秒かミリ秒か（JS の <code>Date.now()</code> はミリ秒）を API ごとに確認。うるう秒は数えない</td></tr>

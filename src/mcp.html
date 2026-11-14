@@ -61,7 +61,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -85,7 +85,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
 .label {
@@ -124,7 +123,6 @@ pre code { background: none; padding: 0; word-break: normal; }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* トークン表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -132,7 +130,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 
 /* 誤解 */
 
-.related a { display: inline-block; margin: 4px 8px 4px 0; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -175,7 +172,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .arch .ln { stroke: var(--fg-2); stroke-width: 1.5; }
 .arch .ln.stdio { stroke: var(--c-back); }
 .arch .ln.http { stroke: var(--c-front); stroke-dasharray: 6 4; }
-.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.8rem; color: var(--fg-2); margin: 8px 0 0; }
 .legend span::before { content: ''; display: inline-block; width: 26px; vertical-align: middle; margin-right: 6px; border-top: 2px solid var(--c-back); }
 .legend .lh::before { border-top: 2px dashed var(--c-front); }
 
@@ -202,7 +198,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 }
 .steps .who-line { font: 600 0.78rem 'JetBrains Mono', monospace; color: var(--fg-2); }
 
-.new { border-left: 3px solid var(--c-front); }
+.new { border-left: 3px solid var(--c-warn); }
 .new li { margin: 4px 0 4px 1.3em; }
 .tag-old { color: var(--fg-2); text-decoration: line-through; }
 </style>
@@ -300,10 +296,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="legend"><span>stdio（同じマシンの子プロセス）</span><span class="lh">Streamable HTTP（ネットワーク越し）</span></div>
   </div>
   <div class="grid4" style="margin-top:12px">
-    <div class="card"><b>ホスト</b><p class="muted">ユーザーが触る AI アプリ。どのサーバーに繋ぐか、どの呼び出しを許可するかを決める。</p></div>
-    <div class="card"><b>クライアント</b><p class="muted">ホストの中の接続部品。<b>サーバー1つにつき1つ</b>作られる。</p></div>
-    <div class="card"><b>サーバー</b><p class="muted">機能を提供するプログラム。中身は既存 API の薄いラッパーであることが多い。</p></div>
-    <div class="card"><b>LLM</b><p class="muted">サーバーとは直接話さない。ホストが見せた道具の説明を読んで、使うかどうかを決めるだけ。</p></div>
+    <div class="card"><b>ホスト</b><p class="note">ユーザーが触る AI アプリ。どのサーバーに繋ぐか、どの呼び出しを許可するかを決める。</p></div>
+    <div class="card"><b>クライアント</b><p class="note">ホストの中の接続部品。<b>サーバー1つにつき1つ</b>作られる。</p></div>
+    <div class="card"><b>サーバー</b><p class="note">機能を提供するプログラム。中身は既存 API の薄いラッパーであることが多い。</p></div>
+    <div class="card"><b>LLM</b><p class="note">サーバーとは直接話さない。ホストが見せた道具の説明を読んで、使うかどうかを決めるだけ。</p></div>
   </div>
 
   <h2 id="primitives">サーバーが提供する3つのもの</h2>
@@ -338,13 +334,14 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <tr><td>設定例</td><td><code>"command": "npx", "args": ["-y", "some-mcp"]</code></td><td><code>"url": "https://mcp.example.com/mcp"</code></td></tr>
     </table>
   </div>
-  <p class="muted">古い「HTTP+SSE」方式（GET で SSE、POST で送信の2本立て）は非推奨で、Streamable HTTP への移行期間中。</p>
+  <p class="note">古い「HTTP+SSE」方式（GET で SSE、POST で送信の2本立て）は非推奨で、Streamable HTTP への移行期間中。</p>
 
   <h2 id="call-flow">ツールが呼ばれるまで</h2>
   <ol class="steps">
     <li>
+      <b>一覧を取得する</b>
       <div class="who-line">ホスト → サーバー</div>
-      <p><b>一覧を取得する</b>。サーバーは名前・説明・入力の JSON Schema を返す。この説明文が LLM への「取扱説明書」になる。</p>
+      <p>サーバーは名前・説明・入力の JSON Schema を返す。この説明文が LLM への「取扱説明書」になる。</p>
       <pre><code>// tools/list の結果（抜粋）
 {
   "tools": [{
@@ -365,16 +362,18 @@ footer#memo-backlink a:hover { color: var(--accent); }
 }</code></pre>
     </li>
     <li>
+      <b>道具の説明をプロンプトに載せる</b>
       <div class="who-line">ホスト → LLM</div>
-      <p><b>道具の説明をプロンプトに載せる</b>。LLM API の「ツール使用（function calling）」の形式に変換して渡す。</p>
+      <p>LLM API の「ツール使用（function calling）」の形式に変換して渡す。</p>
     </li>
     <li>
+      <b>LLM が「このツールをこの引数で使いたい」と返す</b>
       <div class="who-line">LLM → ホスト</div>
-      <p><b>LLM が「このツールをこの引数で使いたい」と返す</b>。ホストは必要ならユーザーに許可を求める。</p>
+      <p>ホストは必要ならユーザーに許可を求める。</p>
     </li>
     <li>
+      <b>ツールを実行する</b>
       <div class="who-line">ホスト → サーバー</div>
-      <p><b>ツールを実行する</b>。</p>
       <pre><code>{ "jsonrpc": "2.0", "id": 7, "method": "tools/call",
   "params": {
     "name": "create_issue",
@@ -386,8 +385,9 @@ footer#memo-backlink a:hover { color: var(--accent); }
   } }</code></pre>
     </li>
     <li>
+      <b>結果を LLM に返す</b>
       <div class="who-line">サーバー → ホスト → LLM</div>
-      <p><b>結果を LLM に返す</b>。LLM はそれを読んで、次のツールを呼ぶか、ユーザーに答える。</p>
+      <p>LLM はそれを読んで、次のツールを呼ぶか、ユーザーに答える。</p>
     </li>
   </ol>
 
@@ -424,10 +424,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="security">セキュリティの注意点</h2>
   <div class="grid2">
-    <div class="card"><b>ローカルサーバーはあなたの権限で動く</b><p class="muted">stdio のサーバーは任意のコードを実行できる。<code>npx</code> 1行で入るものほど、出どころを確認する。</p></div>
-    <div class="card"><b>ツールの結果もプロンプトになる</b><p class="muted">取得した Web ページや Issue 本文に「〇〇を実行せよ」と書かれていると、LLM が従ってしまう（プロンプトインジェクション）。書き込み系ツールは確認を挟む。</p></div>
-    <div class="card"><b>ツールの説明文を悪用される</b><p class="muted">悪意あるサーバーが説明文に隠し指示を仕込む「ツールポイズニング」がある。</p></div>
-    <div class="card"><b>トークンの使い回し禁止</b><p class="muted">リモートサーバーは、自分宛てに発行されたトークンだけを受け付ける。受け取ったトークンをそのまま上流 API に流すのは仕様で禁止されている。</p></div>
+    <div class="card"><b>ローカルサーバーはあなたの権限で動く</b><p class="note">stdio のサーバーは任意のコードを実行できる。<code>npx</code> 1行で入るものほど、出どころを確認する。</p></div>
+    <div class="card"><b>ツールの結果もプロンプトになる</b><p class="note">取得した Web ページや Issue 本文に「〇〇を実行せよ」と書かれていると、LLM が従ってしまう（プロンプトインジェクション）。書き込み系ツールは確認を挟む。</p></div>
+    <div class="card"><b>ツールの説明文を悪用される</b><p class="note">悪意あるサーバーが説明文に隠し指示を仕込む「ツールポイズニング」がある。</p></div>
+    <div class="card"><b>トークンの使い回し禁止</b><p class="note">リモートサーバーは、自分宛てに発行されたトークンだけを受け付ける。受け取ったトークンをそのまま上流 API に流すのは仕様で禁止されている。</p></div>
   </div>
 
   <h2 id="myths">よくある誤解</h2>
@@ -435,9 +435,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
   <details class="myth"><summary>ツールは多いほど賢くなる</summary><p>ツールの説明はすべてコンテキストを消費し、選択肢が増えるほど誤選択も増える。必要なサーバーだけ有効にする。</p></details>
   <details class="myth"><summary>MCP は Anthropic 専用</summary><p>Anthropic が 2024 年に公開したオープンな仕様で、2025 年 12 月からは Linux Foundation 傘下の Agentic AI Foundation が管理している。他社の AI アプリや IDE も対応している。SDK も TypeScript、Python、Go、C# などがある。</p></details>
 
-
-  <h2>関連メモ</h2>
-  <p class="related"><a href="agent-instructions.html">CLAUDE.md / AGENTS.md / Skills →</a> <a href="oauth-oidc.html">OAuth 2.0 / OIDC（リモート MCP の認可）→</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="agent-instructions.html">CLAUDE.md / AGENTS.md / Skills</a> — 同じくコンテキストに載る指示ファイル・Skills との違い</li>
+    <li><a href="oauth-oidc.html">OAuth 2.0 / OIDC のフロー</a> — リモート MCP の認可に使うフロー</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

@@ -17,9 +17,8 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #0077b6;
-  --c-b: #8250df;
+  --c-b: #0f766e;
   --c-c: #1a7f37;
   --c-d: #be185d;
 }
@@ -32,11 +31,10 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #00d4ff;
-    --c-b: #bc8cff;
+    --c-b: #2dd4bf;
     --c-c: #3fb950;
-    --c-d: #f0883e;
+    --c-d: #f472b6;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -69,7 +67,7 @@ ul.plain { margin: 6px 0 6px 1.2em; }
 ul.plain li { margin: 2px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -93,13 +91,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.note {
-  font-size: 0.85rem;
-  color: var(--fg-2);
-  border-left: 2px solid var(--line);
-  padding-left: 10px;
-  margin: 10px 0;
-}
 .en { color: var(--fg-2); font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
@@ -112,7 +103,7 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .diagram { margin: 8px 0; }
 .diagram svg { width: 100%; height: auto; display: block; }
 .d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
-.d-box.hl { stroke: var(--c-key); stroke-width: 2; }
+.d-box.hl { stroke: var(--c-hl); stroke-width: 2; }
 .d-title { fill: var(--fg); font: 700 14px 'Noto Sans JP', system-ui, sans-serif; }
 .d-sub { fill: var(--fg-2); font: 500 11px 'JetBrains Mono', ui-monospace, monospace; }
 .d-label { fill: var(--fg); font: 700 11px 'Noto Sans JP', system-ui, sans-serif; }
@@ -157,7 +148,6 @@ pre code { background: none; padding: 0; font-size: 1em; }
 .panel[hidden] { display: none; }
 
 /* 表 */
-.tbl-wrap { overflow-x: auto; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
 .tbl th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; }
@@ -218,8 +208,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .badge.d { color: var(--c-d); }
 .series { display: flex; flex-wrap: wrap; gap: 6px; margin: -16px 0 22px; font-size: 0.78rem; }
 .series a { background: var(--chip); border-radius: 999px; padding: 2px 10px; text-decoration: none; }
-.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.75rem; color: var(--fg-2); }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 .uin { width: 100%; font: 500 1.1rem 'Noto Sans JP', system-ui, sans-serif; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--chip); color: var(--fg); }
 .ucount { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 10px 0; }
 .ucount div { background: var(--chip); border-radius: 8px; padding: 6px 10px; text-align: center; }
@@ -228,8 +216,8 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .gl { display: flex; flex-wrap: wrap; gap: 6px; }
 .g { border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; background: var(--surface); text-align: center; min-width: 56px; }
 .g .ch { font-size: 1.4rem; line-height: 1.3; }
-.g .cp { font: 500 0.62rem/1.4 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
-.g .by { font: 500 0.62rem/1.4 'JetBrains Mono', ui-monospace, monospace; color: var(--c-b); }
+.g .cp { font: 500 0.68rem/1.4 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.g .by { font: 500 0.68rem/1.4 'JetBrains Mono', ui-monospace, monospace; color: var(--c-b); }
 .sample-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .sample-btns button { border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; cursor: pointer; }
 .bits { font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace; }
@@ -252,7 +240,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="codepoint">番号と符号化を分ける</h2>
   <div class="flow"><span>文字「あ」</span><i>→ Unicode の表で</i><span>U+3042</span><i>→ UTF-8 で</i><span class="mono">E3 81 82</span><i>／ UTF-16 で</i><span class="mono">30 42</span></div>
-  <div class="tbl-wrap"><table class="tbl">
+  <div class="table-wrap"><table class="tbl">
     <tr><th>符号化</th><th>1 文字の長さ</th><th>主な使われ方</th></tr>
     <tr><td>UTF-8</td><td>1〜4 バイト（ASCII は 1、日本語の多くは 3、絵文字の多くは 4）</td><td>Web・ファイル・DB・API の標準。ASCII とそのまま互換</td></tr>
     <tr><td>UTF-16</td><td>2 か 4 バイト（2 バイト単位 1 つか 2 つ）</td><td>JavaScript・Java・C#・Windows の文字列の単位（Java 9 以降は内部で Latin-1 も使うが、<code>length()</code> などは UTF-16 単位）</td></tr>
@@ -262,7 +250,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h3 id="utf8">UTF-8 のしくみ</h3>
   <p>先頭バイトの上位ビットで「何バイトの文字か」がわかり、2 バイト目以降は必ず 10 で始まるので、途中から読んでも文字の切れ目を見つけられます。</p>
-  <div class="tbl-wrap"><table class="tbl bits">
+  <div class="table-wrap"><table class="tbl bits">
     <tr><th>範囲</th><th>バイト列（x にコードポイントのビットが入る）</th></tr>
     <tr><td>U+0000–007F</td><td>0<span class="x">xxxxxxx</span></td></tr>
     <tr><td>U+0080–07FF</td><td>110<span class="x">xxxxx</span> 10<span class="x">xxxxxx</span></td></tr>
@@ -285,7 +273,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </div>
     <div class="gl" id="gl"></div>
   </div>
-  <div class="tbl-wrap"><table class="tbl">
+  <div class="table-wrap"><table class="tbl">
     <tr><th>ずれる原因</th><th>例</th><th>説明</th></tr>
     <tr><td>サロゲートペア</td><td>𠮷・絵文字</td><td>U+FFFF を超える文字は UTF-16 で 2 単位になる。JS の <code>length</code> は 2</td></tr>
     <tr><td>結合文字</td><td>か＋゛（U+3099）</td><td>前の文字にくっつく記号。2 コードポイントで見た目は 1 文字</td></tr>
@@ -300,7 +288,7 @@ const chars = [...seg.segment('👨‍👩‍👧です')].map(s =&gt; s.segment
 
   <h2 id="normalize">正規化</h2>
   <p>Unicode には同じ見た目を表す方法が複数あります。比較・検索・重複チェックの前に、どちらかの形に揃えます。</p>
-  <div class="tbl-wrap"><table class="tbl">
+  <div class="table-wrap"><table class="tbl">
     <tr><th>形式</th><th>やること</th><th>例</th><th>使う場面</th></tr>
     <tr><td>NFC</td><td>合成できるものは合成</td><td>か＋゛ → が</td><td>保存・比較の標準。Web はこれ</td></tr>
     <tr><td>NFD</td><td>分解できるものは分解</td><td>が → か＋゛</td><td>macOS 由来のファイル名で見かける</td></tr>

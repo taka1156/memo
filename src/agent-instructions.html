@@ -61,7 +61,7 @@ p { margin: 8px 0; }
 a { color: var(--accent); }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -85,7 +85,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   border-radius: 10px;
   padding: 16px 18px;
 }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
 .label {
@@ -124,7 +123,6 @@ pre code { background: none; padding: 0; word-break: normal; }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
 /* トークン表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -132,7 +130,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 
 /* 誤解 */
 
-.related a { display: inline-block; margin: 4px 8px 4px 0; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -165,22 +162,21 @@ footer#memo-backlink a:hover { color: var(--accent); }
 .ctx-bar > div {
   display: flex; align-items: center; justify-content: center;
   font: 700 0.68rem 'JetBrains Mono', monospace;
-  color: #fff;
+  color: var(--bg);
   white-space: nowrap;
   overflow: hidden;
   transition: flex-basis .4s, opacity .4s;
 }
 .ctx-bar .off { flex-basis: 0 !important; opacity: 0; }
-.seg-sys { background: #64748b; }
+.seg-sys { background: var(--fg-2); }
 .seg-md { background: var(--c-md); }
-.seg-desc { background: var(--c-sk); opacity: .7; }
+.seg-desc { background: color-mix(in srgb, var(--c-sk) 40%, var(--surface)); color: var(--fg) !important; }
 .seg-tool { background: var(--c-mcp); }
 .seg-body { background: var(--c-sk); }
-.seg-file { background: var(--c-sk); filter: brightness(.8); }
+.seg-file { background: color-mix(in srgb, var(--c-sk) 75%, var(--fg)); }
 .seg-chat { background: var(--chip); color: var(--fg-2) !important; }
 @media (max-width: 560px) { .ctx-bar > div { font-size: 0; } }
-.ctx-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.78rem; color: var(--fg-2); margin-top: 8px; }
-.ctx-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 .ctx-note { min-height: 3.4em; margin-top: 8px; }
 .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .btns button {
@@ -258,17 +254,17 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="card k-md">
       <h3>CLAUDE.md / AGENTS.md</h3>
       <p><b>常に読む指示</b></p>
-      <p class="muted">セッション開始時に毎回読み込まれる「このプロジェクトの決まりごと」。ビルド方法、規約、やってはいけないこと。</p>
+      <p class="note">セッション開始時に毎回読み込まれる「このプロジェクトの決まりごと」。ビルド方法、規約、やってはいけないこと。</p>
     </div>
     <div class="card k-sk">
       <h3>Skills</h3>
       <p><b>必要なときだけ読む手順書</b></p>
-      <p class="muted">普段は名前と説明だけが見えていて、該当する作業になったときに本文や同梱スクリプトを読む。</p>
+      <p class="note">普段は名前と説明だけが見えていて、該当する作業になったときに本文や同梱スクリプトを読む。</p>
     </div>
     <div class="card k-mcp">
       <h3>MCP</h3>
       <p><b>外部とつなぐ道具</b></p>
-      <p class="muted">GitHub、Slack、DB など外部システムを操作するツール群。<a href="mcp.html">MCP のメモ</a>で詳しく扱う。</p>
+      <p class="note">GitHub、Slack、DB など外部システムを操作するツール群。<a href="mcp.html">MCP のメモ</a>で詳しく扱う。</p>
     </div>
   </div>
 
@@ -279,12 +275,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="seg-sys" data-k="sys" style="flex-basis:12%">システム</div>
       <div class="seg-md" data-k="md" style="flex-basis:10%">CLAUDE.md</div>
       <div class="seg-desc" data-k="desc" style="flex-basis:5%">説明</div>
-      <div class="seg-tool" data-k="tool" style="flex-basis:5%">MCP ツール名</div>
+      <div class="seg-tool" data-k="tool" style="flex-basis:5%">MCP</div>
       <div class="seg-body" data-k="body" style="flex-basis:14%">SKILL.md 本文</div>
       <div class="seg-file" data-k="file" style="flex-basis:10%">同梱ファイル</div>
       <div class="seg-chat" data-k="chat" style="flex-basis:35%">会話・作業</div>
     </div>
-    <div class="ctx-legend">
+    <div class="legend">
       <span><i class="seg-sys"></i>システムプロンプト</span>
       <span><i class="seg-md"></i>指示ファイル（常駐）</span>
       <span><i class="seg-desc"></i>Skill の name / description（常駐・小さい）</span>
@@ -299,7 +295,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     </div>
     <p class="ctx-note" id="note"></p>
   </div>
-  <p class="muted">CLAUDE.md は<b>毎回</b>全文が場所を取る。MCP は初期状態ではツール名だけが常駐し、詳しい定義は使うときに読み込まれる（ツール検索）。それでもサーバーを入れすぎると一覧が増え、CLAUDE.md を長くすると肝心の作業に使える領域が減って指示も埋もれる。</p>
+  <p class="note">CLAUDE.md は<b>毎回</b>全文が場所を取る。MCP は初期状態ではツール名だけが常駐し、詳しい定義は使うときに読み込まれる（ツール検索）。それでもサーバーを入れすぎると一覧が増え、CLAUDE.md を長くすると肝心の作業に使える領域が減って指示も埋もれる。</p>
 
   <h2 id="claude-md">CLAUDE.md</h2>
   <div class="grid2">
@@ -330,7 +326,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div><span class="sc">サブフォルダ</span><span><code>packages/api/CLAUDE.md</code> など — そのフォルダのファイルを扱うときに追加で読まれる</span></div>
     <div><span class="sc">取り込み</span><span>本文中の <code>@docs/style.md</code> のような記述で、別ファイルを読み込める</span></div>
   </div>
-  <p class="muted"><code>/init</code> でリポジトリを解析して雛形を作れる。生成されたものは長くなりがちなので、削る前提で使う。</p>
+  <p class="note"><code>/init</code> でリポジトリを解析して雛形を作れる。生成されたものは長くなりがちなので、削る前提で使う。</p>
 
   <h2 id="agents-md">AGENTS.md</h2>
   <div class="card">
@@ -345,7 +341,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
   </div>
   <div class="panel card" id="a1">
     <p>CLAUDE.md を置かず、AGENTS.md に一本化する。Claude Code はフォールバックで読む。</p>
-    <p class="muted">一番シンプル。ただし AGENTS.md を直接読むのは v2.1.277 以降で、v2.1.281 より前は Bedrock 経由やテレメトリ無効の環境では読まれなかった。組み込みの agents-md プラグインを無効にしたときや、アップグレード直後の最初のセッションでも読まれないことがある。</p>
+    <p class="note">一番シンプル。ただし AGENTS.md を直接読むのは v2.1.277 以降で、v2.1.281 より前は Bedrock 経由やテレメトリ無効の環境では読まれなかった。組み込みの agents-md プラグインを無効にしたときや、アップグレード直後の最初のセッションでも読まれないことがある。</p>
   </div>
   <div class="panel card" id="a2" hidden>
     <pre><code># CLAUDE.md
@@ -353,11 +349,11 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
 ## Claude Code 固有
 - サブエージェントで探索してから編集する</code></pre>
-    <p class="muted">共通部分は AGENTS.md、Claude 固有の追記だけ CLAUDE.md に書く。どの環境でも確実に読まれる。</p>
+    <p class="note">共通部分は AGENTS.md、Claude 固有の追記だけ CLAUDE.md に書く。どの環境でも確実に読まれる。</p>
   </div>
   <div class="panel card" id="a3" hidden>
     <pre><code>ln -s AGENTS.md CLAUDE.md</code></pre>
-    <p class="muted">中身は完全に同じになる。Windows では扱いに注意。</p>
+    <p class="note">中身は完全に同じになる。Windows では扱いに注意。</p>
   </div>
 
   <h3>ツールごとの指示ファイル</h3>
@@ -391,9 +387,9 @@ description: MEMO リポジトリ用の解説ページを新しく作るとき�
 
   <h3>段階的な読み込み（progressive disclosure）</h3>
   <div class="lv">
-    <div class="card"><div class="n">1</div><b>name と description</b><p class="muted">起動時に全スキル分が常駐。数行なので、何十個あっても軽い。</p></div>
-    <div class="card"><div class="n">2</div><b>SKILL.md 本文</b><p class="muted">description から「今の作業に該当する」と判断されたときに読む。</p></div>
-    <div class="card"><div class="n">3</div><b>同梱ファイル</b><p class="muted">本文の指示で必要になったものだけ読む・実行する。</p></div>
+    <div class="card"><div class="n">1</div><b>name と description</b><p class="note">起動時に全スキル分が常駐。数行なので、何十個あっても軽い。</p></div>
+    <div class="card"><div class="n">2</div><b>SKILL.md 本文</b><p class="note">description から「今の作業に該当する」と判断されたときに読む。</p></div>
+    <div class="card"><div class="n">3</div><b>同梱ファイル</b><p class="note">本文の指示で必要になったものだけ読む・実行する。</p></div>
   </div>
   <p><b>description がスイッチ</b>になっている。「何をするか」だけでなく「<b>どんな頼まれ方をしたときに使うか</b>」まで書かないと、呼ばれるべき場面で呼ばれない。</p>
 
@@ -424,16 +420,17 @@ description: MEMO リポジトリ用の解説ページを新しく作るとき�
       <tr><td>調査などを本筋のコンテキストから切り離して任せたい</td><td>サブエージェント</td></tr>
     </table>
   </div>
-  <p class="muted">指示ファイルや Skill は「お願い」なので、守られないこともある。絶対に実行させたいことは Hooks のような仕組み側で強制する。</p>
+  <p class="note">指示ファイルや Skill は「お願い」なので、守られないこともある。絶対に実行させたいことは Hooks のような仕組み側で強制する。</p>
 
   <h2 id="myths">よくある誤解</h2>
   <details class="myth"><summary>CLAUDE.md に全部書いておけば安心</summary><p>長いほど毎回のコンテキストを圧迫し、大事な指示が埋もれる。特定作業の手順は Skill に逃がし、CLAUDE.md は短く保つ。</p></details>
   <details class="myth"><summary>Skill と MCP は同じようなもの</summary><p>Skill は<b>知識と手順</b>、MCP は<b>外部への接続</b>。「Slack のツールを使って、チームの週報フォーマットで投稿する」なら、両方を組み合わせる。</p></details>
   <details class="myth"><summary>AGENTS.md は OpenAI 製品専用</summary><p>ツール中立の共通フォーマットで、Claude Code も CLAUDE.md がなければ読む。</p></details>
 
-
-  <h2>関連メモ</h2>
-  <p class="related"><a href="mcp.html">← MCP の仕組み</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="mcp.html">MCP の仕組み</a> — 外部ツールをつなぐ側の仕組み（ツール名がコンテキストに載る理由）</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

@@ -67,7 +67,7 @@ ul.dots, ol.dots { margin: 6px 0 6px 1.3em; }
 ul.dots li, ol.dots li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -93,7 +93,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .label {
   display: inline-block;
   font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
@@ -113,7 +112,6 @@ pre code { background: none; padding: 0; word-break: normal; }
 }
 .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .panel[hidden] { display: none; }
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -140,7 +138,6 @@ input[type="text"] {
 }
 .ok { color: var(--c-ok); font-weight: 700; }
 .ng { color: var(--c-ng); font-weight: 700; }
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
 footer#memo-backlink {
   margin-top: 40px;
   padding-top: 16px;
@@ -225,7 +222,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <div class="ar">←</div>
       <div class="col"><b>プロセス B（仮想）</b><div class="pg pb">コード</div><div class="pg sh">libc</div><div class="pg pb">ヒープ</div><div class="pg pb">スタック</div></div>
     </div>
-    <p class="muted">仮想アドレスでは連続していても、物理メモリ上ではばらばらでよい。共有ライブラリ（緑）は両方から同じ物理ページを指す（図では B のコードは省略）。</p>
+    <p class="note">仮想アドレスでは連続していても、物理メモリ上ではばらばらでよい。共有ライブラリ（緑）は両方から同じ物理ページを指す（図では B のコードは省略）。</p>
   </div>
 
   <h2 id="translate">アドレス変換 — ページ番号とオフセット</h2>
@@ -241,7 +238,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
       <button class="btn" id="op-x" aria-pressed="false">実行</button>
     </div>
     <div class="ctrl">
-      <span class="muted">例:</span>
+      <span class="note">例:</span>
       <button class="btn ex" data-a="0x1040" data-o="x">コードを実行</button>
       <button class="btn ex" data-a="0x1040" data-o="w">コードに書く</button>
       <button class="btn ex" data-a="0x0000" data-o="r">NULL を読む</button>
@@ -280,7 +277,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div class="card"><span class="label" style="color:var(--c-d)">MAJOR</span><p><b>ディスクから読み込む。</b>スワップに追い出したページ、まだ読んでいないファイルを mmap した部分など。SSD でも数十〜数百マイクロ秒、HDD ならミリ秒単位かかる。メモリアクセスの数百倍以上遅いので、多発すると極端に遅くなる。</p></div>
     <div class="card"><span class="label" style="color:var(--c-ng)">INVALID</span><p><b>そもそも使えないアドレス・許可のない操作。</b>NULL 参照、範囲外、読み取り専用への書き込み。カーネルはプロセスに <code>SIGSEGV</code> を送る（Segmentation fault）。</p></div>
   </div>
-  <p class="muted">アドレス 0 付近をわざとどのページにも割り当てないのは、NULL ポインタを使ったバグをその場で落とすため。</p>
+  <p class="note">アドレス 0 付近をわざとどのページにも割り当てないのは、NULL ポインタを使ったバグをその場で落とすため。</p>
 
   <h2 id="overcommit">確保と使用は別 — オーバーコミットと OOM killer</h2>
   <p><code>malloc(1GB)</code> や <code>mmap</code> で確保しても、カーネルは「この範囲を使ってよい」と記録するだけで、物理メモリはまだ割り当てない。書き込んで初めてページ単位で割り当てる（<b>デマンドページング</b>）。</p>
@@ -332,7 +329,14 @@ cat /sys/kernel/mm/transparent_hugepage/enabled</code></pre>
   <details class="myth"><summary>malloc が NULL を返さなければ、そのメモリは確保できている</summary><p>Linux の既定では、物理メモリは触ったときに割り当てる。足りなければ、その時点で OOM killer に殺されうる。</p></details>
   <details class="myth"><summary>free の free 列が少ないのはメモリ不足</summary><p>空きはページキャッシュに使われ、必要になれば手放される。見るのは available とスワップの出し入れ。</p></details>
 
-  <p class="related">関連: <a href="memory-management.html">メモリ管理</a><a href="os-scheduling.html">OS のスケジューリング</a><a href="linux-process.html">Linux プロセスの仕組み</a><a href="docker.html">Docker 動作原理</a><a href="redis-valkey.html">Redis と Valkey</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="memory-management.html">メモリ管理</a> — プロセスの中のスタックとヒープ</li>
+    <li><a href="os-scheduling.html">OS のスケジューリング</a> — 切り替えと TLB のコスト</li>
+    <li><a href="linux-process.html">Linux プロセスの仕組み</a> — fork と copy-on-write</li>
+    <li><a href="docker.html">Docker 動作原理</a> — cgroups のメモリ制限と OOM</li>
+    <li><a href="redis-valkey.html">Redis と Valkey の仕組み</a> — BGSAVE の fork で起きる copy-on-write</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>

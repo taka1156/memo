@@ -67,7 +67,7 @@ ul.dots { margin: 6px 0 6px 1.3em; }
 ul.dots li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -93,7 +93,6 @@ pre code { background: none; padding: 0; word-break: normal; }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .grid2 > .card + .card, .grid3 > .card + .card { margin-top: 0; }
@@ -130,7 +129,6 @@ pre code { background: none; padding: 0; word-break: normal; }
 .box small { display: block; font: 400 0.7rem 'Noto Sans JP', sans-serif; color: var(--fg-2); }
 .arrow { color: var(--fg-2); font-weight: 700; }
 
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -165,7 +163,6 @@ svg.fig text { font-family: 'Noto Sans JP', system-ui, sans-serif; fill: var(--f
 svg.fig .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 svg.fig .sub { fill: var(--fg-2); }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -244,7 +241,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <tr><td>リンク</td><td>1〜2</td><td>MAC アドレス</td><td>Ethernet, Wi-Fi, ARP</td><td>スイッチ</td></tr>
   </table>
   </div>
-  <p class="muted">IP アドレスは最終目的地まで変わらない（NAT を除く）が、MAC アドレスはルーターを越えるたびに「次の機器」のものに付け替えられる。</p>
+  <p class="note">IP アドレスは最終目的地まで変わらない（NAT を除く）が、MAC アドレスはルーターを越えるたびに「次の機器」のものに付け替えられる。</p>
 
   <h2 id="cidr">IP アドレスと CIDR</h2>
   <p>IPv4 アドレスは 32 bit。<code>192.168.1.10/24</code> の <b>/24</b> は「先頭 24 bit がネットワーク部（同じネットワークの印）、残り 8 bit がホスト部」という意味。</p>
@@ -288,7 +285,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
 default via 192.168.1.1 dev eth0          <span class="cm"># どこにも当てはまらなければルーターへ</span>
 192.168.1.0/24 dev eth0 proto kernel      <span class="cm"># この範囲は直接</span>
 172.17.0.0/16 dev docker0                 <span class="cm"># Docker のブリッジネットワーク</span></code></pre>
-  <p class="muted">複数の行に当てはまるときは、<b>より長いプレフィックス（範囲が狭い方）</b>が優先される（最長一致）。</p>
+  <p class="note">複数の行に当てはまるときは、<b>より長いプレフィックス（範囲が狭い方）</b>が優先される（最長一致）。</p>
 
   <h2 id="nat">NAT — プライベートからインターネットへ</h2>
   <p>ルーターは、内側からの通信の送信元を自分のグローバル IP とポートに書き換え、その対応を表に覚えておく。返事が来たら表を見て内側へ戻す。</p>
@@ -304,7 +301,7 @@ default via 192.168.1.1 dev eth0          <span class="cm"># どこにも当て�
     <li><code>docker run -p 8080:80</code> も同じ仕組み（ホストの 8080 宛てをコンテナの 80 に転送）。</li>
     <li>クラウドのプライベートサブネットから外に出るための「NAT ゲートウェイ」も、これをマネージドにしたもの。</li>
   </ul>
-  <p class="related"><a href="docker.html">Docker 動作原理</a><a href="docker-files.html">Dockerfile と Compose</a></p>
+  <p class="note">コンテナのネットワーク名前空間は <a href="docker.html">Docker 動作原理</a>、<code>ports</code> の書き方は <a href="docker-files.html">Dockerfile と Compose の書き方</a> を参照。</p>
 
   <h2 id="ports">ポートとソケット</h2>
   <p>IP アドレスでホストまで届いたあと、<b>ポート番号（0〜65535）</b>でどのプロセスに渡すかが決まる。1 本の通信は <b>送信元 IP・送信元ポート・宛先 IP・宛先ポート・プロトコル</b>の 5 つ組で識別される。</p>
@@ -364,7 +361,7 @@ default via 192.168.1.1 dev eth0          <span class="cm"># どこにも当て�
     <li>パケットが 1 つ失われると、後ろのデータは届いていてもアプリに渡せず待たされる（<b>Head-of-Line ブロッキング</b>）。QUIC はストリームごとに独立させてこれを避ける。</li>
     <li>閉じた側には TIME_WAIT 状態がしばらく残る。短い接続を大量に作るとポートが足りなくなる原因になる。</li>
   </ul>
-  <p class="related"><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a><a href="realtime-comm.html">リアルタイム通信</a></p>
+  <p class="note">詳しくは <a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a>・<a href="realtime-comm.html">リアルタイム通信</a> を参照。</p>
 
   <h2 id="debug">つながらないときの切り分け</h2>
   <p>下の層から順に確かめると早い。</p>

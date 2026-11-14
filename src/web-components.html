@@ -18,7 +18,6 @@
   --line: #dde1e8;
   --accent: #0077b6;
   --chip: #eceff4;
-  --c-key: #4d7c0f; /* 図の強調（このページの色と見分けやすい色） */
   --c-a: #7c3aed;
   --c-b: #be185d;
 }
@@ -31,7 +30,6 @@
     --line: #1e2d3d;
     --accent: #00d4ff;
     --chip: #18222f;
-    --c-key: #a3e635; /* 図の強調（このページの色と見分けやすい色） */
     --c-a: #c4b5fd;
     --c-b: #f472b6;
   }
@@ -66,7 +64,7 @@ ul.list, ol.list { margin: 6px 0 6px 1.3em; }
 ul.list li, ol.list li { margin: 3px 0; }
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.85em;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
@@ -92,8 +90,6 @@ pre .cm { color: var(--fg-2); }
   padding: 16px 18px;
 }
 .card + .card { margin-top: 12px; }
-.muted { color: var(--fg-2); font-size: 0.85rem; }
-.note { color: var(--fg-2); font-size: 0.82rem; margin-top: 8px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .label {
@@ -136,7 +132,6 @@ pre .cm { color: var(--fg-2); }
 /* ステップ */
 
 /* 表 */
-.table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 520px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
@@ -154,10 +149,6 @@ td:first-child { font-weight: 700; white-space: nowrap; }
 details.card summary { cursor: pointer; font-weight: 700; }
 details.card[open] summary { margin-bottom: 8px; }
 
-.related a { display: inline-block; margin: 4px 10px 4px 0; }
-.sources { font-size: 0.78rem; color: var(--fg-2); }
-.sources li { margin-left: 1.2em; }
-.sources a { color: var(--accent); word-break: break-all; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -349,10 +340,16 @@ customElements.define('copy-snippet', CopySnippet);   <span class="cm">// 名前
   </div>
   <p class="note">アプリ全体を Web Components だけで作ることもできるが、状態管理やルーティングは自分で選んで組む必要がある。Lit は小さなリアクティブ基盤とテンプレートを足して、この部分の手間を減らすライブラリ。</p>
 
-  <h2>関連メモ</h2>
-  <p class="related"><a href="component-design.html">コンポーネント設計</a><a href="design-tokens.html">デザイントークン</a><a href="a11y-checklist.html">アクセシビリティ</a><a href="reactivity-models.html">UI 更新の3つの方式</a><a href="rendering-strategies.html">レンダリング戦略</a></p>
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="component-design.html">コンポーネント設計</a> — 部品の分け方と Headless UI</li>
+    <li><a href="design-tokens.html">デザイントークン</a> — Shadow DOM を越えて効く CSS 変数</li>
+    <li><a href="a11y-checklist.html">アクセシビリティ チェックリスト</a> — 中にネイティブ要素を置く理由と、キーボード・ARIA の確認項目</li>
+    <li><a href="reactivity-models.html">UI 更新の3つの方式</a> — フレームワークの更新方式との違い</li>
+    <li><a href="rendering-strategies.html">レンダリング戦略</a> — SSR とハイドレーションの仕組み（Declarative Shadow DOM はその Web Components 版）</li>
+  </ul>
 
-  <h2>参考</h2>
+  <h2 id="sources">参考</h2>
   <ul class="sources">
     <li><a href="https://developer.mozilla.org/ja/docs/Web/API/Web_components">MDN: ウェブコンポーネント</a></li>
     <li><a href="https://html.spec.whatwg.org/multipage/custom-elements.html">HTML Standard: Custom elements</a></li>
@@ -390,7 +387,7 @@ class CopySnippet extends HTMLElement {
         .w { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 6px 6px 6px 12px; }
         code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font: 0.8rem 'JetBrains Mono', ui-monospace, monospace; }
         code::before { content: '$ '; color: var(--fg-2); }
-        button { flex: none; border: 0; border-radius: 6px; padding: 5px 12px; cursor: pointer; font: 600 0.75rem 'JetBrains Mono', ui-monospace, monospace; background: var(--snippet-accent, var(--c-key)); color: var(--bg); }
+        button { flex: none; border: 0; border-radius: 6px; padding: 5px 12px; cursor: pointer; font: 600 0.75rem 'JetBrains Mono', ui-monospace, monospace; background: var(--snippet-accent, var(--c-hl)); color: var(--bg); }
         .msg { flex: none; font-size: 0.72rem; color: var(--c-ok); min-width: 0; }
         .msg.ng { color: var(--c-ng); }
       </style>
