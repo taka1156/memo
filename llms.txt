@@ -6,6 +6,7 @@
 
 - [スキーマ設計とマイグレーション](https://memo.taka1156.site/md/schema-migration.md): 正規化と制約でテーブルを設計し、ORM とマイグレーションツールで変更を管理し、拡張→移行→縮小の手順とロックの少ない DDL で、サービスを止めずにスキーマを変える方法を図解する。（データベース, バックエンド, 設計 / 2026-11-14）
 - [NewSQL・分散 SQL](https://memo.taka1156.site/md/newsql.md): SQL とトランザクションを残したまま台を増やす 2 つの方式（Vitess のようなシャーディング層と、Spanner・CockroachDB・TiDB のような分散 SQL）を、キー範囲の分割・合意による複製・時刻の扱いから図解する。（データベース, 設計 / 2026-11-14）
+- [URL から応答まで：層で見るネットワーク](https://memo.taka1156.site/md/network-layers.md): URL を開いてから応答が返るまでに通る DNS・IP・TCP・TLS・CDN・LB などが、どの層で何をしているかを層の地図と流れでたどり、症状から疑う層を引ける。（ネットワーク, インフラ / 2026-11-14）
 - [bubblewrap と socat](https://memo.taka1156.site/md/bubblewrap-socat.md): bwrap でコマンドを閉じ込め、socat とプロキシで許可した通信だけ通す仕組みを、AI エージェントでの使われ方とともに図解。（Linux, セキュリティ, AI / 2026-11-14）
 - [Durable Objects と celld](https://memo.taka1156.site/md/durable-objects.md): 名前で呼べる「状態を持つ 1 つの実体」Durable Objects の仕組み・ライフサイクル・設計と課金のツボ、自前のサーバーで同じコードを動かす celld の仕組みと違いを図解。（インフラ, バックエンド, 設計 / 2026-11-13）
 - [実装起因の脆弱性（リクエストと権限）](https://memo.taka1156.site/md/request-vulnerabilities.md): CSRF・セッションハイジャック・SSRF・オープンリダイレクト・認可不備（IDOR）を、攻撃の流れと NG/OK コードで図解。Cookie の自動送信・サーバーからの URL 取得・権限の確認漏れを突く攻撃の防ぎ方。（セキュリティ, バックエンド / 2026-11-08）

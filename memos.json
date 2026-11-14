@@ -23,6 +23,17 @@
   "quizzes": 5
  },
  {
+  "file": "network-layers.html",
+  "title": "URL から応答まで：層で見るネットワーク",
+  "desc": "URL を開いてから応答が返るまでに通る DNS・IP・TCP・TLS・CDN・LB などが、どの層で何をしているかを層の地図と流れでたどり、症状から疑う層を引ける。",
+  "tags": [
+   "ネットワーク",
+   "インフラ"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 4
+ },
+ {
   "file": "bubblewrap-socat.html",
   "title": "bubblewrap と socat",
   "desc": "bwrap でコマンドを閉じ込め、socat とプロキシで許可した通信だけ通す仕組みを、AI エージェントでの使われ方とともに図解。",
