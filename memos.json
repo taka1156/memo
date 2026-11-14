@@ -1,5 +1,39 @@
 [
  {
+  "file": "schema-migration.html",
+  "title": "スキーマ設計とマイグレーション",
+  "desc": "正規化と制約でテーブルを設計し、ORM とマイグレーションツールで変更を管理し、拡張→移行→縮小の手順とロックの少ない DDL で、サービスを止めずにスキーマを変える方法を図解する。",
+  "tags": [
+   "データベース",
+   "バックエンド",
+   "設計"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 5
+ },
+ {
+  "file": "newsql.html",
+  "title": "NewSQL・分散 SQL",
+  "desc": "SQL とトランザクションを残したまま台を増やす 2 つの方式（Vitess のようなシャーディング層と、Spanner・CockroachDB・TiDB のような分散 SQL）を、キー範囲の分割・合意による複製・時刻の扱いから図解する。",
+  "tags": [
+   "データベース",
+   "設計"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 5
+ },
+ {
+  "file": "network-overview.html",
+  "title": "ネットワーク全体像",
+  "desc": "URL を開いてから応答が返るまでに通る層と部品（DNS・IP・TCP・TLS・CDN・LB・キャッシュ）を 1 枚でたどり、症状からどのメモを読めばよいかを引ける入口ページ。",
+  "tags": [
+   "ネットワーク",
+   "インフラ"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 4
+ },
+ {
   "file": "bubblewrap-socat.html",
   "title": "bubblewrap と socat",
   "desc": "bwrap でコマンドを閉じ込め、socat とプロキシで許可した通信だけ通す仕組みを、AI エージェントでの使われ方とともに図解。",

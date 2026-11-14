@@ -1,0 +1,205 @@
+<!-- scripts/memo.py build が自動生成。手で編集しない -->
+
+# ネットワーク全体像
+
+> URL を開いてから応答が返るまでに通る層と部品（DNS・IP・TCP・TLS・CDN・LB・キャッシュ）を 1 枚でたどり、症状からどのメモを読めばよいかを引ける入口ページ。
+
+- URL: https://memo.taka1156.site/network-overview.html
+- タグ: ネットワーク, インフラ
+- 日付: 2026-11-14
+
+---
+
+URL を開いてから応答が返るまで — ネットワーク系メモの入口
+
+**ざっくり言うと**
+
+- Web の通信は「名前を引く → 経路で運ぶ → つなぐ → 暗号化 → 頼む」を、層ごとに分担した部品の積み重ねで実現している。
+- 各層は自分のヘッダーだけを見る。IP はホストまで、ポートはプロセスまで、HTTP は中身を扱い、CDN や LB はどの層まで見るかで役割が決まる。
+- 遅い・つながらないときは、症状からどの層の問題かを当て、通信が進む順に確かめると早い。
+
+## 層の地図: 誰が何を担当するか
+
+TCP/IP は 4 つの層に分かれる。送る側は上から順にヘッダーを付け足し、受け取る側は下から剥がす（ [TCP/IP とネットワーク基礎](https://memo.taka1156.site/md/tcp-ip.md) ）。途中にある機器や「箱」は、 **どの層のヘッダーまで読むか** で、できることが決まる。
+
+層 宛先の単位・主な仕組み その層まで読む箱
+
+**アプリケーション** OSI の 5〜7
+
+URL・ホスト名・パス
+
+HTTP/1.1・2・3 DNS TLS WebSocket SSH
+
+**CDN** ・ **L7 ロードバランサ** ・ **リバースプロキシ** ・WAF
+
+パスやヘッダーで振り分け・キャッシュ・書き換えができるのは、この層まで読む箱だけ。HTTPS の中身を読むには、そこで TLS を終端する必要がある。
+
+**トランスポート** OSI の 4
+
+ポート番号（どのプロセスか）
+
+TCP UDP QUIC（UDP の上）
+
+**L4 ロードバランサ** ・ファイアウォール（ポート単位）
+
+IP アドレスとポートの組で接続を見分ける。中身は見ないので、暗号を解かずに速く流せる。
+
+**インターネット** OSI の 3
+
+IP アドレス（どのホストか）
+
+IPv4 / IPv6 ICMP ルーティング
+
+**ルーター** ・ **NAT**
+
+宛先 IP だけを見て「次は誰に渡すか」を決め、バケツリレーで運ぶ。NAT は送信元の IP（とポート）を付け替える。
+
+**リンク** OSI の 1〜2
+
+MAC アドレス（隣の機器）
+
+Ethernet Wi-Fi ARP
+
+**スイッチ** ・アクセスポイント
+
+同じネットワークの中だけで届ける。MAC アドレスはルーターを越えるたびに付け替わる。
+
+TLS は TCP の上・HTTP の下で動く（HTTP/3 では QUIC に組み込まれる）ので、どちらの層とも言い切りにくい。このページでは、TCP/IP の 4 層の分け方に合わせてアプリケーション層に入れている。
+
+## URL を開いてから応答が返るまで
+
+HTTPS のページを開くときに通る段を順に並べた。各段を開くと、何が起きるか・詰まるとどう見えるか・詳しいメモが出る。場面を選ぶと、その場面で **省略される段** が薄くなり、応答が返る段に印が付く。
+
+アプリ トランスポート インターネット ブラウザ内
+
+初めて開く
+
+2 回目（キャッシュが新しい）
+
+同じサイトで次のリクエスト
+
+CDN にキャッシュがある
+
+**初めて開く** DNS のキャッシュも接続もなく、CDN にも応答がない場合。すべての段を通り、アプリが作った応答が返る。往復（RTT）の回数がいちばん多い。
+
+**2 回目（キャッシュが新しい）** 前回の応答に `Cache-Control: max-age` が付いていて、まだ期限内なら、ブラウザは手元のキャッシュを使う。ネットワークには一切出ない。
+
+**同じサイトで次のリクエスト** 同じオリジンへの接続が残っていれば、DNS・TCP・TLS をやり直さずに同じ接続で送る（HTTP/1.1 の keep-alive、HTTP/2・3 の多重化）。ここでは CDN にキャッシュがない場合を示している。
+
+**CDN にキャッシュがある** DNS が CDN の IP を返し、近くのエッジにつながる。そのエッジが応答を持っていれば、そこで返す。ロードバランサ・リバースプロキシ・アプリには届かない。
+
+1. **ブラウザのキャッシュを見る** 期限内の応答が手元にあれば、ここで終わり 省略 ブラウザ内
+   何が起きる
+   前回の応答に付いていた `Cache-Control` を見て、新しい（fresh）ならそのまま使う。古ければ `ETag` などを付けて「変わった？」と聞きに行く（再検証。変わっていなければ 304 が返る）。
+   詰まると
+   更新したのに古い画面が出る。DevTools の Network で「(disk cache)」「(memory cache)」と出ていればキャッシュから来ている。
+   詳しく
+   [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) ・ [ブラウザのストレージ](https://memo.taka1156.site/md/browser-storage.md)
+2. **DNS で名前を IP に変える** OS・リゾルバのキャッシュを先に見る 省略 アプリ
+   何が起きる
+   OS がフルリゾルバ（ISP や 1.1.1.1 など）に問い合わせ、リゾルバがルート → TLD → 権威サーバーとたどって A / AAAA レコードを返す。答えは TTL の間キャッシュされる。CDN を使っていれば、近いエッジにつながる IP が返る（地域ごとに違う IP を返す方式と、同じ IP を返して経路で近いエッジに届けるエニーキャスト方式がある）。
+   詰まると
+   `Could not resolve host` ・ `NXDOMAIN` 。DNS を切り替えた直後は、古い IP がキャッシュに残っていて別のサーバーに行くこともある。
+   詳しく
+   [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md)
+3. **経路を決めて運ぶ** 自分のネットワーク → ゲートウェイ → NAT → インターネット 省略 インターネット
+   何が起きる
+   宛先 IP が自分のサブネットの外なら、デフォルトゲートウェイ（家庭ならルーター）に渡す。家庭のルーターは NAT で送信元をプライベート IP からグローバル IP に付け替え、その先はルーター同士のバケツリレーで運ばれる。
+   詰まると
+   タイムアウト（返事が来ない）。ルートがない、途中のファイアウォールで落とされている、など。 `traceroute` でどこまで届くかを見る。
+   詳しく
+   [TCP/IP とネットワーク基礎](https://memo.taka1156.site/md/tcp-ip.md) （ルーティング・NAT・CIDR）
+4. **TCP でつなぐ** 3 ウェイハンドシェイクで 1 往復 省略 トランスポート
+   何が起きる
+   SYN → SYN-ACK → ACK で接続を作る（宛先は 443 番ポート）。HTTP/3 は TCP の代わりに UDP 上の QUIC を使い、この段と次の TLS を 1 往復にまとめる。
+   詰まると
+   `Connection refused` は、たいてい相手のホストには届いたが、そのポートで待ち受けているプロセスがない。タイムアウトなら前の段（経路・ファイアウォール）を疑う。
+   詳しく
+   [TCP/IP とネットワーク基礎](https://memo.taka1156.site/md/tcp-ip.md) （ポート・TCP と UDP）
+5. **TLS で相手を確かめて暗号化** TLS 1.3 なら 1 往復 省略 アプリ
+   何が起きる
+   サーバーが証明書を見せ、ブラウザは「信頼できる CA がそのドメインに対して発行したか」を確かめる。同時に鍵を交換し、以降の通信を暗号化する。CDN を使っていれば、TLS を終端するのはエッジ。
+   詰まると
+   証明書エラー（期限切れ・ドメイン名の不一致・中間証明書の入れ忘れ）。 `curl -v` で TLS のやり取りが見える。
+   詳しく
+   [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) ・ [暗号の基礎](https://memo.taka1156.site/md/crypto-basics.md)
+6. **CDN のエッジ** キャッシュがあればここで返す 省略 アプリ
+   何が起きる
+   エッジが HTTP リクエストを読み、キャッシュしてよい応答を持っていれば返す（HIT）。なければオリジン（自分のサーバー）に取りに行く（MISS）。WAF や DDoS 対策もここで効く。
+   詰まると
+   古い内容が返り続ける・ユーザーごとの内容が他人に見える（キャッシュの設定ミス）。応答ヘッダーの `Age` や `cf-cache-status` ・ `x-cache` で HIT かを見る。
+   詳しく
+   [ロードバランサ・リバースプロキシ・CDN](https://memo.taka1156.site/md/lb-proxy-cdn.md) ・ [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md)
+7. **ロードバランサ → リバースプロキシ** 台を選び、パスで振り分ける 省略 L4 L7
+   何が起きる
+   ロードバランサが生きている台を選び、リバースプロキシが `/api` は API、 `/` はフロント、のように振り分ける。アプリから見た送信元はプロキシになるので、本当の IP は `X-Forwarded-For` などで伝える。
+   詰まると
+   `502 Bad Gateway` （後ろから不正な応答・接続できない）、 `504 Gateway Timeout` （後ろの応答が遅すぎる）。どちらも箱の後ろ側の問題。
+   詳しく
+   [ロードバランサ・リバースプロキシ・CDN](https://memo.taka1156.site/md/lb-proxy-cdn.md)
+8. **アプリが応答を作って返す** 応答は同じ道を戻り、途中でキャッシュされる 省略 アプリ
+   何が起きる
+   アプリが DB などを使って応答を作る。応答の `Cache-Control` に従って、CDN とブラウザがそれぞれ保存する。チャットや通知のように、サーバーから押し出し続けたいときは、SSE や WebSocket で接続を開いたままにする。
+   詰まると
+   5xx・遅い応答。ブラウザだけで失敗して `curl` では成功するなら、CORS などブラウザ側の制限を疑う。
+   詳しく
+   [リアルタイム通信](https://memo.taka1156.site/md/realtime-comm.md) ・ [CORS と同一オリジンポリシー](https://memo.taka1156.site/md/cors-sop.md) ・ [Core Web Vitals](https://memo.taka1156.site/md/web-performance.md)
+
+実際の往復回数（TLS 1.2 と 1.3、HTTP/3 の 0-RTT など）は [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) 、CDN から先の箱の動きは [リクエストの通り道](https://memo.taka1156.site/md/lb-proxy-cdn.md) で、図とシミュレーションで追える。
+
+（元のページで操作できます → https://memo.taka1156.site/network-overview.html#journey）
+
+## 症状から引く
+
+エラーの出方で、どの層・どの段の問題かがおおよそ分かる。迷ったら、通信が進む順に（名前 → 経路 → ポート → TLS → HTTP）確かめる。
+
+| 症状 | 疑う段 | まず打つコマンド | 詳しく |
+| --- | --- | --- | --- |
+| `Could not resolve host` | DNS 名前が引けない | `dig example.com` | [DNS](https://memo.taka1156.site/md/web-protocols.md) |
+| タイムアウト（返事が来ない） | 経路 ルート・ファイアウォール・相手が落ちている | `traceroute 宛先` `nc -zv 宛先 443` | [TCP/IP](https://memo.taka1156.site/md/tcp-ip.md) |
+| `Connection refused` | ポート 届いたが待ち受けがない | `ss -tlnp` （サーバー側） | [TCP/IP](https://memo.taka1156.site/md/tcp-ip.md) |
+| 証明書のエラー | TLS 期限・名前・中間証明書 | `curl -v https://…` | [TLS](https://memo.taka1156.site/md/web-protocols.md) |
+| `502` / `504` | プロキシの後ろ アプリが落ちている・遅い | プロキシと LB のログ、ヘルスチェック | [LB・プロキシ](https://memo.taka1156.site/md/lb-proxy-cdn.md) |
+| 更新したのに古い内容 | キャッシュ ブラウザか CDN | `curl -I https://…` で `Cache-Control` ・ `Age` | [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) |
+| ブラウザだけ失敗（curl は成功） | ブラウザ CORS・混在コンテンツなど | DevTools の Console と Network | [CORS](https://memo.taka1156.site/md/cors-sop.md) |
+| つなぎっぱなしの接続が途中で切れる | 途中の箱 LB・プロキシのアイドルタイムアウト | 箱のタイムアウト設定、ハートビート | [リアルタイム通信](https://memo.taka1156.site/md/realtime-comm.md) |
+
+`ping` が通らなくても、ICMP を止めているだけでサーバーは動いていることがある。つながるかはポートで確かめる（ `nc` ・ `curl` ）。
+
+## ネットワーク系メモの地図
+
+下の層から読むと積み上がるが、困っている段のメモから読んでもよい。
+
+**TCP/IP とネットワーク基礎**
+
+層とカプセル化、IP と CIDR、ルーティング、NAT、ポート、TCP と UDP、切り分けのコマンド
+
+リンク インターネット トランスポート
+
+**HTTP/1.1・2・3 と TLS・DNS**
+
+最初のバイトまでの往復回数、DNS のレコード、多重化とヘッドオブライン・ブロッキング、QUIC、TLS 1.3
+
+トランスポート アプリ
+
+**ロードバランサ・リバースプロキシ・CDN**
+
+途中の箱の役割分担、L4 と L7、振り分けとヘルスチェック、TLS 終端と送信元 IP
+
+L4 L7
+
+**HTTP キャッシュ**
+
+Cache-Control の読み方、鮮度と再検証、ブラウザと CDN の二段構え、用途別の設定
+
+アプリ
+
+**リアルタイム通信**
+
+ポーリング・SSE・WebSocket・WebTransport・WebRTC の比較と、台数を増やすときの問題
+
+アプリ
+
+となりの分野のメモ:
+
+[CORS と同一オリジンポリシー](https://memo.taka1156.site/md/cors-sop.md) [セキュリティヘッダー](https://memo.taka1156.site/md/security-headers.md) [暗号の基礎](https://memo.taka1156.site/md/crypto-basics.md) [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) [Core Web Vitals](https://memo.taka1156.site/md/web-performance.md)
