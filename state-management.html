@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>状態管理の比較</title>
+<meta name="description" content="フロントエンドの状態を、サーバー状態・URL・フォーム・ローカル・グローバルに分けて置き場所を決める考え方と、TanStack Query のキャッシュと無効化、Context・Zustand・Jotai・Redux Toolkit・Signals の違い、派生状態を持たない書き方を図解する">
+<meta name="memo:tags" content="フロントエンド, JavaScript, 設計">
+<meta name="memo:date" content="2026-11-14">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 20px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+ul.plain { padding-left: 1.2em; }
+ul.plain li { margin: 4px 0; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+
+/* 種類のカード */
+.kinds { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.kinds .card { padding: 10px 12px; }
+.kinds b { display: block; font-size: 0.9rem; }
+.kinds .ex { font-size: 0.76rem; color: var(--fg-2); }
+.kinds p { font-size: 0.8rem; margin: 6px 0 0; }
+.kinds .put { display: block; margin-top: 6px; font: 600 0.74rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+
+/* 置き場所を決める質問 */
+.quiz-flow .q { font-weight: 700; font-size: 0.92rem; }
+.quiz-flow .ans { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.quiz-flow button.choice {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 6px 14px; font: 600 0.82rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer;
+}
+.quiz-flow button.choice:hover { border-color: var(--accent); }
+.quiz-flow .step[hidden], .quiz-flow .result[hidden] { display: none; }
+.quiz-flow .result { border-left: 3px solid var(--c-ok); padding: 6px 12px; margin-top: 4px; }
+.quiz-flow .result b { font-size: 0.95rem; }
+.quiz-flow .trail { font-size: 0.76rem; color: var(--fg-2); margin-bottom: 8px; min-height: 1.2em; }
+.quiz-flow .reset { margin-top: 10px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-size: 0.78rem; }
+.t-lib { min-width: 640px; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="状態管理の比較">
+<meta property="og:description" content="フロントエンドの状態を、サーバー状態・URL・フォーム・ローカル・グローバルに分けて置き場所を決める考え方と、TanStack Query のキャッシュと無効化、Context・Zustand・Jotai・Redux Toolkit・Signals の違い、派生状態を持たない書き方を図解する">
+<meta property="og:url" content="https://memo.taka1156.site/state-management.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>状態管理の比較</h1>
+  <p class="subtitle">データをどこに置くか ── サーバー状態とクライアント状態、TanStack Query・Zustand・Signals</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>状態は「サーバーにある元データの写し」「URL」「フォームの入力中の値」「画面の中だけの値」「アプリ全体で共有する値」に分けると置き場所が決まる。</li>
+      <li>サーバーの写しはデータ取得ライブラリのキャッシュに任せ、古くなったら取り直す・更新したら無効化する、を宣言するだけにする。</li>
+      <li>アプリ全体で共有するクライアントの値は意外と少なく、そこだけを Zustand・Jotai・Signals などで持ち、計算で出せる値は持たない。</li>
+    </ul>
+  </div>
+
+  <p>「値が変わったら画面をどう描き直すか」（仮想 DOM・シグナル・コンパイラ）は <a href="reactivity-models.html">UI 更新の3つの方式</a> にあります。このメモはその手前の、<b>どのデータをどこに置き、誰が持ち主になるか</b>の話です。</p>
+
+  <h2 id="kinds">状態の 5 つの種類</h2>
+  <div class="kinds">
+    <div class="card"><b>サーバー状態</b><span class="ex">商品一覧、ログイン中のユーザー情報</span><p>本当の持ち主はサーバー。手元にあるのは写しで、ほかの人の操作でいつの間にか古くなる。</p><span class="put">→ データ取得ライブラリのキャッシュ</span></div>
+    <div class="card"><b>URL の状態</b><span class="ex">検索語、絞り込み、ページ番号、開いているタブ</span><p>リンクで共有したい、再読み込みや「戻る」で元に戻したい値。</p><span class="put">→ パス・クエリ文字列</span></div>
+    <div class="card"><b>フォームの状態</b><span class="ex">入力中の値、エラー、送信中かどうか</span><p>送信するまでの一時的な下書き。確定したらサーバー状態になる。</p><span class="put">→ フォームの仕組み・ライブラリ</span></div>
+    <div class="card"><b>ローカルの UI 状態</b><span class="ex">開いているメニュー、ホバー中の行</span><p>1 つの部品とその子だけが使う。ほかから知る必要がない。</p><span class="put">→ 部品の中（useState・ref など）</span></div>
+    <div class="card"><b>グローバルなクライアント状態</b><span class="ex">テーマ、未保存の下書き、カートの中身（未ログイン時）</span><p>サーバーにはなく、離れた複数の部品が読み書きする。</p><span class="put">→ ストア（Zustand・Jotai・Signals など）</span></div>
+  </div>
+  <p>かつては「とりあえず全部グローバルストアへ」という設計がよくありました。サーバーの写しやフォームの値まで 1 か所に集めると、取り直しのタイミングやローディング表示を全部手で書くことになり、ストアが肥大化します。種類ごとに専用の置き場所を使うと、<b>本当にストアに置くべき値はかなり少なく</b>なります。</p>
+
+  <h3 id="decide">置き場所を決める</h3>
+  <div class="card quiz-flow" id="flow">
+    <div class="trail" id="flow-trail"></div>
+    <div class="step" data-step="1">
+      <p class="q">その値の本当の持ち主はサーバー？（DB にある、API から取ってくる）</p>
+      <div class="ans"><button class="choice" data-go="r-server" data-label="サーバーが持ち主">はい</button><button class="choice" data-go="2" data-label="サーバーにはない">いいえ</button></div>
+    </div>
+    <div class="step" data-step="2" hidden>
+      <p class="q">リンクで共有したり、「戻る」で元に戻したりしたい？</p>
+      <div class="ans"><button class="choice" data-go="r-url" data-label="共有・戻るで戻したい">はい</button><button class="choice" data-go="3" data-label="共有しない">いいえ</button></div>
+    </div>
+    <div class="step" data-step="3" hidden>
+      <p class="q">送信前の入力中の値？</p>
+      <div class="ans"><button class="choice" data-go="r-form" data-label="入力中の値">はい</button><button class="choice" data-go="4" data-label="入力ではない">いいえ</button></div>
+    </div>
+    <div class="step" data-step="4" hidden>
+      <p class="q">ほかの値から計算で出せる？（合計、絞り込んだ一覧など）</p>
+      <div class="ans"><button class="choice" data-go="r-derived" data-label="計算で出せる">はい</button><button class="choice" data-go="5" data-label="計算では出せない">いいえ</button></div>
+    </div>
+    <div class="step" data-step="5" hidden>
+      <p class="q">使うのは 1 つの部品とその子だけ？</p>
+      <div class="ans"><button class="choice" data-go="r-local" data-label="1 つの部品だけ">はい</button><button class="choice" data-go="r-global" data-label="離れた部品も使う">いいえ</button></div>
+    </div>
+    <div class="result" id="r-server" hidden><b>サーバー状態</b><p>TanStack Query・SWR などのキャッシュに任せる。ストアにコピーしない。</p></div>
+    <div class="result" id="r-url" hidden><b>URL の状態</b><p>クエリ文字列に置き、ルーターから読む。再読み込みしても残り、リンクで共有できる。</p></div>
+    <div class="result" id="r-form" hidden><b>フォームの状態</b><p>フォームの仕組み（React の form action、React Hook Form など）に持たせる。</p></div>
+    <div class="result" id="r-derived" hidden><b>状態にしない</b><p>元の値から描画のたびに計算する（重ければメモ化）。持つと元の値とずれる。</p></div>
+    <div class="result" id="r-local" hidden><b>ローカルの UI 状態</b><p>その部品の中に持つ。必要になったら、そのとき親へ持ち上げる。</p></div>
+    <div class="result" id="r-global" hidden><b>グローバルなクライアント状態</b><p>ストアに置く。ここに来る値が少ないほど、設計がうまくいっている。</p></div>
+    <button class="choice reset" id="flow-reset" type="button">最初から</button>
+  </div>
+
+  <h2 id="server">サーバー状態：キャッシュに任せる</h2>
+  <p>サーバーの写しを手で管理すると、「いつ取り直すか」「ローディング中・エラーの表示」「同じデータを 2 つの部品が同時に頼んだら」「更新したらどこを取り直すか」を全部自分で書くことになります。TanStack Query（旧 React Query）や SWR は、これを<b>キー付きのキャッシュ</b>として引き受けます。</p>
+<pre><code><span class="cm">// 読む: キーが同じなら、どの部品から呼んでも 1 回の通信とキャッシュを共有する</span>
+const { data, isPending, error } = useQuery({
+  queryKey: ['todos', { done: false }],
+  queryFn: () => fetchTodos({ done: false }),
+  staleTime: 30_000,          <span class="cm">// 30 秒は新しいとみなして取り直さない（既定は 0）</span>
+});
+
+<span class="cm">// 書く: 成功したら関係するキーを無効化 → 表示中なら裏で取り直す</span>
+const qc = useQueryClient();
+const add = useMutation({
+  mutationFn: createTodo,
+  onSuccess: () => qc.invalidateQueries({ queryKey: ['todos'] }),
+});</code></pre>
+  <ol class="steps">
+    <li><b>キャッシュにあればすぐ表示</b>古いかもしれないが、まず手元の写しを見せる。</li>
+    <li><b>古ければ裏で取り直す</b>TanStack Query v5 の既定では取得した直後から「古い」扱いで、部品が表示されたとき・タブに戻ったとき・ネットにつながり直したときに取り直す。<code>staleTime</code> を延ばすと、その間は取り直さない。</li>
+    <li><b>使われなくなったら捨てる</b>どの部品も使わなくなったキャッシュは、既定で 5 分後（<code>gcTime</code>）に消える。</li>
+    <li><b>更新したら無効化する</b>どのデータが変わったかをキーで宣言するだけで、表示中のものは自動で取り直される。</li>
+  </ol>
+  <p>この「古い写しを見せつつ裏で取り直す」は、HTTP の <code>stale-while-revalidate</code> と同じ考え方です（<a href="http-cache.html">HTTP キャッシュ</a>）。押した瞬間に画面へ反映したいときは、成功を待たずにキャッシュを書き換え、失敗したら戻す<b>楽観的更新</b>（optimistic update）も使えます。</p>
+  <p class="note">Next.js などのサーバーコンポーネントで描く画面では、データの取得をサーバー側で済ませるので、クライアントにキャッシュを持たない構成も増えている。どちらでも「サーバーの写しをクライアントのストアにコピーしない」点は同じ（<a href="rendering-strategies.html">レンダリング戦略</a>）。</p>
+
+  <h2 id="client">グローバルなクライアント状態：道具の違い</h2>
+  <div class="table-wrap">
+    <table class="t-lib">
+      <thead><tr><th>道具</th><th>形</th><th>描き直される範囲</th><th>向いている場面</th></tr></thead>
+      <tbody>
+        <tr><td>React Context</td><td>値を木の下へ配る仕組み（状態管理ではなく受け渡し）</td><td>その Context を使う部品すべて</td><td>めったに変わらない値（テーマ、言語、ログイン中のユーザー）</td></tr>
+        <tr><td>Zustand</td><td>1 つのストア＋必要な部分だけを選んで読む関数（セレクター）</td><td>選んだ値が変わった部品だけ</td><td>小さく始めたい。Provider なしでどこからでも使える</td></tr>
+        <tr><td>Jotai</td><td>小さな値（atom）を組み合わせる。atom から atom を計算できる</td><td>その atom を読む部品だけ</td><td>独立した値がたくさんあり、依存関係で組み立てたい</td></tr>
+        <tr><td>Redux Toolkit</td><td>1 つのストア、変更は「アクション」を送って reducer で行う</td><td>セレクターで選んだ値が変わった部品</td><td>変更の履歴を追いたい（DevTools）、大人数で決まりごとをそろえたい</td></tr>
+        <tr><td>Signals</td><td>値そのものが読んだ場所を覚えていて、変わると直接そこを更新する</td><td>その値を読んでいる箇所だけ（部品単位でもない）</td><td>Solid・Vue・Svelte 5・Angular では標準の書き方（Preact は公式パッケージ @preact/signals で使える）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Context でよくある落とし穴は、<b>変わりやすい値を大きなオブジェクトにまとめて配る</b>ことです。その一部だけが変わっても、Context を使う部品が全部描き直されます。変わりやすい値は分けるか、セレクターのある道具に移します。</p>
+<pre><code><span class="cm">// Zustand: 選んだ値（count）が変わったときだけ、この部品が描き直される</span>
+const useCart = create((set) => ({
+  items: [],
+  add: (item) => set((s) => ({ items: [...s.items, item] })),
+}));
+const count = useCart((s) => s.items.length);</code></pre>
+  <p class="note">Signals を JavaScript の標準に入れる提案（TC39 Signals）があるが、2026 年 11 月の時点ではまだ Stage 1 で、仕様は固まっていない。今使うなら各フレームワークやライブラリのシグナルを使う。</p>
+
+  <h2 id="url">URL の状態：共有と「戻る」</h2>
+  <p>検索結果の絞り込みやページ番号をストアに置くと、リンクを送っても相手には同じ画面が出ず、再読み込みで消え、ブラウザの「戻る」も効きません。<code>?q=react&amp;page=2&amp;sort=new</code> のように URL に置けば、全部が自然に解決します。</p>
+  <ul class="plain">
+    <li>持ち主は URL なので、部品は URL から読み、変えるときは URL を書き換える（コピーをストアに持たない）。</li>
+    <li>入力のたびに書き換えると履歴が埋まるので、検索語は確定時に、または履歴を置き換える形（replace）で書く。</li>
+    <li>URL の値は文字列なので、数値や配列は読むときに検証・変換する（フォームの入力と同じく、外から来る値として扱う）。</li>
+  </ul>
+
+  <h2 id="derived">計算で出せる値は持たない</h2>
+  <p>いちばんよくある不具合の 1 つが、<b>元の値から計算できるものを別の状態として持ち、同期を取ろうとする</b>ことです。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="d-bad">同期する（ずれる）</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="d-good">計算する</button>
+  </div>
+  <div class="panel card" id="d-bad">
+<pre><code>const [items, setItems] = useState([]);
+const [total, setTotal] = useState(0);
+useEffect(() => {                 <span class="cm">// items が変わったら total を合わせる</span>
+  setTotal(items.reduce((s, i) => s + i.price, 0));
+}, [items]);</code></pre>
+    <p>描画が 1 回余分に走り、その間は合計が古い値のまま見えます。<code>setItems</code> を呼ぶ場所が増えると、合わせ忘れも起きます。</p>
+  </div>
+  <div class="panel card" id="d-good" hidden>
+<pre><code>const [items, setItems] = useState([]);
+const total = items.reduce((s, i) => s + i.price, 0);   <span class="cm">// 描画のたびに計算</span>
+<span class="cm">// 重い計算なら useMemo、シグナルなら computed / derived で同じことができる</span></code></pre>
+    <p>持ち主は <code>items</code> だけになり、ずれようがありません。「この値を状態にする前に、ほかの値から出せないか」を毎回確かめます。</p>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>ある程度の規模になったら Redux のようなグローバルストアが必須</summary><p>サーバー状態をデータ取得ライブラリに、URL・フォーム・ローカルの値をそれぞれの場所に置くと、グローバルに残る値は少ない。必要になってから小さなストアを足せば足りることが多い。</p></details>
+  <details class="myth"><summary>React Context を使えば状態管理ライブラリは要らない</summary><p>Context は値を下へ配る仕組みで、変わったときは使う部品が全部描き直される。めったに変わらない値には十分だが、頻繁に変わる値を広く配るならセレクターのある道具のほうが向く。</p></details>
+  <details class="myth"><summary>API から取ったデータはストアにコピーしておくと扱いやすい</summary><p>コピーした瞬間から、サーバーとのずれを自分で管理することになる。取り直し・無効化・ローディング表示はデータ取得ライブラリに任せ、コピーしない。</p></details>
+  <details class="myth"><summary>Signals は JavaScript の標準になった</summary><p>標準化の提案はまだ Stage 1 で、仕様は固まっていない。今使われているのは、各フレームワークが自分で実装したシグナル。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="reactivity-models.html">UI 更新の3つの方式</a> — 値が変わったあと画面をどう描き直すか（仮想 DOM・シグナル・コンパイラ）</li>
+    <li><a href="react-vs-solid.html">React と Solid</a>・<a href="vue-vs-svelte.html">Vue と Svelte</a> — 各フレームワークの状態の持ち方</li>
+    <li><a href="http-cache.html">HTTP キャッシュ</a> — stale-while-revalidate の元の考え方</li>
+    <li><a href="cache-strategies.html">キャッシュ戦略</a> — 更新したら無効化する、というキャッシュの基本</li>
+    <li><a href="rendering-strategies.html">レンダリング戦略</a> — サーバー側でデータを取って描く構成</li>
+    <li><a href="browser-storage.html">ブラウザのストレージ</a> — 再読み込み後も残したい値の置き場所</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://tanstack.com/query/v5/docs/framework/react/guides/important-defaults">TanStack Query: Important Defaults</a></li>
+    <li><a href="https://react.dev/learn/choosing-the-state-structure">React: Choosing the State Structure</a></li>
+    <li><a href="https://react.dev/learn/you-might-not-need-an-effect">React: You Might Not Need an Effect</a></li>
+    <li><a href="https://github.com/tc39/proposal-signals">TC39: Proposal Signals</a></li>
+  </ul>
+  <p class="note">2026 年 11 月に確認。</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+/* 置き場所を決める質問: 表示の出し入れだけ（文章は HTML 側） */
+(() => {
+  const flow = document.getElementById('flow');
+  const trail = document.getElementById('flow-trail');
+  const path = [];
+  const show = (id) => {
+    flow.querySelectorAll('.step, .result').forEach(el => { el.hidden = true; });
+    const el = /^\d+$/.test(id) ? flow.querySelector(`.step[data-step="${id}"]`) : document.getElementById(id);
+    el.hidden = false;
+    trail.textContent = path.join(' → ');
+  };
+  flow.addEventListener('click', e => {
+    const b = e.target.closest('button.choice[data-go]');
+    if (!b) return;
+    path.push(b.dataset.label);
+    show(b.dataset.go);
+  });
+  document.getElementById('flow-reset').addEventListener('click', () => { path.length = 0; show('1'); });
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "商品一覧を API から取得して、グローバルストアにコピーして使っている。ほかの人が商品を更新しても画面が古いままになりがち。根本的な直し方は？",
+    "choices": ["ストアを 1 分ごとに丸ごと取り直すタイマーを入れる", "サーバー状態としてデータ取得ライブラリのキャッシュに任せ、更新時はキーで無効化する", "ストアを Context に置き換える"],
+    "answer": 1,
+    "explain": "サーバーの写しは古くなる前提で、取り直しと無効化を宣言的に扱うのが TanStack Query などの役割。コピーするとずれを自分で管理することになる。",
+    "ref": "#server"
+  },
+  {
+    "q": "検索画面の絞り込み条件を、リンクで同僚に共有したり「戻る」で前の条件に戻したりしたい。置き場所として合うのは？",
+    "choices": ["URL のクエリ文字列", "Zustand のストア", "部品の中の useState"],
+    "answer": 0,
+    "explain": "URL に置けば、リンクの共有・再読み込み・ブラウザの戻るが自然に効く。ストアや部品の中に置くと、リンクで共有できず「戻る」でも元に戻らない（保存の仕組みを足さなければ再読み込みでも消える）。",
+    "ref": "#url"
+  },
+  {
+    "q": "カートの items から合計金額 total を出したい。不具合が起きにくい書き方は？",
+    "choices": ["total を別の状態にして、items が変わるたびに useEffect で合わせる", "total をグローバルストアに置き、items を変える場所ごとに更新する", "total は状態にせず、描画のたびに items から計算する"],
+    "answer": 2,
+    "explain": "計算で出せる値を別に持つと、同期のずれと余分な描画が起きる。持ち主を items だけにすれば、ずれようがない。",
+    "ref": "#derived"
+  },
+  {
+    "q": "テーマ・ユーザー情報・頻繁に変わるマウス座標を 1 つの Context にまとめて配ったら、画面全体が重くなった。原因は？",
+    "choices": ["Context は値を 1 つしか持てないから", "座標が変わるたびに、その Context を使う部品が全部描き直されるから", "Context はサーバーでしか動かないから"],
+    "answer": 1,
+    "explain": "Context の値が変わると使う部品すべてが描き直される。変わりやすい値は分けるか、セレクターで必要な部分だけ読める道具に移す。",
+    "ref": "#client"
+  },
+  {
+    "q": "TanStack Query v5 で、設定をほとんど変えない参照データを、タブに戻るたびに取り直させたくない。まず調整するのは？",
+    "choices": ["gcTime を 0 にする", "queryKey を毎回ランダムにする", "staleTime を延ばす"],
+    "answer": 2,
+    "explain": "既定の staleTime は 0 で、取得した直後から古い扱いになり、表示時やタブに戻ったときに取り直す。staleTime の間は新しいとみなして取り直さない。",
+    "ref": "#server"
+  }
+]
+</script>
+</body>
+</html>

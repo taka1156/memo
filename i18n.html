@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>i18n と書式</title>
+<meta name="description" content="Web アプリの国際化（i18n）で、数値・通貨・日付・相対時間・並び・期間の書式を Intl API に任せる方法（ロケールを切り替えて試せる）、文をつなげず複数形を扱うメッセージの書き方、RTL（右から左）の言語への対応、ロケールの決め方と翻訳の流れを図解する">
+<meta name="memo:tags" content="フロントエンド, JavaScript">
+<meta name="memo:date" content="2026-11-14">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 20px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+ul.plain { padding-left: 1.2em; }
+ul.plain li { margin: 4px 0; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+
+/* Intl を試す */
+.play .ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.play label { font-weight: 700; font-size: 0.85rem; }
+.play select {
+  font: 600 0.85rem 'JetBrains Mono', ui-monospace, monospace; padding: 6px 10px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+}
+.play select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.play td.out { font: 0.86rem 'JetBrains Mono', ui-monospace, monospace; overflow-wrap: anywhere; }
+.play td code { white-space: normal; overflow-wrap: anywhere; }
+
+/* 複数形のカテゴリ */
+.plural { display: grid; gap: 6px; }
+.prow { display: grid; grid-template-columns: 6.5em 1fr; gap: 10px; align-items: center; }
+.prow .lang { font-weight: 700; font-size: 0.84rem; }
+.prow .cats { display: flex; flex-wrap: wrap; gap: 4px; }
+.prow .cats span { font: 600 0.74rem 'JetBrains Mono', ui-monospace, monospace; border: 1px solid var(--line); background: var(--chip); border-radius: 4px; padding: 1px 7px; }
+@media (max-width: 420px) { .prow { grid-template-columns: 1fr; gap: 2px; } }
+
+/* RTL の見本 */
+.rtl-demo { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.rtl-demo .card { padding: 10px 12px; }
+.rtl-demo .cap { font: 600 0.74rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); display: block; margin-bottom: 6px; }
+.msg-row { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+.msg-row .ico { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--chip); display: grid; place-items: center; font-size: 0.8rem; }
+.msg-row .body { flex: 1; min-width: 0; font-size: 0.85rem; }
+.msg-row .arrow { flex: none; color: var(--fg-2); font-weight: 700; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-size: 0.78rem; }
+.t-play { min-width: 0; }
+.t-play td:last-child { font-size: 0.78rem; color: var(--fg-2); }
+.t-play td:first-child { white-space: nowrap; }
+.t-play td.out { width: 42%; }
+.t-logical { min-width: 480px; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="i18n と書式">
+<meta property="og:description" content="Web アプリの国際化（i18n）で、数値・通貨・日付・相対時間・並び・期間の書式を Intl API に任せる方法（ロケールを切り替えて試せる）、文をつなげず複数形を扱うメッセージの書き方、RTL（右から左）の言語への対応、ロケールの決め方と翻訳の流れを図解する">
+<meta property="og:url" content="https://memo.taka1156.site/i18n.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>i18n と書式</h1>
+  <p class="subtitle">Intl API・複数形・RTL ── 言語と地域が変わっても崩れない画面の作り方</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>国際化（i18n）は、言語や地域ごとに文言・書式・向きを差し替えられるように作っておくことで、翻訳そのもの（l10n）とは別の仕事。</li>
+      <li>数値・通貨・日付・相対時間・並びの書式は自分で組み立てず Intl API に任せ、文は部品をつながずに複数形ごと 1 つのメッセージとして訳す。</li>
+      <li>アラビア語などの右から左の言語に備えて、CSS は左右ではなく「始まり・終わり」で書き、ロケールは URL か設定で明示的に選べるようにする。</li>
+    </ul>
+  </div>
+
+  <h2 id="terms">言葉の整理</h2>
+  <ul class="plain">
+    <li><b>i18n（国際化、internationalization）</b>: どの言語・地域にも対応できるように作っておくこと。文言をコードから外に出す、書式をロケール任せにする、など。開発者の仕事。</li>
+    <li><b>l10n（地域化、localization）</b>: 特定の言語・地域向けに、実際に翻訳し、画像や例を合わせること。翻訳者の仕事が中心。</li>
+    <li><b>ロケール（locale）</b>: 言語と地域などの組み合わせ。<code>ja-JP</code>（日本の日本語）、<code>en-US</code>・<code>en-GB</code>（同じ英語でも日付の順が違う）、<code>zh-Hant-TW</code>（台湾の繁体字中国語）のように、BCP 47 という形式で書く。</li>
+  </ul>
+  <p>文字そのものの扱い（UTF-8、文字数の数え方、正規化）は <a href="unicode-text.html">文字コードと Unicode</a>、時刻とタイムゾーンは <a href="datetime-timezone.html">日付・時刻・タイムゾーン</a> にあります。このメモはその上に乗る、<b>書式と文言と向き</b>の話です。</p>
+
+  <h2 id="intl">書式は Intl に任せる</h2>
+  <p>「3 桁ごとにカンマ」「年/月/日」のような書式は国ごとに違い、自分で組み立てると必ずどこかで間違えます。JavaScript の <code>Intl</code> は、ブラウザや Node.js に入っている各国の書式データ（Unicode の CLDR）を使って整形します。下でロケールを切り替えてみてください（表示はこのブラウザが実際に計算した結果です）。</p>
+  <div class="card play">
+    <div class="ctl">
+      <label for="loc">ロケール</label>
+      <select id="loc">
+        <option value="ja-JP">ja-JP 日本語（日本）</option>
+        <option value="en-US">en-US 英語（米国）</option>
+        <option value="de-DE">de-DE ドイツ語（ドイツ）</option>
+        <option value="fr-FR">fr-FR フランス語（フランス）</option>
+        <option value="hi-IN">hi-IN ヒンディー語（インド）</option>
+        <option value="ar-EG">ar-EG アラビア語（エジプト）</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table class="t-play">
+        <thead><tr><th>用途</th><th>結果</th><th>書き方</th></tr></thead>
+        <tbody>
+          <tr><td>数値</td><td class="out" data-k="num"></td><td><code>NumberFormat(loc)</code> に 1234567.891</td></tr>
+          <tr><td>通貨</td><td class="out" data-k="cur"></td><td><code>{ style: 'currency', currency: 'EUR' }</code></td></tr>
+          <tr><td>短い数</td><td class="out" data-k="compact"></td><td><code>{ notation: 'compact' }</code> に 1234567</td></tr>
+          <tr><td>日付</td><td class="out" data-k="date"></td><td><code>DateTimeFormat(loc, { dateStyle: 'long' })</code></td></tr>
+          <tr><td>相対時間</td><td class="out" data-k="rel"></td><td><code>RelativeTimeFormat(loc, { numeric: 'auto' })</code> に −1 日</td></tr>
+          <tr><td>並び</td><td class="out" data-k="list"></td><td><code>ListFormat(loc)</code> にりんご・みかん・ぶどう（各言語の語）</td></tr>
+          <tr><td>期間</td><td class="out" data-k="dur"></td><td><code>DurationFormat(loc, { style: 'long' })</code> に 1 時間 30 分</td></tr>
+          <tr><td>複数形</td><td class="out" data-k="plural"></td><td><code>PluralRules(loc).select(n)</code> の n = 0, 1, 2, 5</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">日付は 2026 年 11 月 14 日で固定して計算している。ヒンディー語やアラビア語では、桁の区切り方や数字の字形まで変わることがある。<code>Intl.DurationFormat</code> は 2025 年 3 月に主要ブラウザがそろって対応した新しい API で、古いブラウザでは結果が「（未対応）」になる。</p>
+  </div>
+  <ul class="plain">
+    <li><b>整形用のオブジェクトは使い回す</b>: <code>new Intl.NumberFormat(...)</code> を作るのには手間がかかるので、表の行ごとに作らず、ロケールが決まったら 1 回作って <code>format()</code> を何度も呼ぶ。</li>
+    <li><b>並べ替えも Intl で</b>: 名前の一覧を並べるときは <code>Intl.Collator</code> を使う。文字コード順の <code>sort()</code> では、アクセント付きの文字や大文字・小文字が言語の感覚と違う順に並ぶ。</li>
+    <li><b>サーバーと結果をそろえる</b>: サーバー側で描画して、ブラウザで同じ値を描き直すと、両者の書式データの版の違いで表示がずれることがある。ロケールとタイムゾーンを両側で明示して渡す。</li>
+  </ul>
+
+  <h2 id="messages">文はつなげない：メッセージと複数形</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="m-bad">つなげる（壊れる）</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-good">1 つのメッセージにする</button>
+  </div>
+  <div class="panel card" id="m-bad">
+<pre><code>t('you_have') + ' ' + count + ' ' + (count === 1 ? t('item') : t('items'))
+<span class="cm">// 英語: "You have 3 items"  日本語にすると語順が合わない: 「あなたは持っています 3 個」</span></code></pre>
+    <p>語順は言語ごとに違い、部品に分けた時点で翻訳者は正しい文を作れません。「1 か、それ以外か」で単数・複数を分ける書き方も、英語でしか通用しません。</p>
+  </div>
+  <div class="panel card" id="m-good" hidden>
+<pre><code><span class="cm"># en.json（ICU MessageFormat の書き方）</span>
+"cart": "You have {count, plural, =0 {no items} one {# item} other {# items}}"
+<span class="cm"># ja.json</span>
+"cart": "{count, plural, =0 {商品はありません} other {商品が # 個あります}}"
+
+t('cart', { count: 3 })</code></pre>
+    <p>文全体を 1 つの訳文にし、変わる部分（数、名前、日付）は穴として渡します。語順も複数形の分け方も、訳す人が言語に合わせて決められます。FormatJS（react-intl）や Lingui はこの形をそのまま扱え、i18next も i18next-icu プラグインを入れれば同じ書き方が使えます。</p>
+  </div>
+  <h3 id="plural">複数形の分け方は言語ごとに違う</h3>
+  <p>Unicode の CLDR は、複数形を最大 6 つのカテゴリ（zero・one・two・few・many・other）で表します。どのカテゴリを使うかは言語ごとに決まっています。</p>
+  <div class="card plural">
+    <div class="prow"><span class="lang">日本語</span><span class="cats"><span>other</span></span></div>
+    <div class="prow"><span class="lang">英語</span><span class="cats"><span>one</span><span>other</span></span></div>
+    <div class="prow"><span class="lang">ロシア語</span><span class="cats"><span>one</span><span>few</span><span>many</span><span>other</span></span></div>
+    <div class="prow"><span class="lang">アラビア語</span><span class="cats"><span>zero</span><span>one</span><span>two</span><span>few</span><span>many</span><span>other</span></span></div>
+    <p class="note">日本語は数によって語形が変わらないので other だけ。ロシア語では 1・21・31 が one、2〜4・22〜24 が few になるなど、末尾の数字で決まる。「1st・2nd・3rd」のような順序の言い方は、<code>new Intl.PluralRules('en', { type: 'ordinal' })</code> でカテゴリ（one・two・few・other）を引き、カテゴリごとに接尾辞を当てはめて作る。</p>
+  </div>
+  <ul class="plain">
+    <li><b>訳す人に文脈を渡す</b>: 「Open」が動詞（開く）か形容詞（営業中）かは英語だけでは分からない。キーに説明を付けるか、スクリーンショットを添える。</li>
+    <li><b>性別や敬語で変わる言語もある</b>: ICU MessageFormat の <code>select</code> で、値に応じて訳文を切り替えられる。</li>
+  </ul>
+
+  <h2 id="rtl">右から左の言語（RTL）</h2>
+  <p>アラビア語・ヘブライ語・ペルシア語などは右から左に書きます。<code>&lt;html lang="ar" dir="rtl"&gt;</code> にすると、文字だけでなくレイアウト全体の向きが反転するのが自然です。そのとき、CSS を「左・右」で書いていると反転しません。</p>
+  <div class="rtl-demo">
+    <div class="card"><span class="cap">dir="ltr"（日本語・英語）</span><div class="msg-row" dir="ltr"><span class="ico">A</span><span class="body">新着メッセージ 3 件</span><span class="arrow">›</span></div></div>
+    <div class="card"><span class="cap">dir="rtl"（アラビア語）</span><div class="msg-row" dir="rtl" lang="ar"><span class="ico">A</span><span class="body">٣ رسائل جديدة</span><span class="arrow">›</span></div></div>
+  </div>
+  <p class="note">同じ HTML と CSS で、dir を変えただけで、アイコン・本文・矢印の並びが反転している（flex と、左右を使わない書き方のおかげ）。「›」のように Unicode で鏡像の文字が決まっている記号は、RTL では自動で向きが変わる。SVG のアイコンなど自動で反転しないものは、<code>:dir(rtl)</code> などで個別に反転させる。</p>
+  <div class="table-wrap">
+    <table class="t-logical">
+      <thead><tr><th>左右で書く（反転しない）</th><th>論理プロパティで書く（反転する）</th></tr></thead>
+      <tbody>
+        <tr><td><code>margin-left</code>・<code>padding-right</code></td><td><code>margin-inline-start</code>・<code>padding-inline-end</code></td></tr>
+        <tr><td><code>left: 0</code>・<code>right: 0</code></td><td><code>inset-inline-start: 0</code>・<code>inset-inline-end: 0</code></td></tr>
+        <tr><td><code>text-align: left</code></td><td><code>text-align: start</code></td></tr>
+        <tr><td><code>border-left</code></td><td><code>border-inline-start</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul class="plain">
+    <li><b>利用者が入力した文には <code>dir="auto"</code></b>: 名前やコメントなど、どの言語が来るか分からない欄は、ブラウザに中身から向きを判断させる。文の中に埋め込むなら <code>&lt;bdi&gt;</code> で囲むと、周りの文の向きを乱さない。</li>
+    <li><b>反転させないもの</b>: 電話番号、コード、グラフの時間軸、再生ボタンなどは、RTL でもそのままのことが多い。</li>
+    <li>flex や grid の並びは、<code>dir</code> に従って自動で反転する（<a href="css-layout.html">CSS レイアウト</a>）。</li>
+  </ul>
+
+  <h2 id="locale">ロケールの決め方</h2>
+  <ol class="steps">
+    <li><b>URL に入れる</b><code>/ja/products</code> や <code>ja.example.com</code> のように、URL ごとに言語を決める。検索エンジンが言語ごとのページを区別でき、リンクを共有しても同じ言語で開く。</li>
+    <li><b>最初の 1 回は Accept-Language で推測する</b>ブラウザが送る優先言語を見て、トップページから案内する。押し付けず、切り替えの導線を必ず置く。</li>
+    <li><b>選んだら覚えておく</b>ログインしていればユーザー設定に、していなければ Cookie に保存する。</li>
+    <li><b>HTML の lang を合わせる</b><code>&lt;html lang="ja"&gt;</code> は、読み上げの発音、漢字の字形（日本語と中国語で同じ文字の形が違う）、ハイフネーションに効く。</li>
+  </ol>
+  <p class="note">IP アドレスの国から言語を決めない。旅行者、海外に住む人、複数の言語を話す国（スイス・カナダ・インドなど）で外れる。言語・書式の地域・タイムゾーン・通貨は、それぞれ別の設定として持つ。</p>
+
+  <h2 id="layout">文言の長さとレイアウト</h2>
+  <ul class="plain">
+    <li><b>訳すと長くなる</b>: 英語の短いラベルは、ドイツ語やフランス語に訳すと長くなりやすい。ボタンやタブの幅を文言に合わせて固定しない。</li>
+    <li><b>画像に文字を入れない</b>: 訳すたびに画像を作り直すことになる。文字は HTML で重ねる。</li>
+    <li><b>疑似ローカライズ（pseudo-localization）で先に確かめる</b>: 「Ŝàvé Çĥàñĝéš」のように文字を変えて 3〜4 割長くした仮の訳で画面を見ると、訳し忘れ（文字がそのまま残る所）とはみ出しを、翻訳の前に見つけられる。</li>
+    <li><b>フォント</b>: 言語ごとに必要な文字が違う。Web フォントを使うなら、対応する文字の範囲を確かめ、なければシステムフォントに落ちるように並べる。</li>
+  </ul>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>言語は国で決まるので、国を選んでもらえば足りる</summary><p>同じ国でも複数の言語が使われ、同じ言語でも国で書式が違う（en-US と en-GB で日付の順が逆）。言語と地域は別に持ち、BCP 47 のロケールで表す。</p></details>
+  <details class="myth"><summary>複数形は「1 か、それ以外か」で分ければよい</summary><p>英語ではそうだが、日本語は分けず、ロシア語は 4 つ、アラビア語は 6 つに分ける。分け方は言語ごとに CLDR の規則があるので、PluralRules や MessageFormat に任せる。</p></details>
+  <details class="myth"><summary>訳した部品をつなげれば、どの言語の文も作れる</summary><p>語順や助詞の位置が言語ごとに違うので、部品のつなぎ方を翻訳者が変えられない。文全体を 1 つのメッセージにして、変わる部分を穴として渡す。</p></details>
+  <details class="myth"><summary>RTL への対応は dir="rtl" を付けるだけで終わる</summary><p>margin-left のように左右で書いた CSS や、絶対配置、向きに意味があるアイコンは反転しない。論理プロパティで書き、矢印などは個別に反転させる。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="unicode-text.html">文字コードと Unicode</a> — 文字数の数え方、書記素クラスタ、Intl.Segmenter</li>
+    <li><a href="datetime-timezone.html">日付・時刻・タイムゾーン</a> — 書式の前にある、瞬間とタイムゾーンの扱い</li>
+    <li><a href="css-layout.html">CSS レイアウト</a> — dir に従って反転する flex と grid</li>
+    <li><a href="a11y-checklist.html">アクセシビリティ チェックリスト</a> — lang 属性と読み上げ</li>
+    <li><a href="js-web-standards.html">JS と Web 標準の決まり方</a> — Intl の新しい API が標準になる流れ</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl">MDN: Intl</a></li>
+    <li><a href="https://cldr.unicode.org/index/cldr-spec/plural-rules">Unicode CLDR: Plural Rules</a></li>
+    <li><a href="https://unicode-org.github.io/icu/userguide/format_parse/messages/">ICU User Guide: Formatting Messages</a></li>
+    <li><a href="https://www.w3.org/International/questions/qa-html-dir">W3C: Structural markup and right-to-left text in HTML</a></li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_logical_properties_and_values">MDN: CSS logical properties and values</a></li>
+  </ul>
+  <p class="note">2026 年 11 月に確認。</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+/* Intl を試す: 各行の結果を、このブラウザの Intl で計算して入れるだけ */
+(() => {
+  const FRUITS = {
+    'ja-JP': ['りんご', 'みかん', 'ぶどう'], 'en-US': ['apples', 'oranges', 'grapes'],
+    'de-DE': ['Äpfel', 'Orangen', 'Trauben'], 'fr-FR': ['pommes', 'oranges', 'raisins'],
+    'hi-IN': ['सेब', 'संतरे', 'अंगूर'], 'ar-EG': ['تفاح', 'برتقال', 'عنب'],
+  };
+  const day = new Date(Date.UTC(2026, 10, 14, 3, 0));
+  const tryf = (f) => { try { return f(); } catch { return '（未対応）'; } };
+  const fill = (loc) => {
+    const out = {
+      num: tryf(() => new Intl.NumberFormat(loc).format(1234567.891)),
+      cur: tryf(() => new Intl.NumberFormat(loc, { style: 'currency', currency: 'EUR' }).format(1234.5)),
+      compact: tryf(() => new Intl.NumberFormat(loc, { notation: 'compact' }).format(1234567)),
+      date: tryf(() => new Intl.DateTimeFormat(loc, { dateStyle: 'long', timeZone: 'Asia/Tokyo' }).format(day)),
+      rel: tryf(() => new Intl.RelativeTimeFormat(loc, { numeric: 'auto' }).format(-1, 'day')),
+      list: tryf(() => new Intl.ListFormat(loc).format(FRUITS[loc])),
+      dur: tryf(() => typeof Intl.DurationFormat === 'function'
+        ? new Intl.DurationFormat(loc, { style: 'long' }).format({ hours: 1, minutes: 30 }) : '（未対応）'),
+      plural: tryf(() => { const pr = new Intl.PluralRules(loc); return [0, 1, 2, 5].map(n => `${n}→${pr.select(n)}`).join('  '); }),
+    };
+    document.querySelectorAll('.play td.out').forEach(td => {
+      td.textContent = out[td.dataset.k];
+      td.lang = loc;
+      td.dir = 'auto';
+    });
+  };
+  const sel = document.getElementById('loc');
+  sel.addEventListener('change', () => fill(sel.value));
+  fill(sel.value);
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "「You have 3 items」を日本語にも対応させたい。訳文の持ち方として合うのは？",
+    "choices": ["「you_have」「item」「items」を別々に訳し、数と一緒につなげる", "文全体を 1 つのメッセージにし、数を穴として渡して複数形の分け方も訳文側で書く", "英語の文を表示してから、ブラウザの自動翻訳に任せる"],
+    "answer": 1,
+    "explain": "語順や複数形の分け方は言語ごとに違う。部品をつなぐと翻訳者が正しい文を作れないので、文全体を ICU MessageFormat などで 1 つにする。",
+    "ref": "#messages"
+  },
+  {
+    "q": "価格を「€1,234.50」のように表示しているが、ドイツ向けでは「1.234,50 €」が自然。どう実装するのがよい？",
+    "choices": ["国ごとに区切り文字と記号の位置を表にして、自分で組み立てる", "toFixed(2) の結果のピリオドとカンマを、国ごとに置換する", "Intl.NumberFormat にロケールと通貨を渡して整形する"],
+    "answer": 2,
+    "explain": "書式は Intl が各国のデータ（CLDR）を使って整形してくれる。自分で組み立てると、区切りや記号の位置で必ずどこかを間違える。",
+    "ref": "#intl"
+  },
+  {
+    "q": "アラビア語対応で dir=\"rtl\" を付けたのに、サイドバーの余白やアイコンの位置が反転しない。よくある原因は？",
+    "choices": ["CSS を margin-left のように左右で書いていて、論理プロパティを使っていない", "html 要素に lang 属性を付けていないので、言語が判定されていない", "フォントにアラビア文字が入っておらず、代わりのフォントで描かれている"],
+    "answer": 0,
+    "explain": "左右で書いた CSS は dir を変えても反転しない。margin-inline-start などの論理プロパティなら、書字方向に合わせて反転する。",
+    "ref": "#rtl"
+  },
+  {
+    "q": "初回アクセス時の表示言語を決めたい。合うやり方は？",
+    "choices": ["IP アドレスから国を調べて、その国の公用語で表示を固定する", "Accept-Language で推測し、選んだ言語を URL に残す", "常に英語で表示して、言語の切り替えは置かずにおく"],
+    "answer": 1,
+    "explain": "IP の国は旅行者や多言語の国で外れる。優先言語で推測しつつ、利用者が選べて、その選択が URL や設定に残るようにする。",
+    "ref": "#locale"
+  },
+  {
+    "q": "数によって「1 個」「2 個」のように文言を変える処理を、ロシア語にも対応させたい。気をつけることは？",
+    "choices": ["1 とそれ以外の 2 通りに分ければ、どの言語でも足りる", "日本語と同じく、ロシア語も数によって語形は変わらない", "分け方は言語で違うので、PluralRules に任せる"],
+    "answer": 2,
+    "explain": "CLDR は複数形を最大 6 カテゴリで表し、使うカテゴリは言語で違う。ロシア語は 1・21 が one、2〜4 が few などになる。",
+    "ref": "#plural"
+  }
+]
+</script>
+</body>
+</html>

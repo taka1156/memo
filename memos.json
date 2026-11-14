@@ -12,6 +12,18 @@
   "quizzes": 5
  },
  {
+  "file": "state-management.html",
+  "title": "状態管理の比較",
+  "desc": "フロントエンドの状態を、サーバー状態・URL・フォーム・ローカル・グローバルに分けて置き場所を決める考え方と、TanStack Query のキャッシュと無効化、Context・Zustand・Jotai・Redux Toolkit・Signals の違い、派生状態を持たない書き方を図解する",
+  "tags": [
+   "フロントエンド",
+   "JavaScript",
+   "設計"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 5
+ },
+ {
   "file": "secrets-management.html",
   "title": "シークレット管理",
   "desc": "API キーやパスワードがどこから漏れるか、置き場所の段階（.env・プラットフォームの Secrets・Vault などのシークレットマネージャー・動的シークレット・OIDC で持たない）、SOPS で Git に暗号化して置く方法、ローテーションと漏れたときの手順を図解する",
@@ -79,6 +91,29 @@
   ],
   "date": "2026-11-14",
   "quizzes": 4
+ },
+ {
+  "file": "i18n.html",
+  "title": "i18n と書式",
+  "desc": "Web アプリの国際化（i18n）で、数値・通貨・日付・相対時間・並び・期間の書式を Intl API に任せる方法（ロケールを切り替えて試せる）、文をつなげず複数形を扱うメッセージの書き方、RTL（右から左）の言語への対応、ロケールの決め方と翻訳の流れを図解する",
+  "tags": [
+   "フロントエンド",
+   "JavaScript"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 5
+ },
+ {
+  "file": "forms-validation.html",
+  "title": "フォームとバリデーション",
+  "desc": "フォームの制御・非制御と React 19 の form action、ブラウザ標準の検証（制約検証 API・:user-invalid）、エラーを出すタイミング、クライアントとサーバーでスキーマを共有する方法（Zod・Standard Schema）、エラーの伝え方と送信時の注意を図解する",
+  "tags": [
+   "フロントエンド",
+   "JavaScript",
+   "バックエンド"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 5
  },
  {
   "file": "cache-strategies.html",

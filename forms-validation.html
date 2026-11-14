@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>フォームとバリデーション</title>
+<meta name="description" content="フォームの制御・非制御と React 19 の form action、ブラウザ標準の検証（制約検証 API・:user-invalid）、エラーを出すタイミング、クライアントとサーバーでスキーマを共有する方法（Zod・Standard Schema）、エラーの伝え方と送信時の注意を図解する">
+<meta name="memo:tags" content="フロントエンド, JavaScript, バックエンド">
+<meta name="memo:date" content="2026-11-14">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 20px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+ul.plain { padding-left: 1.2em; }
+ul.plain li { margin: 4px 0; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+
+/* 2 つの層 */
+.layers2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.layers2 .card { padding: 12px 14px; }
+.layers2 b { font-size: 0.92rem; }
+.layers2 .role { display: block; font: 600 0.74rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-bottom: 4px; }
+.layers2 ul { padding-left: 1.2em; font-size: 0.82rem; margin-top: 6px; }
+
+/* タイミングのデモ */
+.demo .field { display: grid; gap: 4px; max-width: 360px; }
+.demo label { font-weight: 700; font-size: 0.88rem; }
+.demo input[type="email"] {
+  font: 0.95rem 'JetBrains Mono', ui-monospace, monospace; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--fg); width: 100%;
+}
+.demo input[type="email"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.demo input[aria-invalid="true"] { border-color: var(--c-ng); border-width: 2px; }
+.demo .err { color: var(--c-ng); font-size: 0.82rem; min-height: 1.4em; }
+.demo .err[hidden] { display: block; visibility: hidden; }
+.demo .err::before { content: '✕ '; font-weight: 700; }
+.demo .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.demo button.send {
+  border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  border-radius: 8px; padding: 6px 14px; font: 600 0.82rem 'Noto Sans JP', system-ui, sans-serif; cursor: pointer;
+}
+.demo button.send:hover { border-color: var(--accent); }
+.demo .ok { color: var(--c-ok); font-size: 0.82rem; }
+.demo .ok[hidden] { display: none; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-size: 0.78rem; }
+.t-ctl { min-width: 600px; }
+.t-attr { min-width: 520px; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="フォームとバリデーション">
+<meta property="og:description" content="フォームの制御・非制御と React 19 の form action、ブラウザ標準の検証（制約検証 API・:user-invalid）、エラーを出すタイミング、クライアントとサーバーでスキーマを共有する方法（Zod・Standard Schema）、エラーの伝え方と送信時の注意を図解する">
+<meta property="og:url" content="https://memo.taka1156.site/forms-validation.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>フォームとバリデーション</h1>
+  <p class="subtitle">制御・非制御、ブラウザ標準の検証、エラーを出すタイミング、スキーマの共有</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>フォームの検証は 2 層で、ブラウザ側は「早く気づかせる」ため、サーバー側は「不正な値を入れさせない」ためにあり、サーバー側は省けない。</li>
+      <li>同じスキーマ（Zod など）を両側で使えばルールがずれず、サーバーでしか分からない誤り（重複など）は項目ごとのエラーとして返す。</li>
+      <li>エラーは入力中ではなく、欄を離れたときか送信時に出し、文字で「どこが・なぜ・どう直すか」を欄に紐づけて伝える。</li>
+    </ul>
+  </div>
+
+  <h2 id="layers">検証は 2 層、役割が違う</h2>
+  <div class="layers2">
+    <div class="card"><span class="role">ブラウザ側（クライアント）</span><b>早く気づかせる＝使いやすさのため</b><ul><li>送信前に直せるので、往復を待たなくてよい</li><li>開発者ツールや curl で簡単に飛ばせる</li><li>なくても安全性は変わらない</li></ul></div>
+    <div class="card"><span class="role">サーバー側</span><b>不正な値を入れさせない＝安全のため</b><ul><li>どこから来たリクエストでも必ず通る最後の関門</li><li>DB の重複や在庫など、サーバーでしか分からないことも確かめる</li><li>省くと、画面を通らない直接のリクエストで壊れる</li></ul></div>
+  </div>
+  <p>外から来る値はすべて信用しない、というのがサーバー側の原則です。型は実行時には消えるので、TypeScript の型があっても入力の検証は別に要ります（<a href="typescript.html">TypeScript 学習フローと仕組み</a>）。入力をそのまま SQL や HTML に入れたときの危険は <a href="web-vulnerabilities.html">実装起因の脆弱性（入力の扱い）</a> にあります。</p>
+
+  <h2 id="controlled">制御と非制御：値を誰が持つか</h2>
+  <div class="table-wrap">
+    <table class="t-ctl">
+      <thead><tr><th></th><th>制御（controlled）</th><th>非制御（uncontrolled）</th></tr></thead>
+      <tbody>
+        <tr><td>値の持ち主</td><td>JavaScript の状態。<code>value</code> と <code>onChange</code> で毎回同期する</td><td>DOM（入力欄そのもの）。送信時に <code>FormData</code> などで読む</td></tr>
+        <tr><td>描き直し</td><td>1 文字打つたびに部品が描き直される</td><td>入力中は描き直さない</td></tr>
+        <tr><td>得意なこと</td><td>入力に合わせて即座に整形する（カード番号の区切りなど）、ほかの欄と連動する</td><td>項目が多いフォーム、ファイル入力、JS が動く前でも送れるフォーム</td></tr>
+        <tr><td>例</td><td>React の <code>useState</code> ＋ <code>value</code></td><td>React 19 の form action、React Hook Form（既定は非制御）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>React 19 では <code>&lt;form action={関数}&gt;</code> に関数を渡せるようになり、送信時に <code>FormData</code> を受け取れます。送信中かどうかは <code>useActionState</code> や <code>useFormStatus</code> で読めるので、非制御のままでも送信まわりを書けます。</p>
+<pre><code>const [state, formAction, isPending] = useActionState(signup, { errors: {}, values: {} });
+
+&lt;form action={formAction}&gt;
+  &lt;input name="email" type="email" required defaultValue={state.values.email} /&gt;
+  {state.errors.email &amp;&amp; &lt;p id="email-err"&gt;{state.errors.email}&lt;/p&gt;}
+  &lt;button disabled={isPending}&gt;登録&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+  <p class="note">React 19 は、form action が例外を投げずに終わると、非制御の欄を初期値に戻す。エラーを返したときに入力を残したいなら、上のように受け取った値を state で返し、<code>defaultValue</code> に入れ直す。</p>
+
+  <h2 id="native">ブラウザ標準の検証</h2>
+  <p>HTML の属性だけで、ブラウザはかなりの検証をしてくれます。JavaScript が動く前でも働き、スマホでは入力に合ったキーボードも出ます。</p>
+  <div class="table-wrap">
+    <table class="t-attr">
+      <thead><tr><th>属性</th><th>確かめること</th><th>注意</th></tr></thead>
+      <tbody>
+        <tr><td><code>required</code></td><td>空でないか</td><td>空白だけの入力は通る（前後の空白はサーバーでも取り除く）</td></tr>
+        <tr><td><code>type="email"</code>・<code>"url"</code></td><td>大まかな形式</td><td>形式だけ。届くアドレスかは確認メールでしか分からない</td></tr>
+        <tr><td><code>minlength</code>・<code>maxlength</code></td><td>文字数</td><td>数え方は UTF-16 の単位。絵文字は 2 以上に数えられる（<a href="unicode-text.html">文字コードと Unicode</a>）</td></tr>
+        <tr><td><code>min</code>・<code>max</code>・<code>step</code></td><td>数値・日付の範囲</td><td><code>type="number"</code> は値が文字列で届く</td></tr>
+        <tr><td><code>pattern</code></td><td>正規表現に全体が一致するか</td><td>ルールを <code>title</code> や説明文にも書く</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>独自のルールは <b>制約検証 API</b>（Constraint Validation API）で足せます。<code>setCustomValidity('メッセージ')</code> で欄を不正な状態にし、空文字を渡すと戻ります。<code>input.validity</code> で、どの条件に引っかかったか（<code>valueMissing</code>・<code>typeMismatch</code> など）を調べられます。</p>
+  <p>見た目では、<code>:invalid</code> は<b>ページを開いた瞬間から</b>空の必須欄に当たってしまいます。<code>:user-invalid</code> は、利用者が値を変えて欄を離れた後（または送信しようとした後）にだけ当たるので、エラーの色付けにはこちらを使います。2023 年 11 月に主要ブラウザがそろって対応しました。</p>
+  <p class="note">エラーの表示を自前の文言とデザインにしたいときは、<code>&lt;form novalidate&gt;</code> でブラウザの吹き出しだけを止め、属性と <code>checkValidity()</code> はそのまま使う。</p>
+
+  <h2 id="timing">エラーを出すタイミング</h2>
+  <p>同じルールでも、いつ出すかで使い心地が大きく変わります。下の欄にメールアドレスを入れてみて、タイミングを切り替えて比べてください。</p>
+  <div class="tabs" role="tablist" id="timing-tabs">
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-input" data-mode="input">入力のたび</button>
+    <button class="tab" role="tab" aria-selected="true" data-panel="t-blur" data-mode="blur">欄を離れたとき</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-submit" data-mode="submit">送信時だけ</button>
+  </div>
+  <div class="card demo">
+    <p class="note" id="t-input" hidden>1 文字目から「形式が正しくありません」と出る。まだ打っている途中なのに責められているように感じる。</p>
+    <p class="note" id="t-blur">欄を離れたときに初めて確かめる。一度エラーが出た後は、打つたびに確かめ直し、直った瞬間に消す。多くの場面でこれがよい。</p>
+    <p class="note" id="t-submit" hidden>送信を押すまで何も言わない。短いフォームならよいが、長いフォームでは最後にまとめて直すことになる。</p>
+    <div class="field">
+      <label for="demo-email">メールアドレス</label>
+      <input type="email" id="demo-email" autocomplete="email" aria-describedby="demo-err" aria-invalid="false" placeholder="you@example.com">
+      <p class="err" id="demo-err" hidden>形式が正しくありません。「@」の後ろにドメイン名を入れてください（例: you@example.com）</p>
+    </div>
+    <div class="row"><button class="send" type="button" id="demo-send">送信</button><span class="ok" id="demo-ok" hidden>送信できる形式です</span></div>
+  </div>
+  <p>「欄を離れたら確かめ、エラーが出た後は打つたびに確かめ直す」という組み合わせは、<b>遅く叱り、早く褒める</b>と覚えられます。間違いの指摘は打ち終わるまで待ち、直ったことはすぐに伝えます。</p>
+
+  <h2 id="schema">スキーマを 1 つにして両側で使う</h2>
+  <p>同じルールをブラウザ側とサーバー側で別々に書くと、片方だけ変えてずれます。<b>スキーマ</b>（値の形とルールの定義）を 1 つ書き、両方から使います。</p>
+<pre><code><span class="cm">// schema.ts — ブラウザとサーバーの両方から import する</span>
+import * as z from 'zod';
+export const Signup = z.object({
+  email: z.string().trim().pipe(z.email('メールアドレスの形式が正しくありません')),
+  password: z.string().min(12, '12 文字以上にしてください'),
+});
+
+<span class="cm">// サーバー側（form action・API のハンドラー）</span>
+export async function signup(prev, formData) {
+  const values = Object.fromEntries(formData);
+  const { password, ...safeValues } = values;   <span class="cm">// パスワードは返さない</span>
+  const r = Signup.safeParse(values);
+  if (!r.success) return { errors: z.flattenError(r.error).fieldErrors, values: safeValues };   <span class="cm">// 項目ごとのエラー</span>
+  if (await userExists(r.data.email))
+    return { errors: { email: ['このアドレスは登録済みです'] }, values: safeValues };  <span class="cm">// サーバーでしか分からない誤り</span>
+  await createUser(r.data);
+  return { errors: {}, values: {} };
+}</code></pre>
+  <ul class="plain">
+    <li><b>サーバーでしか分からない誤りも、項目ごとのエラーとして返す</b>: 「登録済み」「在庫切れ」を画面上部の 1 行にまとめず、どの欄の問題かを示す。</li>
+    <li><b>パスワードを返さない</b>: エラー時に入力を返すときも、パスワードやカード番号は戻さない。</li>
+    <li><b>ライブラリを選びやすくする Standard Schema</b>: Zod・Valibot・ArkType などが共通のインターフェースを実装していて、対応するフォームライブラリやフレームワークは、どのスキーマライブラリでもそのまま受け付ける。</li>
+  </ul>
+  <p class="note">入力の形を守るスキーマと、業務のルール（「タスク名は 1〜100 文字」など）を守る値オブジェクトは役割が違う。スキーマは HTTP の入口の係（<a href="ddd-onion.html">DDD とオニオンアーキテクチャ</a>）。</p>
+
+  <h3 id="async">サーバーに聞かないと分からない検証</h3>
+  <p>「このユーザー名は空いているか」を入力中に知らせたいときは、打つたびに問い合わせず、<b>打ち終わってから少し待って（デバウンス）</b>問い合わせます。古い問い合わせの答えが後から届いて新しい表示を上書きしないよう、最後の問い合わせの答えだけを使います。ただし、確認と送信の間にほかの人が同じ名前を取ることもあるので、<b>送信時にサーバーで必ずもう一度確かめ</b>、DB の一意制約でも守ります。</p>
+
+  <h2 id="a11y">エラーの伝え方</h2>
+  <ol class="steps">
+    <li><b>欄ごとにラベルを付ける</b><code>&lt;label for&gt;</code> で結びつける。placeholder は入力すると消えるので、ラベルの代わりにならない。</li>
+    <li><b>エラー文を欄に紐づける</b>エラーの要素に id を付け、欄の <code>aria-describedby</code> で指す。欄には <code>aria-invalid="true"</code> を付ける。読み上げソフトが欄に入ったときにエラーも読む。</li>
+    <li><b>色だけで伝えない</b>赤い枠に加えて、記号と文字で「どこが・なぜ・どう直すか」を書く。</li>
+    <li><b>送信で失敗したら最初のエラーへフォーカスを移す</b>長いフォームでは、上部にエラーの一覧と各欄へのリンクを置く。</li>
+  </ol>
+  <p>詳しいチェック項目は <a href="a11y-checklist.html">アクセシビリティ チェックリスト</a> の「フォーム」にあります。</p>
+
+  <h2 id="submit">送信のときに気をつけること</h2>
+  <ul class="plain">
+    <li><b>二重送信</b>: 送信中はボタンを押せなくし、送信中であることを表示する。ただしそれだけでは自動リトライや再読み込みは防げないので、注文や決済はサーバー側で冪等にする（<a href="api-idempotency.html">冪等キーとリトライ</a>）。</li>
+    <li><b>失敗しても入力を消さない</b>: エラー時に入力し直させない。長いフォームは下書きを保存する（<a href="browser-storage.html">ブラウザのストレージ</a>）。</li>
+    <li><b>自動入力とキーボードを助ける</b>: <code>autocomplete="email"</code>・<code>"new-password"</code>・<code>"one-time-code"</code> などを付け、数字だけの欄は <code>inputmode="numeric"</code> にする。</li>
+    <li><b>受け付ける形を広くする</b>: 電話番号のハイフンや全角数字、前後の空白は、エラーにせずサーバー側で整える。</li>
+  </ul>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>ブラウザ側で検証していれば、サーバー側の検証は省ける</summary><p>ブラウザ側の検証は、開発者ツールや curl で簡単に飛ばせる。サーバー側は、どこから来たリクエストにも必ず通る最後の関門なので省けない。</p></details>
+  <details class="myth"><summary>type="email" を付ければメールアドレスの検証は十分</summary><p>確かめているのは大まかな形式だけ。実在して届くかは、確認メールのリンクを踏んでもらうまで分からない。</p></details>
+  <details class="myth"><summary>入力のたびにエラーを出すのがいちばん親切</summary><p>打ち終わる前から誤りを指摘され続けて、かえって使いにくい。欄を離れたときに初めて確かめ、エラーが出た後だけ打つたびに確かめ直すとよい。</p></details>
+  <details class="myth"><summary>placeholder があればラベルは要らない</summary><p>入力すると消えるので、何の欄だったか分からなくなる。読み上げソフトでもラベルとして扱われないことがある。ラベルは常に表示する。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="a11y-checklist.html">アクセシビリティ チェックリスト</a> — ラベル・エラー文・フォーカスの基準</li>
+    <li><a href="web-vulnerabilities.html">実装起因の脆弱性（入力の扱い）</a> — サーバー側で入力を信用しない理由</li>
+    <li><a href="api-idempotency.html">冪等キーとリトライ</a> — 二重送信をサーバー側で防ぐ</li>
+    <li><a href="typescript.html">TypeScript 学習フローと仕組み</a> — 型は実行時に消えるので、入力は実行時に検証する</li>
+    <li><a href="ddd-onion.html">DDD とオニオンアーキテクチャ</a> — 入力のスキーマと業務ルールの分け方</li>
+    <li><a href="unicode-text.html">文字コードと Unicode</a> — 文字数の数え方と全角・半角</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://react.dev/reference/react/useActionState">React: useActionState</a></li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Constraint_validation">MDN: Constraint validation</a></li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Selectors/:user-invalid">MDN: :user-invalid</a></li>
+    <li><a href="https://standardschema.dev/">Standard Schema</a></li>
+    <li><a href="https://www.w3.org/WAI/tutorials/forms/">W3C WAI: Forms Tutorial</a></li>
+  </ul>
+  <p class="note">2026 年 11 月に確認。</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+/* タブ（タイミングの切り替えも兼ねる） */
+let mode = 'blur';
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+    if (tab.dataset.mode) { mode = tab.dataset.mode; resetDemo(); }
+  });
+});
+/* タイミングのデモ: エラー文の出し入れだけ（文言は HTML 側） */
+const input = document.getElementById('demo-email');
+const err = document.getElementById('demo-err');
+const ok = document.getElementById('demo-ok');
+let shown = false;   // 一度エラーを出したか
+const valid = () => input.value.trim() !== '' && input.checkValidity();
+const setErr = (on) => { err.hidden = !on; input.setAttribute('aria-invalid', String(on)); if (on) shown = true; };
+function resetDemo() { input.value = ''; shown = false; setErr(false); shown = false; ok.hidden = true; }
+input.addEventListener('input', () => {
+  ok.hidden = true;
+  if (mode === 'input') setErr(!valid());
+  else if (shown) setErr(!valid());   // 一度出た後は打つたびに確かめ直す
+});
+input.addEventListener('blur', () => { if (mode === 'blur' && input.value !== '') setErr(!valid()); });
+document.getElementById('demo-send').addEventListener('click', () => {
+  const v = valid(); setErr(!v); ok.hidden = !v;
+  if (!v) input.focus();
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "会員登録フォームで、ブラウザ側のバリデーションをしっかり書いた。サーバー側の検証はどうするべき？",
+    "choices": ["同じルールをサーバー側でも必ず検証する", "ブラウザ側で済んでいるので省く", "ログイン済みの利用者からのリクエストだけ省く"],
+    "answer": 0,
+    "explain": "ブラウザ側の検証は開発者ツールや curl で飛ばせる。サーバー側はどこから来たリクエストにも通る最後の関門なので省けない。",
+    "ref": "#layers"
+  },
+  {
+    "q": "必須のメール欄に :invalid で赤枠を付けたら、ページを開いた瞬間から赤くなってしまった。直し方として合うのは？",
+    "choices": ["required 属性を外し、送信時に JavaScript で空欄を調べる", "利用者が操作した後にだけ当たる :user-invalid に変える", "赤枠をやめて、placeholder の文言でエラーを伝える"],
+    "answer": 1,
+    "explain": ":invalid は空の必須欄に最初から当たる。:user-invalid は値を変えて離れた後や送信しようとした後にだけ当たる。",
+    "ref": "#native"
+  },
+  {
+    "q": "長いフォームで、エラーをいつ出すのが使いやすい？",
+    "choices": ["1 文字打つたびに確かめ、誤りがあればすぐにエラーを出す", "送信ボタンを押すまで出さず、まとめて一覧で見せる", "欄を離れたときに確かめ、エラー後は打つたびに確かめ直す"],
+    "answer": 2,
+    "explain": "打ち終わる前に叱らず、直ったことはすぐ伝える。送信時だけだと長いフォームで最後にまとめて直すことになる。",
+    "ref": "#timing"
+  },
+  {
+    "q": "「このメールアドレスは登録済み」はサーバーでしか分からない。利用者への返し方として合うのは？",
+    "choices": ["画面上部に「エラーが発生しました」と 1 行だけ出す", "メール欄に紐づいた項目ごとのエラーとして返し、入力も残す", "フォームを空に戻して、最初から入力し直してもらう"],
+    "answer": 1,
+    "explain": "サーバーでしか分からない誤りも、どの欄の問題かを示す。入力は残し、パスワードなど秘密の値だけは戻さない。",
+    "ref": "#schema"
+  },
+  {
+    "q": "React 19 の form action で、サーバーからエラーが返ったのに入力欄が空に戻ってしまう。原因と直し方は？",
+    "choices": ["非制御の欄は action 後に初期値へ戻るので、値を返して defaultValue に入れる", "FormData が壊れているので、送信前に JSON へ変換してから渡す", "useFormStatus を使っていないので、送信ボタンの部品に付け足す"],
+    "answer": 0,
+    "explain": "React 19 は form action の後に非制御の欄をリセットする。エラー時に残したい値は返して defaultValue に使う。",
+    "ref": "#controlled"
+  }
+]
+</script>
+</body>
+</html>

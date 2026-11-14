@@ -5,12 +5,15 @@
 ## Memos
 
 - [サプライチェーンセキュリティ](https://memo.taka1156.site/md/supply-chain-security.md): 依存パッケージ・CI・公開の経路から悪意あるコードが入る手口（タイポスクワッティング・依存関係かく乱・アカウント乗っ取り・xz・tj-actions・Shai-Hulud）と、インストール時の守り（ロックファイル・スクリプト停止・公開後の待ち時間）、SBOM、署名と来歴（Sigstore・SLSA・trusted publishing）を図解する（セキュリティ, 開発ツール, JavaScript / 2026-11-14）
+- [状態管理の比較](https://memo.taka1156.site/md/state-management.md): フロントエンドの状態を、サーバー状態・URL・フォーム・ローカル・グローバルに分けて置き場所を決める考え方と、TanStack Query のキャッシュと無効化、Context・Zustand・Jotai・Redux Toolkit・Signals の違い、派生状態を持たない書き方を図解する（フロントエンド, JavaScript, 設計 / 2026-11-14）
 - [シークレット管理](https://memo.taka1156.site/md/secrets-management.md): API キーやパスワードがどこから漏れるか、置き場所の段階（.env・プラットフォームの Secrets・Vault などのシークレットマネージャー・動的シークレット・OIDC で持たない）、SOPS で Git に暗号化して置く方法、ローテーションと漏れたときの手順を図解する（セキュリティ, インフラ, 開発ツール / 2026-11-14）
 - [スキーマ設計とマイグレーション](https://memo.taka1156.site/md/schema-migration.md): 正規化と制約でテーブルを設計し、ORM とマイグレーションツールで変更を管理し、拡張→移行→縮小の手順とロックの少ない DDL で、サービスを止めずにスキーマを変える方法を図解する。（データベース, バックエンド, 設計 / 2026-11-14）
 - [レート制限のアルゴリズム](https://memo.taka1156.site/md/rate-limiting.md): 固定ウィンドウ・スライディングウィンドウ（ログ／カウンター）・トークンバケット・リーキーバケットの違いを、同じリクエスト列で比べるシミュレーションで図解し、複数台で数える方法、429 と Retry-After・RateLimit ヘッダーの返し方、何を単位に数えるかを整理する（設計, バックエンド, インフラ / 2026-11-14）
 - [PKI と証明書チェーン](https://memo.taka1156.site/md/pki-certificates.md): 証明書が信頼されるしくみを、発行（CSR と ACME の HTTP-01・DNS-01・TLS-ALPN-01）、検証の手順、失効（CRL・OCSP の終わりと短命証明書）、Certificate Transparency、有効期限の短縮、社内 CA と mTLS まで図解する（セキュリティ, ネットワーク / 2026-11-14）
 - [NewSQL・分散 SQL](https://memo.taka1156.site/md/newsql.md): SQL とトランザクションを残したまま台を増やす 2 つの方式（Vitess のようなシャーディング層と、Spanner・CockroachDB・TiDB のような分散 SQL）を、キー範囲の分割・合意による複製・時刻の扱いから図解する。（データベース, 設計 / 2026-11-14）
 - [URL から応答まで：層で見るネットワーク](https://memo.taka1156.site/md/network-layers.md): URL を開いてから応答が返るまでに通る DNS・IP・TCP・TLS・CDN・LB などが、どの層で何をしているかを層の地図と流れでたどり、症状から疑う層を引ける。（ネットワーク, インフラ / 2026-11-14）
+- [i18n と書式](https://memo.taka1156.site/md/i18n.md): Web アプリの国際化（i18n）で、数値・通貨・日付・相対時間・並び・期間の書式を Intl API に任せる方法（ロケールを切り替えて試せる）、文をつなげず複数形を扱うメッセージの書き方、RTL（右から左）の言語への対応、ロケールの決め方と翻訳の流れを図解する（フロントエンド, JavaScript / 2026-11-14）
+- [フォームとバリデーション](https://memo.taka1156.site/md/forms-validation.md): フォームの制御・非制御と React 19 の form action、ブラウザ標準の検証（制約検証 API・:user-invalid）、エラーを出すタイミング、クライアントとサーバーでスキーマを共有する方法（Zod・Standard Schema）、エラーの伝え方と送信時の注意を図解する（フロントエンド, JavaScript, バックエンド / 2026-11-14）
 - [キャッシュ戦略](https://memo.taka1156.site/md/cache-strategies.md): アプリ側のキャッシュの読み方（Cache-Aside・Read-Through）と書き方（Write-Through・Write-Behind・Write-Around）、更新時に古い値が残る順番の入れ替わりと無効化の方法、TTL の決め方、人気のキーが切れたときの殺到（スタンピード）の防ぎ方を図解する（設計, バックエンド, データベース / 2026-11-14）
 - [bubblewrap と socat](https://memo.taka1156.site/md/bubblewrap-socat.md): bwrap でコマンドを閉じ込め、socat とプロキシで許可した通信だけ通す仕組みを、AI エージェントでの使われ方とともに図解。（Linux, セキュリティ, AI / 2026-11-14）
 - [冪等キーとリトライ](https://memo.taka1156.site/md/api-idempotency.md): POST をリトライしても二重送信・二重課金にならない API の作り方を、冪等キーの判定フロー（409・422）、記録と本処理の原子性、外部 API を挟む処理の再開、クライアント側のキーの持ち方で図解する（設計, バックエンド / 2026-11-14）
