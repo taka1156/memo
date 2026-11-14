@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>サプライチェーンセキュリティ</title>
+<meta name="description" content="依存パッケージ・CI・公開の経路から悪意あるコードが入る手口（タイポスクワッティング・依存関係かく乱・アカウント乗っ取り・xz・tj-actions・Shai-Hulud）と、インストール時の守り（ロックファイル・スクリプト停止・公開後の待ち時間）、SBOM、署名と来歴（Sigstore・SLSA・trusted publishing）を図解する">
+<meta name="memo:tags" content="セキュリティ, 開発ツール, JavaScript">
+<meta name="memo:date" content="2026-11-14">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 20px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+ul.plain { padding-left: 1.2em; }
+ul.plain li { margin: 4px 0; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+
+/* 通り道 */
+.chain { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; }
+.chain .card { flex: 1 1 130px; padding: 10px 12px; }
+.chain b { display: block; font-size: 0.86rem; }
+.chain p { font-size: 0.76rem; color: var(--fg-2); margin: 2px 0 0; }
+.chain .atk { display: block; font-size: 0.74rem; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.chain .atk::before { content: '攻撃例: '; color: var(--c-ng); font-weight: 700; }
+.chain .sep { flex: none; align-self: center; color: var(--fg-2); font: 700 0.9rem 'JetBrains Mono', ui-monospace, monospace; }
+.chain .sep::before { content: '→'; }
+@media (max-width: 599px) {
+  .chain { flex-direction: column; }
+  .chain .card { flex: none; }
+  .chain .sep::before { content: '↓'; }
+}
+
+/* Sigstore の流れ */
+.sig { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+.sig .card { padding: 10px 12px; }
+.sig b { display: block; font-size: 0.86rem; }
+.sig .en { font: 600 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.sig p { font-size: 0.78rem; color: var(--fg-2); margin: 4px 0 0; }
+
+/* チェックリスト */
+.progress { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.bar { flex: 1; height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; }
+.bar div { height: 100%; width: 0; background: var(--c-ok); transition: width .2s; }
+.count { font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); white-space: nowrap; }
+.checklist { list-style: none; }
+.checklist li { border-bottom: 1px solid var(--line); }
+.checklist li:last-child { border-bottom: none; }
+.checklist label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 2px; cursor: pointer; }
+.checklist input { margin-top: 5px; accent-color: var(--accent); flex: none; width: 16px; height: 16px; }
+.checklist .txt { flex: 1; font-size: 0.88rem; }
+.checklist .txt small { display: block; color: var(--fg-2); font-size: 0.78rem; }
+.checklist input:checked + .txt { color: var(--fg-2); }
+.checklist h3 { margin: 14px 0 4px; font-size: 0.88rem; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-size: 0.78rem; }
+.t-atk { min-width: 640px; }
+.t-pm { min-width: 560px; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>サプライチェーンセキュリティ</h1>
+  <p class="subtitle">自分で書いていないコードから入る攻撃 ── 依存・CI・公開の経路と、その守り方</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>アプリのコードの大半は他人が書いた依存パッケージで、その作者のアカウントや CI が乗っ取られると、自分のコードを変えなくても攻撃が入る。</li>
+      <li>入口のほとんどはインストールの瞬間なので、ロックファイル・依存のスクリプトの停止・公開直後の版を待つ設定でまず防ぐ。</li>
+      <li>SBOM で中身を把握し、署名と来歴で出どころを確かめるが、来歴は「どこで作られたか」を示すだけで中身が安全とは言わない。</li>
+    </ul>
+  </div>
+
+  <h2 id="map">攻撃の通り道</h2>
+  <p>ソフトウェアは、作者のコードが依存パッケージと一緒にビルドされ、レジストリに公開され、利用者の手元でインストールされて動きます。<b>この途中のどこか 1 か所</b>でも乗っ取られれば、下流の全員に届きます。</p>
+  <div class="chain">
+    <div class="card"><b>ソースコード</b><p>リポジトリ・メンテナ</p><span class="atk">悪意ある人がメンテナになる（xz）</span></div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="card"><b>依存パッケージ</b><p>直接の依存と、その先の依存</p><span class="atk">似た名前・同じ名前の偽物</span></div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="card"><b>ビルド・CI</b><p>Actions・ビルドサーバー</p><span class="atk">使っている Action の乗っ取り（tj-actions）</span></div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="card"><b>公開・レジストリ</b><p>npm・PyPI・コンテナレジストリ</p><span class="atk">盗んだトークンで悪意ある版を公開</span></div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="card"><b>インストール・実行</b><p>開発者の PC・CI・本番</p><span class="atk">postinstall で秘密を盗む（Shai-Hulud）</span></div>
+  </div>
+
+  <h2 id="attacks">主な手口</h2>
+  <div class="table-wrap">
+    <table class="t-atk">
+      <thead><tr><th>手口</th><th>しくみ</th><th>実例</th></tr></thead>
+      <tbody>
+        <tr><td>タイポスクワッティング</td><td>人気パッケージに似た名前（<code>reqeusts</code> など）で偽物を公開し、打ち間違いや AI の提案ミスで入れさせる</td><td>各レジストリで繰り返し見つかっている</td></tr>
+        <tr><td>依存関係かく乱（dependency confusion）</td><td>社内専用パッケージと同じ名前を公開レジストリに高い版番号で出し、パッケージマネージャーに公開側を選ばせる</td><td>2021 年に Alex Birsan が Apple・Microsoft などで実証</td></tr>
+        <tr><td>メンテナのアカウント乗っ取り</td><td>フィッシングなどで公開用のトークンや 2FA を奪い、正規のパッケージに悪意ある版を出す</td><td>2025 年 9 月の Shai-Hulud は、盗んだトークンで自分を別のパッケージにも広げるワームだった</td></tr>
+        <tr><td>悪意あるメンテナ</td><td>何年も貢献して信頼を得てから、共同メンテナとしてバックドアを入れる</td><td>2024 年 3 月に見つかった xz Utils 5.6.0・5.6.1 のバックドア（CVE-2024-3094）</td></tr>
+        <tr><td>CI の部品の乗っ取り</td><td>多くのリポジトリが使う Action などを改ざんし、それを使うワークフローの秘密を盗む</td><td>2025 年 3 月、2 万 3,000 以上のリポジトリが使う tj-actions/changed-files の版タグが書き換えられた</td></tr>
+        <tr><td>ビルド環境の改ざん</td><td>ソースは正しいまま、ビルドの途中で悪意あるコードを差し込む</td><td>2020 年に発覚した SolarWinds Orion の事件</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>どの手口も、利用者側から見ると「いつもどおり依存を入れた・CI を回した」だけです。だから守りは、<b>入れるときに勝手に動かさない・知らない版をすぐ入れない・何が入っているかを把握する</b>、という利用者側の仕組みが中心になります。</p>
+
+  <h2 id="install">インストールの瞬間を守る</h2>
+  <p>悪意あるパッケージの多くは、<code>preinstall</code>・<code>postinstall</code> などのインストール時のスクリプトで動きます。コードを import する前、インストールしただけで、開発者の PC や CI のトークンが盗まれます。</p>
+  <ol class="steps">
+    <li><b>ロックファイルをコミットし、CI は固定のまま入れる</b><code>npm ci</code>・<code>pnpm install --frozen-lockfile</code> で、レビュー済みの版だけを入れる。勝手に新しい版に上がらない（<a href="js-modules.html">JS のモジュールと依存管理</a>）。</li>
+    <li><b>依存のインストールスクリプトを止める</b>実行を許すのは、ビルドが本当に要るパッケージ（esbuild・sharp など）だけにし、許可の一覧をコミットする。</li>
+    <li><b>公開されたばかりの版を入れない</b>悪意ある版は、たいてい数時間〜数日で見つかって消される。公開から一定時間たった版だけを入れる設定にすると、その間に避けられる。</li>
+    <li><b>社内パッケージはスコープとレジストリを固定する</b><code>@acme/*</code> は社内レジストリからだけ取る、と <code>.npmrc</code> で決めておくと、同じ名前の公開パッケージに置き換わらない。</li>
+  </ol>
+  <div class="table-wrap">
+    <table class="t-pm">
+      <thead><tr><th>パッケージマネージャー</th><th>依存のスクリプト</th><th>公開直後の版を待つ</th></tr></thead>
+      <tbody>
+        <tr><td>pnpm</td><td>v10（2025 年 1 月）から既定で止める。許可は <code>allowBuilds</code>（v10 当初は <code>onlyBuiltDependencies</code>）</td><td>v11（2026 年 4 月）から既定で 1 日待つ（<code>minimumReleaseAge</code>）</td></tr>
+        <tr><td>npm</td><td>v12（2026 年 7 月）から既定で止める。許可は <code>npm approve-scripts</code> で作る一覧</td><td><code>min-release-age</code> で設定できるが、既定では無効</td></tr>
+        <tr><td>Bun</td><td>既定で止める。許可は <code>trustedDependencies</code>（npm 由来の人気パッケージの一部は既定で許可済み）</td><td><code>minimumReleaseAge</code>（bunfig.toml・秒で指定）で設定できるが、既定では無効</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">待つ設定にすると、脆弱性の修正版もすぐには入らない。急ぐ修正だけを例外にできる設定（pnpm の <code>minimumReleaseAgeExclude</code> など）を使う。</p>
+
+  <h2 id="know">何が入っているかを知る：SBOM と脆弱性スキャン</h2>
+  <p><b>SBOM</b>（Software Bill of Materials、ソフトウェア部品表）は、ソフトウェアに含まれるパッケージとその版を機械が読める形で並べた一覧です。形式は SPDX と CycloneDX が主流で、ビルド時に作ってイメージやリリースに添付します。新しい脆弱性が発表されたときに「うちのどの製品に入っているか」をすぐ引けるのが利点です。</p>
+  <p>脆弱性スキャン（<code>npm audit</code>、OSV-Scanner、Dependabot など）は、SBOM や依存の一覧を脆弱性データベースと照らし合わせます。ただし見つけられるのは<b>報告済みの脆弱性</b>です。公開されたばかりの悪意あるパッケージは、データベースに載るまで素通りします。悪意あるパッケージの検出には、パッケージの振る舞い（インストール時の通信、難読化されたコードなど）を見るサービスが別にあります。</p>
+
+  <h2 id="provenance">出どころを確かめる：署名と来歴</h2>
+  <p>レジストリから落としたパッケージが、<b>本当にそのリポジトリのそのコミットから、そのビルド環境で作られたものか</b>を確かめるしくみです。鍵を長く保管しなくてよい署名の基盤として Sigstore が広く使われています。</p>
+  <div class="sig">
+    <div class="card"><b>1. CI の身元で証明書をもらう</b><span class="en">Fulcio</span><p>ビルドのジョブが OIDC トークンを見せ、その身元（リポジトリ・ワークフロー）を書いた数分で切れる証明書をもらう。</p></div>
+    <div class="card"><b>2. 成果物と来歴に署名する</b><span class="en">provenance</span><p>「どのソースから、どの手順で作ったか」を書いた来歴（in-toto 形式）に署名する。鍵はその場で捨てる。</p></div>
+    <div class="card"><b>3. 公開ログに記録する</b><span class="en">Rekor</span><p>署名を追記専用の公開ログに載せる。証明書が切れた後でも、署名した時点で有効だったことを確かめられる。</p></div>
+    <div class="card"><b>4. 利用者が検証する</b><span class="en">verify</span><p><code>npm audit signatures</code> や <code>cosign verify</code> で、期待したリポジトリ・ワークフローで作られたかを確かめる。</p></div>
+  </div>
+  <p><b>SLSA</b>（Supply-chain Levels for Software Artifacts）は、来歴がどれだけ信用できるかを段階で表す枠組みです。Build L1 は来歴があること、L2 はホストされたビルド環境が署名した来歴であること、L3 はビルドどうしが互いに干渉できない堅いビルド環境であることを求めます。npm の trusted publishing（CI から OIDC で公開し、来歴を自動で付ける）は Build L2 に当たります。</p>
+  <p class="note">2026 年 5 月には、CI のキャッシュを汚して正規のワークフローの中で悪意ある版を作らせる攻撃があり、正しいリポジトリとワークフローを指す本物の来歴付きで公開された。来歴は「どこで作られたか」の証明であって、中身が安全だという証明ではない。SLSA は、L3 のビルド環境ならこの手口は防げたと説明している。</p>
+
+  <h2 id="publish">公開する側がすること</h2>
+  <ul class="plain">
+    <li><b>トークンで公開しない</b>: CI からは trusted publishing（OIDC）で公開する。npm は 2025 年の Shai-Hulud を受けて、古い形式のトークンを廃止し、公開用のトークンの期限を短くし、FIDO（パスキー・セキュリティキー）の 2FA へ移した。</li>
+    <li><b>CI の部品をコミット SHA で固定する</b>: Action をタグで参照すると、タグを付け替えられたときにそのまま悪意あるコードが動く。SHA で固定し、更新は Dependabot の PR で受ける（<a href="ci-cd.html">CI/CD と GitHub Actions</a>）。</li>
+    <li><b>ワークフローの権限を絞る</b>: <code>permissions</code> を必要なものだけにし、公開のジョブは保護されたブランチと Environment からだけ動かす。</li>
+    <li><b>依存を減らす</b>: 数行で書ける機能のために依存を足さない。依存の数だけ、乗っ取られうる人とアカウントが増える。</li>
+  </ul>
+
+  <h2 id="checklist">点検リスト</h2>
+  <div class="card">
+    <div class="progress"><div class="bar"><div id="ck-bar"></div></div><span class="count" id="ck-count">0 / 10</span></div>
+    <ul class="checklist" id="ck">
+      <li><h3>使う側</h3></li>
+      <li><label><input type="checkbox"><span class="txt">ロックファイルをコミットし、CI は frozen で入れている<small>勝手に新しい版に上がらない</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">依存のインストールスクリプトを止め、許可の一覧をコミットしている<small>インストールしただけで動くコードをなくす</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">公開直後の版を待つ設定にしている<small>悪意ある版が見つかって消されるまでの時間を稼ぐ</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">社内パッケージのスコープを社内レジストリに固定している<small>依存関係かく乱を防ぐ</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">依存の更新を PR で受け、差分を見てからマージしている<small>Dependabot・Renovate など</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">リリースごとに SBOM を作って保存している<small>新しい脆弱性の影響範囲をすぐ引ける</small></span></label></li>
+      <li><h3>作る・公開する側</h3></li>
+      <li><label><input type="checkbox"><span class="txt">Action をコミット SHA で固定している<small>タグの付け替えで乗っ取られない</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">ワークフローの permissions を最小にしている<small>盗まれても使える権限が小さい</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">トークンではなく trusted publishing で公開している<small>盗まれる長期のトークンがない</small></span></label></li>
+      <li><label><input type="checkbox"><span class="txt">公開するアカウントに FIDO の 2FA を設定している<small>フィッシングで 2FA を突破されにくい</small></span></label></li>
+    </ul>
+    <p class="note">チェックはこのページを開いている間だけ保たれる（保存しない）。</p>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>脆弱性スキャンが通れば、悪意あるパッケージは入っていない</summary><p>スキャンが見るのは報告済みの脆弱性のデータベース。公開されたばかりの悪意ある版は、見つかって登録されるまで引っかからない。スクリプトの停止や公開後の待ち時間と組み合わせる。</p></details>
+  <details class="myth"><summary>来歴（provenance）付きのパッケージなら安全</summary><p>来歴が示すのは「このリポジトリのこのワークフローで作られた」こと。そのリポジトリや CI 自体が乗っ取られていれば、本物の来歴付きで悪意ある版が出る。タイポスクワッティングの偽物も、自分のリポジトリから来歴を付けられる。</p></details>
+  <details class="myth"><summary>ダウンロード数の多い有名なパッケージなら安全</summary><p>攻撃者にとっては、利用者が多いほど狙う価値がある。xz Utils も tj-actions も広く使われていた。有名かどうかより、入れ方（固定・待ち時間・スクリプトの停止）で守る。</p></details>
+  <details class="myth"><summary>import していない依存なら、悪さはできない</summary><p>インストール時のスクリプトは、import する前のインストールの時点で動く。開発者の PC や CI の秘密は、そこで盗まれる。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="js-modules.html">JS のモジュールと依存管理</a> — ロックファイルと、npm・pnpm・Bun のインストール方式</li>
+    <li><a href="ci-cd.html">CI/CD と GitHub Actions</a> — Action の SHA 固定、権限、OIDC</li>
+    <li><a href="github-services.html">GitHub サービス</a> — Dependabot と依存関係レビュー</li>
+    <li><a href="docker-images.html">Docker イメージの種類</a> — SBOM・署名付きの最小イメージ</li>
+    <li><a href="crypto-basics.html">暗号の基礎</a> — 署名と証明書の土台</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://slsa.dev/spec/v1.1/levels">SLSA: Security levels</a></li>
+    <li><a href="https://slsa.dev/blog/2026/05/mini-shai-hulud-what-slsa-can-and-cannot-do">SLSA Blog: Mini Shai-Hulud: what SLSA can and cannot do</a></li>
+    <li><a href="https://github.blog/security/supply-chain-security/our-plan-for-a-more-secure-npm-supply-chain/">GitHub Blog: Our plan for a more secure npm supply chain</a></li>
+    <li><a href="https://pnpm.io/supply-chain-security">pnpm: Supply Chain Security</a></li>
+    <li><a href="https://unit42.paloaltonetworks.com/github-actions-supply-chain-attack/">Unit 42: GitHub Actions Supply Chain Attack（tj-actions/changed-files）</a></li>
+    <li><a href="https://tag-security.cncf.io/community/catalog/compromises/2024/xz/">CNCF TAG Security: Malicious maintainer introduces sophisticated backdoor in xz</a></li>
+  </ul>
+  <p class="note">2026 年 11 月に確認。</p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+/* 点検リスト: 数を数えて表示するだけ（保存しない） */
+(() => {
+  const boxes = document.querySelectorAll('#ck input');
+  const bar = document.getElementById('ck-bar'), cnt = document.getElementById('ck-count');
+  const update = () => {
+    const n = [...boxes].filter(b => b.checked).length;
+    cnt.textContent = `${n} / ${boxes.length}`;
+    bar.style.width = `${(n / boxes.length * 100).toFixed(0)}%`;
+  };
+  boxes.forEach(b => b.addEventListener('change', update));
+  update();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "npm の依存を 1 つ追加しただけで、まだ import していないのに、開発者の PC からトークンが盗まれた。最も考えられる経路は？",
+    "choices": ["パッケージの postinstall などのインストール時スクリプトが動いた", "ロックファイルが壊れていて、別の版のパッケージが入った", "脆弱性スキャンを無効にしていたので、既知の脆弱性を突かれた"],
+    "answer": 0,
+    "explain": "インストール時のスクリプトは import より前、インストールの時点で動く。依存のスクリプトを既定で止め、必要なものだけ許可するのが対策。",
+    "ref": "#install"
+  },
+  {
+    "q": "社内パッケージ @acme/utils と同じ名前のパッケージが公開レジストリに高い版番号で出され、CI がそちらを入れてしまった。この手口と対策は？",
+    "choices": ["タイポスクワッティング。名前を打ち間違えないよう補完を使う", "依存関係かく乱。社内スコープを社内レジストリだけから取るよう固定する", "アカウント乗っ取り。2FA を設定する"],
+    "answer": 1,
+    "explain": "同じ名前で公開側を選ばせるのが依存関係かく乱。スコープごとに取得先のレジストリを決めておけば、公開側に置き換わらない。",
+    "ref": "#attacks"
+  },
+  {
+    "q": "人気パッケージに悪意ある版が出ても、見つかって消されるまでの間に入れてしまわないようにしたい。合う設定は？",
+    "choices": ["依存の版指定を ^ で幅広く許し、修正版がすぐ入るようにする", "毎回ロックファイルを消してから、その時点の最新を入れ直す", "公開から一定時間たった版だけを入れる（minimumReleaseAge など）"],
+    "answer": 2,
+    "explain": "悪意ある版の多くは数時間〜数日で見つかる。公開直後の版を待つ設定にすれば、その間に避けられる。",
+    "ref": "#install"
+  },
+  {
+    "q": "npm のパッケージに、正しいリポジトリとワークフローを指す provenance が付いていた。これで言えることは？",
+    "choices": ["そのリポジトリのそのワークフローで作られたことまでで、中身の安全は言えない", "中身に悪意あるコードが含まれていないことが、署名で保証されている", "既知の脆弱性が 1 つもないことが、ビルド時の検査で保証されている"],
+    "answer": 0,
+    "explain": "来歴は出どころの証明。リポジトリや CI 自体が乗っ取られれば、本物の来歴付きで悪意ある版が出ることがある。",
+    "ref": "#provenance"
+  },
+  {
+    "q": "ワークフローで使っているサードパーティの Action を、作者のアカウントが乗っ取られても影響を受けにくい形で参照したい。合うのは？",
+    "choices": ["@v4 のようにメジャー版のタグで参照し、修正を自動で受け取る", "@main のようにブランチで参照し、常に最新のコードを使う", "コミット SHA で参照し、更新は Dependabot の PR で受ける"],
+    "answer": 2,
+    "explain": "タグやブランチは後から別のコミットを指すように変えられる。SHA なら中身が固定され、更新は差分を見てから取り込める。",
+    "ref": "#publish"
+  }
+]
+</script>
+</body>
+</html>
