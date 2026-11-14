@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>冪等キーとリトライ</title>
+<meta name="description" content="POST をリトライしても二重送信・二重課金にならない API の作り方を、冪等キーの判定フロー（409・422）、記録と本処理の原子性、外部 API を挟む処理の再開、クライアント側のキーの持ち方で図解する">
+<meta name="memo:tags" content="設計, バックエンド">
+<meta name="memo:date" content="2026-11-14">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-new: #0969da;   /* 初めてのキー（新しく処理する） */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-new: #58a6ff;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 20px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 起きる場所 */
+.where { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.where .card { padding: 12px 14px; }
+.where b { display: block; font-size: 0.9rem; }
+.where p { font-size: 0.82rem; color: var(--fg-2); margin: 4px 0 0; }
+
+/* シーケンス（クライアントとサーバーのやりとり） */
+.seq { display: grid; font-size: 0.82rem; }
+.seq .hd { font-size: 0.75rem; font-weight: 700; color: var(--fg-2); padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.seq .msg { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.seq .msg .arrow { font: 700 0.85rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); flex: none; width: 2.2em; text-align: center; }
+.seq .msg .txt { flex: 1; min-width: 0; }
+.seq .msg.lost .arrow { color: var(--c-ng); }
+.seq .msg.lost .txt { text-decoration: line-through; color: var(--fg-2); }
+.ledger { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; font-size: 0.82rem; }
+.ledger .tag { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; border: 1px solid currentColor; border-radius: 4px; padding: 0 6px; }
+.tag.ng { color: var(--c-ng); }
+.tag.ok { color: var(--c-ok); }
+.tag.warn { color: var(--c-warn); }
+.tag.new { color: var(--c-new); }
+
+/* 判定フロー */
+.decide { display: grid; gap: 8px; }
+.decide .start { text-align: center; padding: 10px 12px; }
+.decide .start b { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.85rem; }
+.decide .down { text-align: center; color: var(--fg-2); font: 700 0.9rem 'JetBrains Mono', ui-monospace, monospace; line-height: 1; }
+.cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.cases .card { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.cases .if { font-size: 0.78rem; color: var(--fg-2); }
+.cases .then { font-size: 0.85rem; }
+.cases .code { font: 700 0.95rem 'JetBrains Mono', ui-monospace, monospace; }
+
+/* 段階（atomic phase）の図 */
+.phases { display: grid; gap: 6px; counter-reset: ph; }
+.phase { display: grid; grid-template-columns: 7.5em 1fr; gap: 10px; align-items: start; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.phase .kind { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; justify-self: start; }
+.phase .kind.db { color: var(--fg-2); }
+.phase .kind.ext { color: var(--c-warn); }
+.phase b { font-size: 0.88rem; }
+.phase p { font-size: 0.8rem; color: var(--fg-2); margin: 2px 0 0; }
+.phase .rp { font: 600 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+@media (max-width: 480px) {
+  .phase { grid-template-columns: 1fr; gap: 4px; }
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-size: 0.78rem; }
+.t-decide { min-width: 560px; }
+.t-alt { min-width: 600px; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>冪等キーとリトライ</h1>
+  <p class="subtitle">二重送信・二重課金を防ぐ API の作り方 ── 判定フロー・原子性・途中で落ちたときの再開</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>冪等キーは「これは前と同じ操作です」とサーバーに伝える名札で、同じキーの再送には処理せず 1 回目の応答を返す。</li>
+      <li>キーの記録と本処理は同じトランザクションで確定し、処理中の同じキーは <code>409</code>、中身が違えば <code>422</code> で弾く。</li>
+      <li>キーは操作 1 回ごとにクライアントが作ってリトライで使い回し、外部 API を挟む処理は進み具合を残して再開できるようにする。</li>
+    </ul>
+  </div>
+
+  <p>冪等性そのもの（何回やっても結果が同じ性質）と、リトライの間隔の空け方（指数バックオフ＋ジッター）は <a href="distributed-basics.html">分散システムの基本</a> にあります。このメモはその続きで、<b>POST の API を実際に冪等にするときにサーバーとクライアントが決めること</b>を扱います。</p>
+
+  <h2 id="where">二重はどこで起きるか</h2>
+  <div class="where">
+    <div class="card"><b>ダブルクリック・連打</b><p>反応が遅いと利用者はもう一度押す。複数タブ・再読み込みでも同じ送信が起きる。</p></div>
+    <div class="card"><b>タイムアウト後の再送</b><p>クライアントの HTTP ライブラリや SDK が自動でリトライする。サーバーでは 1 回目が成功していることがある。</p></div>
+    <div class="card"><b>途中の中継が再送</b><p>リバースプロキシや LB が、上流の接続切れを見て別のサーバーへ送り直す設定がある。</p></div>
+    <div class="card"><b>モバイルの電波切れ</b><p>送った直後に圏外になり、応答だけを受け取れない。アプリは失敗と見て送り直す。</p></div>
+  </div>
+  <p>どれも「サーバーは処理したのに、クライアントはそれを知らない」状態から始まります。クライアント側だけでは防げないので、<b>サーバーが「前と同じ操作だ」と見分けられる手がかり</b>が要ります。それが冪等キーです。</p>
+
+  <h3 id="sim">応答が消えて再送したとき</h3>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="sim-no">キーなし</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="sim-yes">キーあり</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="sim-race">キーあり・同時に 2 本</button>
+  </div>
+  <div class="panel card" id="sim-no">
+    <div class="seq">
+      <div class="hd">→ クライアントが送る　● サーバーの処理　← サーバーの応答</div>
+      <div class="msg"><span class="arrow">→</span><span class="txt"><code>POST /payments {amount: 3000}</code></span></div>
+      <div class="msg"><span class="arrow">●</span><span class="txt">サーバーが課金して <code>201</code> を返す（課金 1 回目）</span></div>
+      <div class="msg lost"><span class="arrow">✕</span><span class="txt"><code>201 Created</code> がネットワークで消える</span></div>
+      <div class="msg"><span class="arrow">→</span><span class="txt">タイムアウトしたので同じ内容をもう一度 <code>POST</code></span></div>
+      <div class="msg"><span class="arrow">●</span><span class="txt">サーバーには新しいリクエストに見えるので、また課金する</span></div>
+    </div>
+    <div class="ledger"><span class="tag ng">二重課金</span>課金 2 回・6,000 円。サーバーには 2 本を見分ける材料がない。</div>
+  </div>
+  <div class="panel card" id="sim-yes" hidden>
+    <div class="seq">
+      <div class="hd">→ クライアントが送る　● サーバーの処理　← サーバーの応答</div>
+      <div class="msg"><span class="arrow">→</span><span class="txt"><code>POST /payments</code> ＋ <code>Idempotency-Key: "7f3c…"</code></span></div>
+      <div class="msg"><span class="arrow">●</span><span class="txt">キーを記録して課金し、応答（<code>201</code> と本文）をキーと一緒に保存</span></div>
+      <div class="msg lost"><span class="arrow">✕</span><span class="txt"><code>201 Created</code> がネットワークで消える</span></div>
+      <div class="msg"><span class="arrow">→</span><span class="txt"><b>同じキー</b>・同じ内容でもう一度 <code>POST</code></span></div>
+      <div class="msg"><span class="arrow">●</span><span class="txt">記録済みのキーなので課金せず、保存した <code>201</code> と本文をそのまま返す</span></div>
+    </div>
+    <div class="ledger"><span class="tag ok">1 回だけ</span>課金 1 回。2 回目の応答にも 1 回目と同じ支払い ID が入るので、クライアントは結果を知ることができる。</div>
+  </div>
+  <div class="panel card" id="sim-race" hidden>
+    <div class="seq">
+      <div class="hd">→ クライアントが送る　● サーバーの処理　← サーバーの応答</div>
+      <div class="msg"><span class="arrow">→</span><span class="txt">同じキーの <code>POST</code> が 2 本、ほぼ同時に届く（連打・二重のリトライ）</span></div>
+      <div class="msg"><span class="arrow">●</span><span class="txt">1 本目がキーの行を「処理中」で作る。2 本目は一意制約にぶつかる</span></div>
+      <div class="msg"><span class="arrow">←</span><span class="txt">2 本目には <code>409 Conflict</code>（同じキーが処理中）</span></div>
+      <div class="msg"><span class="arrow">←</span><span class="txt">1 本目は課金を終えて <code>201</code></span></div>
+    </div>
+    <div class="ledger"><span class="tag warn">409</span>2 本目は少し待って同じキーで送り直せば、保存された <code>201</code> を受け取れる。「行が無いことを確かめてから作る」2 段の書き方では、2 本とも「無い」と見て二重になる。</div>
+  </div>
+
+  <h2 id="flow">サーバー側の判定フロー</h2>
+  <p>キーを受け取ったら、まず記録を探します。見つかったときの状態で、返すものが 4 通りに分かれます。</p>
+  <div class="decide">
+    <div class="card start"><b>(利用者, エンドポイント, キー) で記録を探す</b><p class="note">あわせてリクエスト本文のフィンガープリント（fingerprint。本文のハッシュなど）を計算しておく</p></div>
+    <div class="down">↓</div>
+    <div class="cases">
+      <div class="card"><span class="if">記録が無い</span><span class="code" style="color:var(--c-new)">新しく処理</span><span class="then">行を「処理中」で作ってから本処理。終わったら応答を保存して「完了」に</span></div>
+      <div class="card"><span class="if">記録が「処理中」</span><span class="code" style="color:var(--c-warn)">409 Conflict</span><span class="then">同じキーが走っている。待ってから送り直してもらう</span></div>
+      <div class="card"><span class="if">「完了」でフィンガープリントが同じ</span><span class="code" style="color:var(--c-ok)">保存した応答</span><span class="then">処理しない。1 回目のステータスと本文をそのまま返す</span></div>
+      <div class="card"><span class="if">フィンガープリントが違う</span><span class="code" style="color:var(--c-ng)">422</span><span class="then">同じキーを別の中身に使い回している。クライアントのバグ</span></div>
+    </div>
+    <div class="legend"><span><i style="background:var(--c-new)"></i>新しく処理する</span><span><i style="background:var(--c-ok)"></i>処理せずに再生</span><span><i style="background:var(--c-warn)"></i>待ってから再送</span><span><i style="background:var(--c-ng)"></i>リクエストを直す</span></div>
+  </div>
+  <p>ステータスコードは、IETF で標準化が進んでいる <code>Idempotency-Key</code> ヘッダーの草案（Internet-Draft）に合わせています。草案では、キーが必須の操作でキーが無ければ <code>400</code>、同じキーで中身が違えば <code>422</code>、同じキーの処理がまだ終わっていなければ <code>409</code> を返すことを勧めています。まだ RFC ではないので、実際の API はそれぞれの決まりに従います。</p>
+
+  <h3 id="decide">決めておくこと</h3>
+  <div class="table-wrap">
+    <table class="t-decide">
+      <thead><tr><th>項目</th><th>よくある決め方</th><th>なぜ</th></tr></thead>
+      <tbody>
+        <tr><td>キーの範囲</td><td>利用者（アカウント・API キー）ごと、必要ならエンドポイントごと</td><td>別の利用者が偶然同じ値を送っても、他人の応答を返さないため</td></tr>
+        <tr><td>キーの形</td><td>UUID v4 などの十分に長いランダム値。長さの上限を決める</td><td>推測やぶつかりを避ける。メールアドレスなどの個人情報をキーにしない</td></tr>
+        <tr><td>有効期限</td><td>24 時間〜数日で消す。期限を API の文書に書く</td><td>記録が増え続けないように。期限後の同じキーは新しい操作として扱われる</td></tr>
+        <tr><td>フィンガープリント</td><td>本文のハッシュ、または金額・宛先など大事な項目だけ</td><td>キーの使い回し（別の操作に同じキー）を見つけて <code>422</code> にする</td></tr>
+        <tr><td>保存する応答</td><td>本処理を始めた後の応答は、成功も失敗もステータスと本文を保存</td><td>2 回目に結果が変わると、クライアントがどちらを信じればよいか分からない</td></tr>
+        <tr><td>保存しない応答</td><td>認証エラー、入力チェックで弾いたもの、<code>409</code></td><td>本処理に入っていないので、直して同じキーで送り直せるようにする</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Stripe の API v1 では、キーは 255 文字まで、少なくとも 24 時間たったキーは消されることがあり、本処理が始まった後の応答は <code>500</code> も含めて保存される。入力チェックで弾かれたものや同時実行でぶつかったものは保存されず、送り直せる。新しい API v2 では、失敗や途中で止まった処理をリトライ時に Stripe 側で最後までやり直し、更新した応答を返す。</p>
+
+  <h2 id="atomic">記録と本処理を 1 つのトランザクションに</h2>
+  <p>「キーの記録」と「本処理（注文の作成など）」を別々に確定すると、その間で落ちたときにずれます。キーだけ残れば処理されないまま「完了」を返し、処理だけ残れば再送でもう一度処理されます。DB の中で済む処理なら、<b>1 つのトランザクション</b>に入れて両方を一度に確定します（トランザクションの性質は <a href="db-index-transaction.html">インデックスとトランザクション</a>）。</p>
+<pre><code><span class="cm">-- (user_id, key) に一意制約。同時に来た 2 本目はここで止まる</span>
+CREATE TABLE idempotency_keys (
+  user_id       BIGINT  NOT NULL,
+  key           TEXT    NOT NULL,
+  fingerprint   TEXT    NOT NULL,
+  status        TEXT    NOT NULL,      <span class="cm">-- 'processing' | 'completed'</span>
+  response_code INT,
+  response_body JSONB,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, key)
+);
+
+BEGIN;
+INSERT INTO idempotency_keys (user_id, key, fingerprint, status)
+VALUES ($1, $2, $3, 'processing')
+ON CONFLICT DO NOTHING;              <span class="cm">-- 0 行なら既にある → 判定フローへ</span>
+INSERT INTO orders (...) VALUES (...);  <span class="cm">-- 本処理</span>
+UPDATE idempotency_keys
+   SET status = 'completed', response_code = 201, response_body = $4
+ WHERE user_id = $1 AND key = $2;
+COMMIT;</code></pre>
+  <p>ポイントは、<b>「探してから作る」ではなく「作ってみて、ぶつかったら既にある」</b>と判断することです。探してから作る 2 段の書き方では、同時に来た 2 本がどちらも「無い」と見て両方とも処理します。一意制約に判断を任せれば、DB が 1 本だけを通します。</p>
+  <p class="note">同時に来た 2 本目は、1 本目のトランザクションが終わるまで INSERT で待たされ、終わった後に「既にある」と分かる。待たせずにすぐ <code>409</code> を返したいなら、キーの行だけを先に短いトランザクションで作り、本処理は別のトランザクションで行う（下の「外部 API を挟むとき」と同じ形になる）。</p>
+
+  <h2 id="external">外部 API を挟むとき：進み具合を残して再開する</h2>
+  <p>決済代行やメール送信など、<b>自分の DB の外を変える処理</b>はトランザクションに入れられません。課金した直後に落ちると、DB を巻き戻しても課金は戻りません。そこで、処理を「DB の中で完結する段」と「外を 1 回だけ変える段」に分け、<b>どこまで進んだか</b>（リカバリポイント (recovery point)）をキーの行に記録します。</p>
+  <div class="phases">
+    <div class="phase"><span class="kind db">DB・原子的</span><div><b>キーの行を作り、注文を「支払い待ち」で作る</b><p>1 つのトランザクション。リカバリポイントを <span class="rp">order_created</span> にして確定する。</p></div></div>
+    <div class="phase"><span class="kind ext">外部を変える</span><div><b>決済 API を呼ぶ</b><p>自分のキーから決めた冪等キー（例: <code>order-123-charge</code>）を付ける。ここで落ちても、再開時に同じキーで呼べば決済側が二重を防ぐ。</p></div></div>
+    <div class="phase"><span class="kind db">DB・原子的</span><div><b>決済結果を保存し、注文を「支払い済み」に</b><p>リカバリポイントを <span class="rp">charged</span> に。メール送信は直接呼ばず、送信待ちの行を同じトランザクションで書く。</p></div></div>
+    <div class="phase"><span class="kind ext">外部を変える</span><div><b>別の作業者が送信待ちの行を読んでメールを送る</b><p>送信の重複は受け手側の重複排除で吸収する（アウトボックス (outbox) の形。<a href="message-queues.html">メッセージキューと Pub/Sub</a>）。</p></div></div>
+    <div class="phase"><span class="kind db">DB・原子的</span><div><b>応答を保存して完了</b><p>リカバリポイントを <span class="rp">finished</span>。以後の同じキーは保存した応答を返すだけ。</p></div></div>
+  </div>
+  <div class="legend"><span><i style="background:var(--fg-2)"></i>DB の中だけ（巻き戻せる）</span><span><i style="background:var(--c-warn)"></i>外部を変える（巻き戻せない。1 段に 1 つだけ）</span></div>
+  <p>途中で落ちてクライアントが同じキーで送り直したら、行のリカバリポイントを見て<b>続きから</b>実行します。「処理中」のまま長く止まっている行は、ロックの時刻を記録しておき、一定時間たったら再開してよいことにします。この組み立ては、Stripe の社員だった Brandur Leach の記事「Implementing Stripe-like Idempotency Keys in Postgres」で詳しく説明されています。</p>
+
+  <h2 id="client">クライアント側：キーは「操作」に 1 つ</h2>
+  <ol class="steps">
+    <li><b>操作が始まったときに作る</b>購入ボタンを最初に押したとき（またはフォームを表示したとき）に UUID を作る。HTTP リクエストを送るたびに作るのではない。</li>
+    <li><b>リトライでは同じキーを使い回す</b>タイムアウト・接続切れ・<code>409</code>・<code>5xx</code> で送り直すときは、キーも本文も変えない。間隔は指数バックオフ＋ジッターで空ける。</li>
+    <li><b>中身を変えたら新しいキー</b>利用者が金額や宛先を直したら別の操作なので、新しいキーを作る。同じキーで中身を変えると <code>422</code> になる。</li>
+    <li><b>直さないと通らない失敗は再送しない</b><code>400</code>・<code>422</code>・<code>401</code> などはリクエストを直す。同じものを何度送っても結果は変わらない。</li>
+  </ol>
+  <p>ボタンを押せなくする・送信中の表示を出すのは、利用者のための工夫としては有効です。ただし、自動リトライ・中継の再送・複数タブは防げないので、サーバー側の冪等キーの代わりにはなりません。</p>
+
+  <h2 id="alt">キーを使わずに冪等にする方法</h2>
+  <p>冪等キーは汎用ですが、記録用のテーブルと期限の管理が要ります。操作の性質によっては、もっと単純な方法で足ります。</p>
+  <div class="table-wrap">
+    <table class="t-alt">
+      <thead><tr><th>方法</th><th>やり方</th><th>向いている場面</th></tr></thead>
+      <tbody>
+        <tr><td>自然な一意キー</td><td>業務上 1 回しか起きないものに一意制約（「注文 123 の支払い」は 1 件だけ、など）</td><td>重複の定義が業務で決まっているとき。期限も要らない</td></tr>
+        <tr><td>ID をクライアントが決めて <code>PUT</code></td><td><code>PUT /orders/{クライアントが作った UUID}</code>。何回送っても同じ注文 1 件</td><td>作成する資源の ID を前もって決めてよいとき。<code>PUT</code> はもともと冪等</td></tr>
+        <tr><td>条件付きリクエスト</td><td><code>If-None-Match: *</code>（無いときだけ作る）、<code>If-Match: "&lt;ETag&gt;"</code>（読んだときのままなら更新）</td><td>二重作成と更新の取り合いを防ぎたいとき（<a href="s3-compatible.html">S3 互換ストレージの仕組み</a> の条件付き書き込み）</td></tr>
+        <tr><td>受け手の重複排除</td><td>メッセージ ID を「処理済み」テーブルに入れてから処理（同じトランザクション）</td><td>キュー・Webhook の受信。送り手は少なくとも 1 回届けるだけ</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>送信ボタンを無効にすれば二重送信は防げる</summary><p>防げるのは同じ画面での連打だけ。HTTP ライブラリの自動リトライ、中継の再送、再読み込み、別タブからの送信はサーバーに 2 本届く。最後の砦はサーバー側の冪等キーか一意制約。</p></details>
+  <details class="myth"><summary>冪等キーはリクエストを送るたびに新しく作る</summary><p>キーは「操作」に 1 つ。リトライのたびに作り直すと、サーバーには毎回別の操作に見えて、二重処理を防げない。</p></details>
+  <details class="myth"><summary>2 回目のリクエストには「処理済み」とだけ返せばよい</summary><p>1 回目の応答（作った資源の ID など）を受け取れなかったから送り直しているので、1 回目と同じステータスと本文を返す。そうしないとクライアントは結果を知る手段がない。</p></details>
+  <details class="myth"><summary>冪等キーを付ければ、いつ何度送っても安全</summary><p>記録には期限があり、期限を過ぎた同じキーは新しい操作として処理される。また、同じキーで中身を変えた送信は弾かれる。キーは「短い間のリトライを安全にする」仕組み。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="distributed-basics.html">分散システムの基本</a> — 冪等性の定義と、リトライの間隔（指数バックオフ＋ジッター）</li>
+    <li><a href="api-styles.html">REST・GraphQL・gRPC・tRPC</a> — もともと冪等なメソッドと、そうでない POST</li>
+    <li><a href="db-index-transaction.html">インデックスとトランザクション</a> — キーの記録と本処理を一度に確定する土台</li>
+    <li><a href="message-queues.html">メッセージキューと Pub/Sub</a> — 少なくとも 1 回届くメッセージを受け手で重複排除する</li>
+    <li><a href="s3-compatible.html">S3 互換ストレージの仕組み</a> — 条件付き書き込みで二重作成を防ぐ例</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/">IETF: The Idempotency-Key HTTP Header Field（Internet-Draft）</a></li>
+    <li><a href="https://docs.stripe.com/api/idempotent_requests">Stripe API Reference: Idempotent requests</a></li>
+    <li><a href="https://brandur.org/idempotency-keys">Brandur Leach: Implementing Stripe-like Idempotency Keys in Postgres</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc9110#name-idempotent-methods">RFC 9110: Idempotent Methods</a></li>
+  </ul>
+  <p class="note">2026 年 11 月に確認。</p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "決済 API の呼び出しがタイムアウトした。クライアントが冪等キー付きで安全に送り直すには、キーをどう扱う？",
+    "choices": ["新しい UUID を作って送り直す", "1 回目と同じキー・同じ本文で送り直す", "キーを外して送り直し、サーバーに重複を判断させる"],
+    "answer": 1,
+    "explain": "キーは操作 1 回に 1 つ。同じキーで送り直せば、1 回目が成功していてもサーバーは処理せずに保存した応答を返す。",
+    "ref": "#client"
+  },
+  {
+    "q": "同じ冪等キーの POST が 2 本ほぼ同時に届き、1 本目はまだ処理中。2 本目に返すのに合うのは？",
+    "choices": ["422 を返し、本文を直してから新しいキーで送ってもらう", "2 本目も処理しておき、あとで重複した方を取り消す", "409 を返し、少し待って同じキーで送り直してもらう"],
+    "answer": 2,
+    "explain": "同じキーの処理が終わっていない状態は衝突なので 409。終わった後に同じキーで来れば保存した応答を返せる。422 は同じキーで中身が違うとき。",
+    "ref": "#flow"
+  },
+  {
+    "q": "冪等キーの記録を「SELECT で無いことを確かめてから INSERT」で書いた。どんな不具合が起き得る？",
+    "choices": ["同時に来た 2 本がどちらも「無い」と見て、両方とも処理してしまう", "1 回目が終わった後の再送まで、必ず 409 で弾かれてしまう", "期限切れのキーが消えず、記録のテーブルが増え続けてしまう"],
+    "answer": 0,
+    "explain": "確かめてから作る間に隙間がある。一意制約付きの INSERT（ON CONFLICT DO NOTHING など）に判断を任せれば、DB が 1 本だけを通す。",
+    "ref": "#atomic"
+  },
+  {
+    "q": "注文 API の中で外部の決済 API を呼んでいる。課金した直後にサーバーが落ちたとき、再送で二重課金にしないための組み立ては？",
+    "choices": ["注文作成と課金を 1 つの DB トランザクションに入れ、落ちたら全部巻き戻す", "リカバリポイントをキーの行に残し、決済 API にも冪等キーを渡して続きから再開する", "課金の前後で応答をキャッシュし、再送が来たらキャッシュから返す"],
+    "answer": 1,
+    "explain": "外部の課金は DB を巻き戻しても戻らない。どこまで進んだかを記録し、外部呼び出しにも冪等キーを付ければ、再開時に同じ呼び出しを安全に繰り返せる。",
+    "ref": "#external"
+  },
+  {
+    "q": "キュー（少なくとも 1 回配信）から届く「ポイント付与」メッセージを二重に処理したくない。冪等キーのヘッダーを使わずにできる方法は？",
+    "choices": ["メッセージ ID を処理済みテーブルに入れ、付与と同じトランザクションで確定する", "キューの再配信を無効にして、届かなかった分は人が手で付与する", "受け取ったらすぐ ack を返し、その後でポイントを付与する"],
+    "answer": 0,
+    "explain": "受け手の重複排除。処理済みの記録と本処理を一緒に確定すれば、同じメッセージが再び届いても一意制約で弾ける。",
+    "ref": "#alt"
+  }
+]
+</script>
+</body>
+</html>
