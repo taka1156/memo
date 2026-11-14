@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>キャッシュ戦略</title>
+<meta name="description" content="アプリ側のキャッシュの読み方（Cache-Aside・Read-Through）と書き方（Write-Through・Write-Behind・Write-Around）、更新時に古い値が残る順番の入れ替わりと無効化の方法、TTL の決め方、人気のキーが切れたときの殺到（スタンピード）の防ぎ方を図解する">
+<meta name="memo:tags" content="設計, バックエンド, データベース">
+<meta name="memo:date" content="2026-11-14">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 20px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 置き場所の層 */
+.tiers { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
+.tiers .card { flex: 1 1 130px; padding: 10px 12px; }
+.tiers .card.here { border-width: 2px; border-style: dashed; border-color: var(--fg-2); }
+.tiers b { display: block; font-size: 0.86rem; }
+.tiers p { font-size: 0.76rem; color: var(--fg-2); margin: 2px 0 0; }
+.tiers .sep { flex: none; align-self: center; color: var(--fg-2); font: 700 0.9rem 'JetBrains Mono', ui-monospace, monospace; }
+.tiers .sep::before { content: '→'; }
+@media (max-width: 599px) {
+  .tiers { flex-direction: column; }
+  .tiers .card { flex: none; }
+  .tiers .sep::before { content: '↓'; }
+}
+
+/* 読み書きの図（アプリ・キャッシュ・DB の 3 者） */
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; margin-bottom: 10px; }
+.trio span { border: 1px solid var(--line); border-radius: 8px; padding: 6px 4px; background: var(--chip); font: 700 0.78rem 'JetBrains Mono', ui-monospace, monospace; }
+
+/* シーケンス */
+.seq { display: grid; font-size: 0.82rem; }
+.seq .hd { font-size: 0.75rem; font-weight: 700; color: var(--fg-2); padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.seq .msg { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.seq .who { flex: none; width: 3.6em; font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; border: 1px solid var(--line); border-radius: 4px; text-align: center; padding: 1px 0; margin-top: 1px; }
+.seq .who.w { color: var(--c-a); border-color: currentColor; }
+.seq .who.r { color: var(--c-b); border-color: currentColor; }
+.seq .txt { flex: 1; min-width: 0; }
+.seq .msg.bad .txt { font-weight: 700; }
+.result { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; font-size: 0.82rem; }
+.result .tag { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; border: 1px solid currentColor; border-radius: 4px; padding: 0 6px; }
+.tag.ng { color: var(--c-ng); }
+.tag.ok { color: var(--c-ok); }
+.tag.warn { color: var(--c-warn); }
+
+/* スタンピード */
+.herd { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.herd .card { padding: 10px 12px; }
+.herd b { font-size: 0.88rem; display: block; }
+.herd .db { display: flex; flex-wrap: wrap; gap: 2px; margin: 8px 0 4px; min-height: 12px; }
+.herd .db i { width: 8px; height: 8px; border-radius: 2px; background: var(--c-ng); }
+.herd .db i.one { background: var(--c-ok); }
+.herd .n { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.herd p { font-size: 0.78rem; color: var(--fg-2); margin: 4px 0 0; }
+
+.formula { font: 600 0.85rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); border-radius: 8px; padding: 10px 12px; overflow-x: auto; white-space: nowrap; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+th { color: var(--fg-2); font-size: 0.78rem; }
+.t-write { min-width: 620px; }
+.t-ttl { min-width: 520px; }
+
+:root { --c-a: #0969da; --c-b: #b3247b; }
+@media (prefers-color-scheme: dark) { :root { --c-a: #58a6ff; --c-b: #f778ba; } }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="キャッシュ戦略">
+<meta property="og:description" content="アプリ側のキャッシュの読み方（Cache-Aside・Read-Through）と書き方（Write-Through・Write-Behind・Write-Around）、更新時に古い値が残る順番の入れ替わりと無効化の方法、TTL の決め方、人気のキーが切れたときの殺到（スタンピード）の防ぎ方を図解する">
+<meta property="og:url" content="https://memo.taka1156.site/cache-strategies.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>キャッシュ戦略</h1>
+  <p class="subtitle">Cache-Aside・Write-Through・無効化 ── アプリ側のキャッシュで古い値と殺到を防ぐ</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>アプリ側のキャッシュは DB の前に置く速い一時置き場で、読み方と書き方の組み合わせで性格が決まる。</li>
+      <li>更新時は「DB を書いてからキャッシュを消す」が基本だが、順番の入れ替わりで古い値が残り得るので TTL を必ず付ける。</li>
+      <li>人気のキーが切れた瞬間の殺到は、1 本だけに作り直させる・期限前に作り直す・古い値を返しつつ裏で更新する、で防ぐ。</li>
+    </ul>
+  </div>
+
+  <h2 id="tiers">どこのキャッシュの話か</h2>
+  <div class="tiers">
+    <div class="card"><b>ブラウザ・CDN</b><p>HTTP のヘッダーで決まる。<a href="http-cache.html">HTTP キャッシュ</a></p></div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="card"><b>アプリのメモリ</b><p>プロセスの中の Map や LRU。最速だが台ごとにばらばら</p></div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="card here"><b>共有キャッシュ</b><p>Redis・Memcached など。全台から同じ値が見える</p></div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="card"><b>DB</b><p>DB 自身もページをメモリに持つ（バッファプール）</p></div>
+  </div>
+  <p class="note">破線の枠が、このメモで主に扱う「アプリが自分で読み書きするキャッシュ」。アプリのメモリにも同じ考え方が当てはまる。キャッシュの置き場所としての Redis の中身は <a href="redis-valkey.html">Redis と Valkey の仕組み</a>。</p>
+
+  <h2 id="read">読み方：Cache-Aside と Read-Through</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="r-aside">Cache-Aside</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="r-through">Read-Through</button>
+  </div>
+  <div class="panel card" id="r-aside">
+    <div class="trio"><span>アプリ</span><span>キャッシュ</span><span>DB</span></div>
+    <ol class="steps">
+      <li><b>アプリがキャッシュを見る</b>あれば（ヒット）それを返して終わり。</li>
+      <li><b>無ければ（ミス）アプリが DB から読む</b>キャッシュは DB のことを知らない。間を取り持つのはアプリ。</li>
+      <li><b>アプリが読んだ値を TTL 付きでキャッシュに入れる</b>次からはヒットする。</li>
+    </ol>
+<pre><code>async function getUser(id) {
+  const hit = await cache.get(`user:${id}`);
+  if (hit) return JSON.parse(hit);
+  const user = await db.findUser(id);                          <span class="cm">// ミス → DB</span>
+  await cache.set(`user:${id}`, JSON.stringify(user), { EX: 300 }); <span class="cm">// 5 分で切れる</span>
+  return user;
+}</code></pre>
+    <p>いちばんよく使う形で、遅延読み込み (lazy loading) とも呼ばれます。読まれたものだけが入り、キャッシュが落ちても DB から読めば動き続けます。弱みは、<b>最初の 1 回は必ず遅い</b>ことと、DB を更新してもキャッシュは自動では変わらないことです（下の「無効化」）。</p>
+  </div>
+  <div class="panel card" id="r-through" hidden>
+    <div class="trio"><span>アプリ</span><span>キャッシュ</span><span>DB</span></div>
+    <ol class="steps">
+      <li><b>アプリはキャッシュにだけ聞く</b>DB の場所や読み方を知らない。</li>
+      <li><b>ミスしたらキャッシュ側が DB から読んで入れる</b>読み込み方はキャッシュのライブラリや層に登録しておく。</li>
+      <li><b>アプリには値だけが返る</b>ヒットかミスかを意識しない。</li>
+    </ol>
+    <p>動きは Cache-Aside と同じで、「ミスしたときに DB を読む役」をアプリからキャッシュ層に移したものです。読み込みを 1 か所にまとめられるので、同じキーのミスを 1 本にまとめる（下の「スタンピード」）のもキャッシュ層でできます。Java の Caffeine の <code>LoadingCache</code> のように、プロセス内のキャッシュライブラリでよく見る形です。</p>
+  </div>
+
+  <h2 id="write">書き方：Write-Through・Write-Behind・Write-Around</h2>
+  <div class="table-wrap">
+    <table class="t-write">
+      <thead><tr><th>方式</th><th>書くとき</th><th>強み</th><th>弱み</th></tr></thead>
+      <tbody>
+        <tr><td>Write-Through</td><td>DB に書くたびに、キャッシュにも新しい値を書く</td><td>書いた直後の読み込みもヒットし、値が新しい</td><td>書き込みが毎回 2 か所で遅くなる。読まれないデータまでキャッシュに入る</td></tr>
+        <tr><td>Write-Behind（Write-Back）</td><td>キャッシュにだけ書いてすぐ返し、DB には後でまとめて書く</td><td>書き込みが速い。同じキーへの連続した書き込みを 1 回にまとめられる</td><td>DB に書く前にキャッシュが落ちると、書いたはずのデータが消える</td></tr>
+        <tr><td>Write-Around</td><td>DB にだけ書き、キャッシュは消す（または触らない）</td><td>読まれないデータでキャッシュを埋めない。単純</td><td>書いた直後の読み込みはミスして DB へ行く</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>実際によく使うのは <b>Cache-Aside ＋「書いたらキャッシュを消す」</b>の組み合わせです。読まれたものだけがキャッシュに入り、次に読まれたときに DB の新しい値で作り直されます。Write-Through は「書いた直後に必ず読まれる」データ（自分のプロフィールなど）で効き、Write-Behind はアクセス数のカウンターのように「多少消えても困らず、書き込みが多い」データ向けです。</p>
+  <p class="note">AWS の ElastiCache の資料では、遅延読み込み（Cache-Aside）は古い値が残り得るがキャッシュが空でも動き、Write-Through は値が新しいがキャッシュが空になると欠け、読まれないデータも入る、と整理し、どちらにも TTL を足すことを勧めている。</p>
+
+  <h2 id="invalidate">無効化：消すか、上書きするか</h2>
+  <p>DB を更新したら、キャッシュの古い値をどうにかしないといけません。選択肢は「新しい値で上書きする」と「消して、次に読む人に作り直させる」の 2 つです。基本は<b>消す</b>ほうです。消す操作は何回やっても結果が同じ（冪等）なので、失敗したら単純にやり直せますし、更新が重なっても「新しい値を後から古い値で上書きする」ことが起きにくくなります。Facebook の memcache の論文でも、更新時はキャッシュの値を書き換えず、消すことを選んでいます。</p>
+  <p>それでも、<b>順番の入れ替わり</b>で古い値が残ることがあります。W（書く人）と R（読む人）として、よくある 3 つの形を見ます。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="race-1">先に消してから DB</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="race-2">DB の後に消しても</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="race-3">上書きどうしの追い越し</button>
+  </div>
+  <div class="panel card" id="race-1">
+    <div class="seq">
+      <div class="hd">キャッシュの値 = 100、DB = 100 から始める</div>
+      <div class="msg"><span class="who w">W</span><span class="txt">キャッシュを消す</span></div>
+      <div class="msg"><span class="who r">R</span><span class="txt">ミスしたので DB を読む → まだ 100</span></div>
+      <div class="msg"><span class="who w">W</span><span class="txt">DB を 200 に更新</span></div>
+      <div class="msg bad"><span class="who r">R</span><span class="txt">読んだ 100 をキャッシュに入れる</span></div>
+    </div>
+    <div class="result"><span class="tag ng">古い値</span>DB は 200 なのに、キャッシュは TTL が切れるまで 100。消すのが早すぎて、間に入った読み込みが古い値を入れ直した。<b>順番は「DB を更新 → 消す」にする。</b></div>
+  </div>
+  <div class="panel card" id="race-2" hidden>
+    <div class="seq">
+      <div class="hd">キャッシュは空、DB = 100 から始める</div>
+      <div class="msg"><span class="who r">R</span><span class="txt">ミスしたので DB を読む → 100（ここで R が少し止まる）</span></div>
+      <div class="msg"><span class="who w">W</span><span class="txt">DB を 200 に更新</span></div>
+      <div class="msg"><span class="who w">W</span><span class="txt">キャッシュを消す（まだ空なので何も起きない）</span></div>
+      <div class="msg bad"><span class="who r">R</span><span class="txt">止まっていた R が、読んだ 100 をキャッシュに入れる</span></div>
+    </div>
+    <div class="result"><span class="tag warn">まれに起きる</span>R の「読む → 入れる」の間に W の更新と削除が丸ごと挟まったときだけ起きる。Facebook の論文はこれを stale set と呼び、ミスした人に<b>リース</b>（入れてよい権利の札）を渡し、その間に削除が来たら札を無効にして書き込みを断ることで防いでいる。</div>
+  </div>
+  <div class="panel card" id="race-3" hidden>
+    <div class="seq">
+      <div class="hd">Write-Through で、2 人が同じキーを続けて更新する</div>
+      <div class="msg"><span class="who w">W1</span><span class="txt">DB を 200 に更新</span></div>
+      <div class="msg"><span class="who w">W2</span><span class="txt">DB を 300 に更新</span></div>
+      <div class="msg"><span class="who w">W2</span><span class="txt">キャッシュに 300 を書く</span></div>
+      <div class="msg bad"><span class="who w">W1</span><span class="txt">遅れていた W1 が、キャッシュに 200 を書く</span></div>
+    </div>
+    <div class="result"><span class="tag ng">古い値</span>DB は 300、キャッシュは 200。DB の更新順とキャッシュへの書き込み順が入れ替わった。上書き方式でよく起きるので、更新では消すほうを選ぶか、値にバージョン番号を持たせて古い版では上書きしないようにする。</div>
+  </div>
+
+  <h3 id="safety">取りこぼしに備える</h3>
+  <ol class="steps">
+    <li><b>TTL を必ず付ける</b>削除の失敗やレースで古い値が残っても、TTL が来れば消える。古さの上限を決める最後の安全網。</li>
+    <li><b>削除は DB の変更から起こす</b>アプリのコードで消すと、別の経路（管理画面・バッチ・手作業の SQL）の更新で消し忘れる。DB の変更ログを読んで消す仕組み（CDC (change data capture)）にすれば、経路によらず消える。</li>
+    <li><b>キーに版を入れる</b><code>user:42:v7</code> のように版を入れ、更新したら版を上げる。古いキーは読まれなくなり、TTL で消える。データの形を変えたときも、キーの接頭辞を変えれば古い形の値を読まずに済む。</li>
+  </ol>
+
+  <h2 id="ttl">TTL の決め方</h2>
+  <div class="table-wrap">
+    <table class="t-ttl">
+      <thead><tr><th>考えること</th><th>決め方の例</th></tr></thead>
+      <tbody>
+        <tr><td>どれだけ古くてよいか</td><td>商品の在庫数は数秒、ランキングは数分、国の一覧は 1 日。古さが業務で困る上限より短くする</td></tr>
+        <tr><td>一斉に切れないか</td><td>同時に入れたキーが同時に切れると DB に集中する。TTL に ±10% ほどのランダムな幅（ジッター）を足す</td></tr>
+        <tr><td>無いものを何度も聞かれないか</td><td>存在しない ID を聞かれるたびに DB へ行くと、攻撃にも使われる。「無い」という結果も短い TTL でキャッシュする（ネガティブキャッシュ）</td></tr>
+        <tr><td>自分の更新がすぐ見えるか</td><td>更新した本人には DB から読むか、Write-Through で入れ直す。他人には少し遅れて見えてもよいことが多い</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="stampede">スタンピード：人気のキーが切れた瞬間</h2>
+  <p>毎秒 1,000 回読まれるキーの TTL が切れると、作り直しが終わるまでの間に来たリクエストが<b>全部ミスして、同時に DB へ行きます</b>。作り直しに 0.5 秒かかれば、約 500 本が同じ重い問い合わせを投げます。これをキャッシュのスタンピード（cache stampede、dog-piling とも）と呼びます。</p>
+  <div class="herd">
+    <div class="card"><b>対策なし</b><div class="db" data-n="24" aria-hidden="true"></div><span class="n">DB へ: ミスした全員</span><p>作り直しが遅いほど DB への集中がふくらみ、DB が遅くなってさらに作り直しが遅れる。</p></div>
+    <div class="card"><b>1 本だけに作り直させる</b><div class="db" data-n="1" aria-hidden="true"></div><span class="n">DB へ: 1 本・ほかは待つ</span><p>キーごとのロック（Redis の <code>SET key val NX PX 3000</code> など）を取れた 1 本だけが DB へ行き、ほかは少し待ってキャッシュを読み直す。プロセス内なら、同じキーの読み込みを 1 つの Promise にまとめる（Go の singleflight と同じ考え方）。</p></div>
+    <div class="card"><b>期限前に確率的に作り直す</b><div class="db" data-n="1" aria-hidden="true"></div><span class="n">DB へ: ほぼ 1 本・誰も待たない</span><p>切れる少し前から、読んだ人がくじを引き、当たった人が先に作り直す。期限に近いほど当たりやすい。</p></div>
+    <div class="card"><b>古い値を返しつつ裏で更新</b><div class="db" data-n="1" aria-hidden="true"></div><span class="n">DB へ: 1 本・古い値で応答</span><p>期限を過ぎても少しの間は古い値を返し、裏で 1 本だけが作り直す。HTTP の <code>stale-while-revalidate</code> と同じ考え方。</p></div>
+  </div>
+  <div class="legend"><span><i style="background:var(--c-ng)"></i>同時に DB へ行くリクエスト（多い）</span><span><i style="background:var(--c-ok)"></i>DB へ行くのが 1 本で済む</span></div>
+
+  <h3 id="xfetch">確率的な早期の作り直し（XFetch）</h3>
+  <p>Vattani らの論文（VLDB 2015）が示した方式で、値と一緒に「作り直しにかかった時間 δ」と「期限」を保存しておき、読むたびに次の条件で作り直すかを決めます。</p>
+  <div class="formula">今の時刻 − δ × β × ln(乱数) ≥ 期限　なら作り直す</div>
+  <p>乱数は 0〜1 なので ln(乱数) は負で、左辺は「今」より少し先の時刻になります。期限が近いほど、そして作り直しが重い（δ が大きい）ほど、早めに当たりやすくなります。β は早さの調整で、論文では 1 で十分よく働くとしています。読む人どうしで連絡を取り合わずに、作り直す人がだいたい 1 人に絞られるのが利点です。読まれる回数が少ないキーでは、期限前にくじを引く人がいないので効きません。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>キャッシュを置けば必ず速くなる</summary><p>ヒット率が低いと、キャッシュへの往復とシリアライズの分だけ遅くなる。ほとんど同じものが読まれない処理（検索結果の組み合わせが多いなど）には効きにくい。ヒット率を測ってから決める。</p></details>
+  <details class="myth"><summary>更新時はキャッシュを新しい値で上書きするのがいちばん新しい</summary><p>同時に更新が重なると、キャッシュへの書き込み順が DB の更新順と入れ替わって古い値が残る。消して、次に読む人に DB から作り直させるほうが安全。</p></details>
+  <details class="myth"><summary>更新のたびに消しているなら TTL は要らない</summary><p>削除の失敗、別の経路からの更新、読み込みとのレースで古い値は残り得る。TTL が無いと、その値は永遠に残る。TTL は古さの上限を決める安全網。</p></details>
+  <details class="myth"><summary>キャッシュが落ちても DB があるから困らない</summary><p>普段キャッシュが受けていた読み込みが全部 DB に来るので、DB が耐えられないことが多い。キャッシュが空の状態から戻すとき（再起動・台の追加）も同じで、少しずつ流す・事前に温めるなどの準備が要る。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="http-cache.html">HTTP キャッシュ</a> — ブラウザと CDN のキャッシュ。<code>stale-while-revalidate</code> の元</li>
+    <li><a href="redis-valkey.html">Redis と Valkey の仕組み</a> — 共有キャッシュの置き場所と、TTL・エビクション</li>
+    <li><a href="distributed-basics.html">分散システムの基本</a> — キャッシュの古い値は結果整合性の一種</li>
+    <li><a href="message-queues.html">メッセージキューと Pub/Sub</a> — DB の変更を流して、キャッシュの削除を起こす土台</li>
+    <li><a href="db-internals.html">DB のしくみ</a> — DB 自身のメモリ上のキャッシュ（バッファプール）</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/Strategies.html">Amazon ElastiCache: Caching strategies</a></li>
+    <li><a href="https://www.usenix.org/conference/nsdi13/technical-sessions/presentation/nishtala">Nishtala ほか: Scaling Memcache at Facebook（NSDI 2013）</a></li>
+    <li><a href="https://cseweb.ucsd.edu/~avattani/papers/cache_stampede.pdf">Vattani ほか: Optimal Probabilistic Cache Stampede Prevention（VLDB 2015）</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc5861">RFC 5861: HTTP Cache-Control Extensions for Stale Content</a></li>
+  </ul>
+  <p class="note">2026 年 11 月に確認。</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+/* スタンピードの図: DB へ行くリクエストの数だけ四角を並べる */
+document.querySelectorAll('.herd .db').forEach(el => {
+  const n = +el.dataset.n;
+  el.innerHTML = Array.from({ length: n }, () => `<i class="${n === 1 ? 'one' : ''}"></i>`).join('');
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Cache-Aside でユーザー情報をキャッシュしている。プロフィールの更新処理で、古い値が残りにくい順番は？",
+    "choices": ["キャッシュを消してから DB を更新する", "DB を更新してからキャッシュを消す", "DB を更新してから、キャッシュに新しい値を上書きする"],
+    "answer": 1,
+    "explain": "先に消すと、間に入った読み込みが DB の古い値を入れ直す。上書きは更新が重なると順番が入れ替わる。DB の後に消すのが基本で、それでも残る分は TTL で消す。",
+    "ref": "#invalidate"
+  },
+  {
+    "q": "更新のたびにキャッシュを消しているのに、まれに古い値が何時間も残る。まずやるべき対策は？",
+    "choices": ["キャッシュのメモリを増やす", "読み込みのたびに DB とキャッシュを比べる", "キーに TTL を付けて、古さの上限を決める"],
+    "answer": 2,
+    "explain": "削除の失敗やレース、別経路の更新で消し忘れは起こる。TTL があればいずれ消えるので、古さの上限が決まる。",
+    "ref": "#safety"
+  },
+  {
+    "q": "毎秒数千回読まれるランキングのキャッシュが切れるたびに、DB の負荷が跳ね上がる。対策として合うのは？",
+    "choices": ["キーごとのロックで 1 本だけに作り直させ、ほかは少し待ってキャッシュを読み直す", "TTL を 1 秒にしてこまめに作り直す", "キャッシュをやめて DB のインデックスを増やす"],
+    "answer": 0,
+    "explain": "切れた瞬間のミスが全部 DB へ行くのがスタンピード。作り直しを 1 本に絞るか、期限前に確率的に作り直す、古い値を返しつつ裏で更新する、で防ぐ。",
+    "ref": "#stampede"
+  },
+  {
+    "q": "アクセス数のカウンターのように書き込みがとても多く、数件消えても困らないデータ。キャッシュの書き方として合うのは？",
+    "choices": ["Write-Through（DB とキャッシュの両方に毎回書く）", "Write-Behind（キャッシュに書いて、DB へは後でまとめて書く）", "Write-Around（DB にだけ書いてキャッシュは消す）"],
+    "answer": 1,
+    "explain": "Write-Behind は書き込みが速く、同じキーの連続した書き込みをまとめられる。DB に書く前に落ちると消えるので、消えても困らないデータ向け。",
+    "ref": "#write"
+  },
+  {
+    "q": "存在しない商品 ID へのリクエストが大量に来て、毎回 DB まで届いている。キャッシュ側でできる対策は？",
+    "choices": ["「無い」という結果も短い TTL でキャッシュする", "存在する商品だけ TTL を長くする", "キャッシュのエビクション方針を LRU から LFU に変える"],
+    "answer": 0,
+    "explain": "結果が無いものはキャッシュに入らないので、毎回ミスして DB へ行く。ネガティブキャッシュで「無い」も覚えておけば DB に届かない。",
+    "ref": "#ttl"
+  }
+]
+</script>
+</body>
+</html>

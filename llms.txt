@@ -5,9 +5,12 @@
 ## Memos
 
 - [スキーマ設計とマイグレーション](https://memo.taka1156.site/md/schema-migration.md): 正規化と制約でテーブルを設計し、ORM とマイグレーションツールで変更を管理し、拡張→移行→縮小の手順とロックの少ない DDL で、サービスを止めずにスキーマを変える方法を図解する。（データベース, バックエンド, 設計 / 2026-11-14）
+- [レート制限のアルゴリズム](https://memo.taka1156.site/md/rate-limiting.md): 固定ウィンドウ・スライディングウィンドウ（ログ／カウンター）・トークンバケット・リーキーバケットの違いを、同じリクエスト列で比べるシミュレーションで図解し、複数台で数える方法、429 と Retry-After・RateLimit ヘッダーの返し方、何を単位に数えるかを整理する（設計, バックエンド, インフラ / 2026-11-14）
 - [NewSQL・分散 SQL](https://memo.taka1156.site/md/newsql.md): SQL とトランザクションを残したまま台を増やす 2 つの方式（Vitess のようなシャーディング層と、Spanner・CockroachDB・TiDB のような分散 SQL）を、キー範囲の分割・合意による複製・時刻の扱いから図解する。（データベース, 設計 / 2026-11-14）
 - [URL から応答まで：層で見るネットワーク](https://memo.taka1156.site/md/network-layers.md): URL を開いてから応答が返るまでに通る DNS・IP・TCP・TLS・CDN・LB などが、どの層で何をしているかを層の地図と流れでたどり、症状から疑う層を引ける。（ネットワーク, インフラ / 2026-11-14）
+- [キャッシュ戦略](https://memo.taka1156.site/md/cache-strategies.md): アプリ側のキャッシュの読み方（Cache-Aside・Read-Through）と書き方（Write-Through・Write-Behind・Write-Around）、更新時に古い値が残る順番の入れ替わりと無効化の方法、TTL の決め方、人気のキーが切れたときの殺到（スタンピード）の防ぎ方を図解する（設計, バックエンド, データベース / 2026-11-14）
 - [bubblewrap と socat](https://memo.taka1156.site/md/bubblewrap-socat.md): bwrap でコマンドを閉じ込め、socat とプロキシで許可した通信だけ通す仕組みを、AI エージェントでの使われ方とともに図解。（Linux, セキュリティ, AI / 2026-11-14）
+- [冪等キーとリトライ](https://memo.taka1156.site/md/api-idempotency.md): POST をリトライしても二重送信・二重課金にならない API の作り方を、冪等キーの判定フロー（409・422）、記録と本処理の原子性、外部 API を挟む処理の再開、クライアント側のキーの持ち方で図解する（設計, バックエンド / 2026-11-14）
 - [Durable Objects と celld](https://memo.taka1156.site/md/durable-objects.md): 名前で呼べる「状態を持つ 1 つの実体」Durable Objects の仕組み・ライフサイクル・設計と課金のツボ、自前のサーバーで同じコードを動かす celld の仕組みと違いを図解。（インフラ, バックエンド, 設計 / 2026-11-13）
 - [実装起因の脆弱性（リクエストと権限）](https://memo.taka1156.site/md/request-vulnerabilities.md): CSRF・セッションハイジャック・SSRF・オープンリダイレクト・認可不備（IDOR）を、攻撃の流れと NG/OK コードで図解。Cookie の自動送信・サーバーからの URL 取得・権限の確認漏れを突く攻撃の防ぎ方。（セキュリティ, バックエンド / 2026-11-08）
 - [仮想メモリとページング](https://memo.taka1156.site/md/virtual-memory.md): OS がプロセスごとに専用のメモリ空間を見せるしくみ。ページとページテーブルによるアドレス変換、TLB と huge page、ページフォルトの種類、オーバーコミットと OOM killer、fork の copy-on-write、mmap と共有、VIRT と RES の読み方までを図解。（CS基礎, Linux / 2026-11-07）

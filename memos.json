@@ -12,6 +12,18 @@
   "quizzes": 5
  },
  {
+  "file": "rate-limiting.html",
+  "title": "レート制限のアルゴリズム",
+  "desc": "固定ウィンドウ・スライディングウィンドウ（ログ／カウンター）・トークンバケット・リーキーバケットの違いを、同じリクエスト列で比べるシミュレーションで図解し、複数台で数える方法、429 と Retry-After・RateLimit ヘッダーの返し方、何を単位に数えるかを整理する",
+  "tags": [
+   "設計",
+   "バックエンド",
+   "インフラ"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 5
+ },
+ {
   "file": "newsql.html",
   "title": "NewSQL・分散 SQL",
   "desc": "SQL とトランザクションを残したまま台を増やす 2 つの方式（Vitess のようなシャーディング層と、Spanner・CockroachDB・TiDB のような分散 SQL）を、キー範囲の分割・合意による複製・時刻の扱いから図解する。",
@@ -34,6 +46,18 @@
   "quizzes": 4
  },
  {
+  "file": "cache-strategies.html",
+  "title": "キャッシュ戦略",
+  "desc": "アプリ側のキャッシュの読み方（Cache-Aside・Read-Through）と書き方（Write-Through・Write-Behind・Write-Around）、更新時に古い値が残る順番の入れ替わりと無効化の方法、TTL の決め方、人気のキーが切れたときの殺到（スタンピード）の防ぎ方を図解する",
+  "tags": [
+   "設計",
+   "バックエンド",
+   "データベース"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 5
+ },
+ {
   "file": "bubblewrap-socat.html",
   "title": "bubblewrap と socat",
   "desc": "bwrap でコマンドを閉じ込め、socat とプロキシで許可した通信だけ通す仕組みを、AI エージェントでの使われ方とともに図解。",
@@ -41,6 +65,17 @@
    "Linux",
    "セキュリティ",
    "AI"
+  ],
+  "date": "2026-11-14",
+  "quizzes": 5
+ },
+ {
+  "file": "api-idempotency.html",
+  "title": "冪等キーとリトライ",
+  "desc": "POST をリトライしても二重送信・二重課金にならない API の作り方を、冪等キーの判定フロー（409・422）、記録と本処理の原子性、外部 API を挟む処理の再開、クライアント側のキーの持ち方で図解する",
+  "tags": [
+   "設計",
+   "バックエンド"
   ],
   "date": "2026-11-14",
   "quizzes": 5
