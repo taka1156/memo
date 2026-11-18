@@ -1,5 +1,28 @@
 [
  {
+  "file": "typography-webfonts.html",
+  "title": "タイポグラフィと Web フォント",
+  "desc": "文字サイズ・行間・行長の目安、font-family のフォールバック、Web フォントが表示されるまでと font-display、軽くする方法を図解。",
+  "tags": [
+   "デザイン",
+   "フロントエンド"
+  ],
+  "date": "2026-11-19",
+  "quizzes": 5
+ },
+ {
+  "file": "api-pagination.html",
+  "title": "ページネーション（オフセットとカーソル）",
+  "desc": "オフセット・キーセット・カーソルの違い、深いページが遅くなる理由、途中の追加で重複・抜けが出るしくみ、カーソルの作り方と選び方を図解。",
+  "tags": [
+   "バックエンド",
+   "設計",
+   "データベース"
+  ],
+  "date": "2026-11-19",
+  "quizzes": 4
+ },
+ {
   "file": "supply-chain-security.html",
   "title": "サプライチェーンセキュリティ",
   "desc": "依存パッケージ・CI・公開の経路から悪意あるコードが入る手口（タイポスクワッティング・依存関係かく乱・アカウント乗っ取り・xz・tj-actions・Shai-Hulud）と、インストール時の守り（ロックファイル・スクリプト停止・公開後の待ち時間）、SBOM、署名と来歴（Sigstore・SLSA・trusted publishing）を図解する",

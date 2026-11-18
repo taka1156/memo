@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ページネーション（オフセットとカーソル）</title>
+<meta name="description" content="オフセット・キーセット・カーソルの違い、深いページが遅くなる理由、途中の追加で重複・抜けが出るしくみ、カーソルの作り方と選び方を図解。">
+<meta name="memo:tags" content="バックエンド, 設計, データベース">
+<meta name="memo:date" content="2026-11-19">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-off: #6b7280;   /* オフセット方式 */
+  --c-key: #0f766e;   /* キーセット・カーソル方式 */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-off: #9ca3af;
+    --c-key: #2dd4bf;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+ul.plain { margin: 6px 0 6px 1.3em; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { font-weight: 700; white-space: nowrap; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 深いページの体験 */
+.ctrl { display: grid; grid-template-columns: 6em 1fr 5em; gap: 4px 10px; align-items: center; font-size: 0.82rem; }
+.ctrl label { color: var(--fg-2); }
+.ctrl input[type=range] { width: 100%; accent-color: var(--accent); }
+.ctrl output { font-family: 'JetBrains Mono', ui-monospace, monospace; text-align: right; }
+.meter { display: grid; grid-template-columns: 6em 1fr; gap: 8px 10px; align-items: center; font-size: 0.8rem; margin-top: 12px; }
+.track { background: var(--chip); border-radius: 4px; height: 18px; position: relative; overflow: hidden; }
+.fill { height: 100%; border-radius: 4px; min-width: 3px; }
+.fill.off { background: repeating-linear-gradient(135deg, var(--c-off) 0 4px, transparent 4px 7px); border: 1px solid var(--c-off); }
+.fill.key { background: var(--c-key); }
+.mval { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.75rem; color: var(--fg-2); grid-column: 2; margin-top: -6px; }
+
+/* ずれのシミュレーション */
+.lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .lanes { grid-template-columns: 1fr; } }
+.lane h3 { margin-top: 0; }
+.items { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0; }
+.it { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.78rem; padding: 3px 8px; border-radius: 5px; border: 1px solid var(--line); background: var(--chip); }
+.it.new { border: 2px solid var(--c-hl); }
+.it.dup { border: 2px solid var(--c-ng); }
+.it.ok { border: 2px solid var(--c-ok); }
+.lane .res { font-size: 0.82rem; }
+.lane .res.ng { color: var(--c-ng); }
+.lane .res.okt { color: var(--c-ok); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="ページネーション（オフセットとカーソル）">
+<meta property="og:description" content="オフセット・キーセット・カーソルの違い、深いページが遅くなる理由、途中の追加で重複・抜けが出るしくみ、カーソルの作り方と選び方を図解。">
+<meta property="og:url" content="https://memo.taka1156.site/api-pagination.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>ページネーション</h1>
+  <p class="subtitle">オフセットとカーソル ― 一覧を分けて返すときの決めごと</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>一覧を分けて返す方法は、<b>何件飛ばすか</b>を指すオフセットと、<b>最後に見た行の続き</b>を指すキーセット（カーソル）の 2 系統。</li>
+      <li>オフセットは深いページほど飛ばす行を読むので遅くなり、途中で行が増減すると重複や抜けが出る。</li>
+      <li>ページ番号で飛びたい管理画面はオフセット、フィード・無限スクロール・全件の取得はカーソルを選ぶ。</li>
+    </ul>
+  </div>
+
+  <h2 id="methods">3 つの方式</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>方式</th><th>リクエストの例</th><th>SQL のイメージ</th><th>向いている所</th></tr></thead>
+      <tbody>
+        <tr><td>オフセット（ページ番号）</td><td><code>?page=3&amp;per_page=20</code></td><td><code>ORDER BY id DESC LIMIT 20 OFFSET 40</code></td><td>総ページ数を出し、任意のページに飛ぶ画面</td></tr>
+        <tr><td>キーセット（シーク法）</td><td><code>?before_id=1234&amp;limit=20</code></td><td><code>WHERE id &lt; 1234 ORDER BY id DESC LIMIT 20</code></td><td>「次へ」だけでよい一覧。内部実装として</td></tr>
+        <tr><td>カーソル</td><td><code>?after=eyJpZCI6MTIzNH0</code></td><td>中身はキーセットと同じ。続きの位置を<b>不透明な文字列</b>に包んで渡す</td><td>公開 API・フィード・無限スクロール</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">カーソルはキーセットの「続きの位置」をクライアントに意味を持たせずに渡す形。中身（並び順の列や値）を後から変えても、クライアントは文字列をそのまま返すだけなので壊れない。</p>
+
+  <h2 id="deep">深いページが遅くなる理由</h2>
+  <p><code>OFFSET 100000</code> は「10 万行を飛ばす」ではなく「10 万行を<b>読んでから捨てる</b>」。インデックスがあっても、飛ばす行を数えるためにたどる必要がある。キーセットは <code>WHERE id &lt; ?</code> でインデックスの途中に直接降りるので、何ページ目でも読む量は 1 ページ分で済む。</p>
+  <div class="legend"><span><i class="fill off"></i>オフセット（斜線）</span><span><i style="background:var(--c-key)"></i>キーセット</span></div>
+  <div class="card">
+    <div class="ctrl">
+      <label for="pg">ページ番号</label><input id="pg" type="range" min="1" max="5000" value="1"><output id="pg-o">1</output>
+    </div>
+    <div class="meter">
+      <span>オフセット</span><div class="track"><div class="fill off" id="bar-off"></div></div>
+      <span class="mval" id="v-off">読む行: 20</span>
+      <span>キーセット</span><div class="track"><div class="fill key" id="bar-key"></div></div>
+      <span class="mval" id="v-key">読む行: 20</span>
+    </div>
+    <p class="note">1 ページ 20 件・最大 10 万行として、読み飛ばしを含めて読む行数の比較。キーセットはインデックスを根から降りる分（数ブロック）が加わるだけで、ページ番号によらない。</p>
+  </div>
+
+  <h2 id="drift">途中で行が増えると重複・抜けが出る</h2>
+  <p>新しい順の一覧を 3 件ずつ見ている途中で、新しい記事が 1 件増えたときの動き。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="d1">1. 1 ページ目</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="d2">2. 記事が増える</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="d3">3. 2 ページ目</button>
+  </div>
+  <div class="legend"><span><i style="background:var(--c-hl)"></i>新しく増えた行</span><span><i style="background:var(--c-ng)"></i>重複して返った行</span><span><i style="background:var(--c-ok)"></i>続きから正しく返った行</span></div>
+  <div class="panel card" id="d1">
+    <div class="lanes">
+      <div class="lane"><h3>オフセット <code>OFFSET 0 LIMIT 3</code></h3><div class="items"><span class="it">#10</span><span class="it">#9</span><span class="it">#8</span></div><p class="res">#10・#9・#8 を表示。</p></div>
+      <div class="lane"><h3>カーソル（最初のページ）</h3><div class="items"><span class="it">#10</span><span class="it">#9</span><span class="it">#8</span></div><p class="res">同じ 3 件。次のカーソルとして「#8 の続き」を受け取る。</p></div>
+    </div>
+  </div>
+  <div class="panel card" id="d2" hidden>
+    <p>読んでいるあいだに <b>#11</b> が投稿される。テーブル全体の並びは次のようになる。</p>
+    <div class="items"><span class="it new">#11</span><span class="it">#10</span><span class="it">#9</span><span class="it">#8</span><span class="it">#7</span><span class="it">#6</span><span class="it">#5</span><span class="it">…</span></div>
+    <p class="note">先頭に 1 件増えたので、それより後ろの行は 1 つずつ後ろにずれる。</p>
+  </div>
+  <div class="panel card" id="d3" hidden>
+    <div class="lanes">
+      <div class="lane"><h3>オフセット <code>OFFSET 3 LIMIT 3</code></h3><div class="items"><span class="it dup">#8</span><span class="it">#7</span><span class="it">#6</span></div><p class="res ng">4 件目からを返すので、1 ページ目で見た #8 がもう一度出る（重複）。行が削除されたときは逆に 1 件抜ける。</p></div>
+      <div class="lane"><h3>カーソル <code>WHERE id &lt; 8 LIMIT 3</code></h3><div class="items"><span class="it ok">#7</span><span class="it ok">#6</span><span class="it ok">#5</span></div><p class="res okt">「#8 より古いもの」を返すので、前に増えた行の影響を受けない。#11 は次に先頭から読み直したときに出る。</p></div>
+    </div>
+  </div>
+
+  <h2 id="keyset">キーセットの書き方：並び順を一意にする</h2>
+  <p>並び順の列が重複しうる（<code>created_at</code> が同じ時刻の行がある）と、境目の行を飛ばしたり二度返したりする。<b>一意な列（主キー）を最後に足して</b>並びを一意にし、その組で比較する。</p>
+<pre><code>-- 並び順: 新しい順。created_at が同じなら id で決める
+SELECT * FROM posts
+WHERE (created_at, id) &lt; (:last_created_at, :last_id)
+ORDER BY created_at DESC, id DESC
+LIMIT 21;              -- 1 件多く取り、21 件目があれば「次がある」
+
+-- 行値の比較が使えない・インデックスが効かない DB では展開して書く
+WHERE created_at &lt; :last_created_at
+   OR (created_at = :last_created_at AND id &lt; :last_id)
+
+-- 並びと同じ順の複合インデックスを作る
+CREATE INDEX posts_created_id ON posts (created_at DESC, id DESC);</code></pre>
+  <ul class="plain">
+    <li><b>インデックスは並び順と同じ列の組で作る。</b>これがないと結局全件を並べ替えることになり、キーセットの利点が消える。</li>
+    <li><b><code>LIMIT n+1</code> で次の有無を決める。</b>総件数を数えずに「次へ」を出すか決められる。</li>
+    <li><b>NULL を含む列で並べない。</b>NULL は比較が成り立たないので、続きの条件から漏れる。並べるなら NULL を値に置き換えた列を使う。</li>
+  </ul>
+
+  <h2 id="cursor">カーソルの作り方と返し方</h2>
+  <ol class="steps">
+    <li><b>最後の行の並び順の値を集める</b>例: <code>{"created_at":"2026-11-19T09:00:00Z","id":1234}</code>。並びの向きやフィルタ条件も入れておくと、別の条件のカーソルを取り違えたときに弾ける。</li>
+    <li><b>不透明な文字列にする</b>Base64URL などで符号化する。中身を推測・改変されたくなければ署名（HMAC）を付けるか、サーバー側に保存して ID だけ渡す。</li>
+    <li><b>レスポンスに次のカーソルを入れる</b>次がなければ <code>null</code> にする。クライアントはそれを次のリクエストにそのまま付ける。</li>
+  </ol>
+<pre><code>GET /posts?limit=20&amp;after=eyJjcmVhdGVkX2F0Ijoi...
+
+{
+  "items": [ ... 20 件 ... ],
+  "next_cursor": "eyJjcmVhdGVkX2F0IjoiMjAyNi0xMS0x...",   // 最後のページなら null
+  "has_more": true
+}</code></pre>
+  <p>同じ情報を HTTP の <code>Link</code> ヘッダー（<code>rel="next"</code>）で返す API もある（GitHub の REST API など）。GraphQL では、Relay の Connection の形（<code>edges</code>・<code>pageInfo.endCursor</code>・<code>pageInfo.hasNextPage</code>）が定番。</p>
+
+  <h3 id="count">総件数は出すか</h3>
+  <p>大きなテーブルの <code>COUNT(*)</code> は全件をたどるので、毎回出すと一覧そのものより重くなることがある。カーソル方式では総件数を返さず <code>has_more</code> だけにするか、「1,000 件以上」のような概数にするのが普通。どうしても要る画面だけ別の API にして、キャッシュする。</p>
+
+  <h2 id="choose">選び方</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>場面</th><th>選ぶ方式</th><th>理由</th></tr></thead>
+      <tbody>
+        <tr><td>管理画面の表（ページ番号で 5 ページ目に飛ぶ・総数を出す）</td><td>オフセット</td><td>任意のページに飛べるのはオフセットだけ。件数が少ないなら遅さも問題にならない</td></tr>
+        <tr><td>SNS のタイムライン・無限スクロール</td><td>カーソル</td><td>新しい投稿が頻繁に増えても重複・抜けがない</td></tr>
+        <tr><td>公開 API の一覧</td><td>カーソル</td><td>深いページでも速く、並び順の実装を後から変えてもクライアントが壊れない</td></tr>
+        <tr><td>バッチで全件を取り出す・同期</td><td>キーセット</td><td>何万ページ目でも 1 ページ分の重さで進む。途中で止めても最後の値から再開できる</td></tr>
+        <tr><td>検索結果（関連度順）</td><td>上限つきのオフセットが多い</td><td>関連度は一意な値で並べにくい。深いページは見られないので上限（例: 1,000 件まで）を設ける</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>OFFSET はインデックスがあれば何ページ目でも速い</summary><p>インデックスで並び順の先頭は速く見つかるが、OFFSET の分だけ行をたどって捨てる処理は残る。100 ページ目は 1 ページ目のおよそ 100 倍の行を読む。</p></details>
+  <details class="myth" id="myth-jump"><summary>カーソル方式でも、ページ番号を指定して途中のページに飛べる</summary><p>カーソルは「ある行の続き」しか指せないので、5 ページ目に直接は飛べない。飛びたい画面ではオフセットを使うか、日付などの値で絞り込んでから続きを読む UI にする。</p></details>
+  <details class="myth"><summary>作成日時で並べるなら、カーソルには作成日時だけ入れれば十分</summary><p>同じ時刻の行が複数あると、境目の行を飛ばしたり二度返したりする。主キーなど一意な列を並び順の最後に足し、カーソルにもその値を入れる。</p></details>
+  <details class="myth"><summary>カーソルは Base64 で符号化してあるので、中身は利用者に読まれない</summary><p>Base64 は誰でも元に戻せる符号化で、暗号化ではない。改変されると困る値が入るなら、署名を付けるか、サーバー側で権限を確かめ直す。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="db-index-transaction.html">インデックスとトランザクション</a> — キーセットに要る複合インデックスが効く条件</li>
+    <li><a href="api-styles.html">REST・GraphQL・gRPC・tRPC</a> — 一覧 API の形の中でのページングの置き場所</li>
+    <li><a href="cache-strategies.html">キャッシュ戦略</a> — 重い総件数や先頭ページをキャッシュする</li>
+    <li><a href="rate-limiting.html">レート制限のアルゴリズム</a> — 全件取得のループで API を叩きすぎないために</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://use-the-index-luke.com/no-offset">Use The Index, Luke — Paging Through Results</a></li>
+    <li><a href="https://www.postgresql.org/docs/current/queries-limit.html">PostgreSQL — LIMIT and OFFSET</a></li>
+    <li><a href="https://docs.github.com/ja/rest/using-the-rest-api/using-pagination-in-the-rest-api">GitHub Docs — REST API でのページネーションの使用</a></li>
+    <li><a href="https://relay.dev/graphql/connections.htm">GraphQL Cursor Connections Specification</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+(() => {
+  const pg = document.getElementById('pg'), per = 20, max = 100000;
+  function upd() {
+    const n = +pg.value, off = Math.min(n * per, max);
+    document.getElementById('pg-o').textContent = n;
+    document.getElementById('bar-off').style.width = (off / max * 100) + '%';
+    document.getElementById('bar-key').style.width = (per / max * 100) + '%';
+    document.getElementById('v-off').textContent = '読む行: ' + off.toLocaleString() + '（うち捨てる行 ' + (off - per).toLocaleString() + '）';
+    document.getElementById('v-key').textContent = '読む行: ' + per;
+  }
+  pg.addEventListener('input', upd);
+  upd();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "新しい投稿が頻繁に増えるタイムラインを ?page=N で読み込んでいたら、スクロールするたびに同じ投稿が二度出る。どう直す？",
+    "choices": ["1 ページの件数を増やす", "最後に見た投稿の続きを指すカーソル方式に変える", "総件数を毎回 COUNT(*) で数え直す", "OFFSET の計算を 1 ずらす"],
+    "answer": 1,
+    "explain": "オフセットは先頭に行が増えると後ろの行がずれ、重複が出る。カーソルは「この行より古いもの」を指すので、前に増えた行の影響を受けない。",
+    "ref": "#drift"
+  },
+  {
+    "q": "created_at の降順でキーセットページングを実装したら、同じ時刻の投稿がページの境目でときどき抜ける。原因と直し方は？",
+    "choices": ["created_at にインデックスがない。インデックスを作る", "LIMIT が小さすぎる。件数を増やす", "並び順が一意でない。id を並びと比較条件の最後に足す", "降順をやめて昇順にする"],
+    "answer": 2,
+    "explain": "並び順の値が重複すると境目の行の扱いが決まらない。一意な列を足して (created_at, id) の組で並べ・比較する。",
+    "ref": "#keyset"
+  },
+  {
+    "q": "100 万行のテーブルを ORDER BY id LIMIT 100 OFFSET n で全件エクスポートしたら、後半ほど遅くなった。id には主キーのインデックスがある。最も効く変更は？",
+    "choices": ["WHERE id > 前回の最後の id で続きを読むキーセットに変える", "OFFSET を大きくして回数を減らす", "SELECT * をやめて列を絞る", "トランザクション分離レベルを上げる"],
+    "answer": 0,
+    "explain": "OFFSET は飛ばす行を読んでから捨てるので、後半ほど読む行が増える。キーセットならインデックスの途中から始まり、毎回 1 ページ分の読み取りで済む。",
+    "ref": "#deep"
+  },
+  {
+    "q": "管理画面で「全 52 ページ中 37 ページ目に直接飛ぶ」操作が必要。件数は数千件。どの方式を選ぶ？",
+    "choices": ["カーソル方式", "オフセット方式", "キーセット方式", "総件数を返さず has_more だけ返す方式"],
+    "answer": 1,
+    "explain": "任意のページに飛べるのはオフセットだけ。件数が少なければ深いページの遅さも問題になりにくい。",
+    "ref": "#choose"
+  }
+]
+</script>
+</body>
+</html>
