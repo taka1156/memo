@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go 学習フローと仕組み</title>
+<meta name="description" content="Go をどの順で学ぶかと、1 つのバイナリになるビルド、goroutine を動かすスケジューラ（G・M・P）、チャネル、インターフェースとエラー、GC とモジュールの仕組みを図解。">
+<meta name="memo:tags" content="言語, バックエンド">
+<meta name="memo:date" content="2026-11-19">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+ul.plain { margin: 6px 0 6px 1.3em; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { font-weight: 700; white-space: nowrap; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+ul.plain { margin: 6px 0 6px 1.3em; }
+pre code { background: none; padding: 0; font-size: inherit; }
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { font-weight: 700; }
+#compare + .table-wrap td:first-child { white-space: nowrap; }
+.goal { font-size: 0.82rem; color: var(--fg-2); display: block; margin-top: 2px; }
+.phase { font-size: 0.8rem; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; margin: 14px 0 4px; }
+
+/* ビルドの流れ */
+.flow { display: flex; align-items: stretch; gap: 0; }
+.flow .st { flex: 1 1 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px; text-align: center; font-size: 0.8rem; }
+.flow .st b { display: block; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.85rem; }
+.flow .st span { color: var(--fg-2); }
+.flow .ar { align-self: center; color: var(--fg-2); padding: 0 6px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.flow .ar::before { content: "→"; }
+@media (max-width: 640px) {
+  .flow { flex-direction: column; }
+  .flow .ar { text-align: center; padding: 2px 0; }
+  .flow .ar::before { content: "↓"; }
+}
+
+/* G・M・P の図 */
+.gmp { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 6px 0; }
+@media (max-width: 600px) { .gmp { grid-template-columns: 1fr; } }
+.pbox { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg); }
+.pbox .hd { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.78rem; font-weight: 700; }
+.row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 6px; font-size: 0.75rem; }
+.row .lb { color: var(--fg-2); min-width: 5.5em; }
+.g { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
+.g.run { border: 2px solid var(--c-hl); font-weight: 700; }
+.g.wait { border-style: dashed; color: var(--fg-2); }
+.m { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; padding: 2px 7px; border-radius: 4px; background: var(--chip); }
+.side { margin-top: 8px; border: 1px dashed var(--line); border-radius: 8px; padding: 8px 10px; font-size: 0.78rem; }
+.legend i.dash { background: none; border: 1px dashed var(--fg-2); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="Go 学習フローと仕組み">
+<meta property="og:description" content="Go をどの順で学ぶかと、1 つのバイナリになるビルド、goroutine を動かすスケジューラ（G・M・P）、チャネル、インターフェースとエラー、GC とモジュールの仕組みを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/go.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>Go 学習フローと仕組み</h1>
+  <p class="subtitle">どの順で学ぶか ＋ ランタイムが裏で何をしているか</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>Go は文法を小さく保ち、<b>速いビルド・1 つの実行ファイル・軽い並行処理</b>を重視した言語。サーバーや CLI ツールでよく使われる。</li>
+      <li>実行ファイルには GC と goroutine のスケジューラを含むランタイムが入っていて、少数の OS スレッドで大量の goroutine を回す。</li>
+      <li>学ぶ順は「文法 → 構造体とインターフェース → エラー処理 → goroutine とチャネル → テストとモジュール」が基本。</li>
+    </ul>
+  </div>
+
+  <h2 id="roadmap">学習ロードマップ</h2>
+  <p class="phase">フェーズ 1: 入門</p>
+  <ol class="steps">
+    <li><b>環境を作って動かす</b><code>go mod init example.com/hello</code> → <code>go run .</code>。エディタには gopls（公式の言語サーバー）を入れる。<span class="goal">ゴール: 1 ファイルのプログラムを実行し、<code>go build</code> で実行ファイルを作れる</span></li>
+    <li><b>基本の文法</b>変数（<code>:=</code>）・関数（戻り値は複数）・<code>for</code>（ループはこれだけ）・<code>if</code>・<code>switch</code>・スライスとマップ。<span class="goal">ゴール: スライスの長さと容量の違いを説明でき、<code>append</code> の戻り値を受け取る理由が分かる</span></li>
+  </ol>
+  <p class="phase">フェーズ 2: Go らしさの中核</p>
+  <ol class="steps" start="3">
+    <li><b>構造体・メソッド・インターフェース</b>クラスも継承もない。構造体にメソッドを付け、インターフェースは<b>宣言なしで</b>満たす（下の「仕組み 3」）。<span class="goal">ゴール: 小さなインターフェース（<code>io.Reader</code> など）を受け取る関数を書ける</span></li>
+    <li><b>エラーは値</b>例外はなく、関数が <code>error</code> を返す。<code>fmt.Errorf("...: %w", err)</code> で包み、<code>errors.Is</code>・<code>errors.As</code> で調べる。<span class="goal">ゴール: どの層で何が失敗したか分かるエラーメッセージを返せる</span></li>
+    <li><b>goroutine とチャネル</b><code>go f()</code> で並行に動かし、チャネル・<code>sync.WaitGroup</code>・<code>context</code> で待ち合わせと中断をする。<span class="goal">ゴール: 複数の HTTP リクエストを並行に投げ、タイムアウトで全部止められる</span></li>
+  </ol>
+  <p class="phase">フェーズ 3: 実践</p>
+  <ol class="steps" start="6">
+    <li><b>テスト・ツール</b><code>go test</code>（テーブル駆動テスト）・<code>go test -race</code>・<code>go vet</code>・<code>gofmt</code>。<span class="goal">ゴール: データ競合を <code>-race</code> で見つけて直せる</span></li>
+    <li><b>標準ライブラリで作る</b><code>net/http</code>・<code>encoding/json</code>・<code>database/sql</code> で小さな API サーバーを作る。外部のフレームワークは後から。<span class="goal">ゴール: JSON を返す API を 1 つの実行ファイルにしてコンテナで動かせる</span></li>
+  </ol>
+
+  <h2 id="build">仕組み 1: ビルドすると 1 つの実行ファイルになる</h2>
+  <div class="flow">
+    <div class="st"><b>.go ファイル</b><span>パッケージ単位</span></div>
+    <div class="ar" aria-hidden="true"></div>
+    <div class="st"><b>go build</b><span>依存を含めてコンパイル（結果はキャッシュ）</span></div>
+    <div class="ar" aria-hidden="true"></div>
+    <div class="st"><b>リンク</b><span>自分のコード ＋ 依存 ＋ ランタイム</span></div>
+    <div class="ar" aria-hidden="true"></div>
+    <div class="st"><b>実行ファイル 1 つ</b><span>コピーすれば動く</span></div>
+  </div>
+  <ul class="plain">
+    <li><b>ランタイムが同梱される。</b>GC・goroutine のスケジューラ・メモリの割り当ては実行ファイルの中にある。JVM や Node.js のような別の実行環境を入れなくてよい。</li>
+    <li><b>クロスコンパイルが環境変数だけでできる。</b><code>GOOS=linux GOARCH=arm64 go build</code> で、Mac から Linux ARM 向けの実行ファイルが作れる。</li>
+    <li><b>静的リンクが基本。</b>C のライブラリを使う cgo を切れば（<code>CGO_ENABLED=0</code>）、libc にも頼らない実行ファイルになり、<code>scratch</code> や distroless のイメージにそのまま載る。<code>scratch</code> に載せるなら、HTTPS 用の CA 証明書（必要ならタイムゾーンのデータも）は別に入れる。cgo が有効だと、<code>net</code> パッケージなどが libc を動的にリンクすることがある。</li>
+  </ul>
+
+  <h2 id="scheduler">仕組み 2: goroutine を動かすスケジューラ（G・M・P）</h2>
+  <p>goroutine は OS スレッドではなく、ランタイムが管理する軽い実行単位。スタックは数 KB から始まり、必要に応じて伸びるので、10 万個作っても動く。ランタイムは次の 3 つで goroutine を OS スレッドに載せる（M:N スケジューリング）。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>記号</th><th>正体</th><th>数</th></tr></thead>
+      <tbody>
+        <tr><td><b>G</b></td><td>goroutine。実行する関数とスタック</td><td>いくつでも</td></tr>
+        <tr><td><b>M</b></td><td>machine。OS スレッド</td><td>必要に応じて増える</td></tr>
+        <tr><td><b>P</b></td><td>processor。G を実行する権利と、実行待ちの G の列を持つ</td><td><code>GOMAXPROCS</code> 個（既定は使える CPU 数）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>M は P を 1 つ持っているときだけ Go のコードを実行できる。だから同時に Go のコードを実行する数は <code>GOMAXPROCS</code> 個まで。場面ごとの動き:</p>
+  <div class="legend"><span><i style="background:var(--c-hl)"></i>実行中の G（太枠）</span><span><i class="dash"></i>待っている G（点線）</span></div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="s-normal">ふだん</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="s-chan">チャネルで待つ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="s-syscall">システムコールで止まる</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="s-steal">列が空になる</button>
+  </div>
+  <div class="panel card" id="s-normal">
+    <div class="gmp">
+      <div class="pbox"><span class="hd">P0</span><div class="row"><span class="lb">実行</span><span class="m">M0</span><span class="g run">G1</span></div><div class="row"><span class="lb">待ち行列</span><span class="g">G3</span><span class="g">G4</span></div></div>
+      <div class="pbox"><span class="hd">P1</span><div class="row"><span class="lb">実行</span><span class="m">M1</span><span class="g run">G2</span></div><div class="row"><span class="lb">待ち行列</span><span class="g">G5</span></div></div>
+    </div>
+    <p>各 P が自分の待ち行列から G を取り出して、自分の M で実行する。1 つの G が長く走り続けると、ランタイムが割り込んで（プリエンプション）列の次の G に替える。</p>
+  </div>
+  <div class="panel card" id="s-chan" hidden>
+    <div class="gmp">
+      <div class="pbox"><span class="hd">P0</span><div class="row"><span class="lb">実行</span><span class="m">M0</span><span class="g run">G3</span></div><div class="row"><span class="lb">待ち行列</span><span class="g">G4</span></div></div>
+      <div class="pbox"><span class="hd">P1</span><div class="row"><span class="lb">実行</span><span class="m">M1</span><span class="g run">G2</span></div><div class="row"><span class="lb">待ち行列</span><span class="g">G5</span></div></div>
+    </div>
+    <div class="side"><b>チャネルの待ち</b>: <span class="g wait">G1</span>（受信待ち）</div>
+    <p>G1 がまだ値の来ないチャネルを受信すると、G1 は P から外れてそのチャネルの待ちに入り、M0 はすぐ次の G3 を実行する。OS スレッドは止まらない。値が送られると G1 はどこかの P の待ち行列に戻る。</p>
+  </div>
+  <div class="panel card" id="s-syscall" hidden>
+    <div class="gmp">
+      <div class="pbox"><span class="hd">P0</span><div class="row"><span class="lb">実行</span><span class="m">M2</span><span class="g run">G3</span></div><div class="row"><span class="lb">待ち行列</span><span class="g">G4</span></div></div>
+      <div class="pbox"><span class="hd">P1</span><div class="row"><span class="lb">実行</span><span class="m">M1</span><span class="g run">G2</span></div><div class="row"><span class="lb">待ち行列</span><span class="g">G5</span></div></div>
+    </div>
+    <div class="side"><b>システムコール中</b>: <span class="m">M0</span> ＋ <span class="g wait">G1</span>（ファイルの読み込みなどで OS の中で止まっている）</div>
+    <p>G1 がブロックするシステムコールに入ると M0 ごと止まる。ランタイムは P0 を M0 から外し、別の M2（なければ新しく作る）に渡して、残りの G を動かし続ける。M の数が <code>GOMAXPROCS</code> より多くなるのはこのため。ネットワークの読み書きはここに入らず、ランタイムが OS の通知（epoll など）で待つので、チャネルと同じく G だけが待ちに入る。</p>
+  </div>
+  <div class="panel card" id="s-steal" hidden>
+    <div class="gmp">
+      <div class="pbox"><span class="hd">P0</span><div class="row"><span class="lb">実行</span><span class="m">M0</span><span class="g run">G3</span></div><div class="row"><span class="lb">待ち行列</span><span class="g">G6</span><span class="g">G7</span></div></div>
+      <div class="pbox"><span class="hd">P1</span><div class="row"><span class="lb">実行</span><span class="m">M1</span><span class="g run">G4</span></div><div class="row"><span class="lb">待ち行列</span><span class="note">（空 → P0 から半分もらった）</span></div></div>
+    </div>
+    <p>自分の待ち行列が空になった P は、全体の待ち行列やほかの P の行列から G を盗んでくる（ワークスティーリング）。偏りがあっても CPU が遊ばない。</p>
+  </div>
+  <p class="note">コンテナで CPU の上限（limit）を付けたときは、Go 1.25 以降で <code>go.mod</code> の <code>go</code> の行が 1.25 以上なら、Linux の cgroup の上限に合わせて <code>GOMAXPROCS</code> が自動で決まる（端数は切り上げ、上限が変われば追従する）。それより前はマシンの論理 CPU 数になるので、上限より多くのスレッドが CPU を取り合っていた。</p>
+
+  <h2 id="channel">仕組み 3: チャネルとインターフェース</h2>
+  <h3>チャネル：値を渡しながら待ち合わせる</h3>
+<pre><code>results := make(chan string)        // バッファなし: 送り手と受け手がそろうまで両方待つ
+jobs := make(chan int, 100)         // バッファあり: 100 個までは受け手を待たずに送れる
+
+ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+defer cancel()
+select {                            // 先に準備できた方を実行
+case r := &lt;-results:
+    fmt.Println(r)
+case &lt;-ctx.Done():                  // タイムアウト・キャンセル
+    return ctx.Err()
+}</code></pre>
+  <ul class="plain">
+    <li>送り手が「もう送らない」ときは <code>close(ch)</code>。受け手は <code>for v := range ch</code> で閉じられるまで読む。閉じたチャネルに送ると panic になる。</li>
+    <li>全部の goroutine が待ちに入って誰も進めないと、ランタイムが「all goroutines are asleep - deadlock!」で止める。一部だけが永遠に待つ場合は検出されず、goroutine のリーク（溜まり続ける）になる。待つ所には必ず <code>ctx.Done()</code> の出口を作る。</li>
+  </ul>
+
+  <h3 id="interface">インターフェース：宣言せずに満たす</h3>
+<pre><code>type Reader interface { Read(p []byte) (n int, err error) }
+
+type File struct{ /* ... */ }
+func (f *File) Read(p []byte) (int, error) { /* ... */ }  // "implements" と書かなくても *File は Reader になる</code></pre>
+  <p>必要なメソッドを持っていれば、どの型でもそのインターフェースとして使える（構造的部分型）。だから<b>使う側</b>が、自分に要るメソッドだけの小さなインターフェースを定義するのが Go の流儀。テストでは同じメソッドを持つ偽物を渡せばよい。</p>
+
+  <h2 id="gc">仕組み 4: GC とモジュール</h2>
+  <div class="table-wrap">
+    <table>
+      <tbody>
+        <tr><th>GC</th><td>プログラムを止めずに並行して印を付け、使われていないメモリを回収する（並行マーク＆スイープ）。止まる時間はふつう 1 ミリ秒を大きく下回る。回収の頻度は <code>GOGC</code>、メモリの上限は <code>GOMEMLIMIT</code> で調整する。</td></tr>
+        <tr><th>エスケープ解析</th><td>関数の外に出ない値はスタックに置かれ、GC の対象にならない。<code>go build -gcflags=-m</code> で、どの値がヒープに逃げたか見られる。</td></tr>
+        <tr><th>モジュール</th><td><code>go.mod</code> に依存とバージョン、<code>go.sum</code> にハッシュを書く。取得はモジュールプロキシ（既定は <code>proxy.golang.org</code>）経由で、ハッシュはチェックサムデータベースと照合される。</td></tr>
+        <tr><th>バージョンの選び方</th><td>各依存が「このバージョン以上」と要求する中で、<b>いちばん高いもの</b>を選ぶ（＝要求をすべて満たす最も古い版。最小バージョン選択、MVS）。新しい版が出ても勝手には上がらず、<code>go get -u</code> で明示的に上げる。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="compare">TypeScript・Rust との比較</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th></th><th>Go</th><th>TypeScript（Node.js）</th><th>Rust</th></tr></thead>
+      <tbody>
+        <tr><td>メモリ</td><td>GC</td><td>GC</td><td>所有権（GC なし）</td></tr>
+        <tr><td>並行処理</td><td>goroutine（複数コアで並列）</td><td>イベントループ（1 スレッド）＋ Worker</td><td>スレッド・async（ランタイムは選ぶ）</td></tr>
+        <tr><td>エラー</td><td><code>error</code> を値で返す</td><td>例外（<code>throw</code>）</td><td><code>Result&lt;T, E&gt;</code> と <code>?</code></td></tr>
+        <tr><td>型</td><td>静的・構造的なインターフェース・ジェネリクスは控えめ</td><td>静的（実行時に消える）・構造的</td><td>静的・トレイト・強力なジェネリクス</td></tr>
+        <tr><td>配布</td><td>1 つの実行ファイル</td><td>ランタイム ＋ <code>node_modules</code></td><td>1 つの実行ファイル</td></tr>
+        <tr><td>学ぶ量</td><td>少ない（言語仕様が小さい）</td><td>型の機能が多い</td><td>多い（所有権・ライフタイム）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>goroutine は OS スレッドの別名なので、たくさん作ると重い</summary><p>goroutine はランタイムが管理する軽い実行単位で、少数の OS スレッドに載せて動かす。スタックも小さく始まるので、数万〜数十万個でも動く。重くなるのは、終わらない goroutine が溜まり続けるリークのとき。</p></details>
+  <details class="myth" id="myth-gomaxprocs"><summary>GOMAXPROCS は作れる goroutine の数の上限である</summary><p>GOMAXPROCS は同時に Go のコードを実行できる P の数。goroutine はいくつでも作れ、OS スレッド（M）もシステムコールで止まった分だけ増える。</p></details>
+  <details class="myth" id="myth-nil"><summary>中身が nil のポインタを error として返せば、呼び出し元の err != nil は false になる</summary><p>インターフェースの値は「型」と「値」の組で、両方が空のときだけ nil になる。<code>var e *MyErr = nil; return e</code> は型が入っているので <code>err != nil</code> が true になる。エラーがないときは <code>return nil</code> と書く。</p></details>
+  <details class="myth"><summary>for ループの変数を goroutine の中で使うと、全部の goroutine が最後の値を見る</summary><p>Go 1.22 から、ループ変数は繰り返しごとに新しく作られるようになり、この問題は起きない（<code>go.mod</code> の <code>go</code> の行が 1.22 以上のとき）。古いコードに <code>v := v</code> と書いてあるのは、この対策の名残。</p></details>
+
+  <h2 id="commands">よく使うコマンド</h2>
+<pre><code>go mod init example.com/app     # モジュールを作る
+go get example.com/lib@v1.4.0   # 依存を足す・上げる
+go mod tidy                     # 使っていない依存を消し、足りないものを足す
+go run .                        # ビルドして実行
+go build -o app .               # 実行ファイルを作る
+go test ./...                   # 全パッケージのテスト
+go test -race ./...             # データ競合の検出つき
+go vet ./...                    # よくある間違いの静的チェック
+gofmt -w .                      # 書式をそろえる（議論の余地なし）
+go tool pprof cpu.out           # CPU・メモリのプロファイルを見る</code></pre>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="concurrency-models.html">並行処理のモデル</a> — goroutine 型をスレッド・イベントループ・アクターと比べる</li>
+    <li><a href="os-scheduling.html">OS のスケジューリング</a> — G・M・P の下で OS がスレッドを切り替えるしくみ</li>
+    <li><a href="memory-management.html">メモリ管理</a> — GC・所有権・参照カウントの中での Go の GC の位置</li>
+    <li><a href="typescript.html">TypeScript 学習フローと仕組み</a>・<a href="rust.html">Rust 学習フローと仕組み</a> — 同じ形でまとめたほかの言語</li>
+    <li><a href="docker-images.html">Docker イメージの種類</a> — 静的リンクの実行ファイルを小さなイメージに載せる</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://go.dev/tour/">A Tour of Go</a>（ブラウザで動かしながら文法を一周できる）</li>
+    <li><a href="https://go.dev/doc/effective_go">Effective Go</a></li>
+    <li><a href="https://go.dev/doc/gc-guide">A Guide to the Go Garbage Collector</a></li>
+    <li><a href="https://go.dev/ref/mod">Go Modules Reference</a></li>
+    <li><a href="https://go.dev/blog/loopvar-preview">Fixing For Loops in Go 1.22</a></li>
+    <li><a href="https://go.dev/blog/container-aware-gomaxprocs">Container-aware GOMAXPROCS</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Go の API サーバーを CGO_ENABLED=0 でビルドした。コンテナイメージに最低限入れる必要があるものは？",
+    "choices": [
+      "Go のランタイムとコンパイラ一式（go コマンドを含む）",
+      "その実行ファイル（HTTPS を使うなら CA 証明書の束も）",
+      "libc と、Go の標準ライブラリのソース一式",
+      "Node.js や JVM のような別の実行環境"
+    ],
+    "answer": 1,
+    "explain": "ランタイムは実行ファイルに同梱され、cgo を切れば libc にも頼らない。外部と TLS で通信するなら証明書の束は別に要る。",
+    "ref": "#build"
+  },
+  {
+    "q": "GOMAXPROCS=4 のプログラムで、多数の goroutine がファイルの読み込み（ブロックするシステムコール）に入った。OS スレッドの数はどうなる？",
+    "choices": [
+      "4 本のまま変わらず、ほかの goroutine はシステムコールの終了を待つ",
+      "goroutine の数と同じ本数の OS スレッドが必ず作られる",
+      "止まった M から P が外され、残りを動かすために M が増えることがある",
+      "GOMAXPROCS とは関係なく、OS スレッドは常に 1 本に減らされる"
+    ],
+    "answer": 2,
+    "explain": "ブロックしたシステムコールでは M ごと止まるので、ランタイムは P を別の M に渡して残りの goroutine を動かす。そのため M は GOMAXPROCS より多くなりうる。",
+    "ref": "#scheduler"
+  },
+  {
+    "q": "func find() error { var e *NotFound = nil; return e } を呼ぶと、err != nil が true になってしまう。なぜ？",
+    "choices": [
+      "Go ではポインタ同士を == で比べられず、比較の結果が常に true になるから",
+      "インターフェースの値に型（*NotFound）が入っていて、型と値の両方は空でないから",
+      "Go の nil は数値の 0 と同じ扱いで、ポインタの nil とは別物だから",
+      "error 型の値は、どんな値を代入しても nil にならない決まりだから"
+    ],
+    "answer": 1,
+    "explain": "インターフェースは型と値の組で、両方が空のときだけ nil。エラーがないときは return nil と書く。",
+    "ref": "#myth-nil"
+  },
+  {
+    "q": "テストで、データベースに接続する *DB の代わりに偽物を渡したい。Go らしいやり方は？",
+    "choices": [
+      "*DB の型を埋め込んで継承した、偽物の構造体を作って渡す",
+      "使う側で、要るメソッドだけのインターフェースを定義して受け取る",
+      "*DB の中身を、テストの中でリフレクションを使って書き換える",
+      "テストのときだけ別の go.mod を使い、偽物のパッケージに差し替える"
+    ],
+    "answer": 1,
+    "explain": "Go のインターフェースは宣言なしで満たされるので、使う側が小さなインターフェースを決めれば、同じメソッドを持つ偽物をそのまま渡せる。",
+    "ref": "#interface"
+  },
+  {
+    "q": "リクエストごとに goroutine を起動して結果をチャネルで待つ処理で、相手が応答しないと goroutine が溜まり続ける。直し方は？",
+    "choices": [
+      "バッファの大きいチャネルに変えて、送り手も受け手も待たないようにする",
+      "GOMAXPROCS を増やして、待っている goroutine を早く片づける",
+      "select で ctx.Done() も待ち、タイムアウトやキャンセルで抜けられるようにする",
+      "runtime.GC() を定期的に呼んで、待っている goroutine を回収させる"
+    ],
+    "answer": 2,
+    "explain": "一部の goroutine だけが永遠に待つ状態はランタイムに検出されず、リークになる。待つ所に context の出口を作る。",
+    "ref": "#channel"
+  }
+]
+</script>
+</body>
+</html>
