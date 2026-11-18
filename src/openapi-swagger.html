@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swagger と OpenAPI</title>
+<meta name="description" content="OpenAPI（旧 Swagger）の文書の構造と、そこから作れるドキュメント・型・モック・テスト、Swagger UI の動き方を図解。">
+<meta name="memo:tags" content="バックエンド, 設計, 開発ツール">
+<meta name="memo:date" content="2026-11-19">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 0 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { font-weight: 700; white-space: nowrap; }
+
+/* 名前の整理: 仕様と道具 */
+.names { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.names .card p { font-size: 0.88rem; }
+.names .kind { font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); letter-spacing: .08em; }
+@media (max-width: 640px) { .names { grid-template-columns: 1fr; } }
+
+/* 1 つの文書から作れるもの */
+.hub { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.hub-src {
+  border: 2px solid var(--fg-2);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 10px 18px;
+  text-align: center;
+  font: 700 0.95rem 'JetBrains Mono', ui-monospace, monospace;
+}
+.hub-src small { display: block; font: 400 0.75rem 'Noto Sans JP', system-ui, sans-serif; color: var(--fg-2); }
+.hub-arrow { color: var(--fg-2); font-size: 1.1rem; line-height: 1; }
+.hub-outs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+.hub-outs .card { padding: 12px 14px; }
+.hub-outs h3 { font-size: 0.9rem; }
+.hub-outs p { font-size: 0.82rem; margin: 4px 0 0; }
+.hub-outs .tools { font-size: 0.75rem; color: var(--fg-2); margin-top: 6px; }
+@media (max-width: 720px) { .hub-outs { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 440px) { .hub-outs { grid-template-columns: 1fr; } }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  min-height: 30px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+.panel p:first-child { margin-top: 0; }
+
+/* design-first / code-first */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+.grid2 .steps { margin-top: 6px; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Swagger と OpenAPI</h1>
+  <p class="subtitle">HTTP API の契約を 1 つの文書に書き、そこからドキュメント・型・モック・テストを作る</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>OpenAPI は HTTP API の入出力を YAML / JSON で書く仕様で、Swagger は元の名前であり、今は SmartBear 社の道具の名前。</li>
+      <li>エンドポイント・引数・レスポンスの型を機械が読める形で 1 か所に書くので、そこから画面・型・モック・検証を作れる。</li>
+      <li>文書は書くだけでは実装を縛らない。CI で lint し、生成や検証に使って、実装とずれないようにする。</li>
+    </ul>
+  </div>
+
+  <h2 id="names">名前の整理：仕様と道具</h2>
+  <p>「Swagger」は 2 つの意味で使われる。もとは仕様の名前だったが、2015 年に仕様が Linux Foundation 配下の OpenAPI Initiative に移り、2016 年に <b>OpenAPI Specification（OAS）</b>と改名された。今「Swagger」と言えば、多くは SmartBear 社の道具群（Swagger UI など）のこと。</p>
+  <div class="names">
+    <div class="card">
+      <div class="kind">SPEC ― 仕様</div>
+      <h3>OpenAPI Specification</h3>
+      <p>API の契約の<b>書き方</b>の決まり。文書の先頭の <code>openapi: 3.1.0</code> で、どの版の書き方かを示す。2.0 の文書だけは <code>swagger: "2.0"</code> と書く（Swagger 2.0 = OpenAPI 2.0）。</p>
+    </div>
+    <div class="card">
+      <div class="kind">TOOLS ― 道具</div>
+      <h3>Swagger UI / Editor / Codegen</h3>
+      <p>OpenAPI の文書を<b>読んで使う</b>道具。画面表示の Swagger UI、編集の Swagger Editor、コード生成の Swagger Codegen など。OpenAPI の文書を扱う道具は Swagger 以外にもたくさんある。</p>
+    </div>
+  </div>
+
+  <div class="table-wrap" style="margin-top:12px">
+    <table>
+      <thead><tr><th>版</th><th>先頭の書き方</th><th>押さえておく違い</th></tr></thead>
+      <tbody>
+        <tr><td>2.0</td><td><code>swagger: "2.0"</code></td><td>型は <code>definitions</code>、URL は <code>host</code>＋<code>basePath</code>、本文は <code>in: body</code> の引数</td></tr>
+        <tr><td>3.0</td><td><code>openapi: 3.0.x</code></td><td>再利用する部品を <code>components</code> にまとめ、<code>servers</code>・<code>requestBody</code> ができた。null は <code>nullable: true</code></td></tr>
+        <tr><td>3.1</td><td><code>openapi: 3.1.x</code></td><td>スキーマが JSON Schema（2020-12）とそろった。null は <code>type: [string, "null"]</code>。<code>webhooks</code> を書ける</td></tr>
+        <tr><td>3.2</td><td><code>openapi: 3.2.0</code></td><td>3.1 の上に機能を足した版。タグの階層・ストリーミングの応答（1 件ずつの型）・<code>QUERY</code> メソッドなど</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">3.0 → 3.1 はマイナー版の番号でも、スキーマの書き方が変わったため、そのままでは通らない文書や道具がある。3.1 → 3.2 は書き換えなしで上がれる。</p>
+
+  <h2 id="anatomy">文書の構造</h2>
+  <p>1 つのエンドポイント（ToDo を 1 件取る）を書いた例。トップの数個のキーで全体ができている。</p>
+<pre><code>openapi: 3.1.0            # 仕様の版
+info:
+  title: Todo API
+  version: 1.2.0          # この API 自身の版（仕様の版ではない）
+servers:
+  - url: https://api.example.com/v1
+paths:
+  /todos/{id}:
+    get:
+      operationId: getTodo   # 生成されるクライアントの関数名になる
+      tags: [todos]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 見つかった
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Todo' }
+        '404':
+          description: 無い
+      security:
+        - bearerAuth: []
+components:
+  schemas:
+    Todo:
+      type: object
+      required: [id, title, done]
+      properties:
+        id:    { type: string }
+        title: { type: string, maxLength: 100 }
+        done:  { type: boolean }
+        dueAt: { type: [string, "null"], format: date-time }
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }</code></pre>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="a-info">info・servers</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="a-paths">paths</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="a-comp">components・$ref</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="a-sec">security</button>
+  </div>
+  <div class="panel card" id="a-info">
+    <p><code>info</code> は API の名前と説明、<code>info.version</code> は<b>この API の版</b>。先頭の <code>openapi</code>（仕様の版）とは別物で、API を変えたらこちらを上げる。</p>
+    <p><code>servers</code> は呼び出し先のベース URL。<code>paths</code> のパスはここにつなげて解釈される（例: <code>https://api.example.com/v1/todos/42</code>）。本番・ステージングなど複数並べてよい。</p>
+  </div>
+  <div class="panel card" id="a-paths" hidden>
+    <p><code>paths</code> の下に「パス → HTTP メソッド → 操作（operation）」の順で書く。操作ごとに引数（<code>parameters</code> の <code>in</code> は <code>path</code>・<code>query</code>・<code>header</code>・<code>cookie</code>。3.2 ではクエリ文字列全体を 1 つとして扱う <code>querystring</code> も使える）、本文（<code>requestBody</code>）、ステータスコードごとのレスポンスを書く。</p>
+    <p><code>operationId</code> は操作の一意な名前で、コード生成ではクライアントの関数名（<code>getTodo()</code>）になる。省くと道具がパスから名前を作り、読みにくい名前になりやすい。</p>
+  </div>
+  <div class="panel card" id="a-comp" hidden>
+    <p><code>components</code> は再利用する部品の置き場。<code>schemas</code>（データの型）のほか、<code>parameters</code>・<code>responses</code>・<code>securitySchemes</code> などを置ける。</p>
+    <p>使う側は <code>$ref: '#/components/schemas/Todo'</code> のように参照する。同じ型を何か所にも書かないので、型を 1 か所直せば全部の操作に効き、生成される型も 1 つ（<code>Todo</code>）になる。<code>$ref</code> は別ファイルも指せるので、大きな API はファイルを分けて書き、配るときに 1 枚にまとめる（bundle）。</p>
+  </div>
+  <div class="panel card" id="a-sec" hidden>
+    <p><code>components.securitySchemes</code> で認証の方式（Bearer トークン・API キー・OAuth 2.0 など）を定義し、操作の <code>security</code>（または文書全体のトップの <code>security</code>）でどれを要求するかを書く。</p>
+    <p>ここに書くのは「どの方式で送るか」だけで、トークンの検証はサーバーの実装がする。Swagger UI はこれを読んで「Authorize」ボタンを出す。</p>
+  </div>
+
+  <h2 id="outputs">1 つの文書から作れるもの</h2>
+  <p>OpenAPI の価値は「機械が読める契約」であること。文書を中心に、いろいろな道具が同じ情報を使う。</p>
+  <div class="hub">
+    <div class="hub-src">openapi.yaml<small>API の契約（1 か所）</small></div>
+    <div class="hub-arrow" aria-hidden="true">▼</div>
+    <div class="hub-outs">
+      <div class="card"><h3>ドキュメント</h3><p>エンドポイント一覧と型を画面にし、その場で試せる</p><p class="tools">Swagger UI・Redoc・Scalar</p></div>
+      <div class="card"><h3>クライアントの型・SDK</h3><p>手書きの型やリクエスト関数がいらなくなる</p><p class="tools">OpenAPI Generator・openapi-typescript</p></div>
+      <div class="card"><h3>サーバーのひな形</h3><p>ルーティングと型だけ作り、中身を実装する</p><p class="tools">OpenAPI Generator・oapi-codegen</p></div>
+      <div class="card"><h3>モックサーバー</h3><p>実装の前に、例の値を返すサーバーで画面を作り始める</p><p class="tools">Prism</p></div>
+      <div class="card"><h3>lint</h3><p>命名・説明漏れ・壊す変更を CI で止める</p><p class="tools">Spectral・Redocly CLI</p></div>
+      <div class="card"><h3>検証・契約テスト</h3><p>実際のリクエスト・レスポンスが文書どおりかを確かめる</p><p class="tools">検証ミドルウェア・Schemathesis</p></div>
+    </div>
+  </div>
+  <p class="note">道具の名前は代表例。Swagger Codegen をフォークしたのが OpenAPI Generator で、今はこちらを使うことが多い。</p>
+
+  <h2 id="first">デザインファーストとコードファースト</h2>
+  <p>文書と実装のどちらを「正」にするかで、進め方が 2 つに分かれる。どちらでも、文書と実装がずれない仕組み（生成か検証）を CI に入れるのが要点。</p>
+  <div class="grid2">
+    <div class="card">
+      <h3>デザインファースト（文書が先）</h3>
+      <ol class="steps">
+        <li><b>文書を書いてレビュー</b>実装の前に、使う側と契約を決める</li>
+        <li><b>モックで並行開発</b>フロントはモック、バックは実装を同時に進める</li>
+        <li><b>生成と検証</b>型を生成し、実装が文書に合うかをテストで確かめる</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3>コードファースト（実装が先）</h3>
+      <ol class="steps">
+        <li><b>実装に型と注釈を書く</b>ルート定義・型・デコレータなど</li>
+        <li><b>文書を生成</b>FastAPI・NestJS・springdoc などが実装から出力する</li>
+        <li><b>生成物を配る</b>出力した文書から UI やクライアントを作る</li>
+      </ol>
+    </div>
+  </div>
+  <div class="table-wrap" style="margin-top:12px">
+    <table>
+      <thead><tr><th></th><th>デザインファースト</th><th>コードファースト</th></tr></thead>
+      <tbody>
+        <tr><th>向く場面</th><td>外部公開の API・複数チームで使う API・先に合意が要るとき</td><td>社内向けで、1 チームが速く作って直すとき</td></tr>
+        <tr><th>ずれ方</th><td>実装が文書に追いつかない（検証で止める）</td><td>注釈が足りず、文書が実際より粗くなる（エラー応答の書き漏れなど）</td></tr>
+        <tr><th>手間</th><td>YAML を書く手間・レビューの時間</td><td>フレームワークの機能に縛られる。細かい表現は注釈を足す</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="swagger-ui">Swagger UI の「Try it out」の流れ</h2>
+  <p>Swagger UI はブラウザで動く静的なページで、文書を読んで画面を作る。試しに送るリクエストも、<b>ブラウザから API へ直接</b>出る。</p>
+  <ol class="steps">
+    <li><b>文書を取りに行く</b>Swagger UI のページが <code>openapi.yaml</code>（または JSON）を fetch して、操作の一覧と型を描く</li>
+    <li><b>Authorize で認証情報を入れる</b><code>securitySchemes</code> に合わせた入力欄が出る。入れたトークンはブラウザの中で保持され、以後のリクエストに付く</li>
+    <li class="is-warn"><b>Try it out で送信</b><code>servers</code> の URL へブラウザが直接リクエストする。Swagger UI と API のオリジンが違えば、API 側の CORS 設定が要る</li>
+    <li><b>結果を表示</b>ステータス・ヘッダー・本文と、同じリクエストを再現する <code>curl</code> コマンドが出る</li>
+  </ol>
+  <p class="note">3 番目だけ注意の色にしているのは、ここで「Swagger UI からは通らないのに curl では通る」という CORS の詰まりが起きやすいため。サーバー同士の通信ではないので、ブラウザの制約がそのまま効く。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>Swagger と OpenAPI は別々の競合する仕様だ</summary><p>同じ仕様の旧名と新名。Swagger 2.0 が OpenAPI 2.0 にあたり、3.0 以降は OpenAPI の名前だけで出ている。今の「Swagger」は主に道具（Swagger UI など）の名前。</p></details>
+  <details class="myth"><summary>OpenAPI に型を書けば、サーバーは文書と違うリクエストを自動で拒否する</summary><p>文書はただのファイルで、置いただけでは実装に何も起きない。拒否させたいなら、文書を読んで検証するミドルウェアを入れるか、文書から生成した型・バリデーションを実装で使う。レスポンスが文書どおりかも、テストで別に確かめる。</p></details>
+  <details class="myth"><summary>3.0 から 3.1 はマイナー版の更新なので、版の番号を書き換えるだけでよい</summary><p>3.1 でスキーマが JSON Schema 2020-12 にそろい、<code>nullable</code> がなくなる（<code>type</code> に <code>"null"</code> を含める）など書き方が変わった。道具の対応状況も違うので、上げる前に使っている生成器・UI・lint が 3.1 を読めるか確かめる。</p></details>
+  <details class="myth"><summary>コードから生成した文書は、実装から作ったのだから常に正確だ</summary><p>フレームワークが読み取れるのは型と注釈まで。コードの中で例外として返す 404、ミドルウェアが返す 401、実際の文字数の制限などは、注釈を書かないと文書に出ない（入力検証の 422 のように自動で載るものもあるが、中身が実際の応答と同じとは限らない）。生成した文書でも、契約テストで実際の応答と突き合わせる。</p></details>
+  <details class="myth"><summary>Swagger UI は読むだけの画面なので、本番環境でそのまま公開しても害はない</summary><p>社内向けや管理用のエンドポイントまで一覧になり、Try it out で本物のリクエストも送れる。公開 API のドキュメント以外は、認証の内側に置く・本番では出さない・公開用の文書から内部の操作を外す、のどれかにする。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="api-styles.html">REST・GraphQL・gRPC・tRPC</a> — OpenAPI は REST の契約を書く手段。ほかの方式の契約（スキーマ・.proto・TS の型）との比較</li>
+    <li><a href="api-versioning.html">API のバージョニングと後方互換</a> — 文書の差分で壊す変更を見つけ、<code>info.version</code> とどう対応させるか</li>
+    <li><a href="testing-strategy.html">テスト戦略</a> — 文書を使った契約テストの位置づけ</li>
+    <li><a href="cors-sop.html">CORS と同一オリジンポリシー</a> — Swagger UI の Try it out が通らないときの原因</li>
+    <li><a href="forms-validation.html">フォームとバリデーション</a> — スキーマの制約（<code>maxLength</code> など）を画面とサーバーの検証にどう使うか</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://spec.openapis.org/oas/latest.html">OpenAPI Specification（最新版）</a></li>
+    <li><a href="https://learn.openapis.org/">OpenAPI Documentation（OpenAPI Initiative の入門）</a></li>
+    <li><a href="https://learn.openapis.org/upgrading/v3.0-to-v3.1.html">Upgrading from OpenAPI 3.0 to 3.1</a></li>
+    <li><a href="https://swagger.io/docs/open-source-tools/swagger-ui/usage/installation/">Swagger UI のドキュメント</a></li>
+    <li><a href="https://openapi-generator.tech/">OpenAPI Generator</a></li>
+  </ul>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "OpenAPI の文書で、レスポンスの項目を 1 つ追加して API を更新した。文書のどこの版を上げる？",
+    "choices": ["先頭の openapi（例: 3.1.0）", "info.version", "servers の URL の /v1", "どこも変えない"],
+    "answer": 1,
+    "explain": "info.version はこの API 自身の版。先頭の openapi は文書の書き方（仕様）の版で、API を変えても変わらない。",
+    "ref": "#a-info"
+  },
+  {
+    "q": "Swagger UI の Try it out だけ失敗し、同じリクエストを curl で送ると成功する。まず疑うものは？",
+    "choices": ["文書の operationId が重複している", "サーバーの TLS 証明書", "API 側の CORS 設定", "文書が YAML ではなく JSON で書かれている"],
+    "answer": 2,
+    "explain": "Try it out はブラウザから API へ直接送るので、オリジンが違えば CORS の許可が要る。curl はブラウザではないので CORS の制約を受けない。",
+    "ref": "#swagger-ui"
+  },
+  {
+    "q": "OpenAPI 3.0 の文書を 3.1 にしたら、nullable: true を使っていたスキーマで lint が警告を出した。3.1 での書き方は？",
+    "choices": ["type: [string, \"null\"] のように type に null を含める", "nullable: \"true\" と文字列で書く", "required から外せば null も許される", "x-nullable: true に書き換える"],
+    "answer": 0,
+    "explain": "3.1 はスキーマが JSON Schema 2020-12 にそろい、nullable がなくなった。required から外すのは「項目が無くてよい」で、null を許すのとは別。",
+    "ref": "#myths"
+  },
+  {
+    "q": "外部のパートナーに公開する API を、フロントとバックの別チームで同時に作り始めたい。進め方として合うのは？",
+    "choices": ["実装を先に作り、完成後に文書を生成して渡す", "文書を先に書いて合意し、フロントはモックサーバーで進める", "文書は作らず、Postman のコレクションだけ共有する"],
+    "answer": 1,
+    "explain": "外部公開や複数チームでは、先に契約を決めるデザインファーストが合う。文書があればモックを立てて並行開発でき、実装は検証でずれを止める。",
+    "ref": "#first"
+  },
+  {
+    "q": "FastAPI のようにコードから OpenAPI を生成している。文書と実際の動きがずれやすいのはどこ？",
+    "choices": ["パスと HTTP メソッド", "関数の引数の型から作られる query パラメータ", "例外やミドルウェアが返すエラー応答（401・404 など）", "operationId"],
+    "answer": 2,
+    "explain": "フレームワークは型と注釈から文書を作るので、例外やミドルウェアが返す応答は注釈を書かないと文書に出ない。契約テストで実際の応答と突き合わせる。",
+    "ref": "#myths"
+  }
+]
+</script>
+</body>
+</html>
