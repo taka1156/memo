@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>タイポグラフィと Web フォント</title>
+<meta name="description" content="文字サイズ・行間・行長の目安、font-family のフォールバック、Web フォントが表示されるまでと font-display、軽くする方法を図解。">
+<meta name="memo:tags" content="デザイン, フロントエンド">
+<meta name="memo:date" content="2026-11-19">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-block: #6b7280;  /* ブロック期間: 文字が見えない */
+  --c-swap: #0f766e;   /* スワップ期間: 代替フォントで表示、届いたら切り替え */
+  --c-fail: #2563eb;   /* 失敗期間: 代替フォントのまま */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-block: #9ca3af;
+    --c-swap: #2dd4bf;
+    --c-fail: #60a5fa;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+ul.plain { margin: 6px 0 6px 1.3em; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { font-weight: 700; white-space: nowrap; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 文字組みの体験 */
+.lab { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.ctrl { display: grid; grid-template-columns: 7.5em 1fr 4.5em; gap: 4px 10px; align-items: center; font-size: 0.82rem; }
+.ctrl label { color: var(--fg-2); }
+.ctrl input[type=range] { width: 100%; accent-color: var(--accent); }
+.ctrl output { font-family: 'JetBrains Mono', ui-monospace, monospace; text-align: right; }
+.sample-box { border: 1px dashed var(--line); border-radius: 8px; padding: 12px; overflow: hidden; }
+.sample { margin: 0 auto; }
+.verdict { font-size: 0.8rem; color: var(--fg-2); }
+
+/* フォールバックの図 */
+.chars { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.ch { border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; text-align: center; min-width: 3.6em; background: var(--surface); }
+.ch b { display: block; font-size: 1.2rem; font-weight: 500; }
+.ch span { display: block; font-size: 0.7rem; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+/* font-display のタイムライン */
+.tl { display: grid; grid-template-columns: 5.5em 1fr; gap: 6px 10px; align-items: center; font-size: 0.8rem; }
+.tl .nm { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 700; }
+.bar { display: flex; height: 26px; border-radius: 5px; overflow: hidden; border: 1px solid var(--line); }
+.bar i { display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 0.68rem; color: var(--surface); white-space: nowrap; overflow: hidden; min-width: 5px; }
+.bar .b, .legend i.b { background: repeating-linear-gradient(135deg, var(--c-block) 0 4px, transparent 4px 7px); }
+.bar .tag { background: var(--surface); color: var(--fg); padding: 0 6px; border-radius: 3px; }
+.bar .s { background: var(--c-swap); }
+.bar .f { background: var(--c-fail); }
+.axis { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.68rem; color: var(--fg-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>タイポグラフィと Web フォント</h1>
+  <p class="subtitle">読みやすい文字組みの決めごと ＋ フォントが画面に出るまで</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>読みやすさは書体よりも、<b>文字サイズ・行間・1 行の長さ</b>の 3 つでほぼ決まる。</li>
+      <li>Web フォントは使う文字が描かれるときに初めて読み込まれ、届くまでの見せ方を <code>font-display</code> で選ぶ。</li>
+      <li>日本語フォントは字数が多く重いので、サブセット化・WOFF2・代替フォントの字幅合わせで軽くし、ずれを抑える。</li>
+    </ul>
+  </div>
+
+  <h2 id="basics">文字組みの基本：サイズ・行間・行長</h2>
+  <p>本文の読みやすさに効くのは、ほぼ次の 3 つ。どれも「大きすぎ・小さすぎ」の両方に失敗がある。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>項目</th><th>CSS</th><th>目安（本文）</th><th>外れたとき</th></tr></thead>
+      <tbody>
+        <tr><td>文字サイズ</td><td><code>font-size</code></td><td>16px（ブラウザの既定）前後。日本語は 15〜16px</td><td>小さいとスマホで読めない。大きすぎると 1 行の字数が減り、目の往復が増える</td></tr>
+        <tr><td>行間</td><td><code>line-height</code></td><td>日本語 1.6〜1.8、英語 1.4〜1.6。単位なしの数値で書く</td><td>詰まると次の行を見失う。開きすぎると段落のまとまりが崩れる</td></tr>
+        <tr><td>行長（1 行の長さ）</td><td><code>max-width</code></td><td>日本語 35〜40 字前後（30〜45 字に収める）、英語 45〜75 字</td><td>長いと行頭に戻るとき迷う。短いと改行だらけで読みにくい</td></tr>
+        <tr><td>字間</td><td><code>letter-spacing</code></td><td>本文は 0〜0.05em。見出しは詰め気味</td><td>本文で開けすぎると単語・文節のまとまりが見えなくなる</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">日本語は全角 1 字がほぼ 1em なので、<code>max-width: 38em</code> と書けば「1 行 38 字くらい」になる。<code>line-height</code> を <code>24px</code> のような固定値にすると、子要素の文字サイズを変えたときに行間が追従しない。</p>
+
+  <h3 id="lab">動かして確かめる</h3>
+  <div class="card lab">
+    <div class="ctrl">
+      <label for="fs">文字サイズ</label><input id="fs" type="range" min="11" max="22" value="16"><output id="fs-o">16px</output>
+      <label for="lh">行間</label><input id="lh" type="range" min="10" max="24" value="17"><output id="lh-o">1.7</output>
+      <label for="ml">1 行の字数</label><input id="ml" type="range" min="15" max="70" value="38"><output id="ml-o">38 字</output>
+    </div>
+    <div class="sample-box">
+      <p class="sample" id="sample">Web フォントは、ページで使う文字が実際に描かれるときに初めて読み込まれる。届くまでのあいだは、文字を隠して待つか、手元にある代替のフォントで先に表示しておくかを選べる。どちらを選んでも、届いた瞬間に字幅が変わると行の折り返しが変わり、読んでいた位置がずれることがある。</p>
+    </div>
+    <p class="verdict" id="verdict">目安の範囲内です。</p>
+  </div>
+
+  <h2 id="stack">font-family とフォールバック</h2>
+  <p><code>font-family</code> は「上から順に試す候補の列」。ブラウザは<b>1 文字ずつ</b>、その文字を持っている最初のフォントで描く。和文フォントは英数字も持っているので、和文を先に書くと英数字まで和文フォントの字形になる。</p>
+<pre><code>/* 欧文フォント → 和文フォント → 総称ファミリー の順 */
+font-family: "Inter", "Noto Sans JP", system-ui, sans-serif;</code></pre>
+  <p>上の指定で「Web 2026 年」を描くときの選ばれ方:</p>
+  <div class="chars">
+    <div class="ch"><b>W</b><span>Inter</span></div>
+    <div class="ch"><b>e</b><span>Inter</span></div>
+    <div class="ch"><b>b</b><span>Inter</span></div>
+    <div class="ch"><b>2</b><span>Inter</span></div>
+    <div class="ch"><b>0</b><span>Inter</span></div>
+    <div class="ch"><b>年</b><span>Noto JP</span></div>
+  </div>
+  <p class="note">Inter は漢字を持っていないので、「年」だけが次の候補の Noto Sans JP で描かれる。どの候補も持っていない文字は、最後の総称ファミリー（<code>sans-serif</code> など）経由で OS のフォントが使われる。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>総称ファミリー</th><th>中身</th><th>使いどころ</th></tr></thead>
+      <tbody>
+        <tr><td><code>sans-serif</code></td><td>ゴシック体・サンセリフ</td><td>画面の本文・UI の既定</td></tr>
+        <tr><td><code>serif</code></td><td>明朝体・セリフ</td><td>読み物・長文。細い横線が小さいサイズでかすれないか確かめる</td></tr>
+        <tr><td><code>monospace</code></td><td>等幅</td><td>コード・桁をそろえたい数字</td></tr>
+        <tr><td><code>system-ui</code></td><td>OS の UI フォント</td><td>読み込みゼロで速い。OS ごとに見た目が変わる</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>数字の桁をそろえたいだけなら、等幅フォントに変えずに <code>font-variant-numeric: tabular-nums</code>（フォントが対応していれば数字だけ等幅）で済む。和文の見出しで仮名の間が空いて見えるときは <code>font-feature-settings: "palt"</code>（プロポーショナル幅）で詰められる。</p>
+
+  <h2 id="units">単位とサイズの決め方</h2>
+  <ul class="plain">
+    <li><b>rem で書く。</b><code>1rem</code> はルート要素の文字サイズ（既定は 16px）。利用者がブラウザの設定で文字を大きくしたとき、rem はそれに従うが px は従わない。</li>
+    <li><b>サイズは段階（スケール）で決める。</b>本文 1rem から 1.25 倍ずつ（1 → 1.25 → 1.563 → 1.953rem）のように比率を決めておくと、見出しの大小がそろう。値はデザイントークンにしておく。</li>
+    <li><b>見出しは <code>clamp()</code> で画面幅に追従させる。</b><code>font-size: clamp(1.25rem, 4vw, 2rem)</code> なら、最小 1.25rem・最大 2rem のあいだで幅に比例する。最小値を rem にしておくと文字の拡大にも効く。</li>
+  </ul>
+
+  <h2 id="loading">Web フォントが表示されるまで</h2>
+  <ol class="steps">
+    <li><b>HTML と CSS を読む</b><code>@font-face</code> が見つかっても、この時点ではまだダウンロードしない。</li>
+    <li><b>そのフォントで描く文字が見つかる</b>レイアウトの途中で「この要素はこのフォント・この文字」と決まって初めてリクエストが出る。<code>unicode-range</code> を書いたファイルは、その範囲の文字が使われたときだけ読まれる。</li>
+    <li><b>届くまでの見せ方を決める</b>ここで <code>font-display</code> の値に従い、文字を隠して待つ（ブロック）か、代替フォントで先に描く（スワップ）か決まる。</li>
+    <li><b>届いたら描き直す</b>代替フォントと字幅や高さが違うと、ここで行の折り返しが変わってレイアウトがずれる（CLS の原因）。</li>
+  </ol>
+
+  <h3 id="font-display">font-display の 5 つの値</h3>
+  <p>フォントを使い始めてからの時間を 3 つの期間に分けて考える。<b>ブロック期間</b>は文字を見えない状態で待ち、<b>スワップ期間</b>は代替フォントで描きつつ届いたら切り替え、<b>失敗期間</b>に入ると届いても切り替えない。</p>
+  <div class="legend"><span><i class="b"></i>ブロック（見えない・斜線）</span><span><i style="background:var(--c-swap)"></i>スワップ（代替で表示 → 届けば切替）</span><span><i style="background:var(--c-fail)"></i>失敗（代替のまま）</span></div>
+  <div class="card">
+    <div class="tl">
+      <span class="nm">block</span><div class="bar"><i class="b" style="flex:3"><span class="tag">約 3 秒</span></i><i class="s" style="flex:3">ずっと</i></div>
+      <span class="nm">swap</span><div class="bar"><i class="b" style="flex:0.1"></i><i class="s" style="flex:5.9">ずっと</i></div>
+      <span class="nm">fallback</span><div class="bar"><i class="b" style="flex:0.1"></i><i class="s" style="flex:3">約 3 秒</i><i class="f" style="flex:2.9">以後</i></div>
+      <span class="nm">optional</span><div class="bar"><i class="b" style="flex:0.1"></i><i class="f" style="flex:5.9">以後</i></div>
+      <span></span><div class="axis"><span>0s</span><span>1s</span><span>2s</span><span>3s</span><span>4s</span><span>5s</span><span>6s</span></div>
+    </div>
+    <p class="note">数値は CSS Fonts の仕様が勧める目安（ブロックの「ごく短い」は 100ms 以下）。<code>auto</code> はブラウザ任せで、多くのブラウザでは <code>block</code> と同じに振る舞う。</p>
+  </div>
+
+  <p>フォントが届くまでの時間ごとに、利用者に見えるもの:</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="t-fast">0.05 秒で届く</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-mid">1.5 秒で届く</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t-slow">5 秒で届く</button>
+  </div>
+  <div class="panel card table-wrap" id="t-fast">
+    <table>
+      <tbody>
+        <tr><th>block</th><td>ほぼすぐ Web フォントで表示</td></tr>
+        <tr><th>swap</th><td>ブロック期間内に届くので、代替フォントを見せずに Web フォントで表示</td></tr>
+        <tr><th>fallback</th><td>同上</td></tr>
+        <tr><th>optional</th><td>同上</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="panel card table-wrap" id="t-mid" hidden>
+    <table>
+      <tbody>
+        <tr><th>block</th><td>1.5 秒間、文字が見えない → Web フォントで表示</td></tr>
+        <tr><th>swap</th><td>すぐ代替フォントで表示 → 1.5 秒で切り替え（ずれが起きうる）</td></tr>
+        <tr><th>fallback</th><td>すぐ代替フォントで表示 → スワップ期間内なので 1.5 秒で切り替え</td></tr>
+        <tr><th>optional</th><td>代替フォントのまま。ブラウザが裏で取得を続けてキャッシュできれば、次のページからは Web フォントで表示される（取得をやめることもある）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="panel card table-wrap" id="t-slow" hidden>
+    <table>
+      <tbody>
+        <tr><th>block</th><td>約 3 秒見えない → 代替フォントで表示 → 5 秒で切り替え</td></tr>
+        <tr><th>swap</th><td>すぐ代替フォントで表示 → 5 秒で切り替え（読み始めたあとにずれる）</td></tr>
+        <tr><th>fallback</th><td>すぐ代替フォントで表示。スワップ期間を過ぎたので切り替えない</td></tr>
+        <tr><th>optional</th><td>代替フォントのまま</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><b>選び方:</b> ブランドのロゴ文字のように字形そのものが大事なら <code>swap</code>、本文で「ずれないこと」を優先するなら <code>optional</code> か <code>fallback</code>。<code>block</code> は、アイコンフォントのように代替フォントで描くと意味の通らない文字が出るときに限る。</p>
+
+  <h2 id="optimize">軽くする・ずれを抑える</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>手段</th><th>何をするか</th><th>効くこと</th></tr></thead>
+      <tbody>
+        <tr><td>WOFF2</td><td>Web 用に圧縮された形式で配る。TTF / OTF をそのまま置かない</td><td>ファイルサイズ</td></tr>
+        <tr><td>サブセット化</td><td>使う文字だけのファイルを作る。<code>unicode-range</code> で範囲ごとにファイルを分ける</td><td>日本語フォントは数千字あり、そのままだと数 MB になる。使う範囲だけ読まれる</td></tr>
+        <tr><td>可変フォント</td><td>太さなどの軸を 1 ファイルに持つフォント（variable font）</td><td>太さを何種類も使うとき、ファイルを 1 つにまとめられる</td></tr>
+        <tr><td><code>preload</code></td><td><code>&lt;link rel="preload" as="font" type="font/woff2" crossorigin&gt;</code> で早めに取りに行く</td><td>CSS を読み終える前に取得が始まる。<code>crossorigin</code> がないと二重に取得される</td></tr>
+        <tr><td>代替フォントの字幅合わせ</td><td>代替フォント側の <code>@font-face</code> に <code>size-adjust</code>・<code>ascent-override</code> などを書く</td><td>切り替え時の行のずれ（CLS）を小さくする</td></tr>
+        <tr><td>そもそも使わない</td><td>本文は <code>system-ui</code> などの OS のフォントにし、Web フォントは見出しだけ</td><td>読み込みゼロ。いちばん速い</td></tr>
+      </tbody>
+    </table>
+  </div>
+<pre><code>/* 代替フォントの字幅を Web フォントに近づける例（数値はフォントごとに測る） */
+@font-face {
+  font-family: "Inter-fallback";
+  src: local("Arial");
+  size-adjust: 107%;
+  ascent-override: 90%;
+}
+body { font-family: "Inter", "Inter-fallback", sans-serif; }</code></pre>
+  <p class="note">フォントは CORS の匿名モードで取得されるので、同じオリジンでも <code>preload</code> には <code>crossorigin</code> を付ける。ブラウザの HTTP キャッシュはサイトごとに分かれているため、「ほかのサイトで読んだ Google Fonts のキャッシュが効く」ことは期待できない。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth" id="myth-swap"><summary>font-display: swap にすれば Web フォントの問題は全部片づく</summary><p>swap は「文字が見えない時間」をなくすだけで、届いたときの切り替えで行がずれる問題は残る。遅い回線では読み始めたあとにずれる。ずれを抑えるには代替フォントの字幅合わせや、<code>optional</code> を検討する。</p></details>
+  <details class="myth"><summary>日本語の Web フォントは、ページを開くたびに全文字のファイルを読み込む</summary><p><code>unicode-range</code> でファイルを分けてあれば、ページで使われた文字を含むファイルだけが読まれる。Google Fonts の日本語フォントもこの方式で、多数の小さなファイルに分けて配っている。</p></details>
+  <details class="myth" id="myth-order"><summary>font-family には和文フォントを先に書けばよい</summary><p>ブラウザは 1 文字ずつ「最初に持っているフォント」を使うので、和文フォントを先に書くと英数字も和文フォントの字形になる。欧文の書体を使いたいなら欧文フォントを先に書く。</p></details>
+  <details class="myth"><summary>px で指定すれば、どの環境でも同じ大きさで表示されて安心</summary><p>px は利用者がブラウザで設定した既定の文字サイズを無視する。文字を大きくして読んでいる人に小さい文字を押しつけることになるので、文字サイズは rem で書く。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="web-performance.html">Core Web Vitals</a> — フォントの切り替えが LCP と CLS にどう効くか</li>
+    <li><a href="design-tokens.html">デザイントークン</a> — 文字サイズのスケールや行間をトークンとして持つ</li>
+    <li><a href="unicode-text.html">文字コードと Unicode</a> — <code>unicode-range</code> が指すコードポイントの範囲</li>
+    <li><a href="i18n.html">i18n と書式</a> — 言語ごとに font-family や行間を切り替える</li>
+    <li><a href="browser-rendering.html">ブラウザのレンダリング</a> — フォントの読み込みがレイアウトと描画のどこに入るか</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://www.w3.org/TR/css-fonts-4/#font-display-desc">CSS Fonts Module Level 4 — font-display</a></li>
+    <li><a href="https://developer.mozilla.org/ja/docs/Web/CSS/@font-face/font-display">MDN — font-display</a></li>
+    <li><a href="https://developer.mozilla.org/ja/docs/Web/CSS/@font-face/size-adjust">MDN — size-adjust</a></li>
+    <li><a href="https://web.dev/articles/font-best-practices">web.dev — Best practices for fonts</a></li>
+    <li><a href="https://www.w3.org/TR/jlreq/ja/">日本語組版処理の要件（JLREQ）</a></li>
+  </ul>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+(() => {
+  const fs = document.getElementById('fs'), lh = document.getElementById('lh'), ml = document.getElementById('ml');
+  const s = document.getElementById('sample'), v = document.getElementById('verdict');
+  function upd() {
+    const f = +fs.value, l = lh.value / 10, m = +ml.value;
+    s.style.fontSize = f + 'px';
+    s.style.lineHeight = l;
+    s.style.maxWidth = m + 'em';
+    document.getElementById('fs-o').textContent = f + 'px';
+    document.getElementById('lh-o').textContent = l.toFixed(1);
+    document.getElementById('ml-o').textContent = m + ' 字';
+    const bad = [];
+    if (f < 14) bad.push('文字が小さい');
+    if (f > 19) bad.push('文字が大きい');
+    if (l < 1.5) bad.push('行間が詰まっている');
+    if (l > 2.0) bad.push('行間が開きすぎ');
+    if (m < 30) bad.push('1 行が短い');
+    if (m > 45) bad.push('1 行が長い');
+    v.textContent = bad.length ? '目安から外れています: ' + bad.join('・') : '目安の範囲内です。';
+  }
+  [fs, lh, ml].forEach(el => el.addEventListener('input', upd));
+  upd();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "font-family: \"Noto Sans JP\", \"Inter\", sans-serif; と書いたら、英数字まで和文フォントの字形になった。どう直す？",
+    "choices": ["Noto Sans JP の font-weight を下げる", "\"Inter\" を \"Noto Sans JP\" より前に書く", "sans-serif を先頭に移す", "lang 属性を en にする"],
+    "answer": 1,
+    "explain": "ブラウザは 1 文字ずつ、候補を前から見て最初にその文字を持つフォントを使う。和文フォントは英数字も持つので、欧文フォントを先に書く。",
+    "ref": "#stack"
+  },
+  {
+    "q": "本文の Web フォントが遅い回線で数秒後に届き、読んでいる途中で行の折り返しが変わってしまう。ずれを起こさないことを優先するなら、font-display はどれ？",
+    "choices": ["block", "swap", "optional", "auto"],
+    "answer": 2,
+    "explain": "optional はごく短いブロック期間のあと切り替えないので、途中でずれない。swap は届いた時点で必ず切り替えるのでずれる。",
+    "ref": "#font-display"
+  },
+  {
+    "q": "自サイトのフォントを <link rel=\"preload\" as=\"font\"> で先読みしたのに、同じファイルが 2 回ダウンロードされている。原因として最もありそうなのは？",
+    "choices": ["crossorigin 属性を付けていない", "type 属性に font/woff2 を書いた", "フォントが同じオリジンにある", "font-display を指定していない"],
+    "answer": 0,
+    "explain": "フォントは CORS の匿名モードで取得されるため、preload にも crossorigin が要る。無いと別のリクエストとして扱われ、使うときにもう一度取りに行く。",
+    "ref": "#optimize"
+  },
+  {
+    "q": "利用者がブラウザの設定で既定の文字サイズを大きくしている。その設定に本文の文字サイズを従わせるには？",
+    "choices": ["font-size を px で書く", "font-size を rem で書く", "viewport の initial-scale を 2 にする", "letter-spacing を広げる"],
+    "answer": 1,
+    "explain": "rem はルート要素の文字サイズ（既定は利用者の設定）を基準にするので設定に従う。px は設定を無視する。",
+    "ref": "#units"
+  },
+  {
+    "q": "Web フォントを切り替えたときのレイアウトのずれ（CLS）を小さくしたい。フォントの見た目は変えずにできることは？",
+    "choices": ["代替フォントの @font-face に size-adjust などを書いて字幅を Web フォントに近づける", "font-display を block にして 3 秒待つ", "TTF のまま配信する", "line-height を px で固定する"],
+    "answer": 0,
+    "explain": "代替フォントの字幅・高さを Web フォントに合わせておくと、切り替わっても折り返しがほぼ変わらない。",
+    "ref": "#optimize"
+  }
+]
+</script>
+</body>
+</html>
