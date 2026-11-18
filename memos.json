@@ -22,6 +22,18 @@
   "quizzes": 5
  },
  {
+  "file": "openapi-swagger.html",
+  "title": "Swagger と OpenAPI",
+  "desc": "OpenAPI（旧 Swagger）の文書の構造と、そこから作れるドキュメント・型・モック・テスト、Swagger UI の動き方を図解。",
+  "tags": [
+   "バックエンド",
+   "設計",
+   "開発ツール"
+  ],
+  "date": "2026-11-19",
+  "quizzes": 5
+ },
+ {
   "file": "go.html",
   "title": "Go 学習フローと仕組み",
   "desc": "Go をどの順で学ぶかと、1 つのバイナリになるビルド、goroutine を動かすスケジューラ（G・M・P）、チャネル、インターフェースとエラー、GC とモジュールの仕組みを図解。",
