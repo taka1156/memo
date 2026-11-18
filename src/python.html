@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Python 学習フローと仕組み</title>
+<meta name="description" content="Python をどの順で学ぶかと、バイトコードを解釈して動く CPython、名前と参照、参照カウントと GC、GIL と並行処理、仮想環境とパッケージの仕組みを図解。">
+<meta name="memo:tags" content="言語, バックエンド">
+<meta name="memo:date" content="2026-11-19">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-run: #0f766e;   /* Python のコードを実行中 */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-run: #2dd4bf;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+ul.plain { margin: 6px 0 6px 1.3em; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { font-weight: 700; white-space: nowrap; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+ul.plain { margin: 6px 0 6px 1.3em; }
+pre code { background: none; padding: 0; font-size: inherit; }
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { font-weight: 700; }
+#compare + .table-wrap td:first-child { white-space: nowrap; }
+.goal { font-size: 0.82rem; color: var(--fg-2); display: block; margin-top: 2px; }
+.phase { font-size: 0.8rem; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; margin: 14px 0 4px; }
+
+/* 実行の流れ */
+.flow { display: flex; align-items: stretch; gap: 0; }
+.flow .st { flex: 1 1 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px; text-align: center; font-size: 0.8rem; }
+.flow .st b { display: block; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.85rem; }
+.flow .st span { color: var(--fg-2); }
+.flow .ar { align-self: center; color: var(--fg-2); padding: 0 6px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.flow .ar::before { content: "→"; }
+@media (max-width: 640px) {
+  .flow { flex-direction: column; }
+  .flow .ar { text-align: center; padding: 2px 0; }
+  .flow .ar::before { content: "↓"; }
+}
+
+/* 名前と参照 */
+.refs { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; align-items: center; margin: 8px 0; }
+.nm { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.8rem; padding: 3px 9px; border-radius: 4px; background: var(--chip); justify-self: start; }
+.obj { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.8rem; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); justify-self: start; }
+.obj.hot { border: 2px solid var(--c-hl); }
+.arrow { color: var(--fg-2); font-size: 0.75rem; }
+
+/* GIL のタイムライン */
+.tl { display: grid; grid-template-columns: 5.5em 1fr; gap: 6px 10px; align-items: center; font-size: 0.78rem; margin: 6px 0; }
+.tl .who { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.lane { display: flex; height: 22px; border-radius: 4px; overflow: hidden; background: var(--chip); }
+.lane i { display: block; height: 100%; }
+.lane .run { background: var(--c-run); }
+.lane .io { background: repeating-linear-gradient(135deg, var(--fg-2) 0 3px, transparent 3px 6px); }
+.lane .idle { background: transparent; }
+.legend i.io { background: repeating-linear-gradient(135deg, var(--fg-2) 0 3px, transparent 3px 6px); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Python 学習フローと仕組み</h1>
+  <p class="subtitle">どの順で学ぶか ＋ CPython が裏で何をしているか</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>Python は書きやすさを優先した動的型付けの言語で、データ分析・機械学習・自動化・Web の裏側まで広く使われる。</li>
+      <li>標準の処理系 CPython はコードをバイトコードに変えて 1 命令ずつ解釈し、メモリは参照カウントと GC で片づける。</li>
+      <li>学ぶ順は「文法 → データ型と名前の扱い → 関数とクラス → 仮想環境とパッケージ → 並行処理と型ヒント」が基本。</li>
+    </ul>
+  </div>
+
+  <h2 id="roadmap">学習ロードマップ</h2>
+  <p class="phase">フェーズ 1: 入門</p>
+  <ol class="steps">
+    <li><b>環境を作って動かす</b>公式の配布物か uv などで Python を入れ、対話モード（REPL）と <code>python app.py</code> で動かす。<span class="goal">ゴール: 1 ファイルのスクリプトを書いて実行できる</span></li>
+    <li><b>基本の文法</b>インデントでブロックを表す。<code>if</code>・<code>for</code>（何かを順にたどる）・<code>while</code>・関数（<code>def</code>）・f 文字列。<span class="goal">ゴール: ファイルを読んで行ごとに集計するスクリプトを書ける</span></li>
+    <li><b>組み込みのデータ型</b><code>list</code>・<code>dict</code>・<code>set</code>・<code>tuple</code> と内包表記。どれが変更可能（mutable）かを押さえる。<span class="goal">ゴール: 目的に合わせて list と dict と set を選べる</span></li>
+  </ol>
+  <p class="phase">フェーズ 2: Python らしさの中核</p>
+  <ol class="steps" start="4">
+    <li><b>名前と参照 ★つまずきやすい</b>変数は値の入れ物ではなく、オブジェクトに付けた名札（下の「仕組み 2」）。<span class="goal">ゴール: 関数に渡した list が呼び出し元でも変わる理由を説明できる</span></li>
+    <li><b>クラス・例外・with</b>クラスと特殊メソッド（<code>__init__</code>・<code>__repr__</code>）、<code>try</code> / <code>except</code>、<code>with</code> によるファイルなどの後片づけ。<span class="goal">ゴール: 失敗しうる処理を例外で扱い、リソースを確実に閉じられる</span></li>
+    <li><b>仮想環境とパッケージ</b>プロジェクトごとに仮想環境を作り、依存は <code>pyproject.toml</code> に書く（下の「仕組み 5」）。<span class="goal">ゴール: ほかの人が同じ依存で動かせる形でプロジェクトを渡せる</span></li>
+  </ol>
+  <p class="phase">フェーズ 3: 実践</p>
+  <ol class="steps" start="7">
+    <li><b>型ヒントとツール</b>型ヒントを付けて mypy や pyright で検査し、Ruff で lint と整形、pytest でテストする。<span class="goal">ゴール: 型の検査とテストを CI で回せる</span></li>
+    <li><b>並行処理</b>I/O 待ちが多いなら <code>asyncio</code> かスレッド、計算が重いなら <code>multiprocessing</code>（下の「仕組み 4」）。<span class="goal">ゴール: 多数の HTTP リクエストを並行に投げられ、CPU を使う処理を複数コアに分けられる</span></li>
+  </ol>
+
+  <h2 id="run">仕組み 1: コードが動くまで</h2>
+  <div class="flow">
+    <div class="st"><b>.py ファイル</b><span>ソースコード</span></div>
+    <div class="ar" aria-hidden="true"></div>
+    <div class="st"><b>コンパイル</b><span>構文木を作り、バイトコードに変える</span></div>
+    <div class="ar" aria-hidden="true"></div>
+    <div class="st"><b>.pyc</b><span>import したモジュールは <code>__pycache__</code> に保存</span></div>
+    <div class="ar" aria-hidden="true"></div>
+    <div class="st"><b>仮想マシン</b><span>バイトコードを 1 命令ずつ解釈して実行</span></div>
+  </div>
+<pre><code>&gt;&gt;&gt; import dis
+&gt;&gt;&gt; dis.dis(lambda a, b: a + b)   # バイトコードを見る（Python 3.13 の例）
+  RESUME                0
+  LOAD_FAST_LOAD_FAST   1 (a, b)    # a と b をまとめて読み込む
+  BINARY_OP             0 (+)       # 実行するまで a と b の型は分からない
+  RETURN_VALUE</code></pre>
+  <p class="note">命令の名前は版によって変わる（3.12 までは <code>LOAD_FAST</code> が 2 つ、3.14 以降は <code>LOAD_FAST_BORROW</code> 系）。</p>
+  <ul class="plain">
+    <li><b>型は実行時に決まる。</b><code>a + b</code> は、実行のたびに a と b の型を見て、数値の足し算か文字列の連結かを選ぶ。この確認の分だけ、C や Go より遅くなる。</li>
+    <li><b>重い処理は C で書かれたライブラリに任せる。</b>NumPy などはループの中身を C で実行するので、Python で 1 要素ずつ回すより桁違いに速い。「Python は遅い」は、Python のループで大量の要素を回したときの話。</li>
+    <li><b>CPython 以外の処理系もある。</b>JIT で速くする PyPy など。CPython 自身も 3.13 から実験的な JIT を持つ（既定では無効）。</li>
+  </ul>
+
+  <h2 id="names">仕組み 2: 変数は名札、代入は名札の付け替え</h2>
+  <p>代入はオブジェクトをコピーせず、同じオブジェクトにもう 1 つ名前を付けるだけ。タブを順に押すと、名前とオブジェクトのつながりが変わる様子が見える。</p>
+  <div class="legend"><span><i style="background:var(--c-hl)"></i>この行で変わったオブジェクト（太枠）</span></div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="n1">1. a = [1, 2]</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="n2">2. b = a</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="n3">3. b.append(3)</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="n4">4. b = b + [4]</button>
+  </div>
+  <div class="panel card" id="n1">
+    <div class="refs"><span class="nm">a</span><span><span class="arrow">指す →</span> <span class="obj hot">list [1, 2]</span></span></div>
+    <p>list オブジェクトが作られ、<code>a</code> という名前がそれを指す。</p>
+  </div>
+  <div class="panel card" id="n2" hidden>
+    <div class="refs"><span class="nm">a</span><span><span class="arrow">指す →</span> <span class="obj">list [1, 2]</span></span><span class="nm">b</span><span><span class="arrow">同じものを指す ↑</span></span></div>
+    <p>コピーはされない。<code>a</code> と <code>b</code> は同じ 1 つの list を指していて、<code>a is b</code> は <code>True</code>。</p>
+  </div>
+  <div class="panel card" id="n3" hidden>
+    <div class="refs"><span class="nm">a</span><span><span class="arrow">指す →</span> <span class="obj hot">list [1, 2, 3]</span></span><span class="nm">b</span><span><span class="arrow">同じものを指す ↑</span></span></div>
+    <p><code>append</code> は list そのものを変える。<code>b</code> から変えたのに、<code>a</code> から見ても <code>[1, 2, 3]</code> になる。関数に list を渡して中で変えたときも同じことが起きる。</p>
+  </div>
+  <div class="panel card" id="n4" hidden>
+    <div class="refs"><span class="nm">a</span><span><span class="arrow">指す →</span> <span class="obj">list [1, 2, 3]</span></span><span class="nm">b</span><span><span class="arrow">指す →</span> <span class="obj hot">新しい list [1, 2, 3, 4]</span></span></div>
+    <p><code>b + [4]</code> は新しい list を作り、<code>b</code> の名札をそちらに付け替える。<code>a</code> は元の list を指したまま。変更（<code>append</code>）と再代入（<code>=</code>）の違いが、Python のバグの定番の原因。</p>
+  </div>
+  <p>int・str・tuple は変更できない（immutable）ので、<code>s += "x"</code> はいつも新しいオブジェクトを作って名札を付け替える。値が同じかは <code>==</code>、同じオブジェクトかは <code>is</code> で比べる（<code>is</code> を使うのは <code>None</code> との比較くらい）。</p>
+
+  <h2 id="memory">仕組み 3: メモリは参照カウントと GC で片づける</h2>
+  <ul class="plain">
+    <li><b>参照カウント</b>: どのオブジェクトも「いくつの名前・入れ物から指されているか」を数えていて、0 になった瞬間に解放される。<code>with</code> を使わずに開いたファイルが、関数を抜けたときに閉じられるのはこのため（ただし CPython の実装の性質なので、閉じるのは <code>with</code> に任せる）。</li>
+    <li><b>循環を拾う GC</b>: 互いに指し合うオブジェクトは数が 0 にならないので、別の GC（世代別）がときどき見つけて回収する。</li>
+  </ul>
+
+  <h2 id="gil">仕組み 4: GIL と並行処理</h2>
+  <p>CPython には <b>GIL（グローバルインタプリタロック）</b>があり、1 つのプロセスの中で Python のバイトコードを同時に実行できるスレッドは 1 本だけ。ただし I/O を待つ間や、GIL を手放す C のライブラリの計算中は、ほかのスレッドが動ける。</p>
+  <div class="legend"><span><i style="background:var(--c-run)"></i>Python のコードを実行中</span><span><i class="io"></i>I/O 待ち（斜線。GIL を手放している）</span></div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="g1">計算をスレッドで</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="g2">I/O をスレッドで</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="g3">計算をプロセスで</button>
+  </div>
+  <div class="panel card" id="g1">
+    <div class="tl"><span class="who">スレッド1</span><div class="lane"><i class="run" style="flex:1"></i><i class="idle" style="flex:1"></i><i class="run" style="flex:1"></i><i class="idle" style="flex:1"></i><i class="run" style="flex:1"></i><i class="idle" style="flex:1"></i><i class="run" style="flex:1"></i><i class="idle" style="flex:1"></i></div><span class="who">スレッド2</span><div class="lane"><i class="idle" style="flex:1"></i><i class="run" style="flex:1"></i><i class="idle" style="flex:1"></i><i class="run" style="flex:1"></i><i class="idle" style="flex:1"></i><i class="run" style="flex:1"></i><i class="idle" style="flex:1"></i><i class="run" style="flex:1"></i></div></div>
+    <p>どちらのスレッドも計算したいが、GIL を交代で持つので<b>同時には走らない</b>。合計時間は 1 本で計算したときとほぼ同じ（切り替えの分だけ遅いこともある）。</p>
+  </div>
+  <div class="panel card" id="g2" hidden>
+    <div class="tl"><span class="who">スレッド1</span><div class="lane"><i class="run" style="flex:1"></i><i class="io" style="flex:3"></i><i class="run" style="flex:1"></i><i class="io" style="flex:3"></i></div><span class="who">スレッド2</span><div class="lane"><i class="idle" style="flex:1"></i><i class="run" style="flex:1"></i><i class="io" style="flex:3"></i><i class="run" style="flex:1"></i><i class="io" style="flex:2"></i></div><span class="who">スレッド3</span><div class="lane"><i class="idle" style="flex:2"></i><i class="run" style="flex:1"></i><i class="io" style="flex:3"></i><i class="run" style="flex:1"></i><i class="io" style="flex:1"></i></div></div>
+    <p>HTTP の応答やディスクを待つ間は GIL を手放すので、待ち時間が重なり合う。I/O が中心の処理なら、スレッドや <code>asyncio</code> で十分に速くなる。</p>
+  </div>
+  <div class="panel card" id="g3" hidden>
+    <div class="tl"><span class="who">プロセス1</span><div class="lane"><i class="run" style="flex:8"></i></div><span class="who">プロセス2</span><div class="lane"><i class="run" style="flex:8"></i></div></div>
+    <p>プロセスごとに別のインタプリタと GIL を持つので、複数コアで同時に計算できる。代わりに、プロセス間でデータを渡すときにコピー（シリアライズ）の手間がかかる。</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>やりたいこと</th><th>選ぶもの</th></tr></thead>
+      <tbody>
+        <tr><td>たくさんの HTTP リクエスト・DB 問い合わせを並行に</td><td><code>asyncio</code>（ライブラリが対応していれば）か <code>concurrent.futures.ThreadPoolExecutor</code></td></tr>
+        <tr><td>Python で書いた重い計算を複数コアで</td><td><code>multiprocessing</code> か <code>ProcessPoolExecutor</code></td></tr>
+        <tr><td>配列の計算</td><td>NumPy などに任せる（中で GIL を手放して C で計算する）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">GIL を外したビルド（free-threaded 版）もある。3.13 で実験的に入り、3.14 で正式にサポートされたが、まだ既定のビルドではない。C 拡張のライブラリが対応している必要がある。</p>
+
+  <h2 id="packages">仕組み 5: 仮想環境とパッケージ</h2>
+  <p><code>pip install</code> は、いま使っている Python の <code>site-packages</code> フォルダにパッケージを入れる。プロジェクトごとにバージョンが違う依存を混ぜないよう、<b>プロジェクトごとに仮想環境</b>（専用の <code>site-packages</code> を持つフォルダ）を作る。</p>
+<pre><code># 標準の道具だけで
+python -m venv .venv            # 仮想環境を作る
+source .venv/bin/activate       # 有効にする（Windows は .venv\Scripts\activate）
+pip install requests            # .venv の中に入る
+
+# uv を使う場合（仮想環境・依存・ロックファイルをまとめて扱う）
+uv init                         # pyproject.toml を作る
+uv add requests                 # 依存を足し、uv.lock を更新する
+uv run app.py                   # 仮想環境の中で実行する</code></pre>
+  <ul class="plain">
+    <li>依存の宣言は <code>pyproject.toml</code> に書くのが今の標準（以前は <code>requirements.txt</code> や <code>setup.py</code>）。</li>
+    <li>同じバージョンを再現するにはロックファイル（<code>uv.lock</code> など）を使う。<code>pyproject.toml</code> には「この範囲なら動く」を、ロックファイルには「実際に入れた版」を書く。</li>
+    <li>OS に最初から入っている Python に <code>sudo pip install</code> しない。OS のツールが使うパッケージを壊すことがあり、最近の Linux では拒否される。</li>
+  </ul>
+
+  <h3 id="typehints">型ヒントは実行時には検査されない</h3>
+<pre><code>def total(prices: list[int]) -&gt; int:
+    return sum(prices)
+
+total(["100", "200"])   # 実行すると sum の中で TypeError。型ヒントだけでは止まらない
+                        # mypy / pyright で検査すると、実行前にこの行を指摘できる</code></pre>
+
+  <h2 id="compare">Go・TypeScript との比較</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th></th><th>Python</th><th>Go</th><th>TypeScript（Node.js）</th></tr></thead>
+      <tbody>
+        <tr><td>実行</td><td>バイトコードをインタプリタで実行</td><td>ネイティブの実行ファイル</td><td>JS に変換し、JIT で実行</td></tr>
+        <tr><td>型</td><td>動的。型ヒントは別のツールで検査</td><td>静的</td><td>静的（実行時に消える）</td></tr>
+        <tr><td>メモリ</td><td>参照カウント ＋ 循環 GC</td><td>GC</td><td>GC</td></tr>
+        <tr><td>並列計算</td><td>GIL があるので主にプロセスで</td><td>goroutine で複数コア</td><td>Worker で複数コア</td></tr>
+        <tr><td>強い所</td><td>データ分析・機械学習のライブラリ、短いスクリプト</td><td>サーバー・CLI・並行処理</td><td>Web のフロントとバックを同じ言語で</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth" id="myth-gil"><summary>GIL があるので、Python でスレッドを使っても速くならない</summary><p>速くならないのは、Python のコードで計算するときだけ。I/O を待つ間は GIL が手放されるので、ネットワークやファイルを待つ処理はスレッドで並行に進む。</p></details>
+  <details class="myth" id="myth-default"><summary>関数の引数の既定値は、呼ぶたびに新しく作られる</summary><p>既定値は関数を定義したときに 1 回だけ作られる。<code>def add(x, items=[])</code> と書くと、呼ぶたびに同じ list に追加されていく。変更可能な既定値は <code>items=None</code> にして、関数の中で <code>if items is None: items = []</code> とする。</p></details>
+  <details class="myth"><summary>型ヒントを書けば、間違った型の値を渡したときに実行時にエラーになる</summary><p>型ヒントは実行時には検査されない（記録されるだけ）。実行前に mypy や pyright で検査するか、実行時に確かめたいなら Pydantic などのライブラリを使う。</p></details>
+  <details class="myth"><summary>b = a と書けば、a の list のコピーが b に入る</summary><p>代入は同じオブジェクトに名前を増やすだけで、コピーしない。コピーが要るなら <code>a.copy()</code> や <code>list(a)</code>、入れ子まで丸ごとなら <code>copy.deepcopy(a)</code>。</p></details>
+
+  <h2 id="commands">よく使うコマンド</h2>
+<pre><code>python -m venv .venv             # 仮想環境を作る
+python -m pip install -r requirements.txt
+uv sync                          # uv.lock どおりに依存を入れる
+python -m pytest                 # テスト
+ruff check . &amp;&amp; ruff format .    # lint と整形
+mypy src/                        # 型の検査
+python -m cProfile -s cumtime app.py   # どこで時間を使っているか
+python -X importtime app.py      # import の遅い所を探す</code></pre>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="memory-management.html">メモリ管理</a> — 参照カウントと GC をほかの言語の方式と比べる</li>
+    <li><a href="concurrency-models.html">並行処理のモデル</a> — asyncio が入るイベントループ型の考え方</li>
+    <li><a href="go.html">Go 学習フローと仕組み</a>・<a href="typescript.html">TypeScript 学習フローと仕組み</a>・<a href="rust.html">Rust 学習フローと仕組み</a> — 同じ形でまとめたほかの言語</li>
+    <li><a href="floating-point.html">浮動小数点と数値表現</a> — <code>0.1 + 0.2</code> が 0.3 にならない理由（Python でも同じ）</li>
+    <li><a href="supply-chain-security.html">サプライチェーンセキュリティ</a> — PyPI から入れる依存の脆弱性とロックファイル</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://docs.python.org/ja/3/tutorial/">Python チュートリアル</a></li>
+    <li><a href="https://docs.python.org/ja/3/glossary.html#term-global-interpreter-lock">用語集 — グローバルインタプリタロック</a></li>
+    <li><a href="https://docs.python.org/3/howto/free-threading-python.html">Python support for free threading</a></li>
+    <li><a href="https://docs.python.org/ja/3/library/venv.html">venv — 仮想環境の作成</a></li>
+    <li><a href="https://docs.astral.sh/uv/">uv のドキュメント</a></li>
+    <li><a href="https://packaging.python.org/ja/latest/guides/writing-pyproject-toml/">pyproject.toml を書く</a></li>
+  </ul>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "def add(x, items=[]): items.append(x); return items を add(1)、add(2) と呼ぶと 2 回目が [1, 2] になった。どう直す？",
+    "choices": ["既定値を items=None にし、関数の中で None なら新しい list を作る", "items を tuple にして、関数の中で list に変換してから追加する", "関数の最後で items.clear() を呼んで、次の呼び出しに備えて空にする", "global items と宣言し、関数の外にある list を使うようにする"],
+    "answer": 0,
+    "explain": "既定値は関数を定義したときに 1 回だけ作られ、呼び出しのたびに同じ list が使われる。変更可能な既定値は None にして中で作る。",
+    "ref": "#myth-default"
+  },
+  {
+    "q": "Python で書いた画像のピクセル計算をスレッド 8 本に分けたが、1 本のときとほとんど速さが変わらない。8 コアを使い切るには？",
+    "choices": ["スレッドを 64 本に増やし、GIL の取り合いで空く時間を埋める", "ProcessPoolExecutor などで、複数のプロセスに分けて計算する", "asyncio に書き換えて、await で計算を細かく区切って進める", "threading.Lock で計算部分を守り、切り替えの無駄を減らす"],
+    "answer": 1,
+    "explain": "GIL があるので Python のバイトコードを同時に実行できるスレッドは 1 本だけ。プロセスはそれぞれ GIL を持つので、複数コアで同時に計算できる。",
+    "ref": "#gil"
+  },
+  {
+    "q": "1,000 個の URL から HTML を取ってくるスクリプトが遅い。処理時間のほとんどは応答待ち。手早く速くする方法は？",
+    "choices": ["GIL があるので、プロセスを 1,000 個起動するしか方法がない", "for ループを内包表記に書き換えて、Python の命令の数を減らす", "スレッドプールか asyncio で、応答待ちを重ねて並行に取る", "PyPy に切り替えて、ループの中の Python のコードを JIT で速くする"],
+    "answer": 2,
+    "explain": "I/O を待つ間は GIL が手放されるので、スレッドや asyncio で待ち時間を重ねられる。遅い原因は計算ではなく待ちなので、計算を速くしても効かない。",
+    "ref": "#gil"
+  },
+  {
+    "q": "関数に渡した list を関数の中で lst.append(0) したら、呼び出し元の list も変わっていた。なぜ？",
+    "choices": ["Python は引数を渡すときに、list の中身を毎回コピーして渡すから", "append は呼び出し元の変数そのものを書き換える特別な命令だから", "関数の中の lst は、ローカル変数ではなくグローバル変数として扱われるから", "引数の名前が呼び出し元と同じ list オブジェクトを指していて、append はそれを変えるから"],
+    "answer": 3,
+    "explain": "引数を渡すのも代入と同じで、同じオブジェクトに名前が増えるだけ。append はそのオブジェクトを変えるので、どの名前から見ても変わる。",
+    "ref": "#names"
+  },
+  {
+    "q": "型ヒント def f(n: int) を付けた関数に、文字列 \"3\" を渡した。何が起きる？",
+    "choices": ["実行時には検査されないので、そのまま渡される（中の処理次第でエラーになる）", "呼び出した時点で、型が合わないので TypeError が必ず送出される", "Python が自動で int に変換して、3 として受け取る", "モジュールを import した時点で、型の不一致を検出して止まる"],
+    "answer": 0,
+    "explain": "型ヒントは記録されるだけで、実行時の検査はしない。実行前に見つけるには mypy や pyright を使う。",
+    "ref": "#typehints"
+  }
+]
+</script>
+</body>
+</html>
