@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API のバージョニングと後方互換</title>
+<meta name="description" content="どの変更がクライアントを壊すか、バージョンの付け方（URL・ヘッダー・日付）、拡張と縮小で無停止に変える手順、非推奨の伝え方を図解。">
+<meta name="memo:tags" content="バックエンド, 設計">
+<meta name="memo:date" content="2026-11-19">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+ul.plain { margin: 6px 0 6px 1.3em; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { font-weight: 700; white-space: nowrap; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+.verdict { font-weight: 700; }
+.verdict.ok { color: var(--c-ok); }
+.verdict.ng { color: var(--c-ng); }
+.verdict.warn { color: var(--c-warn); }
+.mark-ok { color: var(--c-ok); font-weight: 700; white-space: nowrap; }
+.mark-ng { color: var(--c-ng); font-weight: 700; white-space: nowrap; }
+.mark-warn { color: var(--c-warn); font-weight: 700; white-space: nowrap; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+.grid2 h3 { margin-top: 0; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="API のバージョニングと後方互換">
+<meta property="og:description" content="どの変更がクライアントを壊すか、バージョンの付け方（URL・ヘッダー・日付）、拡張と縮小で無停止に変える手順、非推奨の伝え方を図解。">
+<meta property="og:url" content="https://memo.taka1156.site/api-versioning.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>API のバージョニングと後方互換</h1>
+  <p class="subtitle">クライアントを壊さずに API を変えるための決めごと</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>API は公開した瞬間から、自分では更新できないクライアントとの<b>約束</b>になる。</li>
+      <li>追加は基本的に安全で、削除・名前変更・型や意味の変更は壊す。壊す変更だけを新しいバージョンにまとめる。</li>
+      <li>変えるときは「新旧を両方出す → 移ってもらう → 古い方を消す」の順にし、非推奨は期限つきで伝える。</li>
+    </ul>
+  </div>
+
+  <h2 id="breaking">どの変更がクライアントを壊すか</h2>
+  <p>変更を選ぶと、既存のクライアントにとって安全かどうかと理由が出る。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="c-addfield">レスポンスに項目を追加</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="c-optparam">任意の引数を追加</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="c-enum">enum に値を追加</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="c-required">必須の引数を追加</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="c-rename">項目の名前を変える</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="c-type">型を変える</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="c-strict">検証を厳しくする</button>
+  </div>
+  <div class="panel card" id="c-addfield">
+    <p class="verdict ok">安全（ほとんどの場合）</p>
+    <p>知らない項目を無視するクライアントには影響しない。ただし、知らない項目があるとエラーにする厳しいデシリアライザを使うクライアントは壊れる。だから API の利用規約やドキュメントに「項目は予告なく増える。知らない項目は無視すること」と書いておく。</p>
+  </div>
+  <div class="panel card" id="c-optparam" hidden>
+    <p class="verdict ok">安全</p>
+    <p>付けなかったときの動きが今までと同じなら、既存のクライアントは何も変えなくてよい。省略時の既定値を「今までの動き」以外にすると、それは意味の変更になり壊す。</p>
+  </div>
+  <div class="panel card" id="c-enum" hidden>
+    <p class="verdict warn">注意（壊すことがある）</p>
+    <p><code>status</code> に <code>"refunded"</code> を足すと、<code>switch</code> で全部の値を書き分けていたクライアントは知らない値で落ちたり、想定外の分岐に入ったりする。値が増える可能性のある enum は、最初から「知らない値が来たら既定の扱いにする」とドキュメントに書き、クライアントにもそう実装してもらう。</p>
+  </div>
+  <div class="panel card" id="c-required" hidden>
+    <p class="verdict ng">壊す</p>
+    <p>既存のクライアントはその引数を送っていないので、全部のリクエストが 400 になる。追加するなら任意の引数として足し、省略時は今までの動きにする。</p>
+  </div>
+  <div class="panel card" id="c-rename" hidden>
+    <p class="verdict ng">壊す</p>
+    <p>古い名前を読んでいるクライアントからは、項目が消えたのと同じ。新しい名前を足して両方を返し、古い名前を非推奨にしてから消す（下の「Expand and Contract」）。</p>
+  </div>
+  <div class="panel card" id="c-type" hidden>
+    <p class="verdict ng">壊す</p>
+    <p><code>"id": 123</code>（数値）を <code>"id": "123"</code>（文字列）にすると、型のある言語のクライアントは読み込みで失敗する。ID は最初から文字列にしておくと、桁が増えても JavaScript の数値の精度の問題も起きない。</p>
+  </div>
+  <div class="panel card" id="c-strict" hidden>
+    <p class="verdict ng">壊す</p>
+    <p>今まで通っていた値（長い名前・空文字など）を新しく拒否すると、それを送っていたクライアントが失敗する。仕様に書いていなくても、<b>実際の動き</b>に頼っているクライアントがいる。厳しくするなら新しいバージョンで行う。</p>
+  </div>
+
+  <div class="table-wrap" style="margin-top:12px">
+    <table>
+      <thead><tr><th>変更</th><th>判定</th></tr></thead>
+      <tbody>
+        <tr><td>新しいエンドポイント・新しい任意の項目や引数を足す</td><td><span class="mark-ok">安全</span></td></tr>
+        <tr><td>enum の値・エラーの種類を足す</td><td><span class="mark-warn">注意</span></td></tr>
+        <tr><td>項目・エンドポイントを消す、名前を変える</td><td><span class="mark-ng">壊す</span></td></tr>
+        <tr><td>型・単位・意味を変える（円 → 銭、UTC → 現地時刻）</td><td><span class="mark-ng">壊す</span></td></tr>
+        <tr><td>必須の引数を足す・検証を厳しくする・省略時の既定値を変える</td><td><span class="mark-ng">壊す</span></td></tr>
+        <tr><td>ステータスコードやエラーの形を変える</td><td><span class="mark-ng">壊す</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">受け取る側は「知らない項目は無視し、知らない enum の値は既定の扱いにする」と作っておくと、送る側が足す変更に強くなる（tolerant reader と呼ばれる考え方）。</p>
+
+  <h2 id="where">バージョンの付け方</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>方式</th><th>例</th><th>よい所</th><th>気をつける所</th></tr></thead>
+      <tbody>
+        <tr><td>URL のパス</td><td><code>/v1/orders</code></td><td>見てすぐ分かる。ルーティングやキャッシュで分けやすい。いちばん多い</td><td>大きな区切りにしか使えない。v1 と v2 を長く並べて持つことになる</td></tr>
+        <tr><td>ヘッダー（メディアタイプ）</td><td><code>Accept: application/vnd.example.v2+json</code></td><td>URL がリソースを指すまま変わらない</td><td>ブラウザで開いて試しにくい。キャッシュには <code>Vary</code> が要る</td></tr>
+        <tr><td>日付のバージョン</td><td><code>Stripe-Version: 2026-10-28.endive</code></td><td>細かい変更を日付ごとに積める。アカウントごとに固定し、各自のペースで上げてもらえる</td><td>サーバー側で日付ごとの差分を変換する仕組みが要る。Stripe は日付にリリース名を付け、毎月の互換リリースと、壊す変更を含む年 2 回のメジャーリリースに分けている</td></tr>
+        <tr><td>クエリ引数</td><td><code>?api-version=2024-05-01</code></td><td>試しやすい</td><td>付け忘れたときの既定のバージョンを決めておく必要がある</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>どの方式でも、<b>バージョンを上げるのは壊す変更をまとめるときだけ</b>にする。足すだけの変更は今のバージョンに入れる。URL のバージョンは <code>v1</code>・<code>v2</code> のようにメジャーだけにし、<code>v1.2.3</code> のような細かい番号を URL に入れない（足すだけの変更のたびにクライアントが URL を変えることになる）。</p>
+
+  <h2 id="expand-contract">壊す変更を無停止で入れる：Expand and Contract</h2>
+  <p><code>name</code> を <code>full_name</code> に変える例。どの時点でも、古いクライアントと新しいクライアントの両方が動くように段を分ける。DB のスキーマ変更と同じ考え方（Expand and Contract パターン。Parallel Change とも呼ぶ）。</p>
+  <ol class="steps">
+    <li><b>Expand（拡張）：両方を返す</b>レスポンスに <code>full_name</code> を足し、<code>name</code> も同じ値で返し続ける。リクエストもどちらの名前でも受け付ける。</li>
+    <li><b>非推奨を伝える</b>ドキュメントと変更履歴に書き、<code>name</code> を使うリクエストへのレスポンスに <code>Deprecation</code> と <code>Sunset</code>（廃止予定日）のヘッダーを付ける。</li>
+    <li><b>移ってもらう</b>アクセスログで古い項目・古いバージョンを使っているクライアントを数え、残っている利用者に個別に連絡する。</li>
+    <li><b>Contract（縮小）：古い方を消す</b>利用がほぼ 0 になり、予告した期日を過ぎてから消す。利用が残っているのに消すと、その時点で壊れる。</li>
+  </ol>
+<pre><code>HTTP/1.1 200 OK
+Deprecation: @1767225600          # 非推奨になった（なる）日時。Unix 時刻
+Sunset: Wed, 30 Sep 2026 23:59:59 GMT   # この日以降は使えなくなる予定
+Link: &lt;https://example.com/docs/migrate-v2&gt;; rel="deprecation"</code></pre>
+  <p class="note"><code>Sunset</code> は RFC 8594、<code>Deprecation</code> は RFC 9745 で決められたヘッダー。ヘッダーを読むクライアントは少ないので、メール・ダッシュボードでの告知と組み合わせる。</p>
+
+  <h2 id="styles">gRPC・GraphQL での考え方</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>gRPC（Protocol Buffers）</h3>
+      <ul class="plain">
+        <li>データはフィールド<b>番号</b>で読み書きされる。名前を変えても番号が同じならバイナリの互換は保たれる（JSON に変換して使う所では名前が効くので注意）。</li>
+        <li>消したフィールドの番号と名前は <code>reserved</code> にして、<b>二度と使わない</b>。別の意味で使い回すと、古いクライアントが新しい値を古い意味で読む。</li>
+        <li>壊す変更はパッケージ名にバージョンを入れて分ける（<code>package shop.v2;</code>）。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>GraphQL</h3>
+      <ul class="plain">
+        <li>クライアントは要る項目だけを取りに来るので、項目の追加は既存のクエリに影響しない。だからバージョンを付けず、1 つのスキーマを育てるのが普通。</li>
+        <li>消したい項目には <code>@deprecated(reason: "...")</code> を付け、どのクエリがまだ使っているかを計測してから消す。</li>
+        <li>バージョンがない分、「消す」判断は利用状況の計測が頼り。</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth" id="myth-add"><summary>項目や値を足すだけの変更なら、どのクライアントも絶対に壊れない</summary><p>知らない項目でエラーにする厳しいデシリアライザや、enum の全部の値を <code>switch</code> で書き分けたクライアントは壊れる。足す変更を安全にするには、「知らないものは無視する」ことを API の約束として先に書いておく。</p></details>
+  <details class="myth"><summary>v2 を公開すれば、v1 はすぐに止めてよい</summary><p>クライアントのアプリは利用者が更新するまで古いまま動き続ける。モバイルアプリなどは何か月も残る。利用状況を計測し、期日を予告してから止める。</p></details>
+  <details class="myth"><summary>仕様書に書いていない動きなら、変えても互換性の問題にはならない</summary><p>利用者が十分に多いと、観測できる動きのどれかに必ず誰かが頼っている（ハイラムの法則）。並び順やエラーメッセージの文言も、変えるときは影響を見積もる。</p></details>
+  <details class="myth"><summary>GraphQL ならバージョン管理を考えなくてよい</summary><p>バージョン番号を付けないだけで、項目を消したり型を変えたりすれば同じように壊れる。<code>@deprecated</code> と利用状況の計測で、Expand and Contract の手順を踏む。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="schema-migration.html">スキーマ設計とマイグレーション</a> — 同じ Expand and Contract を DB の列で行う手順</li>
+    <li><a href="api-styles.html">REST・GraphQL・gRPC・tRPC</a> — 方式ごとの契約の持ち方の違い</li>
+    <li><a href="api-pagination.html">ページネーション</a> — カーソルを不透明にしておくと並び順の実装を後から変えられる</li>
+    <li><a href="testing-strategy.html">テスト戦略</a> — 壊す変更を事前に見つける契約テスト</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://www.rfc-editor.org/rfc/rfc9745.html">RFC 9745 — The Deprecation HTTP Response Header Field</a></li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc8594.html">RFC 8594 — The Sunset HTTP Header Field</a></li>
+    <li><a href="https://docs.stripe.com/api/versioning">Stripe API Reference — Versioning</a></li>
+    <li><a href="https://protobuf.dev/programming-guides/proto3/#updating">Protocol Buffers — Updating A Message Type</a></li>
+    <li><a href="https://www.hyrumslaw.com/">Hyrum's Law</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "注文 API の status に新しい値 \"refunded\" を足したら、一部のクライアントアプリが落ちた。今後同じことを防ぐには？",
+    "choices": [
+      "知らない値が来たら既定の扱いにすると API の約束に書き、クライアントにもそう実装してもらう",
+      "enum に値を足すときは毎回 v2 の URL を作り、v1 の値の種類は今後いっさい変えない",
+      "status を数値のコードに変え、新しい値はドキュメントの表を見て解釈してもらう",
+      "新しい値はレスポンスから隠し、クライアントが更新を終えた頃に返し始める"
+    ],
+    "answer": 0,
+    "explain": "値を足すこと自体はよくある変更。壊れるのはクライアントが知らない値を想定していないから。足す変更に強くするには、受け取る側の約束を先に決めておく。",
+    "ref": "#breaking"
+  },
+  {
+    "q": "レスポンスの項目名 name を full_name に変えたい。既存のクライアントを壊さずに進める最初の一歩は？",
+    "choices": [
+      "name を消して full_name を足し、変更履歴に書く",
+      "full_name を足し、name も同じ値で返し続ける",
+      "name の型を変えて full_name に誘導する",
+      "v2 を作り、v1 はその日に止める"
+    ],
+    "answer": 1,
+    "explain": "Expand and Contract の Expand（拡張）にあたる。新旧の両方を返している間に移ってもらい、利用がなくなってから古い方を消す。",
+    "ref": "#expand-contract"
+  },
+  {
+    "q": "Protocol Buffers のメッセージから使わなくなったフィールド 5 番を消した。あとで新しいフィールドを足すときに守ることは？",
+    "choices": [
+      "空いた 5 番を、次に足す新しいフィールドの番号として使い回す",
+      "名前が同じなら番号は変えてよいので、新しい番号に振り直す",
+      "フィールド番号を全部振り直して、欠番がないように詰める",
+      "5 番を reserved にして、新しいフィールドには別の番号を使う"
+    ],
+    "answer": 3,
+    "explain": "古いクライアントは 5 番を古い意味で読む。番号を使い回すと、新しい値を別の意味として読んでしまう。",
+    "ref": "#styles"
+  },
+  {
+    "q": "入力チェックを厳しくして、今まで受け付けていた 200 文字超の名前を拒否したい。仕様書には上限が書いていなかった。どう扱う？",
+    "choices": [
+      "仕様書に書いていないので、今のバージョンでそのまま変えてよい",
+      "エラーにせず黙って切り詰めれば互換性は保たれる",
+      "既存のクライアントを壊す変更として扱い、新しいバージョンや予告期間を設ける",
+      "ステータスコードを 200 のままにすれば問題ない"
+    ],
+    "answer": 2,
+    "explain": "仕様に書いていなくても、通っていた入力を拒否すれば送っていたクライアントは失敗する。実際の動きに頼る利用者がいる前提で扱う。",
+    "ref": "#myths"
+  }
+]
+</script>
+</body>
+</html>
