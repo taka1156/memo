@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>スキーマ設計とマイグレーション</title>
-<meta name="description" content="正規化と制約でテーブルを設計し、ORM とマイグレーションツールで変更を管理し、拡張→移行→縮小の手順とロックの少ない DDL で、サービスを止めずにスキーマを変える方法を図解する。">
+<meta name="description" content="正規化と制約でテーブルを設計し、ORM とマイグレーションツールで変更を管理し、Expand and Contract の手順とロックの少ない DDL で、サービスを止めずにスキーマを変える方法を図解する。">
 <meta name="memo:tags" content="データベース, バックエンド, 設計">
 <meta name="memo:date" content="2026-11-14">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
@@ -137,7 +137,7 @@ td code { white-space: nowrap; }
 .mig .arr::before { content: '→ '; }
 .mig .arr::after { content: ' →'; }
 
-/* 拡張と縮小のステップ */
+/* Expand and Contract のステップ */
 .btn {
   border: 1px solid var(--line);
   background: var(--chip);
@@ -211,7 +211,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <ul>
       <li>スキーマ設計は、同じ事実を 1 か所にだけ置く（正規化）ことと、守りたい決まりを制約で DB に持たせることが土台。</li>
       <li>変更は番号付きのマイグレーションファイルにして順に適用し、どこまで適用したかを DB の中の履歴表で管理する。</li>
-      <li>止めずに変えるには、新旧のコードが同時に動いても壊れない「拡張 → 移行 → 縮小」に分け、重いロックを取る DDL を避ける。</li>
+      <li>止めずに変えるには、新旧のコードが同時に動いても壊れない「Expand（拡張）→ 移行 → Contract（縮小）」に分け、重いロックを取る DDL を避ける。</li>
     </ul>
   </div>
 
@@ -341,9 +341,9 @@ WHERE customer_id = $1</pre>
     <li>差分の自動生成は「列の名前変更」を「削除して追加」と解釈することがある。生成されたファイルは必ず読む。</li>
   </ul>
 
-  <!-- ===================== 拡張と縮小 ===================== -->
-  <h2 id="expand-contract">止めずに変える: 拡張 → 移行 → 縮小</h2>
-  <p>ローリングデプロイでは、しばらく<b>古いコードと新しいコードが同時に動く</b>。いきなり <code>RENAME COLUMN</code> すると、まだ動いている古いコードが古い列名を探してエラーになる。そこで変更を、どの時点でも新旧両方が動く小さな段に分ける（拡張と縮小、expand and contract）。例として <code>customers.name</code> を <code>full_name</code> に変える。</p>
+  <!-- ===================== Expand and Contract ===================== -->
+  <h2 id="expand-contract">止めずに変える: Expand and Contract</h2>
+  <p>ローリングデプロイでは、しばらく<b>古いコードと新しいコードが同時に動く</b>。いきなり <code>RENAME COLUMN</code> すると、まだ動いている古いコードが古い列名を探してエラーになる。そこで変更を、どの時点でも新旧両方が動く小さな段に分ける（Expand and Contract パターン。Parallel Change とも呼ぶ）。例として <code>customers.name</code> を <code>full_name</code> に変える。</p>
   <div class="ec" id="ec-fig">
     <div class="card"><span class="lbl">DB の列</span>
       <div class="cols">
@@ -368,7 +368,7 @@ WHERE customer_id = $1</pre>
   </div>
   <ol class="ecsteps" id="ec-steps">
     <li data-old="使っている" data-new="—" data-newgone="1" data-apps="v1"><span class="n">0 / 6 いま</span>アプリ v1 は <code>name</code> を読み書きしている。</li>
-    <li data-old="使っている" data-new="空（NULL）" data-apps="v1"><span class="n">1 / 6 拡張</span>新しい列を <b>NULL を許して</b>足す。古いコードは新しい列を知らないので、何も壊れない。
+    <li data-old="使っている" data-new="空（NULL）" data-apps="v1"><span class="n">1 / 6 Expand（拡張）</span>新しい列を <b>NULL を許して</b>足す。古いコードは新しい列を知らないので、何も壊れない。
       <pre>ALTER TABLE customers ADD COLUMN full_name text;</pre>
       <span class="back">戻すなら: 列を消すだけ</span></li>
     <li data-old="書かれている" data-new="新しい行だけ入る" data-apps="v1 v2"><span class="n">2 / 6 両方に書く</span>v2 をデプロイ。v2 は両方の列に書き、読むのは <code>name</code> のまま。デプロイ中は v1 と v2 が混ざるが、どちらも <code>name</code> を正として読むので食い違わない。
@@ -381,7 +381,7 @@ WHERE id BETWEEN 1 AND 5000 AND full_name IS NULL;  <span class="cm">-- 範囲�
       <span class="back">戻すなら: v2 に戻せる（両方に書き続けているので）</span></li>
     <li data-old="もう書かれない" data-new="正として読まれる" data-apps="v3 v4"><span class="n">5 / 6 古い列への書き込みをやめる</span>v4 をデプロイ。<code>name</code> にはもう書かない。古い列を参照するコードがどこにも残っていないこと（バッチ・管理画面・分析の SQL も）を確かめる。
       <span class="back">戻すなら: v3 には戻せるが、その間の name は古いまま</span></li>
-    <li data-old="削除" data-oldgone="1" data-new="正として読まれる" data-apps="v4"><span class="n">6 / 6 縮小</span>古い列を消す。<b>ここだけは戻せない</b>ので、しばらく置いてから行い、消す前にバックアップを取る。
+    <li data-old="削除" data-oldgone="1" data-new="正として読まれる" data-apps="v4"><span class="n">6 / 6 Contract（縮小）</span>古い列を消す。<b>ここだけは戻せない</b>ので、しばらく置いてから行い、消す前にバックアップを取る。
       <pre>ALTER TABLE customers DROP COLUMN name;</pre>
       <span class="back">戻すなら: バックアップから復元するしかない</span></li>
   </ol>
@@ -398,7 +398,7 @@ WHERE id BETWEEN 1 AND 5000 AND full_name IS NULL;  <span class="cm">-- 範囲�
         <tr><td>インデックスを作る</td><td>PostgreSQL の普通の <code>CREATE INDEX</code> → 作り終わるまで表への書き込みが止まる</td><td><code>CREATE INDEX CONCURRENTLY</code>（トランザクションの中では実行できない。失敗すると無効なインデックスが残るので消して作り直す）。MySQL InnoDB は <code>ALGORITHM=INPLACE, LOCK=NONE</code> で書き込みを止めずに作れる</td></tr>
         <tr><td>既存の列を <code>NOT NULL</code> に</td><td>PostgreSQL の <code>SET NOT NULL</code> をそのまま → 最も強いロックのまま全行を確かめる</td><td>PostgreSQL 18 以降は <code>ADD CONSTRAINT 名前 NOT NULL 列 NOT VALID</code> → <code>VALIDATE CONSTRAINT</code>（書き込みを止めずに確認）で済む。17 以前は <code>CHECK (列 IS NOT NULL) NOT VALID</code> を足す → <code>VALIDATE CONSTRAINT</code> → <code>SET NOT NULL</code>（12 以降は確認を省く）→ CHECK を消す</td></tr>
         <tr><td>外部キーを足す</td><td>そのまま <code>ADD FOREIGN KEY</code> → 全行の確認中、両方の表の書き込みが止まる</td><td><code>NOT VALID</code> で足してから、別のトランザクションで <code>VALIDATE CONSTRAINT</code></td></tr>
-        <tr><td>列の型を変える</td><td><code>ALTER COLUMN … TYPE</code> → 多くの場合、表全体の書き直し</td><td>新しい型の列を足して、上の「拡張 → 移行 → 縮小」で移す</td></tr>
+        <tr><td>列の型を変える</td><td><code>ALTER COLUMN … TYPE</code> → 多くの場合、表全体の書き直し</td><td>新しい型の列を足して、上の「Expand and Contract」で移す</td></tr>
       </tbody>
     </table>
   </div>
@@ -407,7 +407,7 @@ WHERE id BETWEEN 1 AND 5000 AND full_name IS NULL;  <span class="cm">-- 範囲�
   <!-- ===================== 誤解 ===================== -->
   <h2 id="myths">よくある誤解</h2>
   <details class="myth"><summary>アプリで入力チェックしているので、DB の制約は要らない</summary><p>アプリの「確かめてから書く」は、同時に来た 2 つのリクエストの両方を通してしまう。別のサービス・バッチ・手作業の SQL も DB に書く。<code>UNIQUE</code> や外部キーは、どこから書かれても守られる最後の砦になる。</p></details>
-  <details class="myth"><summary>down マイグレーションを書いておけば、いつでも元に戻せる</summary><p>列や表を消す変更を戻しても、構造が戻るだけで消えたデータは戻らない。新しい列に書かれたデータも、戻すと消える。戻せる範囲は「拡張 → 移行 → 縮小」の小さな段で作り、縮小の前にはバックアップを取る。</p></details>
+  <details class="myth"><summary>down マイグレーションを書いておけば、いつでも元に戻せる</summary><p>列や表を消す変更を戻しても、構造が戻るだけで消えたデータは戻らない。新しい列に書かれたデータも、戻すと消える。戻せる範囲は Expand and Contract の小さな段で作り、Contract（古い列を消す段）の前にはバックアップを取る。</p></details>
   <details class="myth"><summary>速く終わる ALTER TABLE なら、本番でいつ流しても安全</summary><p>DDL そのものは一瞬でも、表のロックを取れるまで待つ間、後ろのクエリが全部並んで止まる。長いトランザクションや重いバッチが走っていない時間を選び、<code>lock_timeout</code> で待ちすぎないようにする。</p></details>
 
   <h2 id="related">関連メモ</h2>
@@ -434,7 +434,7 @@ document.querySelectorAll('.tabs').forEach(group => {
   });
 });
 
-/* ---------- 拡張と縮小のステップ（説明文は #ec-steps の li にある。ここでは表示を切り替えるだけ） ---------- */
+/* ---------- Expand and Contract のステップ（説明文は #ec-steps の li にある。ここでは表示を切り替えるだけ） ---------- */
 (() => {
   const steps = [...document.querySelectorAll('#ec-steps > li')];
   const prev = document.getElementById('ec-prev');
@@ -494,7 +494,7 @@ document.querySelectorAll('.tabs').forEach(group => {
       "メンテナンス時間を取らずに、DROP と ADD を 1 つのマイグレーションで流す"
     ],
     "answer": 2,
-    "explain": "改名は一瞬でも、デプロイ中は古いコードが古い列名を使う。拡張 → 移行 → 縮小に分ければ、どの時点でも新旧両方が動き、途中までは戻せる。",
+    "explain": "改名は一瞬でも、デプロイ中は古いコードが古い列名を使う。Expand and Contract の段に分ければ、どの時点でも新旧両方が動き、途中までは戻せる。",
     "ref": "#expand-contract"
   },
   {
