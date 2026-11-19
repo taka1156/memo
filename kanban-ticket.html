@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カンバンとチケット駆動開発</title>
+<meta name="description" content="作業をチケットにしてコミットと結びつけるチケット駆動開発と、その流れを WIP 制限で整えるカンバンを図解。">
+<meta name="memo:tags" content="開発ツール">
+<meta name="memo:date" content="2026-11-19">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+/* 共通部品と解説用の色（--c-ok・--c-ng・--c-warn・--c-hl）は assets/memo-parts.css にある */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.98rem; margin: 22px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.3em; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+pre .cm { color: var(--fg-2); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { color: var(--fg-2); font-weight: 600; font-size: 0.8rem; }
+tbody tr:last-child td { border-bottom: none; }
+.t-wide { min-width: 560px; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 役割の図: チケット → ボード → コミット */
+.trio { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 8px; align-items: stretch; }
+.trio .card { padding: 12px 14px; }
+.trio .card b { display: block; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.86rem; }
+.trio .card p { font-size: 0.82rem; color: var(--fg-2); margin: 4px 0 0; }
+.trio .arr { align-self: center; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.trio .arr::before { content: "→"; }
+@media (max-width: 640px) {
+  .trio { grid-template-columns: 1fr; }
+  .trio .arr { justify-self: center; }
+  .trio .arr::before { content: "↓"; }
+}
+
+/* チケットの見本 */
+.ticket { max-width: 560px; }
+.ticket .t-head { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.9rem; font-weight: 700; }
+.ticket .t-head span { color: var(--fg-2); font-weight: 500; margin-right: 6px; }
+.ticket dl { display: grid; grid-template-columns: 6.5em 1fr; gap: 6px 10px; margin-top: 10px; font-size: 0.85rem; }
+.ticket dt { color: var(--fg-2); }
+.ticket dd ul { margin-left: 1.2em; }
+
+/* カンバンボード */
+.board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.col { background: var(--chip); border-radius: 8px; padding: 8px; min-height: 160px; }
+.col h4 { font-size: 0.78rem; display: flex; justify-content: space-between; gap: 4px; margin-bottom: 6px; }
+.col h4 .wip { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 500; color: var(--fg-2); }
+.col.full { outline: 2px solid var(--c-ng); outline-offset: -2px; }
+.col.full h4 .wip { color: var(--c-ng); font-weight: 700; }
+.k { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; margin-bottom: 5px; font-size: 0.74rem; line-height: 1.4; }
+.k .id { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-right: 4px; }
+.k.wait { border-style: dashed; border-color: var(--c-warn); }
+.k.block { border-left: 4px solid var(--c-ng); }
+.board-note { margin-top: 10px; font-size: 0.86rem; }
+@media (max-width: 560px) {
+  .board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.legend i.l-wait { background: none; border: 2px dashed var(--c-warn); }
+.legend i.l-block { background: var(--c-ng); }
+.legend i.l-over { background: none; border: 2px solid var(--c-ng); }
+
+/* リトルの法則の計算 */
+.calc { display: grid; gap: 10px; }
+.calc label { display: grid; grid-template-columns: 16em 1fr 4.5em; align-items: center; gap: 10px; font-size: 0.86rem; }
+.calc input[type="range"] { width: 100%; accent-color: var(--accent); }
+.calc output { font-family: 'JetBrains Mono', ui-monospace, monospace; text-align: right; }
+.calc .result { border-top: 1px solid var(--line); padding-top: 10px; font-size: 0.9rem; }
+.calc .result b { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 1.1rem; }
+@media (max-width: 480px) {
+  .calc label { grid-template-columns: 1fr 4em; }
+  .calc label span:first-child { grid-column: 1 / -1; }
+}
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="カンバンとチケット駆動開発">
+<meta property="og:description" content="作業をチケットにしてコミットと結びつけるチケット駆動開発と、その流れを WIP 制限で整えるカンバンを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/kanban-ticket.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>カンバンとチケット駆動開発</h1>
+  <p class="subtitle">作業をチケットにしてコードの変更と結びつけ、その流れをボードと WIP 制限で整える</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>チケット駆動開発は、作業を必ずチケットにしてからコミットし、変更の理由をチケットからたどれるようにする運用。</li>
+      <li>カンバンは、チケットの流れをボードで見えるようにし、工程ごとに同時に抱える数（WIP）を制限して詰まりを減らす方法。</li>
+      <li>手を広げるほど 1 件が終わるまでの時間は延びるので、新しく始めるより進行中を終わらせることを優先する。</li>
+    </ul>
+  </div>
+
+  <h2 id="roles">2 つの関係</h2>
+  <p>チケット駆動開発とカンバンは別々に生まれた考え方ですが、組み合わせて使うことが多いです。チケットが「作業の単位」、ボードが「その流れを見る場所」、コミットや PR が「作業の結果」で、この 3 つが互いにリンクでつながります。</p>
+  <div class="trio">
+    <div class="card"><b>チケット (Issue)</b><p>何を・なぜ・どうなったら完了か。作業 1 件の記録と議論の置き場</p></div>
+    <div class="arr" aria-hidden="true"></div>
+    <div class="card"><b>カンバンボード</b><p>チケットを工程の列に並べ、どこで止まっているか・抱えすぎていないかを見る</p></div>
+    <div class="arr" aria-hidden="true"></div>
+    <div class="card"><b>コミット・PR</b><p>チケット番号を書いて結びつける。マージでチケットを閉じる</p></div>
+  </div>
+  <p class="note">GitHub なら Issues ＋ Projects（ボード表示）＋ PR、ほかに Redmine・Jira・Backlog など、どの課題管理ツールでも同じ形で組める。</p>
+
+  <h2 id="tidd">チケット駆動開発（TiDD）</h2>
+  <p>チケット駆動開発 (Ticket-Driven Development, TiDD) は、2007 年ごろ日本で Trac と Subversion を使う現場から生まれ、のちに Redmine でも広まった運用です。中心にあるのは次の 2 つのルールです。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>ルール</th><th>中身</th><th>得られるもの</th></tr></thead>
+      <tbody>
+        <tr><td><b>No Ticket, No Commit</b></td><td>チケットを参照しないコミットはしない。コミットメッセージにチケット番号を書く</td><td>どの行がなぜ変わったかを、コミットからチケットへ、チケットから変更へと両方向にたどれる（トレーサビリティ、traceability）</td></tr>
+        <tr><td><b>No Ticket, No Work</b></td><td>作業を始める前にチケットを作る。頼まれごとも口頭で済ませずチケットにする</td><td>誰が何をしているかが全員に見え、「やったのに記録がない作業」が消える</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>チケットは仕様書ではなく<b>作業指示書</b>です。長い仕様や設計は別の文書に書き、チケットからリンクします。チケットに書くのは、その作業 1 件を終わらせるのに要ることだけです。</p>
+
+  <h3 id="ticket">チケットに書くこと</h3>
+  <div class="card ticket">
+    <div class="t-head"><span>#128</span>パスワード再設定メールのリンクを 30 分で失効させる</div>
+    <dl>
+      <dt>背景・目的</dt><dd>今はリンクが無期限で使える。メールが漏れると誰でも再設定できてしまう</dd>
+      <dt>完了条件</dt><dd><ul><li>発行から 30 分を過ぎたリンクは「期限切れ」画面になる</li><li>一度使ったリンクは再利用できない</li><li>テストを追加し CI が通る</li></ul></dd>
+      <dt>担当</dt><dd>1 人（複数で分けるならチケットを分ける）</dd>
+      <dt>関連</dt><dd>設計メモへのリンク、関連チケット <code>#97</code></dd>
+    </dl>
+  </div>
+  <p><b>完了条件</b>（受け入れ条件）があると、「終わった」の判断が人によってぶれず、レビューする人も何を確かめればよいか分かります。大きさは、1 人が数日以内に終えられる程度を目安にします。それより大きいものは、親チケットの下に子チケットとして分けます。</p>
+  <div class="table-wrap">
+    <table class="t-wide">
+      <thead><tr><th>ありがちなチケット</th><th>困ること</th><th>直し方</th></tr></thead>
+      <tbody>
+        <tr><td>「ログイン周りの改善」</td><td>範囲がなく、いつまでも閉じられない</td><td>何がどうなれば完了かを条件で書く。複数あれば分ける</td></tr>
+        <tr><td>「バグ」とだけ書いた報告</td><td>再現できず、担当者が聞き直しに行く</td><td>再現手順・期待した結果・実際の結果・環境を書く</td></tr>
+        <tr><td>担当者が 3 人いる</td><td>誰も自分の仕事だと思わない</td><td>担当は 1 人。手伝う人はコメントやレビュアーで関わる</td></tr>
+        <tr><td>2 週間たっても「進行中」</td><td>詰まっているのか進んでいるのか分からない</td><td>小さく分けて、1 つずつ閉じる</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 id="link">コミット・PR との結びつけ</h3>
+  <p>ツールごとに、メッセージ中のキーワードとチケット番号を読み取って自動でリンク（や状態の変更）をする仕組みがあります。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="ln-gh">GitHub</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="ln-rm">Redmine</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="ln-jira">Jira</button>
+  </div>
+  <div class="panel card" id="ln-gh">
+<pre><code><span class="cm"># コミットや PR 本文に #番号 を書くと、Issue 側にリンクが出る</span>
+git commit -m "再設定リンクに有効期限を追加 (#128)"
+
+<span class="cm"># PR の本文にクローズ用のキーワードを書く</span>
+Closes #128</code></pre>
+    <p>クローズ用のキーワードは <code>close</code>・<code>fix</code>・<code>resolve</code> とその活用形（<code>closes</code>・<code>fixed</code> など）。PR 本文に書いた場合、<b>PR の向き先がリポジトリの既定ブランチ（default branch）のときだけ</b>働き、マージで Issue が自動で閉じます。別のブランチ向けの PR では無視されます。コミットメッセージに書いても、そのコミットが既定ブランチに入った時点で閉じます。</p>
+  </div>
+  <div class="panel card" id="ln-rm" hidden>
+<pre><code><span class="cm"># 参照用キーワード: チケットにリビジョンが関連付く</span>
+git commit -m "再設定リンクに有効期限を追加 refs #128"
+
+<span class="cm"># 修正用キーワード: 管理画面で登録しておけばステータスも変わる</span>
+git commit -m "期限切れ画面を追加 fixes #128"</code></pre>
+    <p>既定では参照用が <code>refs</code>・<code>references</code>・<code>IssueID</code> で、修正用キーワードは空。<code>fixes</code>・<code>closes</code> などの修正用キーワードと、そのとき変えるステータスは管理画面（設定 → リポジトリ）で自分で登録する。登録していないと <code>fixes #128</code> はキーワードとして認識されず、関連付けもされない（参照用キーワードに <code>*</code> を入れていれば、番号だけで関連付く）。リポジトリとの同期後にリンクされるので、共有リポジトリへの push が先に要る。</p>
+  </div>
+  <div class="panel card" id="ln-jira" hidden>
+<pre><code><span class="cm"># 作業項目キー（旧称は課題キー。例: AUTH-128）をメッセージやブランチ名に入れる</span>
+git commit -m "AUTH-128 再設定リンクに有効期限を追加"
+
+<span class="cm"># スマートコミット: コメント・作業時間・トランジションを同時に記録</span>
+git commit -m "AUTH-128 #comment 期限切れ画面を追加 #time 1h #resolve"</code></pre>
+    <p>作業項目キーがあれば、開発ツール連携で作業項目の「開発」欄にコミットやブランチが並ぶ（Jira Cloud は「課題」を「作業項目」、「プロジェクト」を「スペース」に改称した）。スマートコミットは、コミットした人のメールアドレスが Jira のユーザーと一致し、その操作の権限があるときに働く。</p>
+  </div>
+
+  <h3 id="flow">1 枚のチケットの流れ</h3>
+  <ol class="steps">
+    <li><b>起票する</b>背景・完了条件を書き、優先度順に並んだ「やること」の列に置く</li>
+    <li><b>引いて着手する</b>手が空いた人が上から取り、担当を自分にして「進行中」へ動かす。ブランチ名にも番号を入れる（例: <code>feature/128-reset-expiry</code>）</li>
+    <li><b>番号付きでコミットする</b>どのコミットも <code>#128</code> を参照する。途中の判断や詰まった点はチケットのコメントに残す</li>
+    <li><b>PR を出してレビューへ</b>PR 本文に <code>Closes #128</code>。カードを「レビュー」へ。CI とレビューが完了条件を満たしているかを確かめる</li>
+    <li><b>マージで閉じる</b>既定ブランチへのマージでチケットが自動で閉じ、ボードの「完了」へ移る</li>
+  </ol>
+  <p class="note">PR とチケットを 1 対 1 にしておくと、レビューの範囲と完了条件が一致し、差し戻しや取り消し（revert）もチケット単位でできる。</p>
+
+  <h2 id="kanban">カンバン</h2>
+  <p>カンバンの名前はトヨタ生産方式の「かんばん」（後工程が使った分だけ前工程に作らせる札）から来ています。ソフトウェア開発のカンバンは、これを知識労働向けに考え直したものです。Kanban Guide では、次の 3 つの実践を合わせたものをカンバンとしています。</p>
+  <ul class="plain">
+    <li><b>ワークフローを定義して見えるようにする</b>: 列（工程）と、「どこから着手・どこで完了とみなすか」などのルールを決めてボードに表す</li>
+    <li><b>ワークフロー内の項目を主体的に管理する</b>: WIP を制限し、止まっているアイテムや古くなったアイテムに手を打つ</li>
+    <li><b>ワークフローを改善する</b>: 指標を見て列やルールを変え続ける</li>
+  </ul>
+
+  <h3 id="wip">WIP 制限があるとき・ないとき</h3>
+  <p>WIP (Work In Progress) は、着手したがまだ終わっていないアイテムの数です。列ごとに上限を決め、上限に達した列には新しく入れません。同じチームの同じ時点のボードで比べます。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="wip-no">WIP 制限なし</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="wip-yes">WIP 制限あり</button>
+  </div>
+  <div class="panel card" id="wip-no">
+    <div class="board">
+      <div class="col"><h4>やること</h4><div class="k"><span class="id">#140</span>CSV 出力</div><div class="k"><span class="id">#141</span>通知設定</div></div>
+      <div class="col"><h4>進行中 <span class="wip">7</span></h4>
+        <div class="k"><span class="id">#128</span>再設定リンク</div><div class="k block"><span class="id">#131</span>決済 API 更新（先方の返答待ち）</div><div class="k"><span class="id">#133</span>検索の高速化</div><div class="k"><span class="id">#134</span>画像の圧縮</div><div class="k"><span class="id">#135</span>ログ整理</div><div class="k block"><span class="id">#136</span>権限の見直し（仕様が未確定）</div><div class="k"><span class="id">#137</span>ダークモード</div>
+      </div>
+      <div class="col"><h4>レビュー <span class="wip">5</span></h4>
+        <div class="k wait"><span class="id">#122</span>3 日待ち</div><div class="k wait"><span class="id">#124</span>2 日待ち</div><div class="k wait"><span class="id">#125</span>2 日待ち</div><div class="k wait"><span class="id">#126</span>1 日待ち</div><div class="k wait"><span class="id">#127</span>1 日待ち</div>
+      </div>
+      <div class="col"><h4>完了</h4><div class="k"><span class="id">#119</span>ヘッダー修正</div></div>
+    </div>
+    <p class="board-note">4 人のチームが 7 件を同時に進めています。1 人が何件も掛け持ちするので切り替えの手間が増え、どれもなかなか終わりません。みんな新しい作業を始めるほうに忙しく、レビュー待ちが溜まっています。止まっている 2 件（赤い線）も、ほかの作業に埋もれて目立ちません。</p>
+  </div>
+  <div class="panel card" id="wip-yes" hidden>
+    <div class="board">
+      <div class="col"><h4>やること</h4><div class="k"><span class="id">#133</span>検索の高速化</div><div class="k"><span class="id">#134</span>画像の圧縮</div><div class="k"><span class="id">#135</span>ログ整理</div><div class="k"><span class="id">#136</span>権限の見直し</div><div class="k"><span class="id">#137</span>ダークモード</div></div>
+      <div class="col"><h4>進行中 <span class="wip">3/3</span></h4>
+        <div class="k"><span class="id">#128</span>再設定リンク</div><div class="k block"><span class="id">#131</span>決済 API 更新（先方の返答待ち）</div><div class="k"><span class="id">#127</span>実装済み・レビューの空き待ち</div>
+      </div>
+      <div class="col full"><h4>レビュー <span class="wip">2/2</span></h4>
+        <div class="k wait"><span class="id">#125</span>1 日待ち</div><div class="k wait"><span class="id">#126</span>半日待ち</div>
+      </div>
+      <div class="col"><h4>完了</h4><div class="k"><span class="id">#119</span>ヘッダー修正</div><div class="k"><span class="id">#122</span>メール文面</div><div class="k"><span class="id">#124</span>タイムアウト</div></div>
+    </div>
+    <p class="board-note">進行中は 3 件まで、レビューは 2 件まで。レビューが上限に達した（赤い枠）ので、実装を終えた #127 はレビューへ動かせず、進行中の枠も埋まったままです。手が空いた人は「やること」から新しく引けないので、先にレビューを片付けに行きます。止まっている #131 も件数が少ないので目に入り、朝会で「誰が先方に催促するか」を決められます。</p>
+  </div>
+  <div class="legend"><span><i class="l-wait"></i>レビュー待ちで滞留</span><span><i class="l-block"></i>外部の理由で止まっている（ブロック）</span><span><i class="l-over"></i>WIP 上限に達した列</span></div>
+  <p>WIP 制限は、<b>押し込み (push) から引き取り (pull) への切り替え</b>です。前の工程が終わった分を次に押し込むのではなく、次の工程に空きができたときだけ引き取ります。上限に当たるとそこで流れが止まるので、詰まっている場所がすぐ分かり、「新しく始める前に、いま進んでいるものを終わらせる (Stop starting, start finishing)」という動き方になります。</p>
+
+  <h3 id="board-design">ボードを作るときに決めること</h3>
+  <div class="table-wrap">
+    <table class="t-wide">
+      <thead><tr><th>決めること</th><th>よくある決め方</th><th>なぜ</th></tr></thead>
+      <tbody>
+        <tr><td>列</td><td>実際の作業の順に並べる（例: やること → 進行中 → レビュー → 完了）。「待ち」が長い所は「レビュー待ち」のように列を分ける</td><td>理想の工程ではなく実際の流れを映さないと、どこで止まっているかが見えない</td></tr>
+        <tr><td>着手点と完了点</td><td>「進行中に動かした時点で開始」「本番に出た時点で完了」などを書いておく</td><td>指標（サイクルタイムなど）の測り始めと測り終わりが人によってずれない</td></tr>
+        <tr><td>列ごとの完了の定義</td><td>「レビューへ動かすのは CI が通ってから」など、次の列に移す条件</td><td>中途半端な状態で次へ流れ、後で戻ってくるのを防ぐ</td></tr>
+        <tr><td>WIP の上限</td><td>まず今の実績より少し少なめに置き、詰まり方を見て調整する</td><td>上限は正解の数ではなく、詰まりを表に出すための道具。きつすぎると全員が待ち、ゆるすぎると効かない</td></tr>
+        <tr><td>ブロックの扱い</td><td>止まったカードに印を付け、理由と次の手をコメントに書く</td><td>止まっているものが進行中に紛れると、WIP の枠だけを食い続ける</td></tr>
+        <tr><td>例外の扱い</td><td>本番障害など、上限を超えてでも先にやるものを決めておく（急ぎ用の 1 枠など）</td><td>例外をその場の判断にすると、なんでも「急ぎ」になって上限が意味を失う</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="metrics">流れの指標</h2>
+  <p>Kanban Guide は、最低限見る指標として次の 4 つを挙げています。どれもチケットの「着手日」と「完了日」を記録しておけば計算できます。</p>
+  <div class="table-wrap">
+    <table class="t-wide">
+      <thead><tr><th>指標</th><th>意味</th><th>何に使うか</th></tr></thead>
+      <tbody>
+        <tr><td><b>WIP</b></td><td>着手したが終わっていないアイテムの数</td><td>抱えすぎていないかを見る。下の 3 つすべてに効く</td></tr>
+        <tr><td><b>スループット</b> (throughput)</td><td>単位時間あたりに完了したアイテムの数（例: 週 6 件）</td><td>「この先 4 週間で何件くらい終わるか」の見積もり</td></tr>
+        <tr><td><b>サイクルタイム</b> (cycle time)</td><td>1 件の着手から完了までにかかった時間（終わったアイテムについて測る）</td><td>「着手したら何日くらいで終わるか」の目安。平均より「85% は 6 日以内」のような分布で見る</td></tr>
+        <tr><td><b>ワークアイテムエイジ</b> (work item age)</td><td>まだ終わっていないアイテムの、着手から今までの時間</td><td>今まさに遅れかけているカードを見つける。普段のサイクルタイムを超えそうなものから手を打つ</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">リードタイム (lead time) は、ふつう依頼を受けた（起票した）時点から完了までを指し、着手前に待っていた時間も含む。どこからどこまでを測るかはチームによって違うので、ボードの着手点・完了点として書いておく。</p>
+
+  <h3 id="little">リトルの法則で見る WIP とサイクルタイム</h3>
+  <p>流れが安定している（入ってくる量と出ていく量が長い目で釣り合っている）とき、平均どうしの間に次の関係が成り立ちます。</p>
+  <pre><code>平均サイクルタイム ＝ 平均 WIP ÷ 平均スループット</code></pre>
+  <p>スループットはチームの人数や力量でほぼ決まり、すぐには増えません。そこで WIP だけを増やすと、その分だけ 1 件が終わるまでの時間が延びます。スライダーで確かめてください。</p>
+  <div class="card calc" id="little-calc">
+    <label><span>平均 WIP（同時に進める件数）</span><input type="range" id="lc-wip" min="1" max="20" value="6"><output id="lc-wip-v">6 件</output></label>
+    <label><span>平均スループット（1 週間に終わる件数）</span><input type="range" id="lc-tp" min="1" max="10" value="3"><output id="lc-tp-v">3 件</output></label>
+    <p class="result">平均サイクルタイムは <b id="lc-ct">2.0 週間</b>（約 <span id="lc-days">10</span> 営業日）</p>
+    <p class="note">例: 週 3 件終わるチームで WIP を 6 件から 3 件に減らすと、平均サイクルタイムは 2 週間から 1 週間に縮む。終わる件数は同じでも、1 件ごとの結果が早く届く。</p>
+  </div>
+  <p class="note">リトルの法則は長い期間の平均についての関係で、個々のアイテムの完了日を予測する式ではない。急に人が抜けたなどで流れが安定していない期間には当てはまらない。</p>
+
+  <h2 id="scrum">スクラムとの違い</h2>
+  <p>どちらもチケット（バックログのアイテム）をボードで動かすので見た目は似ていますが、何で流れを区切るかが違います。スクラムのチームがカンバンの WIP 制限や指標を取り入れることもよくあります。</p>
+  <div class="table-wrap">
+    <table class="t-wide">
+      <thead><tr><th></th><th>カンバン</th><th>スクラム</th></tr></thead>
+      <tbody>
+        <tr><td>区切り</td><td>決まった期間はなく、アイテムが 1 件ずつ流れる</td><td>スプリント（1 か月以内の固定期間）ごとに計画してから進める</td></tr>
+        <tr><td>量を絞る方法</td><td>列ごとの WIP 上限</td><td>スプリントに入れるアイテムの量（スプリントバックログ）</td></tr>
+        <tr><td>途中の差し込み</td><td>上限の空きがあればいつでも優先度順に入れられる</td><td>スプリントゴールを危うくする変更はしない。計画はスプリントの単位で見直す</td></tr>
+        <tr><td>役割</td><td>決まった役割はない。今のやり方から始めて少しずつ変える</td><td>プロダクトオーナー・スクラムマスター・開発者</td></tr>
+        <tr><td>見る数字</td><td>WIP・スループット・サイクルタイム・ワークアイテムエイジ</td><td>スプリントゴールの達成。ベロシティを見るチームも多い</td></tr>
+        <tr><td>向いている仕事</td><td>問い合わせ対応・運用・保守など、差し込みが多く量の読めない仕事</td><td>まとまった機能を、定期的に見直しながら作る仕事</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>ボードを作ってカードを並べれば、カンバンを始めたことになる</summary><p>列を並べただけでは、見える化されたタスク一覧です。WIP の上限、列を移す条件、止まったカードへの手の打ち方といったルールを決めて流れを管理し、指標を見て直していくところまでがカンバンです。</p></details>
+  <details class="myth"><summary>同時にたくさん着手したほうが、全体の作業は早く進む</summary><p>スループットが変わらないまま WIP を増やすと、リトルの法則のとおり 1 件あたりの時間が延びます。切り替えの手間や待ち時間も増えるので、実際にはスループットまで下がることが多いです。</p></details>
+  <details class="myth"><summary>WIP の上限に達したら、空いた人はやることがなくて待つしかない</summary><p>空いた人は、上限に詰まっている列の作業（レビュー・テスト・止まっているカードの解決）を手伝いに行きます。新しく始めずに終わらせる側に回るのが、上限を置く狙いです。</p></details>
+  <details class="myth"><summary>PR の本文に Closes #12 と書けば、どのブランチにマージしても Issue が閉じる</summary><p>GitHub がクローズ用のキーワードを読むのは、PR の向き先が既定ブランチのときだけです。<code>develop</code> などへ向けた PR ではリンクも作られず、マージしても閉じません。既定ブランチに入るときに閉じたいなら、そのときの PR に書きます。</p></details>
+  <details class="myth"><summary>チケットは仕様が全部分かるように細かく書くほどよい</summary><p>チケットは作業指示書で、1 件の作業を終えるのに要る背景と完了条件があれば足ります。長い仕様や設計は別の文書に置いてリンクし、チケットは作業中の判断や経過を残す場所にします。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="github-services.html">GitHub サービス</a> — Issues・Projects・PR をどう組み合わせてボードにするか</li>
+    <li><a href="ci-cd.html">CI/CD と GitHub Actions</a> — 「レビューへ動かすのは CI が通ってから」を仕組みで強制する</li>
+    <li><a href="git-internals.html">Git の内部構造</a> — チケット番号を書き込むコミットとブランチの実体</li>
+    <li><a href="testing-strategy.html">テスト戦略</a> — 完了条件をテストで確かめられる形にする</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://kanbanguides.org/">Kanban Guides</a>（The Kanban Guide。3 つの実践と 4 つの流れの指標）</li>
+    <li><a href="https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue">Linking a pull request to an issue - GitHub Docs</a></li>
+    <li><a href="https://www.atlassian.com/ja/blog/tidd-part1">チケット駆動開発 (Atlassian ブログ)</a>（No Ticket, No Commit）</li>
+    <li><a href="https://www.atlassian.com/ja/blog/tidd-part2">チケット駆動開発 その 2 (Atlassian ブログ)</a>（No Ticket, No Work、チケットは作業指示書）</li>
+    <li><a href="https://www.redmine.org/projects/redmine/wiki/RedmineSettings">Redmine Settings - Redmine Wiki</a>（参照用・修正用キーワード）</li>
+    <li><a href="https://support.atlassian.com/jira-software-cloud/docs/process-issues-with-smart-commits/">Process work items with smart commits - Atlassian Support</a></li>
+    <li><a href="https://scrumguides.org/scrum-guide.html">The Scrum Guide</a></li>
+  </ul>
+  <p class="note">2026-11-19 時点で確認。</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+(() => {
+  const wip = document.getElementById('lc-wip');
+  const tp = document.getElementById('lc-tp');
+  const update = () => {
+    const w = Number(wip.value), t = Number(tp.value);
+    const ct = w / t;
+    document.getElementById('lc-wip-v').textContent = w + ' 件';
+    document.getElementById('lc-tp-v').textContent = t + ' 件';
+    document.getElementById('lc-ct').textContent = ct.toFixed(1) + ' 週間';
+    document.getElementById('lc-days').textContent = String(Math.round(ct * 5));
+  };
+  wip.addEventListener('input', update);
+  tp.addEventListener('input', update);
+  update();
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "4 人のチームで、レビュー待ちのカードが 5 件溜まり、進行中にも 7 件ある。カンバンの考え方で、手が空いた人がまずすることは？",
+    "choices": ["「やること」の先頭から新しいカードを引いて着手する", "溜まっているレビューを片付けに行く", "進行中の列の WIP 上限を 10 に上げる", "レビュー待ちのカードを「やること」に戻す"],
+    "answer": 1,
+    "explain": "詰まっている工程を先に流すのが WIP 制限の狙い。新しく始めるほど進行中が増え、1 件が終わるまでの時間が延びる。",
+    "ref": "#wip"
+  },
+  {
+    "q": "1 週間に平均 4 件が終わるチームが、平均して 12 件を同時に進めている。流れが安定しているとき、1 件の着手から完了までの平均は？",
+    "choices": ["約 1/3 週間", "約 3 週間", "約 12 週間", "約 48 週間"],
+    "answer": 1,
+    "explain": "リトルの法則で、平均サイクルタイム ＝ 平均 WIP ÷ 平均スループット ＝ 12 ÷ 4 ＝ 3 週間。WIP を 4 件に減らせば約 1 週間になる。",
+    "ref": "#little"
+  },
+  {
+    "q": "GitHub で develop ブランチ向けの PR の本文に Closes #42 と書いてマージした。Issue #42 はどうなる？",
+    "choices": ["develop へのマージと同時に Issue が自動で閉じる", "PR を作った時点で Issue が自動で閉じる", "Issue に「対応中」のラベルが自動で付くだけ", "既定ブランチ向けでないので無視され、閉じない"],
+    "answer": 3,
+    "explain": "PR 本文のクローズ用キーワードは、向き先が既定ブランチのときだけ働く。別ブランチ向けではリンクも作られない。",
+    "ref": "#link"
+  },
+  {
+    "q": "半年前の変更で入ったバグを調べている。チケット駆動開発（No Ticket, No Commit）を守っていたチームで、いちばん助かるのはどれ？",
+    "choices": ["コミットからチケットに飛び、変更の理由と議論を読める", "その行を最後に書いた人を Git の履歴で調べられる", "どのコミットにも必ずテストが一緒に入っている", "バグの再現手順がコミットに自動で記録されている"],
+    "answer": 0,
+    "explain": "チケット番号付きのコミットなら、変更の背景・完了条件・途中の判断までたどれる（追跡性）。書いた人は Git だけでも分かる。",
+    "ref": "#tidd"
+  },
+  {
+    "q": "チケット「ログイン周りの改善」が 3 週間「進行中」のまま閉じられない。まず直すべき点は？",
+    "choices": ["担当者を 3 人に増やして、手分けして進める", "仕様をすべてチケット本文に書き足して詳しくする", "完了条件を書き、数日で終わる大きさに分ける", "WIP 上限を外して、関係する作業を並行で進める"],
+    "answer": 2,
+    "explain": "範囲と完了条件のないチケットは終わりが決まらない。条件を書いて小さく分ければ、1 件ずつ閉じられ、止まっている所も見える。",
+    "ref": "#ticket"
+  }
+]
+</script>
+</body>
+</html>
