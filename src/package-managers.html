@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>パッケージマネージャとロックファイル</title>
+<meta name="description" content="npm・pnpm・uv・pip・Cargo・Go modules を並べて、マニフェスト・ロックファイル・キャッシュの 3 層、版の範囲の書き方、依存がぶつかったときの解決（複数版の共存・単一版・最小バージョン選択）、CI で固定して入れるコマンドを比べる。">
+<meta name="memo:tags" content="開発ツール, 言語">
+<meta name="memo:date" content="2026-11-19">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+table.t { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 620px; }
+table.t th, table.t td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+table.t th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+table.t td:first-child { font-weight: 700; white-space: nowrap; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+
+.layers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; align-items: stretch; margin: 6px 0; }
+.layer { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.layer h3 { margin: 0 0 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; }
+.layer .role { font-size: 0.78rem; color: var(--fg-2); margin-bottom: 6px; }
+.layer ul { padding-left: 1.2em; font-size: 0.85rem; }
+.layer li { margin: 2px 0; }
+.arrow { display: flex; align-items: center; justify-content: center; color: var(--fg-2); font: 700 1rem 'JetBrains Mono', monospace; padding: 0 4px; }
+.arrow::before { content: '→'; }
+.layers { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
+.arrow small { display: none; }
+@media (max-width: 640px) {
+  .layers { grid-template-columns: 1fr; }
+  .arrow { padding: 4px 0; }
+  .arrow::before { content: '↓'; }
+}
+
+svg.dep { width: 100%; max-width: 440px; height: auto; display: block; margin: 0 auto 8px; }
+svg.dep text { font: 700 17px 'JetBrains Mono', monospace; text-anchor: middle; dominant-baseline: central; fill: var(--fg); }
+svg.dep text.lb { font-size: 15px; fill: var(--fg-2); font-weight: 500; }
+svg.dep rect { fill: var(--chip); stroke: var(--line); }
+svg.dep .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+svg.dep .head { fill: var(--fg-2); }
+.result td:nth-child(2) { min-width: 12em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>パッケージマネージャとロックファイル</h1>
+  <p class="subtitle">npm・pnpm・uv・Cargo・Go modules を並べて見る。違うのは「依存がぶつかったときにどう決めるか」</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>どの言語のパッケージマネージャも、マニフェスト（欲しい範囲）・ロックファイル（実際の版）・キャッシュの 3 層でできている。</li>
+      <li>大きく違うのは依存がぶつかったときで、npm は複数版を並べ、Python は 1 つに絞り、Go は全員の要求を満たす最も古い版（下限のうち最大）を選ぶ。</li>
+      <li>アプリはロックファイルをコミットし、CI では「ロックファイルと食い違ったら失敗する」コマンドで入れる。</li>
+    </ul>
+  </div>
+
+  <h2 id="layers">3 つの層</h2>
+  <div class="layers">
+    <div class="layer">
+      <h3>マニフェスト</h3>
+      <p class="role">人が書く。「この範囲なら動く」</p>
+      <ul>
+        <li><code>package.json</code></li>
+        <li><code>pyproject.toml</code></li>
+        <li><code>Cargo.toml</code></li>
+        <li><code>go.mod</code></li>
+      </ul>
+    </div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="layer">
+      <h3>ロックファイル</h3>
+      <p class="role">ツールが書く。「実際にこの版を入れた」＋ハッシュ</p>
+      <ul>
+        <li><code>package-lock.json</code>・<code>pnpm-lock.yaml</code></li>
+        <li><code>uv.lock</code>・<code>poetry.lock</code></li>
+        <li><code>Cargo.lock</code></li>
+        <li><code>go.sum</code>（ハッシュだけ）</li>
+      </ul>
+    </div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="layer">
+      <h3>キャッシュ・ストア</h3>
+      <p class="role">PC に 1 つ。ダウンロード済みの実体</p>
+      <ul>
+        <li>npm: <code>~/.npm</code> からコピー</li>
+        <li>pnpm・uv: 共通の置き場からリンク</li>
+        <li>Cargo: <code>~/.cargo/registry</code></li>
+        <li>Go: <code>$GOPATH/pkg/mod</code>（読み取り専用）</li>
+      </ul>
+    </div>
+  </div>
+  <p>マニフェストの範囲（<code>^1.2.0</code> など）だけだと、入る版が日によって変わります。<b>解決</b>（resolution: 範囲を満たす具体的な版の組み合わせを決める作業）の結果をロックファイルに書き残し、次からはそれをそのまま使うことで、開発者・CI・本番で同じものが入ります。JavaScript の <code>node_modules</code> の作り方（npm の平らな並べ方と pnpm のリンク）は <a href="js-modules.html#pm">JS のモジュールと依存管理</a> にあります。</p>
+
+  <h2 id="ranges">版の範囲の書き方</h2>
+  <p>多くのエコシステムがセマンティック バージョニング（SemVer: <code>メジャー.マイナー.パッチ</code>。メジャーが上がると互換性が壊れる）を前提に、「互換の範囲なら上がってよい」と書きます。書き方と既定の意味がエコシステムで少しずつ違います。</p>
+  <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>やりたいこと</th><th>npm</th><th>Cargo</th><th>Python（PEP 440）</th><th>Go</th></tr></thead>
+      <tbody>
+        <tr><td>1.2.3 以上・2 未満</td><td><code>^1.2.3</code></td><td><code>"1.2.3"</code>（何も付けないとこの意味）</td><td><code>&gt;=1.2.3,&lt;2</code></td><td><code>require … v1.2.3</code>（下限だけ書く）</td></tr>
+        <tr><td>1.2.3 以上・1.3 未満</td><td><code>~1.2.3</code></td><td><code>"~1.2.3"</code></td><td><code>~=1.2.3</code></td><td>—</td></tr>
+        <tr><td>1.2 以上・2 未満</td><td><code>^1.2</code></td><td><code>"1.2"</code></td><td><code>~=1.2</code></td><td>—</td></tr>
+        <tr><td>ちょうどこの版</td><td><code>1.2.3</code></td><td><code>"=1.2.3"</code></td><td><code>==1.2.3</code></td><td>—（下限が選ばれやすい。<a href="#resolve">解決</a>を参照）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">npm と Cargo では、<code>0.x</code> の間はマイナーが上がると互換が壊れる扱いになり、<code>^0.2.3</code> は「0.2.3 以上・0.3 未満」になる。Python の <code>~=</code> は compatible release（互換リリース）と呼ばれ、最後の桁だけを上げてよいという意味。Go では v2 以上は <code>example.com/lib/v2</code> のように<b>別のモジュールパス</b>になる。</p>
+
+  <h2 id="resolve">依存がぶつかったときの解決</h2>
+  <p>アプリが A と B に依存し、A と B がそれぞれ同じ <code>lib</code> の別の範囲を要求している場面で比べます。<code>lib</code> は 1.2.0・1.5.0・1.9.0・2.0.0 が公開されているとします。</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="r-same">メジャーが同じ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="r-diff">メジャーが違う</button>
+  </div>
+
+  <div class="panel card" id="r-same">
+    <svg class="dep" viewBox="0 0 440 170" role="img" aria-label="app が A と B に依存。A は lib 1.2 以上、B は lib 1.5 以上を要求">
+      <defs><marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+      <rect x="180" y="6" width="80" height="34" rx="6"/><text x="220" y="23">app</text>
+      <rect x="70" y="66" width="70" height="34" rx="6"/><text x="105" y="83">A</text>
+      <rect x="300" y="66" width="70" height="34" rx="6"/><text x="335" y="83">B</text>
+      <rect x="185" y="128" width="70" height="34" rx="6"/><text x="220" y="145">lib</text>
+      <line class="edge" x1="200" y1="40" x2="125" y2="64" marker-end="url(#ah1)"/>
+      <line class="edge" x1="240" y1="40" x2="315" y2="64" marker-end="url(#ah1)"/>
+      <line class="edge" x1="115" y1="100" x2="190" y2="128" marker-end="url(#ah1)"/>
+      <line class="edge" x1="325" y1="100" x2="250" y2="128" marker-end="url(#ah1)"/>
+      <text class="lb" x="30" y="122" style="text-anchor:start">1.2 以上・2 未満</text>
+      <text class="lb" x="410" y="122" style="text-anchor:end">1.5 以上・2 未満</text>
+    </svg>
+    <div class="table-wrap">
+      <table class="t result">
+        <thead><tr><th>エコシステム</th><th>入る lib</th><th>決め方</th></tr></thead>
+        <tbody>
+          <tr><td>npm・pnpm</td><td>1.9.0 を 1 つ</td><td>両方を満たす中で<b>最新</b>を選び、重複を 1 つにまとめる</td></tr>
+          <tr><td>Cargo</td><td>1.9.0 を 1 つ</td><td>互換の範囲（同じメジャー）は 1 つにまとめ、最新を選ぶ</td></tr>
+          <tr><td>Python（pip・uv）</td><td>1.9.0 を 1 つ</td><td>環境に 1 版しか置けない。両方を満たす最新を探す</td></tr>
+          <tr><td>Go</td><td><b>1.5.0</b></td><td>要求された下限（1.2.0 と 1.5.0）の<b>大きいほう</b>。1.9.0 が出ていても上げない（最小バージョン選択, MVS）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Go だけ結果が違います。最新を選ぶ方式は「今日解決すると明日と違う結果になる」のでロックファイルが要りますが、MVS は <code>go.mod</code> の下限だけで結果が 1 つに決まります。そのため Go には版を固定するためのロックファイルが無く、<code>go.sum</code> はダウンロードした中身が改ざんされていないかを確かめるハッシュの一覧です。</p>
+  </div>
+
+  <div class="panel card" id="r-diff" hidden>
+    <svg class="dep" viewBox="0 0 440 170" role="img" aria-label="app が A と B に依存。A は lib 1.x、B は lib 2.x を要求">
+      <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+      <rect x="180" y="6" width="80" height="34" rx="6"/><text x="220" y="23">app</text>
+      <rect x="70" y="66" width="70" height="34" rx="6"/><text x="105" y="83">A</text>
+      <rect x="300" y="66" width="70" height="34" rx="6"/><text x="335" y="83">B</text>
+      <rect x="185" y="128" width="70" height="34" rx="6"/><text x="220" y="145">lib</text>
+      <line class="edge" x1="200" y1="40" x2="125" y2="64" marker-end="url(#ah2)"/>
+      <line class="edge" x1="240" y1="40" x2="315" y2="64" marker-end="url(#ah2)"/>
+      <line class="edge" x1="115" y1="100" x2="190" y2="128" marker-end="url(#ah2)"/>
+      <line class="edge" x1="325" y1="100" x2="250" y2="128" marker-end="url(#ah2)"/>
+      <text class="lb" x="30" y="122" style="text-anchor:start">1.2 以上・2 未満</text>
+      <text class="lb" x="410" y="122" style="text-anchor:end">2.0 以上・3 未満</text>
+    </svg>
+    <div class="table-wrap">
+      <table class="t result">
+        <thead><tr><th>エコシステム</th><th>結果</th><th>しくみ・注意</th></tr></thead>
+        <tbody>
+          <tr><td>npm・pnpm</td><td class="ok">1.9.0 と 2.0.0 が共存</td><td>A の下に 1.x、B の下に 2.x を置く（入れ子の <code>node_modules</code>）。React のように<b>1 つだけでないと壊れる</b>ものは <code>peerDependencies</code> で「使う側が入れたものを共有する」と宣言する</td></tr>
+          <tr><td>Cargo</td><td class="ok">1.9.0 と 2.0.0 が共存</td><td>互換でない版は別物としてビルドされる。両方の型は<b>別の型</b>なので、A が返した <code>lib</code> の値を B に渡すとコンパイルエラーになる</td></tr>
+          <tr><td>Python（pip・uv）</td><td class="ng">解決できずエラー</td><td>1 つの環境に同じ名前は 1 版だけ。A か B の古い版で両立する組み合わせを探し（バックトラック）、無ければ失敗する</td></tr>
+          <tr><td>Go</td><td class="ok">v1.2.0 と v2.0.0 が共存</td><td>v2 は <code>lib/v2</code> という別のモジュールなので、そもそもぶつからない。v1 側は A の下限 v1.2.0 がそのまま選ばれる（MVS）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>緑は共存して動く、赤はインストールの時点で失敗するエコシステムです。共存できるほうが楽に見えますが、同じライブラリが 2 つ入ると、サイズが増え、グローバルな状態（シングルトン）や型が分かれて実行時・コンパイル時の問題になります。1 つに絞る Python は、ぶつかりを<b>インストールの時点で必ず知らせる</b>とも言えます。</p>
+  </div>
+
+  <h2 id="lock">ロックファイルと CI でのコマンド</h2>
+  <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>ツール</th><th>ロックファイル</th><th>CI で固定して入れる</th><th>依存を上げる</th></tr></thead>
+      <tbody>
+        <tr><td>npm</td><td><code>package-lock.json</code></td><td><code>npm ci</code></td><td><code>npm update</code>・<code>npm install lib@latest</code></td></tr>
+        <tr><td>pnpm</td><td><code>pnpm-lock.yaml</code></td><td><code>pnpm install --frozen-lockfile</code>（CI では既定）</td><td><code>pnpm update</code></td></tr>
+        <tr><td>Yarn（v2 以降）</td><td><code>yarn.lock</code></td><td><code>yarn install --immutable</code></td><td><code>yarn up lib</code></td></tr>
+        <tr><td>Bun</td><td><code>bun.lock</code></td><td><code>bun install --frozen-lockfile</code></td><td><code>bun update</code></td></tr>
+        <tr><td>uv</td><td><code>uv.lock</code></td><td><code>uv sync --locked</code></td><td><code>uv lock --upgrade</code>・<code>--upgrade-package lib</code></td></tr>
+        <tr><td>Poetry</td><td><code>poetry.lock</code></td><td><code>poetry check --lock</code> のあと <code>poetry install</code></td><td><code>poetry update</code></td></tr>
+        <tr><td>pip</td><td>版を固定した <code>requirements.txt</code>（pip-tools などで作る）</td><td><code>pip install --require-hashes -r requirements.txt</code></td><td>固定ファイルを作り直す</td></tr>
+        <tr><td>Cargo</td><td><code>Cargo.lock</code></td><td><code>cargo build --locked</code></td><td><code>cargo update</code></td></tr>
+        <tr><td>Go</td><td><code>go.sum</code>（版は <code>go.mod</code>）</td><td>そのまま <code>go build</code>（<code>go.mod</code> の書き換えが要ると失敗するのが既定）</td><td><code>go get -u</code>・<code>go get lib@v1.9.0</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">uv の <code>--locked</code> は「ロックファイルが古ければ失敗」、<code>--frozen</code> は「古いかどうか確かめずにそのまま使う」。Python の共通のロックファイル形式として <code>pylock.toml</code>（PEP 751）も決まり、pip は <code>pip lock</code> での書き出しと <code>pip install -r pylock.toml</code> でのインストールに（実験的に）対応した。uv も読み書きできるが、主に使うのは <code>uv.lock</code>。</p>
+
+  <h3>コミットするか</h3>
+  <ol class="steps">
+    <li><b>アプリ・サービス</b>必ずコミットする。入れたら動いた組み合わせを、そのまま本番に届けるため。</li>
+    <li><b>ライブラリ</b>コミットしてよい（Cargo も 2023 年に、ライブラリでもコミットを判断の出発点として勧め、<code>cargo new</code> が <code>Cargo.lock</code> を無視しないように変えた）。ただし、ライブラリのロックファイルは使う側には効かない。使う側では、マニフェストの範囲をもとに、使う側のロックファイルで決め直される。</li>
+    <li><b>衝突したら</b>ロックファイルを手で直さない。マニフェストの変更を取り込んでから、ツールにもう一度解決させて作り直す。</li>
+  </ol>
+  <p>ライブラリでロックファイルをコミットしたときは、範囲の中で最新の依存でも動くかを CI で定期的に確かめると、使う側で初めて壊れるのを防げます（Dependabot などで更新を自動で出す）。</p>
+
+  <h2 id="toolchain">言語本体の版も固定する</h2>
+  <p>依存を固定しても、Node.js や Python 自体の版が違うと結果が変わります。言語の版も、リポジトリのファイルに書いておきます。</p>
+  <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>言語</th><th>書く場所</th><th>読んで切り替えるもの</th></tr></thead>
+      <tbody>
+        <tr><td>Node.js</td><td><code>.nvmrc</code>・<code>.node-version</code>、<code>package.json</code> の <code>engines</code></td><td>nvm・fnm・mise など。パッケージマネージャ自体の版は <code>packageManager</code> で揃える</td></tr>
+        <tr><td>Python</td><td><code>.python-version</code>、<code>pyproject.toml</code> の <code>requires-python</code></td><td>uv（Python 本体の取得もする）・pyenv</td></tr>
+        <tr><td>Rust</td><td><code>rust-toolchain.toml</code></td><td>rustup が自動で切り替える</td></tr>
+        <tr><td>Go</td><td><code>go.mod</code> の <code>go</code>・<code>toolchain</code> の行</td><td><code>go</code> コマンド自身（足りなければ新しいツールチェーンを取得する）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>ロックファイルがあれば、マニフェストの範囲はどう書いてもよい</summary><p>範囲は「上げるときにどこまで上がってよいか」を決めます。さらにライブラリでは、使う側がその範囲をもとに解決するので、範囲が狭すぎると使う側でぶつかりやすく、広すぎると動かない版が選ばれます。</p></details>
+  <details class="myth"><summary>Go も npm と同じく、範囲の中の最新版を入れる</summary><p>Go は要求された下限の中で最も大きいもの（＝全員の要求を満たす最も古い版）を選びます。新しい版が出ても、<code>go get -u</code> などで明示しない限り上がりません。</p></details>
+  <details class="myth"><summary>npm install と npm ci は、入るものが同じ</summary><p><code>npm install</code> は <code>package.json</code> に合わせてロックファイルを書き換えることがあります。<code>npm ci</code> は <code>node_modules</code> を消してロックファイルどおりに入れ、<code>package.json</code> と食い違えば失敗します。CI では <code>npm ci</code> を使います。</p></details>
+  <details class="myth"><summary>Python でも依存ごとに別の版を入れれば、ぶつかりは避けられる</summary><p>1 つの仮想環境の <code>site-packages</code> には同じ名前のパッケージを 1 版しか置けません。どうしても両立しないなら、環境を分ける（別のサービス・別の仮想環境）か、どちらかの依存を上げ下げします。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="js-modules.html">JS のモジュールと依存管理</a> — npm・pnpm・Bun が <code>node_modules</code> をどう作るか、ワークスペース</li>
+    <li><a href="supply-chain-security.html">サプライチェーンセキュリティ</a> — ロックファイル・インストールスクリプトの停止・公開直後の版を待つ設定</li>
+    <li><a href="python.html">Python 学習フローと仕組み</a>・<a href="go.html">Go 学習フローと仕組み</a>・<a href="rust.html">Rust 学習フローと仕組み</a> — それぞれの言語でのプロジェクトの始め方</li>
+    <li><a href="ci-cd.html">CI/CD と GitHub Actions</a> — 固定したインストールとキャッシュを CI に組み込む</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://docs.npmjs.com/cli/commands/npm-ci">npm Docs: npm ci</a>・<a href="https://github.com/npm/node-semver">node-semver</a>（範囲の書き方）</li>
+    <li><a href="https://pnpm.io/cli/install">pnpm: pnpm install</a></li>
+    <li><a href="https://docs.astral.sh/uv/concepts/projects/sync/">uv: Locking and syncing</a></li>
+    <li><a href="https://packaging.python.org/en/latest/specifications/version-specifiers/">Python Packaging: Version specifiers</a>・<a href="https://peps.python.org/pep-0751/">PEP 751</a></li>
+    <li><a href="https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html">Cargo: Specifying Dependencies</a>・<a href="https://doc.rust-lang.org/cargo/reference/resolver.html">Dependency Resolution</a></li>
+    <li><a href="https://blog.rust-lang.org/2023/08/29/committing-lockfiles/">Rust Blog: Change in Guidance on Committing Lockfiles</a></li>
+    <li><a href="https://go.dev/ref/mod">Go Modules Reference</a>（MVS・go.sum・toolchain）</li>
+  </ul>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Go のプロジェクトで、依存 A は lib v1.2.0 以上、依存 B は lib v1.5.0 以上を要求している。lib は v1.9.0 まで公開済み。go build で使われる lib は？",
+    "choices": ["v1.9.0（範囲内の最新）", "v1.2.0（いちばん低い要求）", "v1.5.0（要求の下限のうち大きいほう）", "v1.2.0 と v1.5.0 の両方"],
+    "answer": 2,
+    "explain": "Go の最小バージョン選択（MVS）は、全員の要求を満たす最も古い版を選ぶ。新しい版が出ても明示的に上げるまで変わらない。",
+    "ref": "#resolve"
+  },
+  {
+    "q": "Python のアプリで、依存 A は lib<2、依存 B は lib>=2 を要求していて、ほかの版の A・B でも両立しない。uv や pip でインストールするとどうなる？",
+    "choices": ["A 用と B 用に lib が 2 版入る", "解決できずにエラーになる", "新しいほうの lib 2.x だけが入り、A は警告つきで動く", "インストールのたびにどちらかがランダムに選ばれる"],
+    "answer": 1,
+    "explain": "1 つの環境には同じ名前のパッケージを 1 版しか置けない。両立する組み合わせが見つからなければ解決に失敗する。",
+    "ref": "#resolve"
+  },
+  {
+    "q": "CI で、package-lock.json と package.json が食い違っていたら失敗させ、ロックファイルどおりに入れたい。使うコマンドは？",
+    "choices": ["npm install", "npm update", "npm install --save-exact", "npm ci"],
+    "answer": 3,
+    "explain": "npm ci は node_modules を消してロックファイルどおりに入れ、package.json と合わなければ失敗する。npm install はロックファイルを書き換えることがある。",
+    "ref": "#lock"
+  },
+  {
+    "q": "自作の npm ライブラリで package-lock.json をコミットした。このライブラリを使うアプリでは、ライブラリの依存の版はどう決まる？",
+    "choices": ["アプリ側のロックファイルで、ライブラリの package.json の範囲をもとに決め直される", "ライブラリの package-lock.json に書いた版がそのまま使われる", "常に各依存の最新版が入る", "ライブラリの公開時の版に自動で固定される"],
+    "answer": 0,
+    "explain": "依存先のロックファイルは使う側では使われない。使う側では、マニフェストの範囲をもとに、使う側のロックファイルで決まる。",
+    "ref": "#lock"
+  },
+  {
+    "q": "Rust で、クレート A が rand 0.7、クレート B が rand 0.8 に依存している。A が返す乱数生成器を B の関数に渡したらコンパイルエラーになった。なぜ？",
+    "choices": ["Cargo は同じクレートの 2 版を入れられず、片方が欠けているから", "Cargo.lock が古いから", "互換でない 2 版は別のクレートとしてビルドされ、型も別物になるから", "rand は 0.x なのでどの版も型が互換だから"],
+    "answer": 2,
+    "explain": "0.7 と 0.8 は互換でない扱いなので両方入るが、それぞれの型は別の型になる。値を受け渡すなら、どちらかの版に揃える。",
+    "ref": "#resolve"
+  }
+]
+</script>
+</body>
+</html>
