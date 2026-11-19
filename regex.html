@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>正規表現のしくみ</title>
+<meta name="description" content="正規表現が状態の図（NFA・DFA）になり、エンジンがそれをバックトラックや状態の集合でたどるしくみを、手で動かせる図で解説。後方参照が線形エンジンで使えない理由、言語ごとの方式、ReDoS が起きる理由まで。">
+<meta name="memo:tags" content="言語, CS基礎, セキュリティ">
+<meta name="memo:date" content="2026-11-19">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+ul.plain { padding-left: 1.3em; margin: 6px 0; }
+ul.plain li { margin: 3px 0; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+table.t { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 560px; }
+table.t th, table.t td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+table.t th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+table.t td:first-child { font-weight: 700; white-space: nowrap; }
+table.t.wide { min-width: 780px; }
+table.t.wide td:first-child { white-space: normal; min-width: 8em; }
+table.t.wide td:nth-child(2) { min-width: 11em; }
+table.t.wide td:last-child { min-width: 16em; }
+.ok { color: var(--c-ok); font-weight: 700; }
+.ng { color: var(--c-ng); font-weight: 700; }
+svg.nfa { width: 100%; max-width: 560px; height: auto; display: block; margin: 4px auto 0; }
+svg.nfa text { font: 700 15px 'JetBrains Mono', monospace; text-anchor: middle; dominant-baseline: central; fill: var(--fg); }
+svg.nfa text.lb { font-size: 14px; fill: var(--fg-2); }
+svg.nfa .edge { stroke: var(--fg-2); stroke-width: 1.6; fill: none; }
+svg.nfa .head { fill: var(--fg-2); }
+svg.nfa .node circle { fill: var(--surface); stroke: var(--fg-2); stroke-width: 1.6; }
+svg.nfa .node.on circle { fill: color-mix(in srgb, var(--c-hl) 22%, var(--surface)); stroke: var(--c-hl); stroke-width: 2.6; }
+svg.nfa .cell rect { fill: var(--chip); stroke: var(--line); }
+svg.nfa .cell.on rect { fill: color-mix(in srgb, var(--c-hl) 22%, var(--surface)); stroke: var(--c-hl); stroke-width: 2; }
+.figcap { text-align: center; font-size: 0.8rem; color: var(--fg-2); margin-top: 2px; }
+.stepper { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 4px 0 10px; }
+.btn { border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 8px; padding: 6px 14px; font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace; cursor: pointer; min-height: 32px; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn:disabled:hover { border-color: var(--line); color: var(--fg); }
+.stepper .pos { font: 500 0.78rem 'JetBrains Mono', monospace; color: var(--fg-2); }
+ol.steps > li.cur { background: color-mix(in srgb, var(--c-hl) 12%, transparent); border-radius: 6px; }
+.sets { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+.blowup { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin: 10px 0; }
+.blowup .card { margin: 0; }
+.blowup h3 { margin-top: 0; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="正規表現のしくみ">
+<meta property="og:description" content="正規表現が状態の図（NFA・DFA）になり、エンジンがそれをバックトラックや状態の集合でたどるしくみを、手で動かせる図で解説。後方参照が線形エンジンで使えない理由、言語ごとの方式、ReDoS が起きる理由まで。">
+<meta property="og:url" content="https://memo.taka1156.site/regex.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>正規表現のしくみ</h1>
+  <p class="subtitle">パターンは状態の図（オートマトン）になる。エンジンがそれをどうたどるかで、使える機能と速さが決まる</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>正規表現は「1 文字読むごとに状態を移る図」（NFA）に組み立てられ、マッチはその図を入力でたどる作業になる。</li>
+      <li>たどり方は、分かれ道を 1 本ずつ試して戻る<b>バックトラック</b>と、ありうる状態を<b>全部同時に</b>持って進む方式の 2 つ。</li>
+      <li>多くの言語の標準はバックトラックで多機能だが、書き方しだいで指数時間（ReDoS）になる。線形時間の方式は後方参照などが使えない。</li>
+    </ul>
+  </div>
+
+  <h2 id="automaton">パターンは状態の図になる</h2>
+  <p>エンジンはまずパターンを解析して、<b>状態</b>（丸）と、文字で進む<b>矢印</b>の図に組み立てます。これを<b>オートマトン</b>と呼び、同じ文字で行き先が複数ありうるものを <b>NFA</b>（非決定性有限オートマトン, Nondeterministic Finite Automaton）、行き先が常に 1 つに決まるものを <b>DFA</b>（決定性有限オートマトン）と呼びます。</p>
+  <p>例として <code>a(b|bc)d</code> を図にします。状態 1 から <code>b</code> で進む矢印が 2 本ある（どちらの選択肢か、読んだ時点では決まらない）ので、これは NFA です。右端の二重丸が「ここに着いたらマッチ」の受理状態です。</p>
+
+  <div class="card" id="nfa-fig">
+    <svg class="nfa" viewBox="0 0 420 210" role="img" aria-label="a(b|bc)d の NFA。状態0からaで1へ。1からbで2へ、またはbで3へ。3からcで2へ。2からdで受理状態4へ。下に入力 abcd のテープ">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+      <!-- 開始矢印 -->
+      <line class="edge" x1="2" y1="100" x2="16" y2="100" marker-end="url(#ah)"/>
+      <!-- 0→1 a -->
+      <line class="edge" x1="46" y1="100" x2="98" y2="100" marker-end="url(#ah)"/>
+      <text class="lb" x="72" y="88">a</text>
+      <!-- 1→2 b（下の直線） -->
+      <line class="edge" x1="130" y1="100" x2="292" y2="100" marker-end="url(#ah)"/>
+      <text class="lb" x="211" y="114">b</text>
+      <!-- 1→3 b -->
+      <line class="edge" x1="126" y1="88" x2="194" y2="44" marker-end="url(#ah)"/>
+      <text class="lb" x="152" y="56">b</text>
+      <!-- 3→2 c -->
+      <line class="edge" x1="226" y1="44" x2="294" y2="88" marker-end="url(#ah)"/>
+      <text class="lb" x="270" y="56">c</text>
+      <!-- 2→4 d -->
+      <line class="edge" x1="324" y1="100" x2="372" y2="100" marker-end="url(#ah)"/>
+      <text class="lb" x="348" y="88">d</text>
+
+      <g class="node" id="n0"><circle cx="30" cy="100" r="15"/><text x="30" y="100">0</text></g>
+      <g class="node" id="n1"><circle cx="114" cy="100" r="15"/><text x="114" y="100">1</text></g>
+      <g class="node" id="n3"><circle cx="210" cy="34" r="15"/><text x="210" y="34">3</text></g>
+      <g class="node" id="n2"><circle cx="308" cy="100" r="15"/><text x="308" y="100">2</text></g>
+      <g class="node" id="n4"><circle cx="390" cy="100" r="16"/><circle cx="390" cy="100" r="11"/><text x="390" y="100">4</text></g>
+
+      <text class="lb" x="60" y="172">入力</text>
+      <g class="cell" id="t0"><rect x="100" y="155" width="34" height="34" rx="5"/><text x="117" y="172">a</text></g>
+      <g class="cell" id="t1"><rect x="140" y="155" width="34" height="34" rx="5"/><text x="157" y="172">b</text></g>
+      <g class="cell" id="t2"><rect x="180" y="155" width="34" height="34" rx="5"/><text x="197" y="172">c</text></g>
+      <g class="cell" id="t3"><rect x="220" y="155" width="34" height="34" rx="5"/><text x="237" y="172">d</text></g>
+    </svg>
+    <p class="figcap">図: <code>a(b|bc)d</code> の NFA と入力 <code>abcd</code>。下の手順を進めると、紫の枠で「今いる状態」と「今読む文字」が光る</p>
+  </div>
+
+  <h3>部品の組み立て方</h3>
+  <p>どんなに長いパターンも、次の 3 つの部品の組み合わせで図にできます（トンプソンの構成法, Thompson's construction）。図の大きさはパターンの長さにほぼ比例します。</p>
+  <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>構文</th><th>意味</th><th>図にすると</th></tr></thead>
+      <tbody>
+        <tr><td><code>ab</code></td><td>連結</td><td>a の図の出口を、b の図の入口につなぐ</td></tr>
+        <tr><td><code>a|b</code></td><td>選択</td><td>入口から 2 本に分かれ、出口で合流する（ここで行き先が複数になる）</td></tr>
+        <tr><td><code>a*</code></td><td>繰り返し</td><td>a の図の出口から入口へ戻る矢印と、a を飛ばす矢印を足す</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note"><code>+</code>・<code>?</code>・<code>{2,5}</code>・文字クラス <code>[a-z]</code> は、この 3 つの言い換えとして図にできる。実際の図では文字を読まずに進む矢印（ε 遷移）も使うが、上の例では省いている。</p>
+
+  <h2 id="engines">図のたどり方は 2 通り（＋表にする方式）</h2>
+  <p>同じ図・同じ入力 <code>abcd</code> を、方式ごとにたどってみます。「次へ」で 1 手ずつ進むと、上の図の今いる状態が光ります。</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="p-bt">バックトラック</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-sim">状態の集合で進む</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-dfa">DFA（表引き）</button>
+  </div>
+
+  <div class="panel card" id="p-bt">
+    <p>分かれ道に来たら<b>1 本を選んで進み</b>、行き詰まったら最後の分かれ道まで<b>戻って</b>（バックトラック, backtracking）次の道を試します。深さ優先探索と同じ考え方です。</p>
+    <div class="stepper" data-steps="bt">
+      <button class="btn" data-dir="-1">◀ 前へ</button>
+      <button class="btn" data-dir="1">次へ ▶</button>
+      <span class="pos"></span>
+    </div>
+    <ol class="steps" id="bt">
+      <li data-states="0" data-pos="0"><b>状態 0・位置 0</b><code>a</code> を読んで状態 1 へ。</li>
+      <li data-states="1" data-pos="1"><b>状態 1・位置 1（分かれ道）</b>行き先が 2 つある。まず 1 本目（<code>b</code> → 状態 2）を選び、「ここに戻れる」と覚えておく。</li>
+      <li class="is-ng" data-states="2" data-pos="2"><b>状態 2・位置 2（行き詰まり）</b>次は <code>d</code> が要るのに、入力は <code>c</code>。失敗したので、覚えておいた分かれ道まで戻る。</li>
+      <li data-states="1" data-pos="1"><b>状態 1・位置 1（戻った）</b>読む位置も 1 に戻す。2 本目（<code>b</code> → 状態 3）を試す。</li>
+      <li data-states="3" data-pos="2"><b>状態 3・位置 2</b><code>c</code> を読んで状態 2 へ。</li>
+      <li class="is-ok" data-states="2" data-pos="3"><b>状態 2・位置 3</b><code>d</code> を読んで受理状態 4 へ。マッチ成功。</li>
+    </ol>
+    <p>赤の手順が行き詰まり、緑の手順が成功です。<b>同じ文字（位置 1〜2）を 2 回読んでいる</b>点に注目してください。分かれ道が重なると、この「読み直し」が掛け算で増えます（<a href="#redos">ReDoS</a>）。そのかわり、戻る前提なので「さっき取り込んだ文字列と同じか」を確かめる後方参照のような機能を足しやすい方式です。</p>
+  </div>
+
+  <div class="panel card" id="p-sim" hidden>
+    <p>分かれ道で 1 本を選ばず、<b>ありうる状態を全部まとめて</b>持ったまま 1 文字ずつ進みます（NFA シミュレーション。トンプソンの方式とも呼ばれる）。行き詰まった状態は集合から消えるだけで、戻りません。</p>
+    <div class="stepper" data-steps="sim">
+      <button class="btn" data-dir="-1">◀ 前へ</button>
+      <button class="btn" data-dir="1">次へ ▶</button>
+      <span class="pos"></span>
+    </div>
+    <ol class="steps" id="sim">
+      <li data-states="0" data-pos="0"><b>{0} で <code>a</code> を読む</b>状態 0 から <code>a</code> で 1 へ。集合は {1}。</li>
+      <li data-states="1" data-pos="1"><b>{1} で <code>b</code> を読む</b>行き先が 2 つあるので両方入れる。集合は {2, 3}。</li>
+      <li data-states="2,3" data-pos="2"><b>{2, 3} で <code>c</code> を読む</b>状態 2 は <code>c</code> で進めないので消える。状態 3 は 2 へ。集合は {2}。</li>
+      <li class="is-ok" data-states="2" data-pos="3"><b>{2} で <code>d</code> を読む</b>受理状態 4 に入ったのでマッチ成功。</li>
+    </ol>
+    <p>緑の手順がマッチ成功です。バックトラックと違って、赤の「行き詰まり」の手順がありません。<b>どの文字も 1 回しか読みません。</b>1 文字ごとの仕事は「集合の中の状態を全部進める」だけで、集合の大きさは図の状態の数（≒パターンの長さ m）を超えないので、全体で <b>O(n × m)</b>（n は入力の長さ）に収まります。Go の <code>regexp</code>・RE2・Rust の <code>regex</code> はこの考え方で線形時間を保証しています。</p>
+  </div>
+
+  <div class="panel card" id="p-dfa" hidden>
+    <p>「状態の集合」そのものを 1 つの状態とみなして、あらかじめ<b>表</b>にしておく方式です（部分集合構成法, subset construction）。マッチ中は 1 文字ごとに表を 1 回引くだけになり、最も速く動きます。</p>
+    <div class="table-wrap">
+      <table class="t sets">
+        <thead><tr><th>DFA の状態</th><th>中身（NFA の状態の集合）</th><th>a</th><th>b</th><th>c</th><th>d</th></tr></thead>
+        <tbody>
+          <tr><td>A</td><td>{0}</td><td>B</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr><td>B</td><td>{1}</td><td>—</td><td>C</td><td>—</td><td>—</td></tr>
+          <tr><td>C</td><td>{2, 3}</td><td>—</td><td>—</td><td>D</td><td>E</td></tr>
+          <tr><td>D</td><td>{2}</td><td>—</td><td>—</td><td>—</td><td>E</td></tr>
+          <tr><td>E</td><td>{4}（受理）</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">「—」は進めない（その時点で失敗）。C で <code>d</code> を読めば <code>abd</code> にマッチする。</p>
+    <p>弱点は表の大きさです。NFA の状態が m 個なら、集合の組み合わせは<b>最大 2<sup>m</sup> 通り</b>あり、パターンによっては表が爆発します。そこで RE2 などは、<b>実際に通った集合だけを表に足していく</b>（遅延 DFA, lazy DFA）作り方をし、表が大きくなりすぎたら捨てて作り直したり、集合で進む方式に切り替えたりします。GNU grep も DFA を中心に使います。</p>
+  </div>
+
+  <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>方式</th><th>マッチの時間</th><th>使える機能</th><th>主な採用先</th></tr></thead>
+      <tbody>
+        <tr><td>バックトラック</td><td>多くは速いが、最悪で<span class="ng">指数時間</span></td><td>後方参照・先読み・後読みなど全部</td><td>JavaScript・Python・Java・.NET・Ruby・PCRE（PHP など）</td></tr>
+        <tr><td>状態の集合で進む</td><td><span class="ok">O(n × m)</span> を保証</td><td>後方参照・先読み後読みは<b>なし</b></td><td>Go・RE2・Rust の <code>regex</code></td></tr>
+        <tr><td>DFA（遅延構築）</td><td><span class="ok">O(n)</span>＋表を作る手間</td><td>同上。取り込み（キャプチャ）の位置を出すのは苦手</td><td>RE2・Rust の <code>regex</code>（内部で使い分け）・GNU grep</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="features">線形時間のエンジンで使えない機能</h2>
+  <p>状態の集合で進む方式は、「状態」と「今の位置」しか覚えません。<b>過去にどの文字列を取り込んだか</b>や、<b>今の位置より先・後ろの文字</b>を見る機能は、この形に収まらないため外されています。</p>
+  <div class="table-wrap">
+    <table class="t wide">
+      <thead><tr><th>機能</th><th>例</th><th>バックトラック系</th><th>Go・RE2・Rust</th><th>なぜ</th></tr></thead>
+      <tbody>
+        <tr><td>後方参照</td><td><code>(\w+) \1</code>（同じ単語の繰り返し）</td><td class="ok">使える</td><td class="ng">使えない</td><td>取り込んだ文字列の中身は無数にあり、有限の状態で覚えられない。後方参照つきのマッチは一般に NP 困難</td></tr>
+        <tr><td>先読み・後読み</td><td><code>\d+(?=円)</code>、<code>(?&lt;=\$)\d+</code></td><td class="ok">使える</td><td class="ng">使えない</td><td>位置の前後を別に確かめるため、1 回の通しのたどりに収まらない</td></tr>
+        <tr><td>アトミックグループ・強欲な量指定子（possessive）</td><td><code>(?&gt;a+)</code>、<code>a++</code></td><td>Java・PCRE・Ruby・Python 3.11 以降は両方、.NET はアトミックグループだけ（JavaScript にはどちらも無い）</td><td>不要</td><td>「戻らない」と指示してバックトラックを抑える機能。戻らない方式には要らない</td></tr>
+        <tr><td>最短一致・キャプチャ</td><td><code>.*?</code>、<code>(\d+)-(\d+)</code></td><td class="ok">使える</td><td class="ok">使える</td><td>状態に優先順位や位置を持たせれば、線形のまま扱える</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Go で <code>regexp.MustCompile(`(\w+) \1`)</code> と書くと、実行時にパターンを組み立てる段階で panic します（<code>regexp.Compile</code> ならエラーが返ります）。「速さの保証」と「表現力」はトレードオフで、どちらを優先するかが言語ごとの設計の違いです。</p>
+
+  <h2 id="engine-list">言語ごとのエンジンと身の守り方</h2>
+  <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>言語・ツール</th><th>標準の方式</th><th>重くなったときの手段</th></tr></thead>
+      <tbody>
+        <tr><td>JavaScript（V8）</td><td>バックトラック</td><td>タイムアウトの指定は無い。ユーザー入力に使う重い検証は RE2 のバインディング（npm の <code>re2</code> など）に任せる</td></tr>
+        <tr><td>Python（<code>re</code>）</td><td>バックトラック</td><td>3.11 からアトミックグループ・強欲な量指定子。線形が要るなら RE2 のバインディング</td></tr>
+        <tr><td>Java</td><td>バックトラック</td><td>強欲な量指定子・アトミックグループで戻りを抑える</td></tr>
+        <tr><td>.NET</td><td>バックトラック（既定）</td><td><code>matchTimeout</code> でタイムアウト。.NET 7 以降は <code>RegexOptions.NonBacktracking</code> で線形の方式に切り替えられる</td></tr>
+        <tr><td>Ruby（Onigmo）</td><td>バックトラック</td><td>3.2 からメモ化で多くのパターンを線形時間にし、<code>Regexp.timeout</code> も追加</td></tr>
+        <tr><td>PHP（PCRE2）</td><td>バックトラック</td><td><code>pcre.backtrack_limit</code> で試す回数に上限（超えると <code>preg_match()</code> が <code>false</code> を返す。マッチしなかったときの 0 と区別するため <code>===</code> で確かめ、原因は <code>preg_last_error()</code> で見る）</td></tr>
+        <tr><td>Go・Rust</td><td>線形時間（集合・DFA）</td><td>もともと指数時間にならない。後方参照などが要るときは別のライブラリ</td></tr>
+        <tr><td>GNU grep</td><td>DFA 中心</td><td>後方参照を使ったときだけ遅い方式に切り替わる</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="redos">ReDoS はバックトラックの組み合わせ爆発</h2>
+  <p>バックトラックの弱点は「分かれ道の組み合わせを全部試す」ことです。<code>^(a+)+$</code> は、<code>a</code> を内側の <code>+</code> で読むか、外側の <code>+</code> で読み直すかの分かれ道が<b>文字ごとに</b>あります。入力 <code>aaa…a!</code> は最後の <code>!</code> で必ず失敗するので、エンジンは a の並びの<b>分け方を全部</b>試してから諦めます。</p>
+  <div class="blowup">
+    <div class="card">
+      <h3>バックトラック</h3>
+      <p>a が n 個なら、分け方は 2<sup>n−1</sup> 通り。</p>
+      <ul class="plain">
+        <li>n = 10 → 512 通り</li>
+        <li>n = 20 → 約 52 万通り</li>
+        <li>n = 30 → 約 5.4 億通り</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>状態の集合で進む</h3>
+      <p>同じ図でも、集合は「a を読める状態」に落ち着いたまま進み、<code>!</code> で空になって終わる。</p>
+      <ul class="plain">
+        <li>n = 30 でも 31 文字を 1 回ずつ読むだけ</li>
+      </ul>
+    </div>
+  </div>
+  <p>同じ文字を 2 通り以上で読める形（量指定子の入れ子 <code>(a+)+</code>、選択肢の重なり <code>(\d|\w)+</code>、省略できる区切り <code>(\w+\s?)*</code>）がそろうと危険です。危ない形の一覧と、実際にブラウザで時間を測るデモは <a href="web-vulnerabilities.html#redos">実装起因の脆弱性（入力の扱い）</a> にあります。</p>
+  <ol class="steps">
+    <li><b>形で避ける</b>同じ文字を複数の道で読めないように書く（<code>(a+)+</code> → <code>a+</code>）。lint（<code>eslint-plugin-regexp</code> など）で機械的に見つける。</li>
+    <li><b>入力を短く切る</b>マッチの前に長さの上限を確かめる。指数時間でも n が小さければ終わる。</li>
+    <li><b>エンジンを選ぶ</b>ユーザーがパターンを入力できる機能や、外から来る長い文字列の検査には、線形時間のエンジン（RE2・Go・Rust、.NET の NonBacktracking）を使う。</li>
+  </ol>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>正規表現はどの言語でも同じ意味・同じ速さで動く</summary><p>構文は似ていても、エンジンの方式が違います。Go で後方参照がエラーになる、JavaScript では指数時間になるパターンが Rust では一瞬で終わる、ということが普通に起きます。<code>\w</code> や <code>\d</code> が Unicode の文字まで含むかも言語やフラグで変わります。</p></details>
+  <details class="myth"><summary>ReDoS は長くて複雑な正規表現だけの問題だ</summary><p><code>^(\w+\s?)*$</code> のような 1 行の短いパターンでも起きます。長さではなく「同じ文字を複数の道で読めるか」が問題です。</p></details>
+  <details class="myth"><summary>最短一致の .*? にすれば、バックトラックの爆発は防げる</summary><p>最短一致は「どの道から先に試すか」の順番を変えるだけです。マッチが<b>失敗する</b>入力では結局すべての道を試すので、試す回数は減りません。</p></details>
+  <details class="myth"><summary>線形時間のエンジンに変えれば、今のパターンはそのまま全部動く</summary><p>後方参照・先読み・後読みを使ったパターンは、RE2・Go・Rust の <code>regex</code> ではコンパイルエラーになります。置き換える前に、それらを使っていないか確かめ、使っていればコードでの判定に分けます。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="web-vulnerabilities.html">実装起因の脆弱性（入力の扱い）</a> — ReDoS の危ない形の一覧と、ブラウザで時間を測るデモ</li>
+    <li><a href="event-loop.html">JS のイベントループと非同期</a> — Node.js で重い正規表現 1 回がサーバー全体を止める理由</li>
+    <li><a href="graph-algorithms.html">グラフ探索と最短経路</a> — バックトラックは深さ優先探索、集合で進むのは幅優先探索に近い</li>
+    <li><a href="forms-validation.html">フォームとバリデーション</a> — <code>pattern</code> 属性など、入力検証で正規表現を使う場面</li>
+    <li><a href="unicode-text.html">文字コードと Unicode</a> — 「1 文字」が何を指すかで、<code>.</code> や文字クラスの結果が変わる</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://swtch.com/~rsc/regexp/regexp1.html">Russ Cox: Regular Expression Matching Can Be Simple And Fast</a>（バックトラックとトンプソンの方式の比較）</li>
+    <li><a href="https://github.com/google/re2/wiki/Syntax">RE2 Syntax</a>（使えない構文の一覧）</li>
+    <li><a href="https://pkg.go.dev/regexp">Go: package regexp</a></li>
+    <li><a href="https://docs.rs/regex/latest/regex/">Rust: regex crate</a></li>
+    <li><a href="https://docs.python.org/3/library/re.html">Python: re</a></li>
+    <li><a href="https://learn.microsoft.com/dotnet/standard/base-types/regular-expression-options">.NET: Regular expression options（NonBacktracking）</a></li>
+    <li><a href="https://www.ruby-lang.org/en/news/2022/12/25/ruby-3-2-0-released/">Ruby 3.2.0 Released</a>（ReDoS 対策の改善）</li>
+    <li><a href="https://www.php.net/manual/en/pcre.configuration.php">PHP: PCRE Runtime Configuration</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+    const p = document.getElementById(tab.dataset.panel);
+    const st = p.querySelector('.stepper');
+    if (st) st.render(); else clearFig();
+  });
+});
+
+function clearFig() {
+  document.querySelectorAll('#nfa-fig .on').forEach(el => el.classList.remove('on'));
+}
+function showFig(li) {
+  clearFig();
+  if (!li) return;
+  li.dataset.states.split(',').forEach(s => document.getElementById('n' + s).classList.add('on'));
+  document.getElementById('t' + li.dataset.pos).classList.add('on');
+}
+
+document.querySelectorAll('.stepper').forEach(st => {
+  const items = [...document.getElementById(st.dataset.steps).children];
+  const [prev, next] = st.querySelectorAll('.btn');
+  const pos = st.querySelector('.pos');
+  let i = 0;
+  st.render = () => {
+    items.forEach((li, k) => li.classList.toggle('cur', k === i));
+    prev.disabled = i === 0;
+    next.disabled = i === items.length - 1;
+    pos.textContent = (i + 1) + ' / ' + items.length;
+    showFig(items[i]);
+  };
+  st.addEventListener('click', e => {
+    const b = e.target.closest('.btn');
+    if (!b || b.disabled) return;
+    i = Math.max(0, Math.min(items.length - 1, i + Number(b.dataset.dir)));
+    st.render();
+  });
+  items.forEach((li, k) => li.addEventListener('click', () => { i = k; st.render(); }));
+});
+document.querySelector('#p-bt .stepper').render();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "ユーザーが検索用の正規表現を自由に入力できる機能を Node.js のサーバーに作る。いちばん安全な実装は？",
+    "choices": ["標準の RegExp を使い、try/catch で囲む", "パターンを RE2 などの線形時間のエンジンでコンパイルして実行する", "パターンに最短一致の *? を使うよう利用者に案内する", "マッチ処理を async 関数の中で実行する"],
+    "answer": 1,
+    "explain": "JS の標準エンジンはバックトラック方式で、パターンしだいで指数時間になる。try/catch や async では同期のマッチが止まらない。線形時間のエンジンならどんなパターンでも入力長に比例した時間で終わる。",
+    "ref": "#engine-list"
+  },
+  {
+    "q": "Python で書いた ^(\\w+) \\1$（同じ単語が 2 回続く行）を Go に移植したら、regexp.Compile がエラーを返した。理由は？",
+    "choices": ["Go の regexp は線形時間を保証するため、後方参照を持たない", "Go では \\w が使えないため", "Go では ^ と $ の意味が違うため", "Go の正規表現は文字列リテラルにバッククォートを使えないため"],
+    "answer": 0,
+    "explain": "後方参照は「取り込んだ文字列」を覚える必要があり、状態の集合で進む方式に収まらない。Go・RE2・Rust の regex は速さの保証を優先して外している。",
+    "ref": "#features"
+  },
+  {
+    "q": "^(a+)+$ に a を 30 個並べて最後に ! を付けた文字列を渡すと、バックトラック方式のエンジンが極端に遅くなる。なぜ？",
+    "choices": ["文字列が長いと正規表現のコンパイルに時間がかかるから", "受理状態が 2 つあり、どちらに入るか毎回計算し直すから", "失敗が確定するまでに、a の並びを内側と外側の + に分ける組み合わせを全部試すから", "! が特殊文字で、エスケープ処理に時間がかかるから"],
+    "answer": 2,
+    "explain": "各 a を内側で読むか外側で読み直すかの分かれ道があり、分け方は 2^(n−1) 通り。最後で必ず失敗するので全部試してから諦める。",
+    "ref": "#redos"
+  },
+  {
+    "q": "状態の集合で進む方式（Go・RE2 など）が、どんなパターンでも入力の長さにほぼ比例した時間で終わるのはなぜ？",
+    "choices": ["パターンを実行前に最短の形へ書き換えるから", "入力の各文字を 1 回だけ読み、そのたびに集合の中の状態（最大でパターンの長さぶん）を進めるだけだから", "マッチに一定時間以上かかったら打ち切るから", "先頭から一致しない入力をすぐに捨てるから"],
+    "answer": 1,
+    "explain": "分かれ道で戻らず、ありうる状態を全部持って進むので読み直しがない。1 文字あたりの仕事は状態の数で抑えられ、全体で O(n × m) になる。",
+    "ref": "#engines"
+  },
+  {
+    "q": "ReDoS を避けるため、^(\\w+\\s?)*$ を最短一致の ^(\\w+?\\s?)*?$ に書き換えた。効果は？",
+    "choices": ["失敗する入力では試す道の数が変わらず、ほとんど効果がない", "バックトラックが起きなくなり、線形時間になる", "マッチする入力もしない入力も、必ず速くなる", "後方参照が使えなくなるかわりに速くなる"],
+    "answer": 0,
+    "explain": "最短一致は試す順番を変えるだけ。マッチしない入力では結局すべての分け方を試すので、爆発は残る。同じ文字を複数の道で読めない形に書き直す必要がある。",
+    "ref": "#myths"
+  }
+]
+</script>
+</body>
+</html>

@@ -5,8 +5,11 @@
 ## Memos
 
 - [タイポグラフィと Web フォント](https://memo.taka1156.site/md/typography-webfonts.md): 文字サイズ・行間・行長の目安、font-family のフォールバック、Web フォントが表示されるまでと font-display、軽くする方法を図解。（デザイン, フロントエンド / 2026-11-19）
+- [正規表現のしくみ](https://memo.taka1156.site/md/regex.md): 正規表現が状態の図（NFA・DFA）になり、エンジンがそれをバックトラックや状態の集合でたどるしくみを、手で動かせる図で解説。後方参照が線形エンジンで使えない理由、言語ごとの方式、ReDoS が起きる理由まで。（言語, CS基礎, セキュリティ / 2026-11-19）
 - [Python 学習フローと仕組み](https://memo.taka1156.site/md/python.md): Python をどの順で学ぶかと、バイトコードを解釈して動く CPython、名前と参照、参照カウントと GC、GIL と並行処理、仮想環境とパッケージの仕組みを図解。（言語, バックエンド / 2026-11-19）
+- [パッケージマネージャとロックファイル](https://memo.taka1156.site/md/package-managers.md): npm・pnpm・uv・pip・Cargo・Go modules を並べて、マニフェスト・ロックファイル・キャッシュの 3 層、版の範囲の書き方、依存がぶつかったときの解決（複数版の共存・単一版・最小バージョン選択）、CI で固定して入れるコマンドを比べる。（開発ツール, 言語 / 2026-11-19）
 - [Swagger と OpenAPI](https://memo.taka1156.site/md/openapi-swagger.md): OpenAPI（旧 Swagger）の文書の構造と、そこから作れるドキュメント・型・モック・テスト、Swagger UI の動き方を図解。（バックエンド, 設計, 開発ツール / 2026-11-19）
+- [モノレポ](https://memo.taka1156.site/md/monorepo.md): 複数のアプリとパッケージを 1 つのリポジトリに置くモノレポを、ワークスペース（npm・pnpm・Cargo・uv）とタスクランナー（Turborepo・Nx）の 2 層で解説。変更の影響範囲を図で試し、タスクの順番・キャッシュ・内部パッケージの作り方・CI の注意点まで。（開発ツール, JavaScript / 2026-11-19）
 - [Go 学習フローと仕組み](https://memo.taka1156.site/md/go.md): Go をどの順で学ぶかと、1 つのバイナリになるビルド、goroutine を動かすスケジューラ（G・M・P）、チャネル、インターフェースとエラー、GC とモジュールの仕組みを図解。（言語, バックエンド / 2026-11-19）
 - [API のバージョニングと後方互換](https://memo.taka1156.site/md/api-versioning.md): どの変更がクライアントを壊すか、バージョンの付け方（URL・ヘッダー・日付）、Expand and Contract で無停止に変える手順、非推奨の伝え方を図解。（バックエンド, 設計 / 2026-11-19）
 - [ページネーション（オフセットとカーソル）](https://memo.taka1156.site/md/api-pagination.md): オフセット・キーセット・カーソルの違い、深いページが遅くなる理由、途中の追加で重複・抜けが出るしくみ、カーソルの作り方と選び方を図解。（バックエンド, 設計, データベース / 2026-11-19）

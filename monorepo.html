@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>モノレポ</title>
+<meta name="description" content="複数のアプリとパッケージを 1 つのリポジトリに置くモノレポを、ワークスペース（npm・pnpm・Cargo・uv）とタスクランナー（Turborepo・Nx）の 2 層で解説。変更の影響範囲を図で試し、タスクの順番・キャッシュ・内部パッケージの作り方・CI の注意点まで。">
+<meta name="memo:tags" content="開発ツール, JavaScript">
+<meta name="memo:date" content="2026-11-19">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-aff: #0f766e;   /* 影響を受けて動き直すパッケージ */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-aff: #2dd4bf;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+/* このページ固有 */
+table.t { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 600px; }
+table.t th, table.t td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+table.t th { color: var(--fg-2); font-weight: 500; font-size: 0.78rem; white-space: nowrap; }
+table.t td:first-child { font-weight: 700; white-space: nowrap; }
+table.t td:first-child small { font-weight: 500; color: var(--fg-2); font-size: 0.75rem; }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin: 8px 0; }
+.two .card { margin: 0; }
+.two h3 { margin-top: 0; }
+.two .card ul { padding-left: 1.2em; font-size: 0.88rem; }
+
+.btns { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 10px; }
+.btn { border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 8px; padding: 6px 12px; font: 600 0.8rem 'JetBrains Mono', ui-monospace, monospace; cursor: pointer; min-height: 32px; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+svg.g { width: 100%; max-width: 480px; height: auto; display: block; margin: 4px auto; }
+svg.g text { font: 700 17px 'JetBrains Mono', monospace; text-anchor: middle; dominant-baseline: central; fill: var(--fg); }
+svg.g text.kind { font-size: 15px; font-weight: 500; fill: var(--fg-2); }
+svg.g .edge { stroke: var(--fg-2); stroke-width: 1.5; fill: none; }
+svg.g .head { fill: var(--fg-2); }
+svg.g .pkg rect { fill: var(--chip); stroke: var(--line); stroke-width: 1.5; }
+svg.g .pkg.changed rect { fill: color-mix(in srgb, var(--c-hl) 25%, var(--surface)); stroke: var(--c-hl); stroke-width: 3; }
+svg.g .pkg.aff rect { fill: color-mix(in srgb, var(--c-aff) 18%, var(--surface)); stroke: var(--c-aff); stroke-width: 2.5; stroke-dasharray: 6 3; }
+.legend i.l-changed { background: color-mix(in srgb, var(--c-hl) 25%, var(--surface)); border: 2px solid var(--c-hl); }
+.legend i.l-aff { background: color-mix(in srgb, var(--c-aff) 18%, var(--surface)); border: 2px dashed var(--c-aff); }
+.legend i.l-skip { background: var(--chip); border: 1px solid var(--line); }
+.explain p[hidden] { display: none; }
+.explain { min-height: 5.2em; }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="モノレポ">
+<meta property="og:description" content="複数のアプリとパッケージを 1 つのリポジトリに置くモノレポを、ワークスペース（npm・pnpm・Cargo・uv）とタスクランナー（Turborepo・Nx）の 2 層で解説。変更の影響範囲を図で試し、タスクの順番・キャッシュ・内部パッケージの作り方・CI の注意点まで。">
+<meta property="og:url" content="https://memo.taka1156.site/monorepo.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>モノレポ</h1>
+  <p class="subtitle">複数のアプリとパッケージを 1 つのリポジトリに置く。ワークスペースでつなぎ、タスクランナーで「変わったところだけ」動かす</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>モノレポは、複数のアプリとライブラリを 1 つのリポジトリに置き、内部のパッケージを公開せずに直接使う構成。</li>
+      <li>パッケージマネージャのワークスペースがリンクとロックファイルを、Turborepo・Nx がタスクの順番・キャッシュ・影響範囲を受け持つ。</li>
+      <li>速さは依存関係の宣言が正しいことが前提で、宣言が漏れると、壊れた変更が CI をすり抜けたり、古いキャッシュが使われたりする。</li>
+    </ul>
+  </div>
+
+  <h2 id="why">モノレポとポリレポ</h2>
+  <p>アプリやライブラリごとにリポジトリを分けるのが<b>ポリレポ</b>（polyrepo）、1 つにまとめるのが<b>モノレポ</b>（monorepo）です。モノレポは「1 つの大きなアプリ（モノリス）」とは別の話で、中のアプリは別々にデプロイできます。</p>
+  <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>観点</th><th>モノレポ</th><th>ポリレポ</th></tr></thead>
+      <tbody>
+        <tr><td>共有コードの変更</td><td>ライブラリと使う側を 1 つのプルリクエストで同時に直せる</td><td>ライブラリを公開 → 各リポジトリで版を上げる、の順に何度も回す</td></tr>
+        <tr><td>依存の版</td><td>ロックファイルが 1 つで、そろえやすい</td><td>リポジトリごとにばらつく</td></tr>
+        <tr><td>設定・ツール</td><td>lint・tsconfig・CI を共通にできる</td><td>リポジトリごとに複製して、ずれていく</td></tr>
+        <tr><td>CI の時間</td><td>何もしないと全部を毎回ビルドして遅くなる。影響範囲とキャッシュが要る</td><td>リポジトリが小さいので自然に速い</td></tr>
+        <tr><td>権限</td><td>リポジトリ単位では分けられない。CODEOWNERS などでディレクトリごとにレビュー担当を決める</td><td>リポジトリごとに分けられる</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="layers">2 つの層：ワークスペースとタスクランナー</h2>
+  <div class="two">
+    <div class="card">
+      <h3>ワークスペース（パッケージマネージャ）</h3>
+      <ul>
+        <li>リポジトリ内のパッケージを互いに<b>リンク</b>する（公開しなくても import できる）</li>
+        <li>依存のインストールが 1 回、<b>ロックファイルが 1 つ</b></li>
+        <li>「全パッケージで <code>test</code> を実行」のような一括実行はできるが、賢くはない</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>タスクランナー（Turborepo・Nx など）</h3>
+      <ul>
+        <li>パッケージの依存関係から<b>実行の順番</b>を決め、並列に動かす</li>
+        <li>入力が同じタスクは<b>キャッシュ</b>から結果を戻して飛ばす</li>
+        <li>変更から<b>影響範囲</b>を出し、そこだけ動かす</li>
+      </ul>
+    </div>
+  </div>
+  <p>JavaScript の <code>workspaces</code> と <code>workspace:*</code> の書き方は <a href="js-modules.html">JS のモジュールと依存管理</a> にあります。ほかの言語もワークスペースの仕組みを持っています。</p>
+  <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>ツール</th><th>どこに書くか</th><th>まとめてくれるもの</th></tr></thead>
+      <tbody>
+        <tr><td>npm・Yarn・Bun</td><td>ルートの <code>package.json</code> の <code>"workspaces"</code></td><td>ロックファイル・<code>node_modules</code></td></tr>
+        <tr><td>pnpm</td><td><code>pnpm-workspace.yaml</code></td><td>ロックファイル。<code>catalog:</code> で依存の版を 1 か所にまとめられる</td></tr>
+        <tr><td>Cargo</td><td>ルートの <code>Cargo.toml</code> の <code>[workspace]</code></td><td><code>Cargo.lock</code> とビルド結果の <code>target/</code></td></tr>
+        <tr><td>uv</td><td>ルートの <code>pyproject.toml</code> の <code>[tool.uv.workspace]</code></td><td><code>uv.lock</code></td></tr>
+        <tr><td>Go</td><td>1 つのモジュールに複数のパッケージを置くのが基本。<code>go.work</code> は手元で複数モジュールを同時に触るためのもの</td><td>Go のドキュメントは <code>go.work</code> をコミットすることを一般には勧めていない</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="affected">変更の影響範囲（affected）</h2>
+  <p>下の図は、3 つのアプリ（上の段）が内部パッケージを使っているモノレポです。矢印は「使っている」向きです。パッケージを押すと、そこを変えたときに<b>ビルド・テストし直すもの</b>が分かります。影響は矢印を<b>逆向き</b>にたどって広がります。</p>
+  <div class="card" id="graph">
+    <div class="btns" role="group" aria-label="変更するパッケージ">
+      <button class="btn" data-pkg="utils" aria-pressed="false">utils</button>
+      <button class="btn" data-pkg="ui" aria-pressed="false">ui</button>
+      <button class="btn" data-pkg="db" aria-pressed="false">db</button>
+      <button class="btn" data-pkg="web" aria-pressed="false">web</button>
+      <button class="btn" data-pkg="admin" aria-pressed="false">admin</button>
+      <button class="btn" data-pkg="api" aria-pressed="false">api</button>
+    </div>
+    <svg class="g" viewBox="0 0 440 260" role="img" aria-label="web は ui を使う。admin は ui と db を使う。api は db を使う。ui と db は utils を使う">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+      <text class="kind" x="220" y="12">apps/</text>
+      <line class="edge" x1="80" y1="62" x2="138" y2="110" marker-end="url(#ah)"/>
+      <line class="edge" x1="205" y1="62" x2="168" y2="110" marker-end="url(#ah)"/>
+      <line class="edge" x1="235" y1="62" x2="272" y2="110" marker-end="url(#ah)"/>
+      <line class="edge" x1="360" y1="62" x2="302" y2="110" marker-end="url(#ah)"/>
+      <line class="edge" x1="155" y1="146" x2="203" y2="194" marker-end="url(#ah)"/>
+      <line class="edge" x1="285" y1="146" x2="237" y2="194" marker-end="url(#ah)"/>
+      <g class="pkg" id="g-web"><rect x="30" y="28" width="100" height="34" rx="6"/><text x="80" y="45">web</text></g>
+      <g class="pkg" id="g-admin"><rect x="170" y="28" width="100" height="34" rx="6"/><text x="220" y="45">admin</text></g>
+      <g class="pkg" id="g-api"><rect x="310" y="28" width="100" height="34" rx="6"/><text x="360" y="45">api</text></g>
+      <g class="pkg" id="g-ui"><rect x="105" y="112" width="100" height="34" rx="6"/><text x="155" y="129">ui</text></g>
+      <g class="pkg" id="g-db"><rect x="235" y="112" width="100" height="34" rx="6"/><text x="285" y="129">db</text></g>
+      <g class="pkg" id="g-utils"><rect x="170" y="196" width="100" height="34" rx="6"/><text x="220" y="213">utils</text></g>
+      <text class="kind" x="220" y="244">packages/</text>
+    </svg>
+    <div class="legend"><span><i class="l-changed"></i>変更した（紫の太枠）</span><span><i class="l-aff"></i>影響を受けて動き直す（青緑の点線枠）</span><span><i class="l-skip"></i>動かさない（キャッシュのまま）</span></div>
+    <div class="explain">
+      <p data-for="none">上のボタンでパッケージを選ぶと、影響範囲が光ります。</p>
+      <p data-for="utils" hidden><b>utils を変更</b> → ui・db が使っており、その先の web・admin・api もすべて動き直す。土台のパッケージの変更は全体に効くので、CI の時間がいちばん長くなる。</p>
+      <p data-for="ui" hidden><b>ui を変更</b> → 使っている web・admin だけが動き直す。api・db・utils はキャッシュのまま。</p>
+      <p data-for="db" hidden><b>db を変更</b> → 使っている admin・api だけが動き直す。web は db を使っていないので動かさない。</p>
+      <p data-for="web" hidden><b>web を変更</b> → web だけ。web に依存するものは無いので、ほかは全部キャッシュのまま。</p>
+      <p data-for="admin" hidden><b>admin を変更</b> → admin だけ。ui と db を使っていても、使われる側には影響しない（影響は矢印の逆向きにしか広がらない）。</p>
+      <p data-for="api" hidden><b>api を変更</b> → api だけ。admin と同じ db を使っていても、api を使う側がいなければ影響しない。</p>
+    </div>
+  </div>
+  <p>この計算は、各パッケージの <code>package.json</code>（や <code>Cargo.toml</code>）に書いた依存関係だけを頼りにしています。<code>import</code> しているのに依存として書いていないと、変更しても影響範囲に入らず、<b>壊れた変更がテストされないまま通ります</b>。</p>
+  <pre># Git の比較元（main など）から変わったパッケージと、それに依存するものだけ
+turbo run test --affected
+nx affected -t test
+pnpm --filter "...[origin/main]" test   # 先頭の ... = そのパッケージに依存している側も含める</pre>
+
+  <h2 id="tasks">タスクの順番とキャッシュ</h2>
+  <p>タスクランナーには、タスク同士の関係を書きます。Turborepo なら <code>turbo.json</code> です。</p>
+  <pre>{
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],          // ^ = 依存しているパッケージの build を先に
+      "outputs": ["dist/**"],           // キャッシュに保存して戻すもの
+      "env": ["API_URL"]               // 値が変わったら別の結果として扱う
+    },
+    "test": { "dependsOn": ["build"] },  // ^ なし = 同じパッケージの build を先に
+    "dev":  { "cache": false, "persistent": true }
+  }
+}</pre>
+  <ol class="steps">
+    <li><b>入力のハッシュを取る</b>パッケージのファイル、依存しているパッケージの結果、タスクの設定、指定した環境変数などをまとめてハッシュにする。</li>
+    <li><b>キャッシュを探す</b>同じハッシュの結果が手元かリモートキャッシュ（チーム・CI で共有する置き場）にあれば、<code>outputs</code> のファイルとログを戻して、タスク自体は実行しない。</li>
+    <li><b>無ければ実行して保存</b>実行し、<code>outputs</code> とログをハッシュの名前で保存する。次に同じ入力で動かす人は、手順 2 で終わる。</li>
+  </ol>
+  <p>キャッシュが正しいのは、<b>結果に効くものが全部入力に入っているとき</b>だけです。ビルドが読む環境変数や <code>.env</code> ファイルが入力に入っていないと、値が変わっても同じ入力と見なされ、本番用の値で作るべきところに開発用の結果が戻ってきます（Turborepo 2 の既定の strict モードでは、<code>env</code> に書いていない環境変数はタスクからそもそも見えない）。逆に <code>outputs</code> を書き忘れると、キャッシュに当たったのに <code>dist/</code> が空のまま、ということが起きます。</p>
+
+  <h2 id="internal">内部パッケージの作り方</h2>
+  <p>アプリから使うだけの内部パッケージは、ビルドするかどうかで 2 通りあります。</p>
+  <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>方式</th><th>やること</th><th>向いている場面</th><th>注意</th></tr></thead>
+      <tbody>
+        <tr><td>ソースのまま渡す<br><small>（Just-in-Time Packages）</small></td><td><code>exports</code> で <code>.ts</code> を直接指し、アプリ側のバンドラーにまとめてトランスパイルさせる</td><td>Vite・Next.js などのアプリからだけ使う</td><td>パッケージ単位のビルドキャッシュが効かない。使う側すべてが TypeScript を読める必要がある</td></tr>
+        <tr><td>ビルドして渡す<br><small>（Compiled Packages）</small></td><td><code>tsc</code> などで <code>dist/</code> に JS と型定義を出し、それを <code>exports</code> で指す</td><td>Node.js で直接動かす・数が多い・外にも公開する</td><td>設定が増える。<code>^build</code> の順番とキャッシュの設定が要る</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>外に公開するパッケージは、版の番号と変更履歴も要ります。Changesets のように、プルリクエストごとに「どのパッケージをどれだけ上げるか」を書いておき、リリース時にまとめて版を上げて公開するツールを使うのが定番です。</p>
+
+  <h2 id="ci">CI と運用の注意</h2>
+  <ol class="steps">
+    <li><b>比較元の履歴を取る</b>影響範囲は Git の差分で決まる。<code>actions/checkout</code> の既定（直近 1 コミットだけ）では比較元が無いので、<code>fetch-depth: 0</code> などで比較元のコミットまで取る。</li>
+    <li><b>リモートキャッシュをつなぐ</b>CI のジョブ同士・開発者と CI でキャッシュを共有すると、誰かが一度ビルドしたものは二度とビルドしない。トークンは CI のシークレットに置く。</li>
+    <li><b>Docker イメージは必要な分だけ</b>アプリ 1 つのイメージにリポジトリ全体を入れない。<code>turbo prune --docker</code> などで、そのアプリと依存するパッケージだけを切り出してからビルドする。</li>
+    <li><b>担当をディレクトリで決める</b><code>CODEOWNERS</code> で <code>packages/ui/</code> はデザインシステムのチーム、のようにレビュー担当を割り当てる。</li>
+  </ol>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>モノレポにすると、アプリも 1 つにまとめてデプロイすることになる</summary><p>モノレポはリポジトリの置き方で、デプロイの単位とは別です。web・admin・api はそれぞれ別のタイミングで、別の場所にデプロイできます。</p></details>
+  <details class="myth"><summary>Turborepo や Nx を入れれば、設定しなくても速くなる</summary><p>速くなるのは、依存関係・<code>outputs</code>・<code>env</code> を正しく宣言したときだけです。宣言が漏れると、必要なタスクが飛ばされたり、古い結果がキャッシュから戻ったりします。</p></details>
+  <details class="myth"><summary>モノレポなら、全パッケージの依存の版が自然にそろう</summary><p>ロックファイルは 1 つでも、パッケージごとの <code>package.json</code> に別の範囲を書けば、同じライブラリの複数版が入ります。そろえたいなら pnpm の <code>catalog:</code> のように版を 1 か所に書く仕組みや、版のずれを検査するツールを使います。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="js-modules.html">JS のモジュールと依存管理</a> — <code>workspaces</code> と <code>workspace:*</code>、<code>exports</code> の書き方</li>
+    <li><a href="package-managers.html">パッケージマネージャとロックファイル</a> — ワークスペース全体で 1 つになるロックファイルと依存の解決</li>
+    <li><a href="ci-cd.html">CI/CD と GitHub Actions</a> — 影響範囲だけを動かすジョブとキャッシュの置き場</li>
+    <li><a href="graph-algorithms.html">グラフ探索と最短経路</a> — タスクの順番はトポロジカルソート、影響範囲は逆向きの探索</li>
+    <li><a href="github-services.html">GitHub サービス</a> — CODEOWNERS とブランチ保護</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://turborepo.dev/docs">Turborepo Docs</a>（tasks・caching・<code>--affected</code>・<code>prune</code>・internal packages）</li>
+    <li><a href="https://nx.dev/docs">Nx Docs</a>（affected・task pipeline）</li>
+    <li><a href="https://pnpm.io/workspaces">pnpm: Workspace</a>・<a href="https://pnpm.io/filtering">Filtering</a>・<a href="https://pnpm.io/catalogs">Catalogs</a></li>
+    <li><a href="https://docs.npmjs.com/cli/using-npm/workspaces">npm Docs: workspaces</a></li>
+    <li><a href="https://doc.rust-lang.org/cargo/reference/workspaces.html">Cargo: Workspaces</a></li>
+    <li><a href="https://docs.astral.sh/uv/concepts/projects/workspaces/">uv: Using workspaces</a></li>
+    <li><a href="https://go.dev/ref/mod#workspaces">Go Modules Reference: Workspaces</a>・<a href="https://go.googlesource.com/proposal/+/master/design/45713-workspace.md">Proposal: Multi-Module Workspaces</a>（go.work をコミットしない方針）</li>
+    <li><a href="https://github.com/changesets/changesets">Changesets</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+(() => {
+  // 矢印の向き: 使う側 → 使われる側
+  const deps = { web: ['ui'], admin: ['ui', 'db'], api: ['db'], ui: ['utils'], db: ['utils'], utils: [] };
+  const dependents = (p) => Object.keys(deps).filter(k => deps[k].includes(p));
+  const root = document.getElementById('graph');
+  root.querySelector('.btns').addEventListener('click', e => {
+    const b = e.target.closest('.btn');
+    if (!b) return;
+    const pkg = b.dataset.pkg;
+    root.querySelectorAll('.btn').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    const aff = new Set();
+    const stack = [pkg];
+    while (stack.length) dependents(stack.pop()).forEach(d => { if (!aff.has(d)) { aff.add(d); stack.push(d); } });
+    Object.keys(deps).forEach(k => {
+      const g = document.getElementById('g-' + k);
+      g.classList.toggle('changed', k === pkg);
+      g.classList.toggle('aff', aff.has(k));
+    });
+    root.querySelectorAll('.explain p').forEach(p => { p.hidden = p.dataset.for !== pkg; });
+  });
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "モノレポで packages/ui を変更した。apps/web は ui を import しているのに、turbo run test --affected で web のテストが動かなかった。いちばん考えられる原因は？",
+    "choices": ["web の package.json の依存に ui が書かれていない", "turbo.json の test に cache: false が無い", "ui のテストが失敗している", "web が別のブランチにある"],
+    "answer": 0,
+    "explain": "影響範囲は各パッケージに宣言した依存関係から計算する。import していても宣言が無ければ、ui の変更は web に届かない。",
+    "ref": "#affected"
+  },
+  {
+    "q": "turbo.json で build に dependsOn: [\"^build\"] と書いた。apps/web の build を実行したときに起きることは？",
+    "choices": ["同じパッケージの test を先に実行する", "web が依存している内部パッケージの build を先に実行する", "リポジトリ内の全パッケージの build を並列に実行する", "web に依存しているパッケージの build を後から実行する"],
+    "answer": 1,
+    "explain": "先頭の ^ は「依存しているパッケージの同じタスク」を指す。^ が無ければ同じパッケージの別のタスクを指す。",
+    "ref": "#tasks"
+  },
+  {
+    "q": "CI でビルドしたら、本番用の API_URL ではなく開発用の値が埋め込まれたビルド結果になっていた。Turborepo のキャッシュに当たっていた。直し方は？",
+    "choices": ["outputs に .env を足す", "dependsOn から ^ を外す", "build タスクの env に API_URL を足し、値の違いをハッシュに含める", "リモートキャッシュをやめてローカルキャッシュだけにする"],
+    "answer": 2,
+    "explain": "ハッシュに入っていない環境変数は、値が違っても同じ入力と見なされ、前の結果が戻る。結果に効く環境変数は env（.env ファイルなら inputs）に宣言する。",
+    "ref": "#tasks"
+  },
+  {
+    "q": "GitHub Actions で turbo run build --affected を動かしたら、毎回全パッケージがビルドされる。actions/checkout は既定のまま。考えられる原因は？",
+    "choices": ["turbo.json に outputs が無い", "リモートキャッシュのトークンが無い", "pnpm を使っていない", "直近 1 コミットしか取得しておらず、比較元のコミットが無い"],
+    "answer": 3,
+    "explain": "影響範囲は比較元との Git の差分で決まる。比較元が取れないと、変更範囲が分からず全部を対象にするしかない。fetch-depth を増やして比較元まで取る。",
+    "ref": "#ci"
+  },
+  {
+    "q": "Vite のアプリからだけ使う内部パッケージ packages/ui を、ビルドせずに .ts を exports で直接指す形にした。この形のトレードオフは？",
+    "choices": ["アプリ側から型が見えなくなる", "設定は軽くなるが、ui 単体のビルドキャッシュは効かず、アプリのバンドラーが毎回まとめて変換する", "npm に公開しやすくなるが、ローカルでは動かない", "ワークスペースのリンクが使えなくなる"],
+    "answer": 1,
+    "explain": "ソースのまま渡すと、ビルドの設定と ^build の順番が要らなくなる。そのかわり変換はアプリ側に移り、パッケージ単位のキャッシュは効かない。",
+    "ref": "#internal"
+  }
+]
+</script>
+</body>
+</html>
