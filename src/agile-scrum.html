@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アジャイルとスクラムの仕組み</title>
+<meta name="description" content="アジャイル宣言の価値観と、スクラムのスプリント・イベント・責任・作成物がどう噛み合って改善を回すのかを図解。">
+<meta name="memo:tags" content="開発プロセス">
+<meta name="memo:date" content="2026-11-20">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+/* 共通部品（ざっくり言うと・よくある誤解・番号付きの手順・表やリストの中のリンク）と
+   解説用の色（--c-ok・--c-ng・--c-warn・--c-hl）は assets/memo-parts.css にある（build・preview が読み込む）。
+   ここで書き直さない。ページ独自の色分けが要るときは、意味ごとの --c-名前 を :root に足し、凡例やラベルを付ける。
+   アクセント色（--accent）は h1・h2 の左線・段落のリンク・ボタンやタブの操作状態にだけ使う */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+h3 { font-size: 0.98rem; margin: 22px 0 8px; }
+ul.plain { margin: 6px 0 6px 1.3em; }
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { color: var(--fg-2); font-weight: 600; font-size: 0.8rem; }
+tbody tr:last-child td { border-bottom: none; }
+.t-wide { min-width: 560px; }
+
+/* 価値の左右 */
+.values { display: grid; gap: 8px; }
+.val { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
+.val > div { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 0.86rem; background: var(--surface); }
+.val .left { font-weight: 700; }
+.val .right { color: var(--fg-2); }
+.val .gt { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); font-size: 0.8rem; text-align: center; }
+.val-head { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; font-size: 0.76rem; color: var(--fg-2); }
+.val-head span:nth-child(2) { visibility: hidden; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.8rem; }
+@media (max-width: 520px) {
+  .val, .val-head { gap: 4px; }
+  .val > div { padding: 6px 8px; font-size: 0.8rem; }
+}
+
+/* 一括と反復の比較 */
+.flow .scroll { overflow-x: auto; }
+.flow svg { width: 100%; min-width: 600px; height: auto; display: block; }
+.flow text { font-family: 'Noto Sans JP', system-ui, sans-serif; font-size: 12px; fill: var(--fg); }
+.flow .lbl { fill: var(--fg-2); font-size: 11px; }
+.flow .box { fill: var(--chip); stroke: var(--line); }
+.flow .ship { fill: var(--c-ok); }
+.flow .fb { stroke: var(--fg-2); stroke-dasharray: 3 3; fill: none; }
+
+/* スプリントの輪 */
+.cycle { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.cycle .tabs { margin-bottom: 0; }
+.ev-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--fg-2); }
+.ev-flow .tab { font-size: 0.76rem; }
+.ev-flow .sep::before { content: "→"; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.ev-flow .loop { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.panel dl { display: grid; grid-template-columns: 6.5em 1fr; gap: 6px 10px; font-size: 0.86rem; margin-top: 6px; }
+.panel dt { color: var(--fg-2); }
+@media (max-width: 480px) { .panel dl { grid-template-columns: 1fr; gap: 0 0; } .panel dd { margin-bottom: 6px; } }
+
+/* 3 つの責任・作成物 */
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.grid3 .card { padding: 12px 14px; }
+.grid3 .card b { display: block; font-size: 0.9rem; }
+.grid3 .card .en { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.72rem; color: var(--fg-2); }
+.grid3 .card p { font-size: 0.82rem; margin: 6px 0 0; }
+.grid3 .card .commit { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--line); font-size: 0.8rem; }
+@media (max-width: 640px) { .grid3 { grid-template-columns: 1fr; } }
+
+/* 傘の図 */
+.umbrella { display: grid; gap: 8px; }
+.umbrella .top { text-align: center; font-weight: 700; }
+.umbrella .kids { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.umbrella .kids .card { padding: 10px 12px; font-size: 0.82rem; }
+.umbrella .kids .card b { display: block; font-size: 0.9rem; }
+@media (max-width: 560px) { .umbrella .kids { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>アジャイルとスクラムの仕組み</h1>
+  <p class="subtitle">短く作って見せて直す、を回し続けるための価値観と決めごと</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>アジャイルは手法の名前ではなく、短い周期で動くものを届けて学ぶという価値観の集まり（2001 年のアジャイルソフトウェア開発宣言）。</li>
+      <li>スクラムはその代表的なフレームワークで、1 か月以内のスプリントの中に 4 つのイベントを置き、計画・点検・適応を必ず回す。</li>
+      <li>決まっているのは最小限の枠だけなので、何をどう作るか・どう改善するかはチームがふりかえりで決め続ける。</li>
+    </ul>
+  </div>
+
+  <h2 id="why">なぜ短く回すのか</h2>
+  <p>要件を最初に全部決めて順に作る進め方（ウォーターフォール）では、使う人が動くものを触れるのが最後になります。そこで「欲しかったのはこれじゃない」と分かると、戻る距離がいちばん長くなります。アジャイルは、<b>小さく作って早く見せ、反応を次の計画に入れる</b>ことで、この戻りを短くします。</p>
+  <div class="card flow">
+    <div class="scroll"><svg viewBox="0 0 640 210" role="img" aria-labelledby="flow-t">
+      <title id="flow-t">一括で作る場合と、短い周期で反復する場合の比較</title>
+      <text x="0" y="18">一括で作る</text>
+      <rect class="box" x="0" y="28" width="130" height="30" rx="5"/><text x="65" y="48" text-anchor="middle">要件を全部決める</text>
+      <rect class="box" x="134" y="28" width="130" height="30" rx="5"/><text x="199" y="48" text-anchor="middle">設計</text>
+      <rect class="box" x="268" y="28" width="130" height="30" rx="5"/><text x="333" y="48" text-anchor="middle">実装</text>
+      <rect class="box" x="402" y="28" width="130" height="30" rx="5"/><text x="467" y="48" text-anchor="middle">テスト</text>
+      <circle class="ship" cx="560" cy="43" r="9"/>
+      <text class="lbl" x="575" y="47">初めて届く</text>
+      <path class="fb" d="M560 58 C 560 90, 70 90, 65 60"/>
+      <text class="lbl" x="250" y="100">ずれに気づいたときの戻りが長い</text>
+
+      <text x="0" y="135">短い周期で反復する</text>
+      <g>
+        <rect class="box" x="0" y="145" width="110" height="30" rx="5"/><text x="55" y="165" text-anchor="middle">スプリント 1</text>
+        <circle class="ship" cx="122" cy="160" r="7"/>
+        <rect class="box" x="136" y="145" width="110" height="30" rx="5"/><text x="191" y="165" text-anchor="middle">スプリント 2</text>
+        <circle class="ship" cx="258" cy="160" r="7"/>
+        <rect class="box" x="272" y="145" width="110" height="30" rx="5"/><text x="327" y="165" text-anchor="middle">スプリント 3</text>
+        <circle class="ship" cx="394" cy="160" r="7"/>
+        <rect class="box" x="408" y="145" width="110" height="30" rx="5"/><text x="463" y="165" text-anchor="middle">スプリント 4</text>
+        <circle class="ship" cx="530" cy="160" r="7"/>
+        <path class="fb" d="M122 175 C 122 195, 191 195, 191 178"/>
+        <path class="fb" d="M258 175 C 258 195, 327 195, 327 178"/>
+        <path class="fb" d="M394 175 C 394 195, 463 195, 463 178"/>
+      </g>
+      <text class="lbl" x="545" y="164">毎回届いて</text>
+      <text class="lbl" x="545" y="180">次に活かす</text>
+    </svg></div>
+    <div class="legend"><span><i style="background:var(--c-ok)"></i>使う人に動くものが届く時点</span><span><i style="background:none;border:1px dashed var(--fg-2)"></i>得た反応を次の計画に戻す</span></div>
+  </div>
+  <p class="note">ウォーターフォールが常に悪いわけではありません。要件が最初から固まっていて変わらない、作り直しが極端に高くつく、といった場面では一括の計画が合うこともあります。アジャイルが効くのは「やってみないと正解が分からない」仕事です。</p>
+
+  <h2 id="manifesto">アジャイル宣言の 4 つの価値</h2>
+  <p>2001 年に 17 人の実践者がまとめた「アジャイルソフトウェア開発宣言」は、4 組の価値を「右も大事だが、左により価値を置く」という形で並べています。<b>右側を捨てる宣言ではない</b>のがポイントです。</p>
+  <div class="card values">
+    <div class="val-head"><span>より価値を置く（左）</span><span>＞</span><span>価値はあるが、左ほどではない（右）</span></div>
+    <div class="val"><div class="left">個人と対話</div><div class="gt">＞</div><div class="right">プロセスやツール</div></div>
+    <div class="val"><div class="left">動くソフトウェア</div><div class="gt">＞</div><div class="right">包括的なドキュメント</div></div>
+    <div class="val"><div class="left">顧客との協調</div><div class="gt">＞</div><div class="right">契約交渉</div></div>
+    <div class="val"><div class="left">変化への対応</div><div class="gt">＞</div><div class="right">計画に従うこと</div></div>
+  </div>
+  <p>宣言には 12 の原則も付いています。たとえば「動くソフトウェアを、2〜3 週間から 2〜3 か月の間隔で、なるべく短い周期で届ける」「要求の変更は開発の後半でも歓迎する」「チームは定期的に、もっと効果的になる方法をふりかえり、やり方を調整する」などです。最後のものが、スクラムのスプリントレトロスペクティブ（<a href="retrospectives.html">ふりかえり</a>）の土台になっています。</p>
+
+  <h2 id="family">アジャイルの傘の下にあるもの</h2>
+  <p>「アジャイル」は具体的な手順を持たない総称で、実際にはその価値観に沿った手法を選んで使います。組み合わせて使うことも普通です。</p>
+  <div class="umbrella">
+    <div class="card top">アジャイル（価値観と原則）</div>
+    <div class="kids">
+      <div class="card"><b>スクラム</b>固定期間のスプリントと役割・イベントで、チームの進め方の枠を決める</div>
+      <div class="card"><b>XP（エクストリームプログラミング）</b>テスト駆動開発・ペアプログラミング・継続的インテグレーション・小さなリリースなど、作り方の技術的な実践</div>
+      <div class="card"><b>カンバン</b>リーン生産方式の流れから来た方法。期間で区切らず、WIP 制限で流れを整える（<a href="kanban-ticket.html">カンバンとチケット駆動開発</a>）</div>
+    </div>
+  </div>
+  <p class="note">スクラムは「何をするか（枠）」、XP は「どう作るか（技術）」に寄っているので、スクラムの枠の中で XP の実践を使うチームも多いです。</p>
+
+  <h2 id="scrum">スクラムの枠組み</h2>
+  <p>スクラムの決めごとは公式の『スクラムガイド』（最新は 2020 年版）にまとまっています。土台にあるのは <b>経験主義（empiricism）</b>で、やってみて分かった事実をもとに決めるという考え方です。そのための柱が <b>透明性・検査・適応</b> の 3 つで、スクラムのイベントはどれも「何かを検査して、適応させる」ために置かれています。</p>
+
+  <h3 id="sprint">スプリントとイベント</h3>
+  <p>スプリントは 1 か月以内の固定期間で、終わるとすぐ次が始まります。中に 4 つのイベントがあり、どれも <b>タイムボックス（上限時間）</b>が決まっています。スプリントの中で左から順に行い、レトロスペクティブが終わると次のスプリントのプランニングに戻ります。押すとそれぞれの中身が出ます。</p>
+  <div class="cycle">
+    <div class="ev-flow tabs" role="tablist" aria-label="スプリントのイベント">
+      <button class="tab" role="tab" aria-selected="true" data-panel="ev-sprint">スプリント</button>
+            <button class="tab" role="tab" aria-selected="false" data-panel="ev-plan">プランニング</button><span class="sep"></span>
+      <button class="tab" role="tab" aria-selected="false" data-panel="ev-daily">デイリー</button><span class="sep"></span>
+      <button class="tab" role="tab" aria-selected="false" data-panel="ev-review">レビュー</button><span class="sep"></span>
+      <button class="tab" role="tab" aria-selected="false" data-panel="ev-retro">レトロスペクティブ</button>
+    </div>
+    <div class="panel card" id="ev-sprint">
+      <b>スプリント (Sprint)</b>：ほかのイベントをすべて入れる器
+      <dl>
+        <dt>長さ</dt><dd>1 か月以内の固定期間。チームごとに 1〜2 週間などに決めて揃える</dd>
+        <dt>中で守ること</dt><dd>スプリントゴールを危うくする変更はしない／品質は下げない／プロダクトバックログは必要に応じて洗練（リファインメント）する</dd>
+        <dt>中止</dt><dd>スプリントゴールが意味を失ったときだけ、プロダクトオーナーが中止できる</dd>
+      </dl>
+    </div>
+    <div class="panel card" id="ev-plan" hidden>
+      <b>スプリントプランニング (Sprint Planning)</b>：このスプリントで何をするかを決める
+      <dl>
+        <dt>上限</dt><dd>1 か月のスプリントで 8 時間（短いスプリントなら短く）</dd>
+        <dt>決めること</dt><dd>なぜ価値があるか（スプリントゴール）／何をするか（バックログから選ぶ）／どうやるか（作業の計画）。この 3 つがスプリントバックログになる</dd>
+        <dt>参加</dt><dd>スクラムチーム全員。必要なら外の人を助言に呼ぶ</dd>
+      </dl>
+    </div>
+    <div class="panel card" id="ev-daily" hidden>
+      <b>デイリースクラム (Daily Scrum)</b>：毎日、計画を直す
+      <dl>
+        <dt>上限</dt><dd>15 分。毎日同じ時間・場所で行う</dd>
+        <dt>目的</dt><dd>開発者が、スプリントゴールに向けた進み具合を検査し、スプリントバックログ（計画）を必要に応じて直す</dd>
+        <dt>注意</dt><dd>上司への進捗報告の場ではない。詳しい議論や作業の相談は、終わったあとに必要な人だけで行う</dd>
+      </dl>
+    </div>
+    <div class="panel card" id="ev-review" hidden>
+      <b>スプリントレビュー (Sprint Review)</b>：できたものを見て、次を決める
+      <dl>
+        <dt>上限</dt><dd>1 か月のスプリントで 4 時間</dd>
+        <dt>目的</dt><dd>成果（インクリメント）を利害関係者と一緒に検査し、これから何をするかを話し合う。結果としてプロダクトバックログが見直される</dd>
+        <dt>注意</dt><dd>一方的な発表会にしない作業の場。また、リリースの可否を決める関門でもない（完成したものはスプリント中でもリリースしてよい）</dd>
+      </dl>
+    </div>
+    <div class="panel card" id="ev-retro" hidden>
+      <b>スプリントレトロスペクティブ (Sprint Retrospective)</b>：やり方を良くする
+      <dl>
+        <dt>上限</dt><dd>1 か月のスプリントで 3 時間。スプリントの最後のイベント</dd>
+        <dt>目的</dt><dd>人・やり取り・プロセス・ツール・完成の定義について、前のスプリントがどうだったかを検査し、品質と効果を高める方法を決める</dd>
+        <dt>その後</dt><dd>効果の大きい改善はできるだけ早く手を付ける。次のスプリントバックログに入れてもよい。進め方の型は <a href="retrospectives.html">ふりかえりの進め方と手法</a></dd>
+      </dl>
+    </div>
+  </div>
+  <div class="table-wrap" style="margin-top:12px">
+    <table class="t-wide">
+      <thead><tr><th>イベント</th><th>上限（1 か月のスプリント）</th><th>検査するもの</th><th>適応させるもの</th></tr></thead>
+      <tbody>
+        <tr><td>スプリントプランニング</td><td>8 時間</td><td>プロダクトバックログ・前回までの結果</td><td>スプリントバックログ（ゴールと計画）</td></tr>
+        <tr><td>デイリースクラム</td><td>15 分（長さ共通）</td><td>ゴールへの進み具合</td><td>スプリントバックログ（その日からの計画）</td></tr>
+        <tr><td>スプリントレビュー</td><td>4 時間</td><td>できたインクリメント・状況の変化</td><td>プロダクトバックログ</td></tr>
+        <tr><td>スプリントレトロスペクティブ</td><td>3 時間</td><td>チームのやり方</td><td>次のスプリントの進め方</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 id="roles">3 つの責任と 3 つの作成物</h3>
+  <p>スクラムチームは通常 10 人以下で、2020 年版からは「役割」ではなく <b>責任（accountability）</b>と呼びます。肩書きではなく「誰が何に責任を持つか」の分担で、チームの中に上下関係はありません。</p>
+  <div class="grid3">
+    <div class="card"><b>プロダクトオーナー</b><span class="en">Product Owner</span><p>プロダクトの価値を最大にする責任。プロダクトバックログの中身と並び順を決める。委員会ではなく 1 人</p></div>
+    <div class="card"><b>スクラムマスター</b><span class="en">Scrum Master</span><p>スクラムがうまく機能する責任。チームと組織にスクラムを教え、障害を取り除く。チームの管理者ではない</p></div>
+    <div class="card"><b>開発者</b><span class="en">Developers</span><p>毎スプリント、使える状態のインクリメントを作る責任。スプリントの計画を立て、品質を守る。職種は問わない</p></div>
+  </div>
+  <p>作るもの・決めるものは 3 つの <b>作成物（artifact。成果物とも呼ばれる）</b>に集まり、それぞれに「何に向かうか」を示す <b>確約（commitment）</b>が 1 つずつ付いています。</p>
+  <div class="grid3">
+    <div class="card"><b>プロダクトバックログ</b><span class="en">Product Backlog</span><p>プロダクトに要るものを並べた、順序付きの一覧。唯一の作業の出どころ</p><div class="commit">確約: <b>プロダクトゴール</b>（長期の目標）</div></div>
+    <div class="card"><b>スプリントバックログ</b><span class="en">Sprint Backlog</span><p>このスプリントで取り組む項目と、その計画。開発者のもので、スプリント中に更新され続ける</p><div class="commit">確約: <b>スプリントゴール</b>（このスプリントの 1 つの目標）</div></div>
+    <div class="card"><b>インクリメント</b><span class="en">Increment</span><p>プロダクトゴールへの具体的な一歩。完成の定義を満たしたものだけがインクリメントになる</p><div class="commit">確約: <b>完成の定義</b>（Definition of Done）</div></div>
+  </div>
+
+  <h2 id="vs-kanban">スクラムとカンバンの使い分け</h2>
+  <p>どちらもバックログの項目をボードで動かしますが、スクラムは <b>期間で区切って計画する</b>、カンバンは <b>期間で区切らず流れの量を絞る</b> 点が違います。新しい機能を少しずつ育てるプロダクト開発ならスクラム、問い合わせや障害対応のように割り込みが多い仕事ならカンバンが合いやすい、というのがよくある目安です。違いの表は <a href="kanban-ticket.html#scrum">カンバンとチケット駆動開発</a> にあります。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>アジャイルではドキュメントを書かない</summary><p>宣言は「包括的なドキュメント」にも価値があるとしたうえで、動くソフトウェアをより重視すると言っているだけです。読む人がいて役に立つ設計メモや API 仕様は書き、誰も読まない分厚い文書を先に作り込まない、という意味です。</p></details>
+  <details class="myth"><summary>アジャイルは計画を立てない</summary><p>計画はむしろ頻繁に立てます。スプリントごとのプランニングと毎日のデイリースクラムで、そのつど計画を作り直します。避けるのは、最初の計画に固執して変化を無視することです。</p></details>
+  <details class="myth"><summary>スクラムマスターはチームの上司・プロジェクトマネージャー</summary><p>スクラムマスターはスクラムが機能するよう支える責任を持つ人で、作業を割り振ったり評価したりする管理者ではありません。何をどう作るかはチーム（優先順位はプロダクトオーナー、作り方は開発者）が決めます。</p></details>
+  <details class="myth"><summary>デイリースクラムは一人ずつの進捗報告会</summary><p>目的は、開発者がスプリントゴールに近づいているかを確かめて、その日からの計画を直すことです。「昨日やったこと・今日やること・困りごと」の 3 つの質問は 2020 年版のガイドからは外れていて、形式はチームが選べます。</p></details>
+  <details class="myth"><summary>スプリントの途中ではリリースしてはいけない</summary><p>完成の定義を満たしたインクリメントは、スプリント中にいくつ作ってもよく、レビューを待たずにリリースしてもかまいません。スプリントレビューはリリースの関門ではなく、次に何をするかを話し合う場です。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="retrospectives.html">ふりかえりの進め方と手法</a> — スプリントレトロスペクティブの具体的な進め方</li>
+    <li><a href="kanban-ticket.html">カンバンとチケット駆動開発</a> — 期間で区切らずに流れを整えるもう 1 つの方法</li>
+    <li><a href="testing-strategy.html">テスト戦略</a> — 毎スプリント品質を落とさずに届けるための土台</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://agilemanifesto.org/iso/ja/manifesto.html">アジャイルソフトウェア開発宣言</a>（<a href="https://agilemanifesto.org/iso/ja/principles.html">12 の原則</a>）</li>
+    <li><a href="https://scrumguides.org/scrum-guide.html">The Scrum Guide (2020)</a></li>
+    <li><a href="https://scrumguides.org/revisions.html">Scrum Guide Revisions</a>（2017 年版からの変更点）</li>
+  </ul>
+  <p class="note">2026-11-20 時点の内容で確認。</p>
+
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<!-- 確認クイズ（問題データだけ書く。表示は memo.py がページ末尾に自動で入れる）
+     作り方は memo-style の「確認クイズ」を参照。ref は本文の見出しなどの id -->
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "スプリントの途中で、利害関係者から「この大きな機能を今すぐ入れてほしい」と頼まれた。入れるとスプリントゴールが達成できなくなる。スクラムに沿った対応は？",
+    "choices": ["開発者が残業して、今のスプリントの計画に追加して間に合わせる", "プロダクトオーナーがプロダクトバックログに入れて並べ、次のプランニングで扱う", "スクラムマスターが判断して、今のスプリントの未着手の項目と入れ替える"],
+    "answer": 1,
+    "explain": "スプリント中はゴールを危うくする変更をしない。新しい要望はプロダクトバックログに入れ、並び順はプロダクトオーナーが決める。ゴール自体が意味を失ったなら、プロダクトオーナーがスプリントを中止することもできる。",
+    "ref": "#sprint"
+  },
+  {
+    "q": "デイリースクラムが、マネージャーへ一人ずつ進捗を報告する 30 分の会になっている。本来の目的に近づけるには？",
+    "choices": ["報告する質問の項目を増やして、マネージャーが状況を漏れなくつかめるようにする", "毎日だと時間が足りないので、週 1 回にまとめて 1 時間ほどしっかり確保する", "開発者がゴールへの進み具合を確かめて計画を直す 15 分にし、細かい相談は後に回す"],
+    "answer": 2,
+    "explain": "デイリースクラムは開発者のためのイベントで、スプリントゴールへの進捗を検査してスプリントバックログを直すのが目的。上限は 15 分で、詳しい議論は終わったあと必要な人だけで行う。",
+    "ref": "#ev-daily"
+  },
+  {
+    "q": "チームの誰かが「うちはアジャイルだから設計のドキュメントは要らない」と言った。アジャイル宣言に照らして正しい考え方は？",
+    "choices": ["読む人がいて役に立つ文書は書き、使われない文書を先に作り込まない", "宣言がドキュメントを否定しているので、書かないのが正しい", "契約上必要な文書以外は書いてはいけない"],
+    "answer": 0,
+    "explain": "宣言は「右側にも価値がある」としたうえで、動くソフトウェアをより重視すると言っている。必要な文書は書く。",
+    "ref": "#manifesto"
+  },
+  {
+    "q": "半年かけて全部作ってから見せる計画を、2 週間のスプリントで毎回見せる進め方に変えた。いちばん大きく減るリスクは？",
+    "choices": ["1 回あたりの変更が大きくなり、コードレビューに時間がかかりすぎること", "作ったものが求められていたものとずれていて、気づくのが最後になること", "リリースのたびに必要になるテストの量が増えすぎて、開発が止まること"],
+    "answer": 1,
+    "explain": "短い周期で動くものを見せると、ずれに早く気づけて戻る距離が短くなる。手間やテストの量が減るわけではない。",
+    "ref": "#why"
+  },
+  {
+    "q": "割り込みの問い合わせ対応が毎日大量に入り、2 週間先の計画を立ててもすぐ崩れるチーム。進め方の選び方として合いやすいのは？",
+    "choices": ["スプリントを 1 か月に延ばして計画の余裕を増やす", "デイリースクラムを 1 日 2 回にする", "期間で区切らず、WIP 制限で流れを整えるカンバンを検討する"],
+    "answer": 2,
+    "explain": "割り込みが多く固定期間の計画が成り立たない仕事は、期間で区切らずに流れの量を絞るカンバンが合いやすい。",
+    "ref": "#vs-kanban"
+  }
+]
+</script>
+</body>
+</html>
