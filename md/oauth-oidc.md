@@ -14,6 +14,8 @@
 
 「ログインさせる」と「権限を渡す」を分けて理解する
 
+[SSO の方式](https://memo.taka1156.site/md/sso-methods.md) [SAML 2.0](https://memo.taka1156.site/md/saml.md) OAuth 2.0 / OIDC
+
 **ざっくり言うと**
 
 - **認証** は「誰か」を確かめること、 **認可** は「何をしていいか」を決めること
@@ -242,3 +244,5 @@ grant_type=client_credentials
 ## 関連メモ
 
 - [JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) — 受け取ったトークンを保つ方法
+- [SSO の方式](https://memo.taka1156.site/md/sso-methods.md) — OIDC が受け持つフェデレーション方式と、ほかの SSO の方式
+- [SAML 2.0](https://memo.taka1156.site/md/saml.md) — 同じフェデレーションを XML の署名付きアサーションで行う方式。OIDC との使い分け

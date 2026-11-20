@@ -49,7 +49,10 @@ h1 {
   color: var(--accent);
   letter-spacing: 0.06em;
 }
-.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 20px; }
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
+.series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
+.series span { color: var(--fg); font-weight: 700; }
 h2 {
   font-size: 1.1rem;
   margin: 36px 0 12px;
@@ -236,6 +239,12 @@ footer#memo-backlink a:hover { color: var(--accent); }
 <div class="wrap">
   <h1>OAuth 2.0 / OIDC</h1>
   <p class="subtitle">「ログインさせる」と「権限を渡す」を分けて理解する</p>
+
+  <nav class="series" aria-label="SSO のシリーズ">
+    <a href="sso-methods.html">SSO の方式</a>
+    <a href="saml.html">SAML 2.0</a>
+    <span aria-current="page">OAuth 2.0 / OIDC</span>
+  </nav>
 
   <div class="card summary">
     <strong>ざっくり言うと</strong>
@@ -491,6 +500,8 @@ grant_type=client_credentials
   <h2 id="related">関連メモ</h2>
   <ul class="related">
     <li><a href="jwt-vs-session.html">JWT とセッション</a> — 受け取ったトークンを保つ方法</li>
+    <li><a href="sso-methods.html">SSO の方式</a> — OIDC が受け持つフェデレーション方式と、ほかの SSO の方式</li>
+    <li><a href="saml.html">SAML 2.0</a> — 同じフェデレーションを XML の署名付きアサーションで行う方式。OIDC との使い分け</li>
   </ul>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->

@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SSO の方式</title>
+<meta name="description" content="SSO を実現する 6 つの方式（エージェント・リバースプロキシ・透過型・代理認証・フェデレーション・Kerberos）の仕組みと弱点、どれを選ぶかを図解。">
+<meta name="memo:tags" content="セキュリティ, インフラ">
+<meta name="memo:date" content="2026-11-20">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-auth: #be185d;
+  --c-app: #0f766e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-auth: #f472b6;
+    --c-app: #2dd4bf;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 20px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+ul.plain { margin: 8px 0 8px 1.3em; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--fg-2);
+  margin-bottom: 4px;
+}
+.big { font-size: 1.05rem; font-weight: 700; }
+
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
+.series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
+.series span { color: var(--fg); font-weight: 700; }
+
+/* 方式ごとの経路図 */
+.route { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: nowrap; margin: 4px 0 14px; }
+.route .node {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--chip);
+  padding: 8px 10px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  min-width: 92px;
+}
+.route .node small { display: block; font-weight: 500; font-size: 0.72rem; color: var(--fg-2); }
+.route .node.auth { border: 2px solid var(--c-auth); }
+.route .node.app { border: 2px dashed var(--c-app); }
+.legend i.k-auth { background: transparent; border: 2px solid var(--c-auth); border-radius: 3px; }
+.legend i.k-app { background: transparent; border: 2px dashed var(--c-app); border-radius: 3px; }
+.route .link { font-size: 0.72rem; color: var(--fg-2); text-align: center; line-height: 1.3; min-width: 44px; }
+.route .link::before { content: '→'; display: block; font-size: 1.1rem; color: var(--fg-2); }
+.route .link.bi::before { content: '⇄'; }
+@media (max-width: 600px) {
+  .route { flex-direction: column; gap: 2px; }
+  .route .node { width: 100%; max-width: 260px; }
+  .route .link { display: flex; gap: 6px; align-items: center; }
+  .route .link::before { content: '↓'; }
+  .route .link.bi::before { content: '⇅'; }
+}
+.fed { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin: 10px 0; }
+.fed-card { border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font-size: 0.88rem; }
+.fed-card p { margin: 4px 0; }
+.pros { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 8px; }
+.pros > div { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.pros ul { margin-left: 1.2em; font-size: 0.88rem; }
+
+/* 2 つのセッション */
+.sess { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: stretch; margin: 12px 0; }
+.sess .box { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 12px 14px; }
+.sess .box.idp { border-top: 4px solid var(--c-auth); }
+.sess .apps { display: grid; gap: 8px; }
+.sess .box.sp { border-top: 4px dashed var(--c-app); padding: 8px 12px; }
+.sess .arrow { align-self: center; color: var(--fg-2); font: 700 0.8rem 'JetBrains Mono', ui-monospace, monospace; text-align: center; }
+.sess .arrow::before { content: '→'; display: block; font-size: 1.4rem; }
+.sess .cookie { display: inline-block; font: 600 0.72rem 'JetBrains Mono', ui-monospace, monospace; background: var(--chip); border-radius: 999px; padding: 1px 8px; margin-top: 4px; }
+@media (max-width: 560px) {
+  .sess { grid-template-columns: 1fr; }
+  .sess .arrow::before { content: '↓'; }
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; min-width: 620px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { font-size: 0.78rem; color: var(--fg-2); font-weight: 700; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="SSO の方式">
+<meta property="og:description" content="SSO を実現する 6 つの方式（エージェント・リバースプロキシ・透過型・代理認証・フェデレーション・Kerberos）の仕組みと弱点、どれを選ぶかを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/sso-methods.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>SSO の方式</h1>
+  <p class="subtitle">エージェント / リバースプロキシ / 透過型 / 代理認証 / フェデレーション / Kerberos — どこでログインを肩代わりするか</p>
+
+  <nav class="series" aria-label="SSO のシリーズ">
+    <span aria-current="page">SSO の方式</span>
+    <a href="saml.html">SAML 2.0</a>
+    <a href="oauth-oidc.html">OAuth 2.0 / OIDC</a>
+  </nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>SSO は「一度のログインで複数のシステムを使える」状態のことで、実現する方式はいくつもある</li>
+      <li>方式の違いは、ログインを誰が肩代わりするか（アプリ内・途中の中継・端末・外部の IdP・OS）</li>
+      <li>社外の SaaS はフェデレーション（SAML・OIDC）、改修できない社内システムはプロキシや代理認証、と組み合わせる</li>
+    </ul>
+  </div>
+
+  <h2 id="sso">SSO は状態の名前</h2>
+  <p>SSO (Single Sign-On) は特定の仕様の名前ではなく、「一度ログインすれば、ほかのシステムでは聞かれない」という<b>状態</b>を指す。そうするには、各システムが自分でパスワードを確かめる代わりに、<b>どこか 1 か所でのログインの結果を信用する</b>必要がある。その「どこか」と「結果の伝え方」で方式が分かれる。</p>
+  <p class="note">国内の解説では「エージェント・リバースプロキシ・代理認証・フェデレーション・透過型」の 5 つに分けることが多い。ここではそれに、Windows の社内システムで使われる Kerberos を足して 6 つにする。SAML と OIDC は別の方式ではなく、フェデレーション方式で使うプロトコル。分け方や呼び名は資料によって違い、実際の現場では複数の方式を組み合わせることも普通。</p>
+
+  <h2 id="methods">6 つの方式</h2>
+  <div class="legend"><span><i class="k-auth"></i>ログインを確かめる所（実線）</span><span><i class="k-app"></i>使いたいシステム（点線）</span></div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="m-agent">エージェント</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-proxy">リバースプロキシ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-trans">透過型</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-fill">代理認証</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-fed">フェデレーション</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="m-krb">Kerberos</button>
+  </div>
+
+  <div class="panel card" id="m-agent">
+    <div class="route">
+      <div class="node">ブラウザ</div>
+      <div class="link">SSO 用<br>Cookie</div>
+      <div class="node app">アプリのサーバー<small>＋エージェント</small></div>
+      <div class="link bi">有効か<br>問い合わせ</div>
+      <div class="node auth">認証サーバー</div>
+    </div>
+    <p>各アプリのサーバーに<b>エージェント</b>（Web サーバーのモジュールやライブラリ）を組み込む。認証サーバーでログインするとブラウザに SSO 用の Cookie が付き、エージェントはその Cookie が有効かを認証サーバーに確かめてアプリに通す。</p>
+    <div class="pros">
+      <div><span class="label">向く</span><ul><li>自社で動かしていて、サーバーに手を入れられる Web アプリ</li><li>通信が 1 か所に集まらないので負荷が分散する</li></ul></div>
+      <div><span class="label">弱点</span><ul><li>サーバーの種類ごとにエージェントが要り、入れられないシステムがある</li><li>Cookie を共有するため、基本は同じ親ドメインの中に限られる</li></ul></div>
+    </div>
+  </div>
+
+  <div class="panel card" id="m-proxy" hidden>
+    <div class="route">
+      <div class="node">ブラウザ</div>
+      <div class="link">すべての<br>通信</div>
+      <div class="node auth">リバースプロキシ<small>ここでログイン</small></div>
+      <div class="link">ユーザー名を<br>ヘッダーで</div>
+      <div class="node app">アプリ</div>
+    </div>
+    <p>アプリの手前に<b>リバースプロキシ</b>を置き、すべてのアクセスをそこに通す。プロキシがログインを確かめ、通過した通信にだけ「誰か」をヘッダーなどで付けてアプリに渡す。アプリはそのヘッダーを信じるだけでよい。</p>
+    <p>今のクラウドでは、Google Cloud の IAP (Identity-Aware Proxy)、Cloudflare Access、oauth2-proxy などがこの形。プロキシ自身は裏で IdP にフェデレーション（OIDC・SAML）でログインを頼むことが多い。</p>
+    <div class="pros">
+      <div><span class="label">向く</span><ul><li>改修できない・したくない社内の Web アプリ</li><li>アクセスの記録と制御を 1 か所にまとめたいとき</li></ul></div>
+      <div><span class="label">弱点</span><ul><li>全通信が通るので、プロキシが詰まる・落ちると全部止まる</li><li>プロキシを迂回してアプリに直接届くと、ヘッダーを偽って誰にでもなれる</li></ul></div>
+    </div>
+    <p id="header-trust">2 つ目の弱点が特に大事。アプリはプロキシ以外からの通信を受け付けないようにし（ネットワークで閉じる）、プロキシは利用者が送ってきた同じ名前のヘッダーを消してから付け直す。IAP はさらに、<b>署名付きの JWT</b> をヘッダーに付け、アプリ側で検証することを勧めている（<a href="jwt-vs-session.html">JWT</a> の署名の仕組みそのもの）。</p>
+  </div>
+
+  <div class="panel card" id="m-trans" hidden>
+    <div class="route">
+      <div class="node">ブラウザ</div>
+      <div class="link">通信は<br>そのまま</div>
+      <div class="node auth">透過型の中継装置<small>通信を見張り、登録済みの ID・パスワードを送る</small></div>
+      <div class="link">必要なときだけ<br>ログインを代行</div>
+      <div class="node app">各システム</div>
+    </div>
+    <p>端末とシステムの間の通信経路に、通信を見張る SSO 製品（中継装置）を置く。普段の通信はそのまま通し、ログインが必要な場面だけ、<b>あらかじめ登録した ID・パスワードを利用者の代わりに送る</b>。利用者にもシステムにも中継の存在が見えない（透過的な）ので、この名前がある。</p>
+    <p>リバースプロキシ方式との違いは、アクセス先の URL や DNS をプロキシに向け直さないこと。代理認証方式との違いは、代行入力を端末ではなく経路上の装置で行うこと（端末にエージェントを入れなくてよい）。</p>
+    <div class="pros">
+      <div><span class="label">向く</span><ul><li>URL やネットワーク構成を変えずに、既存のシステムをまとめて SSO にしたいとき</li><li>端末やブラウザを選ばない</li></ul></div>
+      <div><span class="label">弱点</span><ul><li>代行入力なので、各システムのパスワードはなくならない</li><li>透過型に対応した SSO 製品が要る。HTTPS の中身を見るには経路上で暗号を解く必要もある</li></ul></div>
+    </div>
+    <p class="note">透過型は特定の標準仕様ではなく、製品ごとの実装の名前に近い。詳しい動きは製品の資料で確かめる。</p>
+  </div>
+
+  <div class="panel card" id="m-fill" hidden>
+    <div class="route">
+      <div class="node auth">PC のエージェント<small>保存した ID・パスワード</small></div>
+      <div class="link">ログイン画面に<br>自動入力</div>
+      <div class="node app">各システム<small>今までのログイン画面</small></div>
+    </div>
+    <p>利用者の PC（やブラウザ拡張）に入れたエージェントが、各システムのログイン画面を見つけると、保管しておいた ID とパスワードを<b>代わりに入力</b>する（代行入力とも呼ぶ）。システム側から見ると、人が手で入力したのと区別がつかない。リバースプロキシが代わりにログインフォームを送る作りもある。</p>
+    <div class="pros">
+      <div><span class="label">向く</span><ul><li>画面でのログインしか持たない古いシステムや、パッケージ製品</li><li>システムを一切変えずに始められる</li></ul></div>
+      <div><span class="label">弱点</span><ul><li>各システムのパスワードはなくならない。保管庫が盗まれると全部漏れる</li><li>ログイン画面が変わると自動入力が動かなくなる</li></ul></div>
+    </div>
+    <p>仕組みはパスワードマネージャーに近い。「使う人が覚えなくてよい」は実現するが、「パスワードを各システムに持たせない」は実現しない。保管庫の守り方は<a href="secrets-management.html">シークレット管理</a>と同じ考え方になる。</p>
+  </div>
+
+  <div class="panel card" id="m-fed" hidden>
+    <div class="route">
+      <div class="node app">アプリ<small>SP / RP</small></div>
+      <div class="link bi">ブラウザ経由で<br>リダイレクト</div>
+      <div class="node auth">IdP<small>Entra ID・Okta など</small></div>
+    </div>
+    <p>ログインを外部の <b>IdP</b> (Identity Provider) に任せ、IdP が<b>署名した「この人は誰か」の証明</b>をアプリが検証して信用する。アプリと IdP は事前に設定（メタデータ・鍵の場所）を交換して信頼関係を結んでおく。証明の運び方で、主に次の 2 つのプロトコルがある。</p>
+    <div class="fed">
+      <div class="fed-card">
+        <span class="label">SAML 2.0</span>
+        <p><b>運ぶもの</b>：署名付き XML（アサーション）。ブラウザ経由でアプリに POST する</p>
+        <p><b>得意</b>：ブラウザで使う業務 SaaS・社内システム。企業の IdP との接続で今も主流</p>
+        <p><b>苦手</b>：スマホアプリ・SPA、API の呼び出し</p>
+        <p>詳しくは <a href="saml.html">SAML 2.0</a></p>
+      </div>
+      <div class="fed-card">
+        <span class="label">OpenID Connect (OIDC)</span>
+        <p><b>運ぶもの</b>：署名付き JSON（ID トークン、JWT）。今の推奨である認可コードフローでは、ブラウザで運ぶのは認可コードだけで、トークンはサーバー同士で受け取る（古い Implicit Flow ではトークンもブラウザ経由で届く）</p>
+        <p><b>得意</b>：Web に加えてスマホアプリ・SPA。OAuth 2.0 の上に乗るので、同じ流れで API 用のアクセストークンも取れる</p>
+        <p><b>苦手</b>：OIDC に対応していない古い業務システムとの接続</p>
+        <p>詳しくは <a href="oauth-oidc.html">OAuth 2.0 / OIDC のフロー</a></p>
+      </div>
+    </div>
+    <div class="pros">
+      <div><span class="label">向く</span><ul><li>社外の SaaS。ドメインも組織もまたげる</li><li>パスワードがアプリに一切渡らない</li></ul></div>
+      <div><span class="label">弱点</span><ul><li>アプリが SAML か OIDC に対応している必要がある</li><li>署名の検証を誤ると、なりすましを許す</li></ul></div>
+    </div>
+    <p>多くの IdP はどちらも話せるので、1 つの IdP が SAML のアプリと OIDC のアプリを同時に受け持つのも普通。新しく作るアプリは OIDC を基本にし、企業向けに売る SaaS なら SAML にも対応する、という分け方が多い。</p>
+    <p>2 回目のログインが要らない理由は下の<a href="#two-sessions">2 段のセッション</a>（SAML でも OIDC でも同じ）。</p>
+  </div>
+
+  <div class="panel card" id="m-krb" hidden>
+    <div class="route">
+      <div class="node auth">ドメインコントローラー<small>Windows ログオン時に認証</small></div>
+      <div class="link">Kerberos<br>チケット</div>
+      <div class="node">ブラウザ</div>
+      <div class="link">Authorization:<br>Negotiate</div>
+      <div class="node app">社内 Web アプリ</div>
+    </div>
+    <p>Windows の Active Directory に参加した PC では、<b>PC へのログオン</b>のときにドメインコントローラーが本人を確かめ、Kerberos のチケットを渡す。社内の Web アプリが <code>401</code> と <code>WWW-Authenticate: Negotiate</code> を返すと、ブラウザはそのチケットをヘッダーで送り、利用者は何も入力せずに入れる（統合 Windows 認証）。</p>
+    <div class="pros">
+      <div><span class="label">向く</span><ul><li>Windows ドメインの中だけで使う社内システム</li><li>PC へのログオン以外の操作がまったく要らない</li></ul></div>
+      <div><span class="label">弱点</span><ul><li>ドメイン参加の PC・社内ネットワークが前提で、社外や個人端末に弱い</li><li>Kerberos が使えないと古い NTLM に落ちることがある</li></ul></div>
+    </div>
+    <p class="note">AD FS や Entra ID のような IdP が、IdP 自身のログインにこの仕組みを使い、そこから先はフェデレーションで SaaS につなぐ、という組み合わせもよくある。</p>
+  </div>
+
+  <h2 id="compare">比べる</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>方式</th><th>アプリの改修</th><th>社外 SaaS・別ドメイン</th><th>パスワード</th><th>いちばんの注意点</th></tr></thead>
+      <tbody>
+        <tr><td>エージェント</td><td>要る（エージェントを入れる）</td><td>苦手</td><td>認証サーバーだけ</td><td>エージェントを入れられないシステムが残る</td></tr>
+        <tr><td>リバースプロキシ</td><td>ほぼ不要</td><td>自社のアプリのみ</td><td>認証の窓口だけ</td><td>プロキシを迂回させない・ヘッダーを偽らせない</td></tr>
+        <tr><td>透過型</td><td>不要</td><td>経路上を通れば可</td><td><b>各システムに残る</b></td><td>対応製品が要る。経路上でのパスワードと通信の扱い</td></tr>
+        <tr><td>代理認証</td><td>不要</td><td>画面があれば可</td><td><b>各システムに残る</b></td><td>保管庫の保護。画面変更で壊れる</td></tr>
+        <tr><td>フェデレーション</td><td>SAML・OIDC 対応が要る</td><td>得意</td><td>IdP だけ</td><td>署名・宛先・期限の検証</td></tr>
+        <tr><td>Kerberos</td><td>統合 Windows 認証の対応が要る</td><td>苦手</td><td>ドメインだけ</td><td>ドメイン参加 PC・社内ネットワークが前提</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="choose">どれを選ぶか</h2>
+  <p>1 つに決めるより、システムごとに当てはめていくことが多い。上から順に見て、最初に当てはまったものを選ぶ。</p>
+  <ol class="steps">
+    <li><b>SAML か OIDC に対応しているか</b>対応していればフェデレーション。社外の SaaS はほぼこれ。新しく作るアプリも、最初から OIDC（業務向け SaaS なら SAML も）に対応させる</li>
+    <li><b>自社で動かしている Web アプリか</b>改修できないなら、手前にリバースプロキシ（IAP など）を置く。URL やネットワーク構成も変えたくないなら透過型。改修できるなら、エージェントを入れるより OIDC に対応させる方が後々楽</li>
+    <li><b>Windows ドメインの中だけで使うか</b>社内ネットワークとドメイン参加の PC だけで使うなら Kerberos（統合 Windows 認証）で入力なしにできる</li>
+    <li><b>画面でのログインしかないか</b>どれも無理な古いシステム・パッケージは代理認証（経路上で行うなら透過型）。パスワードが残ることを前提に、保管庫と各パスワードの管理を固める</li>
+  </ol>
+
+  <h2 id="two-sessions">2 回目のログインが要らない理由（フェデレーション）</h2>
+  <div class="sess">
+    <div class="box idp">
+      <span class="label">IdP のセッション</span>
+      <div class="big">「この人は 9:00 にログイン済み」</div>
+      <span class="cookie">idp.example.com の Cookie</span>
+      <p class="note">最初の 1 回だけパスワードや MFA を求める。</p>
+    </div>
+    <div class="arrow">アプリごとに<br>結果を発行</div>
+    <div class="apps">
+      <div class="box sp"><span class="label">アプリのセッション：勤怠</span><br><span class="cookie">kintai.example.com の Cookie</span></div>
+      <div class="box sp"><span class="label">アプリのセッション：経費</span><br><span class="cookie">keihi.example.com の Cookie</span></div>
+    </div>
+  </div>
+  <p>Cookie はドメインをまたいで共有できないので、アプリ同士がログイン状態を共有しているわけではない。2 つ目のアプリに行くと、そのアプリはやはり IdP にログインを頼む。ただ IdP 側のセッションがまだ生きているので、IdP は<b>画面を出さずに</b>すぐ結果を返す。これが「一度のログインで済む」の正体。</p>
+  <p id="offboarding">逆に言うと、ログイン後の各アプリは<b>自分のセッションだけ</b>で動く。IdP でアカウントを止めると新しいログインは止まるが、発行済みのアプリのセッションはその期限まで生きる。重要なアプリはセッションを短めにし、アプリ側のアカウントの停止は SCIM などで IdP から同期する。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>SSO を入れるには SAML が必要</summary><p>SAML はフェデレーション方式の手段の 1 つにすぎない。OIDC でも、リバースプロキシや代理認証、Kerberos でも SSO はできる。どれを使うかは、つなぐシステムが何に対応しているかで決まる。</p></details>
+  <details class="myth"><summary>SSO にすれば各システムのパスワードはなくなる</summary><p>代理認証と透過型は、登録したパスワードを代わりに送るだけなので、各システムのパスワードはそのまま残る。パスワードがアプリに渡らなくなるのは、フェデレーションやリバースプロキシのように、システムが外部の確認結果を受け取る方式だけ。</p></details>
+  <details class="myth"><summary>リバースプロキシで認証するなら、アプリは何もしなくてよい</summary><p>アプリにプロキシを通らずに届く経路があると、ユーザー名のヘッダーを自分で付けて誰にでもなれる。ネットワークでプロキシ以外からの通信を閉じ、できれば IAP の署名付き JWT のように、プロキシを通ったことをアプリでも検証する。</p></details>
+  <details class="myth"><summary>SSO を入れるとアプリ同士がログイン状態を共有する</summary><p>フェデレーションで共有しているのは IdP のセッションだけ。各アプリは自分のセッションを別々に持ち、2 つ目のアプリでも IdP への問い合わせは起きている。IdP が画面を出さずに即答するので、利用者には一度で済んだように見える。</p></details>
+  <details class="myth"><summary>IdP でアカウントを無効にすれば、すべてのシステムから即座に締め出せる</summary><p>止まるのは新しいログインだけ。各アプリのセッションは期限まで残り、アプリ側のアカウントも別に残る。代理認証や透過型でつないだシステムなら、登録していたパスワード自体を変えない限り使えてしまう。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="saml.html">SAML 2.0</a> — フェデレーション方式の流れと、アプリが検証すること</li>
+    <li><a href="oauth-oidc.html">OAuth 2.0 / OIDC のフロー</a> — フェデレーションの OIDC の流れ。IAP などのプロキシも裏で使う</li>
+    <li><a href="lb-proxy-cdn.html">ロードバランサ・リバースプロキシ・CDN</a> — リバースプロキシそのものの役割</li>
+    <li><a href="cloudflare-services.html">Cloudflare サービス</a> — リバースプロキシ方式の例としての Cloudflare Access</li>
+    <li><a href="jwt-vs-session.html">JWT とセッション</a> — SSO のあと各アプリが持つセッションと、署名付きヘッダーの検証</li>
+    <li><a href="secrets-management.html">シークレット管理</a> — 代理認証・透過型で保管するパスワードの守り方</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://atmarkit.itmedia.co.jp/aig/02security/singlesignon.html">シングルサインオン（Single Sign-On：SSO）とは</a>（@IT。方式の分類）</li>
+    <li><a href="https://it-trend.jp/single_sign_on/article/75-0023">SSO の方式の 1 つ！代理認証方式とは</a>（ITトレンド）</li>
+    <li><a href="https://it-trend.jp/single_sign_on/article/75-0025">シングルサインオンの透過型方式とは</a>（ITトレンド）</li>
+    <li><a href="https://boxil.jp/mag/a2411/">シングルサインオン（SSO）の仕組みと方式を解説</a>（BOXIL。5 つの方式の分類）</li>
+    <li><a href="https://docs.cloud.google.com/iap/docs/signed-headers-howto">Securing your app with signed headers</a>（Google Cloud。IAP の署名付きヘッダーと、迂回されたときのヘッダー偽装）</li>
+    <li><a href="https://learn.microsoft.com/aspnet/web-api/overview/security/integrated-windows-authentication">Integrated Windows Authentication</a>（Microsoft Learn。Kerberos・NTLM と Negotiate）</li>
+  </ul>
+  <p class="note">2026-11-20 時点の内容。</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "社内で 20 年使っている勤怠システムは画面でのログインしかなく、改修もできない。ほかのシステムと SSO にしたいとき、現実的な方式は？",
+    "choices": ["SAML に対応するようベンダーに作り直してもらい、フェデレーションでつなぐ", "代理認証で、保管した ID・パスワードをログイン画面に自動入力する", "Kerberos のチケットを、ログイン画面の ID 欄にそのまま入力させる"],
+    "answer": 1,
+    "explain": "画面でのログインしかなく改修もできないなら、人の入力を肩代わりする代理認証が残る。各システムのパスワードは残るので保管庫の保護が要る。",
+    "ref": "#m-fill"
+  },
+  {
+    "q": "社内の Web アプリをリバースプロキシの裏に置き、プロキシが付ける X-Remote-User ヘッダーでユーザーを判断している。何に気をつける？",
+    "choices": ["アプリに直接届く経路があると、利用者がヘッダーを自分で付けて誰にでもなれる", "ヘッダーは HTTPS で暗号化されるので、偽られる心配はほとんどない", "ヘッダーはブラウザが自動で付けるので、プロキシ側の設定は何も要らない"],
+    "answer": 0,
+    "explain": "ヘッダーは誰でも付けられる。プロキシ以外からの通信を閉じ、プロキシは受け取った同名ヘッダーを消し、できれば署名付きの JWT をアプリで検証する。",
+    "ref": "#header-trust"
+  },
+  {
+    "q": "社員が Salesforce・Slack・Zoom など社外の SaaS を使っている。まとめて SSO にするのに合う方式は？",
+    "choices": ["自社のリバースプロキシを置き、すべての SaaS への通信をそこに通す", "各 SaaS のサーバーに自社のエージェントを組み込んでもらう", "IdP を用意し、各 SaaS と SAML か OIDC のフェデレーションでつなぐ"],
+    "answer": 2,
+    "explain": "社外の SaaS のサーバーには手を入れられず、ドメインも違う。多くの SaaS は SAML・OIDC に対応しているので、フェデレーションが合う。",
+    "ref": "#choose"
+  },
+  {
+    "q": "社内の SSO で、朝に IdP へログインした社員が昼に初めて経費アプリを開くと、パスワードを聞かれずに入れた。何が起きている？",
+    "choices": ["経費アプリが、同じ会社の勤怠アプリのセッション Cookie を読んでログイン済みと判断した", "経費アプリが IdP に頼み、IdP は自分のセッションが生きているので画面を出さずに応答した", "ブラウザが朝に保存したパスワードを、経費アプリのログイン画面に自動で送った"],
+    "answer": 1,
+    "explain": "Cookie はドメインをまたいで共有されない。各アプリは毎回 IdP に頼み、IdP のセッションが残っていれば即答される。",
+    "ref": "#two-sessions"
+  },
+  {
+    "q": "退職者のアカウントを IdP で無効化したのに、代理認証でつないでいた古いシステムには、その人がまだ入れた。なぜ？",
+    "choices": ["IdP の無効化は、代理認証のシステムには一晩かけて配られる仕様だから", "代理認証は IdP の署名を検証しないので、古いアサーションが使い続けられるから", "そのシステムは自分の ID・パスワードで確かめていて、それを知っていれば直接ログインできるから"],
+    "answer": 2,
+    "explain": "代理認証はパスワードを代わりに入力するだけで、システム側のパスワードは生きている。退職時はシステム側のアカウントやパスワードも止める。",
+    "ref": "#myths"
+  }
+]
+</script>
+</body>
+</html>

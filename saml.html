@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAML 2.0</title>
+<meta name="description" content="SAML 2.0 の SP 起点フロー、アサーションの中身、SP が検証すべきこと、OIDC との使い分けを図解。">
+<meta name="memo:tags" content="セキュリティ, バックエンド">
+<meta name="memo:date" content="2026-11-20">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-idp: #be185d;
+  --c-sp: #0f766e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-idp: #f472b6;
+    --c-sp: #2dd4bf;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 20px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; word-break: normal; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 12px 0; }
+.label {
+  display: inline-block;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  color: var(--fg-2);
+  margin-bottom: 4px;
+}
+.big { font-size: 1.05rem; font-weight: 700; }
+
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
+.series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
+.series span { color: var(--fg); font-weight: 700; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* シーケンス図 */
+.seq { width: 100%; height: auto; display: block; }
+.seq .ll-box { fill: var(--chip); stroke: var(--line); }
+.seq .ll-box.idp { stroke: var(--c-idp); stroke-width: 2; }
+.seq .ll-box.sp { stroke: var(--c-sp); stroke-width: 2; }
+.seq .ll-name { fill: var(--fg); font: 700 18px 'Noto Sans JP', system-ui, sans-serif; text-anchor: middle; }
+.seq .ll-line { stroke: var(--line); stroke-width: 2; stroke-dasharray: 2 4; }
+.seq .msg { cursor: pointer; transition: opacity .2s; }
+.seq .msg line, .seq .msg path { stroke: var(--fg-2); stroke-width: 2; fill: none; }
+.seq .msg .head { fill: var(--fg-2); stroke: none; }
+.seq .msg text { fill: var(--fg); font: 500 18px 'Noto Sans JP', system-ui, sans-serif; text-anchor: middle; }
+.seq .msg .num { fill: var(--surface); font: 700 14px 'JetBrains Mono', ui-monospace, monospace; }
+.seq .msg .num-bg { fill: var(--fg-2); }
+.seq .msg.active line, .seq .msg.active path { stroke: var(--c-hl); }
+.seq .msg.active .head, .seq .msg.active .num-bg { fill: var(--c-hl); }
+.seq .msg.active text:not(.num) { font-weight: 700; }
+.seq.focus .msg:not(.active) { opacity: .28; }
+
+.stepper { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; flex-wrap: wrap; }
+.stepper button {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.stepper button:hover:not(:disabled) { border-color: var(--accent); }
+.stepper button:disabled { opacity: .4; cursor: default; }
+.stepper .pos { font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.step-detail { min-height: 140px; }
+.step-detail h3 { margin-top: 0; }
+.step-detail > div[hidden] { display: none; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; min-width: 540px; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { font-size: 0.78rem; color: var(--fg-2); font-weight: 700; }
+td:first-child { font-weight: 700; }
+.terms table { min-width: 0; }
+.terms td:first-child { width: 34%; }
+.vs td:first-child { white-space: nowrap; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="SAML 2.0">
+<meta property="og:description" content="SAML 2.0 の SP 起点フロー、アサーションの中身、SP が検証すべきこと、OIDC との使い分けを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/saml.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>SAML 2.0</h1>
+  <p class="subtitle">署名付き XML でログイン結果を渡すフェデレーションと、SP が確かめること</p>
+
+  <nav class="series" aria-label="SSO のシリーズ">
+    <a href="sso-methods.html">SSO の方式</a>
+    <span aria-current="page">SAML 2.0</span>
+    <a href="oauth-oidc.html">OAuth 2.0 / OIDC</a>
+  </nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>SAML は SSO のフェデレーション方式の 1 つで、ログインは IdP が受け持ち、アプリ（SP）は結果を信用する</li>
+      <li>IdP は署名した XML（アサーション）を、ブラウザ経由で SP に POST して渡す</li>
+      <li>アサーションは利用者の手元を通るので、SP は署名・宛先・期限・使い回しを必ず検証する</li>
+    </ul>
+  </div>
+
+  <h2 id="what">SAML の位置づけ</h2>
+  <p>SAML (Security Assertion Markup Language) 2.0 は OASIS が定めた、SSO の<b>フェデレーション方式</b>のプロトコル。ログインは <b>IdP</b> (Identity Provider：Okta、Microsoft Entra ID、Google Workspace、Keycloak など) だけが受け持ち、各アプリ（SAML では <b>SP</b>：Service Provider）は IdP が署名した「この人は誰か」の証明を検証してログインさせる。SP にパスワードは一切渡らない。</p>
+  <p>SSO を実現するほかの方式（リバースプロキシ・代理認証など）との違いと、2 回目のログインが要らない理由は <a href="sso-methods.html">SSO の方式</a>を参照。</p>
+
+  <h2 id="terms">SAML の用語</h2>
+  <div class="table-wrap terms">
+    <table>
+      <thead><tr><th>用語</th><th>何か</th></tr></thead>
+      <tbody>
+        <tr><td>アサーション (Assertion)</td><td>IdP が発行する「誰が・いつ・どう認証されたか」の XML。署名付き。SAML の中身そのもの</td></tr>
+        <tr><td>AuthnRequest</td><td>SP から IdP への「この人を認証して」という要求</td></tr>
+        <tr><td>SAMLResponse</td><td>IdP から SP への応答。中にアサーションが入る</td></tr>
+        <tr><td>Entity ID</td><td>IdP・SP それぞれを識別する名前（URL の形が多い）</td></tr>
+        <tr><td>ACS URL</td><td>Assertion Consumer Service。SP が SAMLResponse を受け取る URL</td></tr>
+        <tr><td>NameID</td><td>アサーション内のユーザー識別子。メールアドレス形式や、IdP が振る固定の ID など</td></tr>
+        <tr><td>メタデータ</td><td>Entity ID・エンドポイント・署名用の証明書をまとめた XML。IdP と SP は事前にこれを交換して信頼関係を作る</td></tr>
+        <tr><td>RelayState</td><td>ログイン後に戻したいページなどを運ぶ値。SAML 自体は中身を解釈しない</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="flow">SP 起点のフロー</h2>
+  <p>利用者がまずアプリを開くいちばん普通の流れ。SP から IdP へは <b>HTTP-Redirect</b>（要求を圧縮して URL のクエリに載せる）、IdP から SP へは <b>HTTP-POST</b>（自動送信される HTML フォーム）で運ぶ組み合わせが多い。<b>どのメッセージもブラウザを経由する</b>のがポイントで、SP と IdP がサーバー同士で直接話すことは基本的にない（例外は、応答を SP が IdP へ取りに行く Artifact binding）。</p>
+
+  <div class="card">
+    <svg class="seq" id="seq" viewBox="0 0 600 470" role="img" aria-label="SAML SP 起点フローのシーケンス図">
+      <rect class="ll-box" x="10" y="8" width="140" height="40" rx="8"/>
+      <text class="ll-name" x="80" y="35">ブラウザ</text>
+      <rect class="ll-box sp" x="230" y="8" width="140" height="40" rx="8"/>
+      <text class="ll-name" x="300" y="35">SP（アプリ）</text>
+      <rect class="ll-box idp" x="450" y="8" width="140" height="40" rx="8"/>
+      <text class="ll-name" x="520" y="35">IdP</text>
+      <line class="ll-line" x1="80" y1="46" x2="80" y2="460"/>
+      <line class="ll-line" x1="300" y1="46" x2="300" y2="460"/>
+      <line class="ll-line" x1="520" y1="46" x2="520" y2="460"/>
+
+      <g class="msg" data-step="1">
+        <line x1="80" y1="90" x2="292" y2="90"/><polygon class="head" points="300,90 290,85 290,95"/>
+        <circle class="num-bg" cx="190" cy="90" r="12"/><text class="num" x="190" y="95">1</text>
+        <text x="190" y="70">アプリを開く</text>
+      </g>
+      <g class="msg" data-step="2">
+        <line x1="300" y1="145" x2="88" y2="145"/><polygon class="head" points="80,145 90,140 90,150"/>
+        <circle class="num-bg" cx="190" cy="145" r="12"/><text class="num" x="190" y="150">2</text>
+        <text x="190" y="125">AuthnRequest</text>
+      </g>
+      <g class="msg" data-step="3">
+        <line x1="80" y1="200" x2="512" y2="200"/><polygon class="head" points="520,200 510,195 510,205"/>
+        <circle class="num-bg" cx="300" cy="200" r="12"/><text class="num" x="300" y="205">3</text>
+        <text x="300" y="180">SAMLRequest を IdP へ</text>
+      </g>
+      <g class="msg" data-step="4">
+        <line x1="520" y1="255" x2="88" y2="255"/><polygon class="head" points="80,255 90,250 90,260"/>
+        <circle class="num-bg" cx="300" cy="255" r="12"/><text class="num" x="300" y="260">4</text>
+        <text x="300" y="235">ログイン（パスワード・MFA）</text>
+      </g>
+      <g class="msg" data-step="5">
+        <line x1="520" y1="310" x2="88" y2="310"/><polygon class="head" points="80,310 90,305 90,315"/>
+        <circle class="num-bg" cx="300" cy="310" r="12"/><text class="num" x="300" y="315">5</text>
+        <text x="300" y="290">SAMLResponse（フォーム）</text>
+      </g>
+      <g class="msg" data-step="6">
+        <line x1="80" y1="365" x2="292" y2="365"/><polygon class="head" points="300,365 290,360 290,370"/>
+        <circle class="num-bg" cx="190" cy="365" r="12"/><text class="num" x="190" y="370">6</text>
+        <text x="190" y="345">POST ACS URL</text>
+      </g>
+      <g class="msg" data-step="7">
+        <path d="M300,400 h60 v30 h-52"/><polygon class="head" points="300,430 310,425 310,435"/>
+        <circle class="num-bg" cx="360" cy="415" r="12"/><text class="num" x="360" y="420">7</text>
+        <text x="470" y="421">検証 → ログイン</text>
+      </g>
+    </svg>
+
+    <div class="stepper">
+      <button type="button" id="prev">← 前へ</button>
+      <button type="button" id="next">次へ →</button>
+      <button type="button" id="all">全体を見る</button>
+      <span class="pos" id="pos">全体</span>
+    </div>
+
+    <div class="step-detail" id="detail">
+      <div data-step="0">
+        <h3>全体</h3>
+        <p>矢印をタップするか「次へ」で 1 ステップずつ見られる。IdP にすでにログイン済みなら、手順 4 は飛ばされて 3 のあとすぐ 5 になる（<a href="sso-methods.html#two-sessions">2 段のセッション</a>）。</p>
+      </div>
+      <div data-step="1" hidden>
+        <h3>1. アプリを開く</h3>
+        <p>SP は自分のセッション Cookie が無いので、未ログインと判断する。開こうとしたページは RelayState などに覚えておく。</p>
+      </div>
+      <div data-step="2" hidden>
+        <h3>2. IdP へリダイレクト</h3>
+        <p>SP は <code>AuthnRequest</code> を作り、その <code>ID</code> を手元に保存する（手順 7 の <code>InResponseTo</code> 照合に使う）。XML を DEFLATE 圧縮・Base64 化して、IdP の SSO URL へのリダイレクトに載せる。</p>
+      </div>
+      <div data-step="3" hidden>
+        <h3>3. IdP が要求を受け取る</h3>
+        <p>IdP は要求元の Entity ID と ACS URL が、事前に登録された SP のものかを確かめる。未登録の ACS URL に応答を送ると、アサーションが第三者に渡ってしまうため。</p>
+      </div>
+      <div data-step="4" hidden>
+        <h3>4. ログイン（IdP のセッションが無いときだけ）</h3>
+        <p>パスワード・MFA・パスキーなど、認証の方法は IdP が決める。SP はパスワードを一切見ない。成功すると IdP 自身のセッション Cookie が発行される。</p>
+      </div>
+      <div data-step="5" hidden>
+        <h3>5. 署名付きの応答を返す</h3>
+        <p>IdP は自分の秘密鍵で署名したアサーションを <code>SAMLResponse</code> に入れ、ACS URL に自動送信される HTML フォームとして返す。アサーションは URL に収まらないほど大きいので、POST で運ぶ。</p>
+      </div>
+      <div data-step="6" hidden>
+        <h3>6. ブラウザが SP に POST する</h3>
+        <p>ここで応答は<b>利用者の手元を通っている</b>。開発者ツールで中身を見たり、書き換えて送ったりできる。だから次の検証が欠かせない。</p>
+      </div>
+      <div data-step="7" hidden>
+        <h3>7. SP が検証してログインさせる</h3>
+        <p>署名・発行者・宛先・期限・要求との対応を確かめ（<a href="#validate">SP が検証すること</a>）、通ったら SP 自身のセッション Cookie を発行して、覚えておいたページへ戻す。</p>
+      </div>
+    </div>
+  </div>
+
+  <h3 id="idp-initiated">IdP 起点のフロー</h3>
+  <p>IdP のポータル（アプリのタイル一覧）から始める流れ。手順 1〜3 が無く、IdP がいきなり手順 5 の応答を SP に送る。SP は要求を出していないので <code>InResponseTo</code> で照合できず、<b>盗んだ応答や攻撃者自身の応答を差し込まれても見分けにくい</b>（攻撃者のアカウントで被害者をログインさせる、など）。</p>
+  <p>対応できるなら SP 起点に寄せる。ポータルのタイルを SP のログイン開始 URL へのリンクにすれば、利用者の操作は同じまま SP 起点になる。</p>
+
+  <h2 id="assertion">アサーションの中身</h2>
+  <p>要点だけに絞った例。実物はもっと長く、名前空間や署名の XML が付く。</p>
+<pre><code>&lt;saml:Assertion ID="_a75adf55" IssueInstant="2026-11-20T00:00:00Z"&gt;
+  &lt;saml:Issuer&gt;https://idp.example.com&lt;/saml:Issuer&gt;     &lt;!-- 発行した IdP --&gt;
+  &lt;ds:Signature&gt;…&lt;/ds:Signature&gt;                        &lt;!-- IdP の署名 --&gt;
+  &lt;saml:Subject&gt;
+    &lt;saml:NameID&gt;00u1a2b3c4&lt;/saml:NameID&gt;               &lt;!-- 誰か --&gt;
+    &lt;saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer"&gt;
+      &lt;!-- InResponseTo: どの要求への応答か / Recipient: 届け先 / NotOnOrAfter: この時刻より前に使う --&gt;
+      &lt;saml:SubjectConfirmationData
+        InResponseTo="_req_9f2c"
+        Recipient="https://kintai.example.com/saml/acs"
+        NotOnOrAfter="2026-11-20T00:05:00Z"/&gt;
+    &lt;/saml:SubjectConfirmation&gt;
+  &lt;/saml:Subject&gt;
+  &lt;saml:Conditions NotBefore="…" NotOnOrAfter="…"&gt;
+    &lt;saml:AudienceRestriction&gt;
+      &lt;saml:Audience&gt;https://kintai.example.com&lt;/saml:Audience&gt;  &lt;!-- 誰向けか --&gt;
+    &lt;/saml:AudienceRestriction&gt;
+  &lt;/saml:Conditions&gt;
+  &lt;saml:AuthnStatement AuthnInstant="2026-11-20T00:00:00Z"/&gt;   &lt;!-- いつ認証したか --&gt;
+  &lt;saml:AttributeStatement&gt;…メール・部署・グループ…&lt;/saml:AttributeStatement&gt;
+&lt;/saml:Assertion&gt;</code></pre>
+  <p><code>bearer</code> は「持っている人を本人とみなす」という意味。お札と同じで、盗まれればそのまま使われるので、期限を短くし、使い回しを拒否する。</p>
+  <p>ユーザーを識別するキーは、変わらない <code>NameID</code>（と IdP の Issuer の組）にする。メールアドレスは改姓や異動で変わりうるので主キーにしない。属性（部署・グループ）は IdP から届くが、それで<b>何をしてよいか</b>を決めるのは SP 側の<a href="authorization-models.html">認可</a>の仕事。</p>
+
+  <h2 id="validate">SP が検証すること</h2>
+  <p>ライブラリが多くをやってくれるが、設定次第で抜けるものもある。抜けると、他人になりすましてログインされうる。</p>
+  <ol class="steps">
+    <li><b>署名を、登録済みの証明書で検証する</b>メタデータで事前に受け取った IdP の証明書を使う。応答の中（<code>KeyInfo</code>）に入っている証明書を信用すると、攻撃者が自分の鍵で署名した応答も通ってしまう。署名の無い応答・アサーションは拒否する</li>
+    <li><b>署名された要素そのものを読む</b>XML は署名済みの要素の隣に偽の要素を足せる。「どこかに正しい署名がある」と確かめたあと別の要素を読むと、偽の中身でログインされる（XML 署名ラッピング攻撃、XSW）</li>
+    <li><b>発行者と宛先を照合する</b><code>Issuer</code> が信頼する IdP、<code>Audience</code> が自分の Entity ID、<code>Recipient</code>・<code>Destination</code> が自分の ACS URL であること。別のアプリ向けに発行されたアサーションの流用を防ぐ</li>
+    <li><b>期限を確かめる</b><code>NotBefore</code>・<code>NotOnOrAfter</code> の範囲内か。サーバーの時計がずれていると正しい応答も弾くので、許容は数分程度にとどめる</li>
+    <li><b>自分が出した要求への応答か確かめる</b>SP 起点なら <code>InResponseTo</code> が手順 2 で保存した ID と一致すること</li>
+    <li><b>使い回しを拒否する</b>アサーションの <code>ID</code> を期限まで記録し、同じものが 2 度来たら拒否する（リプレイ対策）</li>
+  </ol>
+  <p class="note">アサーションを暗号化して応答に入れる <code>EncryptedAssertion</code> もある。中身（属性）をブラウザから隠せるが、改ざん対策はあくまで署名の検証が担う。</p>
+
+  <h2 id="vs-oidc">SAML と OIDC の使い分け</h2>
+  <p>どちらも「IdP が認証し、アプリはその結果を検証して信用する」点は同じ。違いは運び方と、得意な場面。OIDC の流れは <a href="oauth-oidc.html">OAuth 2.0 / OIDC のフロー</a>を参照。</p>
+  <div class="table-wrap vs">
+    <table>
+      <thead><tr><th></th><th>SAML 2.0</th><th>OIDC</th></tr></thead>
+      <tbody>
+        <tr><td>認証結果の形</td><td>署名付き XML（アサーション）</td><td>署名付き JSON（ID トークン、JWT）</td></tr>
+        <tr><td>運び方</td><td>アサーションそのものをブラウザ経由で POST</td><td>認可コードフロー（今の推奨）では、ブラウザで運ぶのは認可コードだけ。トークンはサーバー同士で受け取る</td></tr>
+        <tr><td>得意な場面</td><td>ブラウザで使う業務 SaaS・社内システム</td><td>Web に加えてスマホアプリ・SPA</td></tr>
+        <tr><td>API の呼び出し</td><td>仕組みに含まれない（ログインのため）</td><td>OAuth のアクセストークンで API を呼べる</td></tr>
+        <tr><td>設定・鍵の更新</td><td>メタデータ XML を交換。証明書の期限切れで手作業の差し替えが起きやすい</td><td>Discovery と JWKS の URL から自動で取れ、鍵の入れ替えも追従しやすい</td></tr>
+        <tr><td>実装の注意</td><td>XML 署名の検証が難しく、自前実装は避ける</td><td>JWT の検証（署名・<code>aud</code>・<code>exp</code>・<code>nonce</code>）を怠らない</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>目安として、<b>取引先の企業 IdP と SAML でつなぐことを求められる</b>（企業向け SaaS で「SAML SSO 対応」が必須条件、など）なら SAML。新しく作るアプリで、スマホや API まで含めて考えるなら OIDC。多くの IdP はどちらも話せるので、1 つの IdP が SAML と OIDC のアプリを同時に受け持つのも普通。</p>
+
+  <h2 id="logout">ログアウト（SLO）</h2>
+  <p>SAML には各 SP をまとめてログアウトさせる <b>SLO</b> (Single Logout) がある。ただ対応していない SP も多い。よく使われるのはブラウザで各 SP を順に回る方式（フロントチャネル）で、1 つが応答しないとそこで止まる。サーバー同士で SOAP を使う方式もあるが、対応はさらに少ない。IdP でログアウトしても<b>各 SP のセッションは残る</b>と考えて設計する。退職者の扱いは <a href="sso-methods.html#offboarding">SSO の方式</a>を参照。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>SAMLResponse は HTTPS で届くので、中身をそのまま信じてよい</summary><p>HTTPS が守るのは通信路だけで、応答は利用者のブラウザを通って届く。利用者（攻撃者）は中身を書き換えて送れるので、登録済みの証明書での署名検証が必須。</p></details>
+  <details class="myth"><summary>署名が付いていることを確かめれば安全</summary><p>どの鍵で署名されたか（登録済みの IdP の証明書か）と、署名された要素を実際に読んでいるか（XSW）まで確かめないと、攻撃者が作った応答が通る。XML 署名の検証は自前で書かず、保守されているライブラリに任せる。</p></details>
+  <details class="myth"><summary>アサーションを暗号化していれば、署名の検証は省いてよい</summary><p>暗号化は SP の公開鍵で行うので、SP の公開鍵を知っている人なら誰でも暗号化したアサーションを作れる。暗号化が隠すのは中身だけで、IdP が発行したことの証明は署名の検証にしかできない。</p></details>
+  <details class="myth"><summary>IdP でログアウトすれば、すべての SP からログアウトされる</summary><p>SLO に対応していない SP や、途中で失敗した SP のセッションは残る。共用 PC などでは、各 SP のセッションを短くする・ブラウザを閉じさせるなどの手当てが要る。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="sso-methods.html">SSO の方式</a> — SAML 以外の SSO の方式と、どれを選ぶか</li>
+    <li><a href="oauth-oidc.html">OAuth 2.0 / OIDC のフロー</a> — フェデレーションのもう一つの主流のプロトコル</li>
+    <li><a href="jwt-vs-session.html">JWT とセッション</a> — SSO のあと各アプリが持つセッションの作り方</li>
+    <li><a href="pki-certificates.html">PKI と証明書チェーン</a>・<a href="crypto-basics.html">暗号の基礎</a> — アサーションの署名と、IdP の証明書を信頼する仕組み</li>
+    <li><a href="authorization-models.html">認可モデル（RBAC・ABAC・ReBAC）</a> — IdP から届いたグループ・属性で、何を許可するかを決める</li>
+    <li><a href="passkeys.html">パスキー（WebAuthn）</a> — IdP のログイン手段として組み合わせる</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://docs.oasis-open.org/security/saml/Post2.0/sstc-saml-tech-overview-2.0.html">SAML V2.0 Technical Overview</a>（OASIS。SP 起点・IdP 起点のフローとバインディング）</li>
+    <li><a href="https://docs.oasis-open.org/security/saml/v2.0/saml-core-2.0-os.pdf">Assertions and Protocols for SAML V2.0</a>（OASIS。アサーションの要素）</li>
+    <li><a href="https://cheatsheetseries.owasp.org/cheatsheets/SAML_Security_Cheat_Sheet.html">SAML Security Cheat Sheet</a>（OWASP。SP の検証項目・XSW）</li>
+  </ul>
+  <p class="note">2026-11-20 時点の内容。</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+(() => {
+  const svg = document.getElementById('seq');
+  const msgs = [...svg.querySelectorAll('.msg')];
+  const details = [...document.querySelectorAll('#detail > div')];
+  const max = msgs.length;
+  const prev = document.getElementById('prev');
+  const next = document.getElementById('next');
+  const pos = document.getElementById('pos');
+  let cur = 0;
+  const show = n => {
+    cur = n;
+    svg.classList.toggle('focus', n > 0);
+    msgs.forEach(m => m.classList.toggle('active', Number(m.dataset.step) === n));
+    details.forEach(d => { d.hidden = Number(d.dataset.step) !== n; });
+    pos.textContent = n === 0 ? '全体' : n + ' / ' + max;
+    prev.disabled = n <= 1;
+    next.disabled = n >= max;
+  };
+  msgs.forEach(m => m.addEventListener('click', () => show(Number(m.dataset.step))));
+  prev.addEventListener('click', () => show(Math.max(1, cur - 1)));
+  next.addEventListener('click', () => show(Math.min(max, cur + 1)));
+  document.getElementById('all').addEventListener('click', () => show(0));
+  show(0);
+})();
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "経費アプリ向けに IdP が発行した正規のアサーションを、攻撃者が勤怠アプリの ACS URL に送りつけた。勤怠アプリが拒否できるのは何を照合しているから？",
+    "choices": ["署名を検証しているから。経費アプリ向けのアサーションには署名が無い", "Audience と Recipient が自分の Entity ID・ACS URL と一致するかを見ているから", "NameID がメールアドレス形式かどうかを見ているから"],
+    "answer": 1,
+    "explain": "署名は同じ IdP のものなので正しい。誰向けに発行されたか（Audience・Recipient）を照合しないと、別のアプリ向けのアサーションを流用される。",
+    "ref": "#validate"
+  },
+  {
+    "q": "自前の SP で SAMLResponse を受け取る処理を書いた。HTTPS で受け取っているので、XML をパースして NameID を取り出すだけにした。何が問題？",
+    "choices": ["SAML の XML は扱いにくいので、IdP に頼んで JSON 形式で送ってもらうべき", "HTTPS で暗号化されていれば改ざんはできないので、問題は特に無い", "応答は利用者のブラウザを通るので書き換えられる。署名を検証しないとなりすましを許す"],
+    "answer": 2,
+    "explain": "HTTPS は通信路を守るだけ。応答は利用者の手元を通るので、改ざんを見抜くのは IdP の署名の検証。",
+    "ref": "#validate"
+  },
+  {
+    "q": "SAML の署名検証で、使う公開鍵（証明書）はどれ？",
+    "choices": ["事前にメタデータで受け取って登録しておいた IdP の証明書", "SAMLResponse の KeyInfo に入っている証明書", "SP 自身の TLS サーバー証明書"],
+    "answer": 0,
+    "explain": "応答に同梱された証明書は攻撃者も自由に入れられる。信頼する IdP の証明書を事前に登録し、それで検証する。",
+    "ref": "#validate"
+  },
+  {
+    "q": "新しく作るサービスで、Web に加えてスマホアプリと SPA にもログインを付け、ログイン後に自社 API を呼ばせたい。取引先から SAML の要望は無い。合うのは？",
+    "choices": ["SAML。企業向けの標準なので", "OIDC（OAuth 2.0 の上の認証）", "どちらでも同じなので、実装しやすい方"],
+    "answer": 1,
+    "explain": "SAML はブラウザで POST してログインさせるのが中心で、API 用のトークンを含まない。スマホ・SPA・API まで含めるなら OIDC が合う。",
+    "ref": "#vs-oidc"
+  },
+  {
+    "q": "IdP のポータルからアプリを開く IdP 起点のログインを許していると、何が見分けにくくなる？",
+    "choices": ["攻撃者が手に入れた応答を差し込まれても、自分が出した要求への応答かを InResponseTo で確かめられない", "IdP の署名が付かないので、応答が IdP から来たかを確かめられない", "Audience が空になるので、どのアプリ向けの応答かを確かめられない"],
+    "answer": 0,
+    "explain": "IdP 起点では SP が要求を出していないので、InResponseTo による照合ができない。タイルを SP のログイン開始 URL にして SP 起点に寄せる。",
+    "ref": "#idp-initiated"
+  }
+]
+</script>
+</body>
+</html>
