@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ミューテーションテスト</title>
+<meta name="description" content="コードをわざと少し壊してテストが気づくかを見る、ミューテーションテストの仕組み・結果の読み方・実務での回し方がわかるページ">
+<meta name="memo:tags" content="開発ツール, 設計">
+<meta name="memo:date" content="2026-11-20">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+ul.plain { margin: 6px 0 6px 1.2em; }
+
+/* 流れの図 */
+.flow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+  align-items: stretch;
+  gap: 8px;
+  margin: 12px 0;
+}
+.flow .box {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+}
+.flow .box b { display: block; font-size: 0.85rem; margin-bottom: 2px; }
+.flow .box code { font-size: 0.72rem; }
+.flow .arrow { align-self: center; color: var(--fg-2); font-weight: 700; }
+.flow .arrow::before { content: '→'; }
+.outcome { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.outcome .box { padding: 6px 12px; }
+.outcome .box { border-width: 2px; }
+.outcome .ok { border-color: var(--c-ok); }
+.outcome .ng { border-color: var(--c-ng); }
+@media (max-width: 720px) {
+  .flow { grid-template-columns: 1fr; }
+  .flow .arrow { justify-self: center; }
+  .flow .arrow::before { content: '↓'; }
+  .outcome { grid-template-columns: 1fr 1fr; }
+}
+
+/* 判定バッジ */
+.st {
+  display: inline-block;
+  font: 700 0.72rem/1.5 'JetBrains Mono', ui-monospace, monospace;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
+  white-space: nowrap;
+}
+.st.kill { color: var(--c-ok); }
+.st.live { color: var(--c-ng); }
+.st.nocov { color: var(--c-warn); }
+.st.neutral { color: var(--fg-2); }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.78rem; color: var(--fg-2); font-weight: 600; }
+.sim td, .sim th { padding: 7px 6px; }
+.ops table { min-width: 560px; }
+.states table { min-width: 520px; }
+.tools table { min-width: 480px; }
+.score {
+  font: 700 0.95rem 'JetBrains Mono', ui-monospace, monospace;
+  margin-top: 10px;
+}
+.diff-del { text-decoration: line-through; color: var(--fg-2); }
+
+/* カバレッジとの比較 */
+.vs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.vs h3 { margin-top: 0; }
+.vs .q { font-weight: 700; margin: 4px 0 8px; }
+@media (max-width: 640px) { .vs { grid-template-columns: 1fr; } }
+
+.formula {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85rem;
+  background: var(--chip);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  overflow-x: auto;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="ミューテーションテスト">
+<meta property="og:description" content="コードをわざと少し壊してテストが気づくかを見る、ミューテーションテストの仕組み・結果の読み方・実務での回し方がわかるページ">
+<meta property="og:url" content="https://memo.taka1156.site/mutation-testing.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>ミューテーションテスト</h1>
+  <p class="subtitle">コードをわざと壊して、テストが気づくかを確かめる「テストのテスト」</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>本番コードを 1 か所だけ変えた版（ミュータント）を大量に作り、テストが失敗するかで<b>テストの検出力</b>を測る手法。</li>
+      <li>テストが失敗すれば kill、全部通れば survive で、生き残りは「その変化を確かめるアサーションがない」ことを示す。</li>
+      <li>重いので対象を絞り、変更分だけを回す。スコア 100% は目指さず、生き残りを読んでテストを足す材料にする。</li>
+    </ul>
+  </div>
+
+  <h2 id="how">仕組み：1 か所壊して、テストが気づくか</h2>
+  <div class="flow">
+    <div class="box"><b>元のコード</b><code>return age &gt;= 18</code></div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="box"><b>演算子を当てて変異</b><code>&gt;=</code> を <code>&gt;</code> に、など 1 か所だけ変える</div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="box"><b>テストを全部流す</b>ミュータントごとに、既存のテストをそのまま実行</div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="outcome">
+      <div class="box ok"><b>失敗した</b>killed：テストが変化に気づいた</div>
+      <div class="box ng"><b>全部通った</b>survived：テストの見落とし</div>
+    </div>
+  </div>
+  <div class="legend"><span><i style="background:var(--c-ok)"></i>killed（テストが検出できた）</span><span><i style="background:var(--c-ng)"></i>survived（検出できなかった）</span></div>
+  <p>前提にあるのは「本物のバグの多くは、正しいコードからの小さなずれ（境界の 1 つずれ、演算子の取り違え）である」という考え方。小さなずれを検出できるテストなら、似た本物のバグも検出しやすい、とみなす。</p>
+  <p>テストではなく<b>本番コード</b>を変える点に注意。テストコードは一切いじらず、「このテストスイートは、コードが間違っていたら気づけるか」を確かめる。</p>
+
+  <h2 id="sim">例：テストを足すとスコアがどう変わるか</h2>
+  <p>対象は次の関数。この関数から 5 つのミュータントを作り、テストを 1 つずつ足していく。</p>
+<pre><code>function isAdult(age) {
+  return age &gt;= 18;
+}</code></pre>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="t1">テスト 1 本</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t2">＋ 未成年</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t3">＋ 境界の 18</button>
+  </div>
+
+  <div class="panel card sim" id="t1">
+<pre><code>expect(isAdult(20)).toBe(true);</code></pre>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ミュータント</th><th>age=20 の結果</th><th>判定</th></tr></thead>
+        <tbody>
+          <tr><td>M1 <code>age &gt; 18</code></td><td>true（同じ）</td><td><span class="st live">survived</span></td></tr>
+          <tr><td>M2 <code>age &lt;= 18</code></td><td>false</td><td><span class="st kill">killed</span></td></tr>
+          <tr><td>M3 <code>age &gt;= 19</code></td><td>true（同じ）</td><td><span class="st live">survived</span></td></tr>
+          <tr><td>M4 <code>age &gt;= 17</code></td><td>true（同じ）</td><td><span class="st live">survived</span></td></tr>
+          <tr><td>M5 <code>return true</code></td><td>true（同じ）</td><td><span class="st live">survived</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="score">スコア 1 / 5 = 20%</p>
+    <p>関数の行はすべて実行されるので、<b>行カバレッジは 100%</b>。それでも「常に true を返す」壊れ方（M5）にすら気づけない。</p>
+  </div>
+
+  <div class="panel card sim" id="t2" hidden>
+<pre><code>expect(isAdult(20)).toBe(true);
+expect(isAdult(17)).toBe(false);  // 追加</code></pre>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ミュータント</th><th>age=17 の結果</th><th>判定</th></tr></thead>
+        <tbody>
+          <tr><td>M1 <code>age &gt; 18</code></td><td>false（同じ）</td><td><span class="st live">survived</span></td></tr>
+          <tr><td>M2 <code>age &lt;= 18</code></td><td>—</td><td><span class="st kill">killed</span>（age=20 で）</td></tr>
+          <tr><td>M3 <code>age &gt;= 19</code></td><td>false（同じ）</td><td><span class="st live">survived</span></td></tr>
+          <tr><td>M4 <code>age &gt;= 17</code></td><td>true</td><td><span class="st kill">killed</span></td></tr>
+          <tr><td>M5 <code>return true</code></td><td>true</td><td><span class="st kill">killed</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="score">スコア 3 / 5 = 60%</p>
+    <p>「false になるべき場合」を確かめたことで、常に true や下側の境界ずれは捕まる。残った M1・M3 はどちらも「18 歳ちょうど」で初めて結果が変わる壊れ方。</p>
+  </div>
+
+  <div class="panel card sim" id="t3" hidden>
+<pre><code>expect(isAdult(20)).toBe(true);
+expect(isAdult(17)).toBe(false);
+expect(isAdult(18)).toBe(true);   // 追加：境界値</code></pre>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ミュータント</th><th>age=18 の結果</th><th>判定</th></tr></thead>
+        <tbody>
+          <tr><td>M1 <code>age &gt; 18</code></td><td>false</td><td><span class="st kill">killed</span></td></tr>
+          <tr><td>M2 <code>age &lt;= 18</code></td><td>—</td><td><span class="st kill">killed</span>（age=20 で）</td></tr>
+          <tr><td>M3 <code>age &gt;= 19</code></td><td>false</td><td><span class="st kill">killed</span></td></tr>
+          <tr><td>M4 <code>age &gt;= 17</code></td><td>—</td><td><span class="st kill">killed</span>（age=17 で）</td></tr>
+          <tr><td>M5 <code>return true</code></td><td>—</td><td><span class="st kill">killed</span>（age=17 で）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="score">スコア 5 / 5 = 100%</p>
+    <p>生き残りが「境界値 18 のテストがない」ことを教えてくれた。カバレッジはずっと 100% のままで、この差はカバレッジでは見えない。</p>
+  </div>
+
+  <h2 id="coverage">カバレッジとの違い</h2>
+  <div class="vs">
+    <div class="card">
+      <h3>コードカバレッジ</h3>
+      <p class="q">そのコードはテスト中に実行されたか？</p>
+      <ul class="plain">
+        <li>速い。テストを 1 回流すだけで測れる</li>
+        <li>結果を確かめていなくても上がる（アサーションのないテストでも 100% になりうる）</li>
+        <li>低いと「テストされていない所がある」とわかるが、高くても安心はできない</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>ミューテーションテスト</h3>
+      <p class="q">そのコードが間違っていたら、テストは失敗するか？</p>
+      <ul class="plain">
+        <li>遅い。ミュータントの数だけテストを流し直す</li>
+        <li>結果を確かめるアサーションがないと kill できない</li>
+        <li>「どの変化を見逃したか」がコード上の位置つきでわかる</li>
+      </ul>
+    </div>
+  </div>
+  <p>両者は対立するものではなく、カバレッジは「そもそも実行されているか」の粗いふるい、ミューテーションテストは「実行された所をちゃんと確かめているか」の細かいふるい。実行されていない所のミュータントは必ず生き残るので、ツールはこれを別の状態（No coverage）として分けて表示する。</p>
+
+  <h2 id="operators">主なミューテーション演算子</h2>
+  <p>「どう壊すか」の規則をミューテーション演算子（mutation operator / mutator）と呼ぶ。名前や種類はツールごとに違うが、だいたい次のようなものがある。</p>
+  <div class="card table-wrap ops">
+    <table>
+      <thead><tr><th>種類</th><th>変異の例</th><th>生き残ったら疑うこと</th></tr></thead>
+      <tbody>
+        <tr><td>境界・比較</td><td><code>&lt;</code> → <code>&lt;=</code>、<code>&gt;=</code> → <code>&gt;</code></td><td>境界値のテストがない</td></tr>
+        <tr><td>算術</td><td><code>+</code> → <code>-</code>、<code>*</code> → <code>/</code></td><td>計算結果の値を確かめていない</td></tr>
+        <tr><td>論理</td><td><code>&amp;&amp;</code> → <code>||</code></td><td>条件の片方だけが真の場合を試していない</td></tr>
+        <tr><td>条件の置き換え</td><td><code>if (x)</code> → <code>if (true)</code> / <code>if (false)</code></td><td>分岐の片側しか試していない</td></tr>
+        <tr><td>真偽値・定数</td><td><code>true</code> → <code>false</code>、<code>0</code> → <code>1</code></td><td>フラグや既定値の影響を見ていない</td></tr>
+        <tr><td>戻り値</td><td><code>return x</code> → <code>return null</code> / 空の値</td><td>戻り値そのものを確かめていない</td></tr>
+        <tr><td>文・呼び出しの削除</td><td><code>save(user)</code> の行を消す、ブロックを空にする</td><td>副作用（保存・送信・通知）を確かめていない</td></tr>
+        <tr><td>文字列・配列</td><td><code>"abc"</code> → <code>""</code>、<code>[1, 2]</code> → <code>[]</code></td><td>中身を見ずに「あること」だけ確かめている</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">JavaScript 向けの Stryker には、オプショナルチェーン（<code>a?.b</code> → <code>a.b</code>）や正規表現を変える演算子など、言語に合わせたものもある。</p>
+
+  <h2 id="states">結果の読み方とスコア</h2>
+  <p>ツールは各ミュータントに状態を付ける。名前は Stryker のものだが、他のツールもほぼ同じ分け方をする。</p>
+  <div class="card table-wrap states">
+    <table>
+      <thead><tr><th>状態</th><th>意味</th><th>どうする</th></tr></thead>
+      <tbody>
+        <tr><td><span class="st kill">Killed</span></td><td>少なくとも 1 つのテストが失敗した</td><td>何もしなくてよい</td></tr>
+        <tr><td><span class="st kill">Timeout</span></td><td>テストが時間内に終わらなかった（無限ループになった等）</td><td>検出できたとみなす</td></tr>
+        <tr><td><span class="st live">Survived</span></td><td>そのコードを実行するテストはあるが、全部通った</td><td>アサーションを足す／等価か調べる（<a href="#survivors">次の節</a>）</td></tr>
+        <tr><td><span class="st nocov">No coverage</span></td><td>そのコードを実行するテストが 1 つもない</td><td>まずテストで通る道を作る</td></tr>
+        <tr><td><span class="st neutral">Compile / Runtime error</span></td><td>変異の結果、コンパイルできない・実行時にテスト以前で落ちた</td><td>無効なミュータント。スコアに数えない</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="formula">検出 = Killed + Timeout<br>未検出 = Survived + No coverage<br>ミューテーションスコア = 検出 ÷ (検出 + 未検出)</div>
+  <p>テストが通る範囲だけで測った「カバー済みコードでのスコア」（No coverage を分母から外したもの）も出るツールがある。全体のスコアが低いとき、原因が「テストがない」のか「テストが弱い」のかをこの 2 つの差で切り分けられる。</p>
+
+  <h2 id="survivors">生き残りへの対処</h2>
+  <ol class="steps">
+    <li><b>差分を読む</b>レポートは「どの行をどう変えたら生き残ったか」を示す。まずその変化で何が起きるかを考える。</li>
+    <li><b>振る舞いが本当に変わるか</b>変えても外から見た結果がまったく同じなら、等価ミュータント（下で説明）。テストでは kill できないので、ツールの無視指定で除外する。</li>
+    <li><b>確かめる価値があるか</b>ログの文言やデバッグ用の出力など、変わっても困らないものなら、そのファイルや行を対象から外す。</li>
+    <li><b>テストを足す・強める</b>境界値のケースを足す、戻り値や副作用を確かめるアサーションを足す。テストを追加したらそのミュータントが kill されることを確かめる。</li>
+  </ol>
+
+  <h3 id="equivalent">等価ミュータント</h3>
+  <p>コードは変わったのに振る舞いが変わらないミュータントを等価ミュータント（equivalent mutant）と呼ぶ。どんなテストを書いても kill できない。</p>
+<pre><code>for (let i = 0; i &lt; n; i++) { … }
+// ↓ 変異
+for (let i = 0; i != n; i++) { … }
+// i は 1 ずつ増えるので、n が 0 以上の整数なら結果は同じ</code></pre>
+  <p>一般に、等価かどうかを機械的に判定することはできないため、最後は人が読んで判断する。スコア 100% を目標にしにくい一番の理由がこれ。</p>
+
+  <h2 id="practice">実務での回し方</h2>
+  <p>コストはおおよそ「ミュータントの数 × 1 体あたりに流すテストの量」。数千のミュータントに対してテストスイートを流し直すので、何もしないと通常のテストの何十倍もかかる。</p>
+  <ol class="steps">
+    <li><b>対象を絞る</b>料金計算・権限判定・状態遷移など、間違えると困るドメインロジックから始める。UI の見た目や設定ファイルは外す。</li>
+    <li><b>変更分だけを回す</b>前回の結果を保存して、変わったコードのミュータントだけを試す増分モード（Stryker の incremental、PIT の履歴ファイルなど）を使い、PR ごとに回す。</li>
+    <li><b>関係するテストだけを流す</b>各テストがどの行を通るかを先に測り、そのミュータントを通るテストだけを実行する。多くのツールが標準で行う。</li>
+    <li><b>しきい値は下限として使う</b>「これを下回ったら CI を落とす」線をチームの現状に合わせて置き、上げることを目標にしない。全体の夜間実行と、PR の差分実行を分けるのもよい。</li>
+    <li><b>生き残りをレビューで見る</b>PR に新しい生き残りが出たら、テストを足すか除外するかをその場で決める。数字よりも「何を見逃したか」の一覧のほうが役に立つ。</li>
+  </ol>
+
+  <h3 id="tools">言語ごとの主なツール</h3>
+  <div class="card table-wrap tools">
+    <table>
+      <thead><tr><th>言語</th><th>ツール</th><th>メモ</th></tr></thead>
+      <tbody>
+        <tr><td>JavaScript / TypeScript</td><td>StrykerJS</td><td>HTML レポートと増分モードがある。同じ系列に C# 用の Stryker.NET、Scala 用の Stryker4s</td></tr>
+        <tr><td>Java / JVM</td><td>PIT（pitest）</td><td>バイトコードを変異させるので速い。Maven・Gradle から使う</td></tr>
+        <tr><td>Python</td><td>mutmut</td><td>pytest と組み合わせて使う</td></tr>
+        <tr><td>Rust</td><td>cargo-mutants</td><td><code>cargo mutants</code> で動く。関数の戻り値を置き換える変異が中心</td></tr>
+        <tr><td>PHP</td><td>Infection</td><td>PHPUnit などと組み合わせる</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>ミューテーションスコアは 100% を目指すべきだ</summary><p>等価ミュータントはテストでは kill できず、ログ出力のように確かめる価値の薄い変異もある。100% を目標にすると、除外指定と意味の薄いテストが増える。重要なモジュールで高く保ち、新しい生き残りを毎回読むほうが効く。</p></details>
+  <details class="myth"><summary>ミューテーションテストは本番コードのバグを見つける道具だ</summary><p>見つけるのは<b>テストの弱点</b>。生き残りを調べる途中で本物のバグに気づくことはあるが、ツールが示すのは「この変化をテストが見逃す」という事実だけ。</p></details>
+  <details class="myth"><summary>カバレッジが高ければミューテーションスコアも高くなる</summary><p>カバレッジは「実行したか」しか見ないので、結果を確かめないテストでも 100% になる。上の例のように、カバレッジ 100% でスコア 20% は普通に起こる。</p></details>
+  <details class="myth"><summary>重すぎるので CI では使えない</summary><p>全体を毎回回すと重いが、対象の絞り込みと増分モード（変更したコードのミュータントだけを試す）を組み合わせれば、PR ごとに数分で回せる規模に収まることが多い。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="testing-strategy.html">テスト戦略</a> — どの層にどんなテストを書くか。ミューテーションテストはそこで書いたテストの検出力を測る</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://stryker-mutator.io/docs/mutation-testing-elements/mutant-states-and-metrics/">Stryker: Mutant states and metrics</a>（状態とスコアの定義）</li>
+    <li><a href="https://stryker-mutator.io/docs/General/faq">Stryker: FAQ</a></li>
+    <li><a href="https://pitest.org/">PIT Mutation Testing</a></li>
+    <li><a href="https://github.com/sourcefrog/cargo-mutants">cargo-mutants（GitHub）</a></li>
+  </ul>
+  <p class="note">2026-11-20 時点で確認。</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "関数 isAdult(age) { return age >= 18 } に対して isAdult(20) と isAdult(17) のテストがあり、行カバレッジは 100%。ミューテーションテストで age > 18 に変えたミュータントが生き残った。何を足すべき？",
+    "choices": ["isAdult(30) のテスト", "isAdult(18) のテスト", "isAdult(-1) のテスト", "何も足さなくてよい（カバレッジが 100% なので）"],
+    "answer": 1,
+    "explain": ">= と > の違いが出るのは 18 ちょうどのときだけ。境界値のテストがないと、この壊れ方は検出できない。",
+    "ref": "#sim"
+  },
+  {
+    "q": "ミューテーションスコアが低いモジュールがある。原因が「テストが通っていない」のか「テストはあるが確かめ方が弱い」のかを切り分けるには、何を見る？",
+    "choices": ["Timeout になったミュータントの数", "Compile error になったミュータントの数", "No coverage と Survived の内訳", "テストの実行時間"],
+    "answer": 2,
+    "explain": "No coverage はそのコードを実行するテストがない状態、Survived は実行するテストはあるのに検出できなかった状態。内訳を見れば原因が分かれる。",
+    "ref": "#states"
+  },
+  {
+    "q": "ループ条件 i < n を i != n に変えたミュータントが生き残った。i は 0 から 1 ずつ増え、n は配列の長さなので常に 0 以上の整数。どう扱う？",
+    "choices": ["等価ミュータントとして除外する", "n を負にするテストを足し続ける", "ループを while に書き換えて変異を避ける", "スコアの計算から Survived 全体を外す"],
+    "answer": 0,
+    "explain": "n が 0 以上の整数に限られるなら、i < n と i != n は同じ振る舞いになる。こうした等価ミュータントはテストでは kill できないので、人が確認したうえでツールの無視指定で除外する。",
+    "ref": "#equivalent"
+  },
+  {
+    "q": "大きなリポジトリにミューテーションテストを入れたいが、全体を回すと数時間かかる。PR ごとに回すための方法として最も効くのは？",
+    "choices": ["ミューテーション演算子を 1 種類だけにする", "テストを並べ替えて速いものから流す", "スコアのしきい値を下げる", "前回の結果を使い、変更したコードのミュータントだけを試す"],
+    "answer": 3,
+    "explain": "増分モードなら変更分だけを試すので、PR の規模に比例した時間で済む。しきい値を下げても実行時間は変わらない。",
+    "ref": "#practice"
+  },
+  {
+    "q": "save(user) の呼び出し行を削除したミュータントが生き残った。テストに欠けているのは何？",
+    "choices": ["save の引数の型チェック", "保存されたこと（副作用）を確かめるアサーション", "save の実行時間の計測", "save を呼ぶ前の分岐のテスト"],
+    "answer": 1,
+    "explain": "呼び出しを消しても全テストが通るのは、保存の結果やモックの呼び出しを確かめていないから。",
+    "ref": "#operators"
+  }
+]
+</script>
+</body>
+</html>

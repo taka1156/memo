@@ -1,5 +1,16 @@
 [
  {
+  "file": "mutation-testing.html",
+  "title": "ミューテーションテスト",
+  "desc": "コードをわざと少し壊してテストが気づくかを見る、ミューテーションテストの仕組み・結果の読み方・実務での回し方がわかるページ",
+  "tags": [
+   "開発ツール",
+   "設計"
+  ],
+  "date": "2026-11-20",
+  "quizzes": 5
+ },
+ {
   "file": "typography-webfonts.html",
   "title": "タイポグラフィと Web フォント",
   "desc": "文字サイズ・行間・行長の目安、font-family のフォールバック、Web フォントが表示されるまでと font-display、軽くする方法を図解。",
