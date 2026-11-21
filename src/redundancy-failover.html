@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>冗長化とフェイルオーバー</title>
+<meta name="description" content="単一障害点のなくし方、N+1 と容量、待機系の方式と RTO・RPO、切り替えの流れ、スプリットブレイン、冗長化で守れないものまでを、1 台落とすシミュレーションで整理する。">
+<meta name="memo:tags" content="インフラ, 設計">
+<meta name="memo:date" content="2026-11-22">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+/* 共通部品（ざっくり言うと・よくある誤解・番号付きの手順・表やリストの中のリンク）と
+   解説用の色（--c-ok・--c-ng・--c-warn・--c-hl）は assets/memo-parts.css にある（build・preview が読み込む）。
+   ここで書き直さない。ページ独自の色分けが要るときは、意味ごとの --c-名前 を :root に足し、凡例やラベルを付ける。
+   アクセント色（--accent）は h1・h2 の左線・段落のリンク・ボタンやタブの操作状態にだけ使う */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+.panel > p:first-child { margin-top: 0; }
+.tab { min-height: 30px; }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 600; }
+tbody th { white-space: nowrap; }
+@media (max-width: 600px) { tbody th { white-space: normal; width: 6.5em; } }
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
+.series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
+.series span { color: var(--fg); font-weight: 700; }
+
+/* 操作ボタン（シミュレーション） */
+.toggles { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.tg {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  min-height: 32px;
+  font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif;
+  cursor: pointer;
+}
+.tg[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.st { font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
+.st.ok { color: var(--c-ok); }
+.st.ng { color: var(--c-ng); }
+.st.warn { color: var(--c-warn); }
+[data-k][hidden] { display: none; }
+
+/* 容量のシミュレーション */
+.cap .group-label { font-size: 0.78rem; color: var(--fg-2); margin: 2px 0; }
+.cap .servers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0; }
+.cap .srv { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface); font-size: 0.84rem; }
+.cap .srv b { display: block; }
+.cap .result { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: var(--bg); font-size: 0.86rem; }
+.cap .legend { margin-top: 10px; }
+ul.plain { margin: 6px 0 6px 1.2em; } ul.plain li { margin: 2px 0; }
+table.dr th:not(:first-child), table.dr td:not(:first-child) { white-space: nowrap; }
+table.np th:first-child, table.np td:first-child { white-space: nowrap; }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <h1>冗長化とフェイルオーバー</h1>
+  <p class="subtitle">壊れたときに代わりが引き継げるよう、何をどれだけ余分に持ち、どう切り替えるか</p>
+
+  <nav class="series" aria-label="障害に強くするシリーズ">
+    <a href="layered-defense.html">層を重ねて守る</a>
+    <a href="failure-isolation.html">障害を広げない設計</a>
+    <span aria-current="page">冗長化とフェイルオーバー</span>
+  </nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>冗長化は、1 つ壊れると全体が止まる部分（単一障害点）に代わりを用意し、フェイルオーバーでそこへ切り替えること。</li>
+      <li>台数を増やすだけでは足りず、1 台落ちても残りでさばける容量と、検知から切り替えまでの時間を設計する。</li>
+      <li>守れるのは主に可用性で、誤った削除や破損は全コピーに伝わるので、バックアップは別に要る。</li>
+    </ul>
+  </div>
+
+  <h2 id="spof">単一障害点をなくす</h2>
+  <p>冗長化の目的は、1 つ壊れると全体が止まる部分（単一障害点、SPOF）をなくすこと。どの大きさの故障に備えるかで、代わりを置く単位が変わる。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>備える故障</th><th>代わりを置く単位</th><th>例</th></tr></thead>
+      <tbody>
+        <tr><td>部品の故障</td><td>部品</td><td>電源の二重化、ディスクのミラーリング</td></tr>
+        <tr><td>サーバーの故障</td><td>サーバー</td><td>ロードバランサーの後ろに複数台を並べる</td></tr>
+        <tr><td>データセンターの停電・浸水</td><td>アベイラビリティゾーン（AZ）</td><td>複数の AZ に分けて動かす</td></tr>
+        <tr><td>地域全体の障害・災害</td><td>リージョン</td><td>別のリージョンに待機系や本番を置く</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="n-plus">どれだけ余分に持つか：N+1・2N</h2>
+  <p>N は、ふだんの負荷をさばくのに必要な数。冗長化の度合いは、N に対してどれだけ足すかで表す。</p>
+  <div class="table-wrap">
+    <table class="np">
+      <thead><tr><th>表し方</th><th>意味</th><th>耐えられること</th></tr></thead>
+      <tbody>
+        <tr><td><code>N</code></td><td>必要な数ちょうど</td><td>冗長性なし。1 つ壊れると容量が足りなくなる</td></tr>
+        <tr><td><code>N+1</code></td><td>必要な数＋予備 1</td><td>1 つの故障</td></tr>
+        <tr><td><code>N+2</code></td><td>必要な数＋予備 2</td><td>1 つを保守で止めている最中に、もう 1 つが壊れても耐えられる</td></tr>
+        <tr><td><code>2N</code></td><td>必要な数を丸ごと 2 系統</td><td>1 系統がまるごと止まっても耐えられる</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="capacity">2 台あれば安心、とは限らない</h2>
+  <p>2 台で負荷を分けるとき、1 台落ちたら残りの 1 台が全部を引き受ける。ふだんの負荷の大きさを選び、1 台を落としてみる。</p>
+  <div class="card cap" id="cap-sim">
+    <div class="group-label">ふだんの 1 台あたりの負荷</div>
+    <div class="toggles">
+      <button class="tg" type="button" data-load="40" aria-pressed="true">各 40%</button>
+      <button class="tg" type="button" data-load="60" aria-pressed="false">各 60%</button>
+      <button class="tg" type="button" data-load="80" aria-pressed="false">各 80%</button>
+    </div>
+    <div class="group-label">故障</div>
+    <div class="toggles"><button class="tg" type="button" data-flag="down" aria-pressed="false">サーバー A を落とす</button></div>
+    <div class="servers">
+<div class="srv"><b><span data-k="l40-up" hidden>サーバー A：40%</span><span data-k="l40-down" hidden>サーバー A：停止</span><span data-k="l60-up" hidden>サーバー A：60%</span><span data-k="l60-down" hidden>サーバー A：停止</span><span data-k="l80-up" hidden>サーバー A：80%</span><span data-k="l80-down" hidden>サーバー A：停止</span></b></div>
+<div class="srv"><b><span data-k="l40-up" hidden>サーバー B：40%</span><span data-k="l40-down" hidden>サーバー B：80%</span><span data-k="l60-up" hidden>サーバー B：60%</span><span data-k="l60-down" hidden>サーバー B：120%</span><span data-k="l80-up" hidden>サーバー B：80%</span><span data-k="l80-down" hidden>サーバー B：160%</span></b></div>
+
+    </div>
+    <div class="result"><span data-k="l40-up" hidden><span class="st ok">余裕あり</span>　合計 80% 分の負荷を 2 台で分けている。</span><span data-k="l40-down" hidden><span class="st ok">さばける</span>　B が A の分を引き受けても 80% で、1 台落ちても耐えられる（N+1 になっている）。</span><span data-k="l60-up" hidden><span class="st ok">余裕あり</span>　平常時は問題なく見える。</span><span data-k="l60-down" hidden><span class="st ng">あふれる</span>　B に 120% 分が集まり、処理しきれない。2 台あっても、1 台落ちたら全体が遅くなるか止まる。</span><span data-k="l80-up" hidden><span class="st warn">余裕が少ない</span>　平常時からぎりぎりで、負荷の山で危ない。</span><span data-k="l80-down" hidden><span class="st ng">あふれる</span>　B に 160% 分が集まる。台数を増やすか、1 台あたりの負荷を下げる必要がある。</span></div>
+    <div class="legend"><span><i style="background:var(--c-ok)"></i>余裕あり・さばける</span><span><i style="background:var(--c-warn)"></i>余裕が少ない</span><span><i style="background:var(--c-ng)"></i>あふれる</span></div>
+  </div>
+  <p class="note">2 台で N+1 にするなら、1 台あたりの負荷は 50% 未満に保つ。台数が増えるほど、1 台が落ちたときに残りへ乗る分は小さくなる（3 台なら各 66% まで）。</p>
+
+  <h2 id="modes">代わりをどう待たせるか</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>方式</th><th>ふだんの状態</th><th>切り替えの速さ</th><th>気をつけること</th></tr></thead>
+      <tbody>
+        <tr><td>アクティブ・アクティブ</td><td>全部が本番の負荷を受けている</td><td>速い（落ちた分をほかが受けるだけ）</td><td>残りで全部をさばける容量が要る。データの同期が難しい</td></tr>
+        <tr><td>アクティブ・スタンバイ（ホット）</td><td>待機系も動いていて、データも追いかけている</td><td>速い</td><td>待機系の費用。待機系が本当に動くかを確かめ続ける</td></tr>
+        <tr><td>アクティブ・スタンバイ（ウォーム）</td><td>待機系は小さく動いている</td><td>中くらい（増やす時間が要る）</td><td>切り替えたあと、本番の規模まで増やす手順</td></tr>
+        <tr><td>コールドスタンバイ</td><td>待機系は止めてあり、バックアップだけがある</td><td>遅い（作り直す）</td><td>復元の手順を試していないと、時間が読めない</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 id="rto-rpo">RTO と RPO</h3>
+  <p>どの方式にするかは、2 つの目標で決める。<b>RTO</b>（目標復旧時間）は、止まってから戻るまでに許せる時間。<b>RPO</b>（目標復旧時点）は、どこまで前のデータに戻ってよいか、つまり失ってよいデータの量。AWS は災害対策を 4 段階で示している。</p>
+  <div class="table-wrap">
+    <table class="dr">
+      <thead><tr><th>戦略</th><th>RPO</th><th>RTO</th><th>費用</th></tr></thead>
+      <tbody>
+        <tr><td>バックアップと復元</td><td>数時間</td><td>24 時間以内</td><td>低い</td></tr>
+        <tr><td>パイロットライト（データの複製だけを常に動かし、サーバーは止めた状態で用意しておく）</td><td>数分</td><td>数十分</td><td>やや低い</td></tr>
+        <tr><td>ウォームスタンバイ（縮小版を常に動かしておく）</td><td>数秒</td><td>数分</td><td>やや高い</td></tr>
+        <tr><td>マルチサイトのアクティブ・アクティブ</td><td>ほぼゼロ</td><td>ほぼゼロ</td><td>高い</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="switch">切り替えの流れ</h2>
+  <p>フェイルオーバーにかかる時間は、次の 4 つの合計。どれか 1 つが遅いと全体が遅くなる。</p>
+  <ol class="steps">
+    <li><b>検知</b>ヘルスチェックが続けて失敗したら「落ちた」と判断する。1 回の失敗で切り替えると、一時的な揺れで行ったり来たりする（フラッピング）。</li>
+    <li><b>判断</b>自動で切り替えるか、人が決めるか。自動は速いが、誤判定のときに被害が広がりうる。</li>
+    <li><b>切り替え</b>ロードバランサーから外す、DNS の向き先を変える、仮想 IP を待機系へ移す、待機系のデータベースを昇格させる、など。</li>
+    <li><b>伝わる</b>DNS ならキャッシュの有効期間（TTL）が切れるまで、古い向き先に行く利用者が残る。つなぎっぱなしの接続も張り直しが要る。</li>
+  </ol>
+  <p class="note">切り替えそのものをデータプレーンの仕組み（事前に作ったヘルスチェックなど）に任せる話は<a href="static-stability.html#route53">コントロールプレーンが止まったら</a>にある。</p>
+
+  <h2 id="split-brain">スプリットブレイン：本番が 2 つになる</h2>
+  <p>ノード同士の通信が切れると、それぞれが「相手が落ちた」と思い込み、両方が本番として動き出すことがある。データベースなら両方に書き込みが入り、データが食い違って壊れる。</p>
+  <ul class="plain">
+    <li><b>クォーラム（過半数）</b>：過半数のノードとつながっている側だけが動き続ける。6 台なら 4 台以上が必要で、少ない側は止まる。</li>
+    <li><b>2 台構成の弱点</b>：1 対 1 に分かれるとどちらも過半数にならない。3 台以上にするか、判定役を別に置く。</li>
+    <li><b>フェンシング</b>：応答しないノードを、電源を切るなどして確実に止めてから、別の場所で動かす。STONITH（Shoot The Other Node In The Head）とも呼ぶ。</li>
+  </ul>
+
+  <h2 id="data">データの冗長化と RPO</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th></th><th>同期レプリケーション</th><th>非同期レプリケーション</th></tr></thead>
+      <tbody>
+        <tr><th>書き込みの完了</th><td>待機系にも書けてから完了を返す</td><td>本番に書けたら完了を返し、待機系へは後から送る</td></tr>
+        <tr><th>切り替えたとき</th><td>データを失わない（RPO ほぼゼロ）</td><td>送りきれていなかった最後の書き込みを失うことがある</td></tr>
+        <tr><th>代わりに払うもの</th><td>書き込みが遅くなる。距離が離れるほど遅い</td><td>失うデータの量を受け入れる</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="scope">冗長化で守れるもの・守れないもの</h2>
+  <p>冗長化は「壊れたら代わりが引き継ぐ」仕組みなので、守れるのは主に可用性（止まらないこと）。誤った削除や壊れたデータも、そのまま全部のコピーに引き継がれる。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>起きること</th><th>冗長化で</th><th>代わりに要るもの</th></tr></thead>
+      <tbody>
+        <tr><td>サーバー・AZ の故障による停止</td><td><span class="st ok">守れる</span>（可用性）</td><td>—</td></tr>
+        <tr><td>ディスクやデータセンターの故障によるデータの消失</td><td><span class="st ok">守れる</span>（耐久性）</td><td>—</td></tr>
+        <tr><td>誤った削除・バグによる破損・設定ミス</td><td><span class="st ng">守れない</span>（全コピーに伝わる）</td><td>過去の時点に戻せるバックアップ</td></tr>
+        <tr><td>ランサムウェア・不正な削除</td><td><span class="st ng">守れない</span>（全コピーに伝わる）</td><td>別アカウントに置き、保存期間中は変更・削除できないようにしたバックアップ</td></tr>
+        <tr><td>情報漏えい（機密性）</td><td><span class="st ng">守れない</span>（コピーが増えるほど漏れる場所が増える）</td><td>暗号化・アクセス制御を、すべてのコピーと待機系にも同じ強さで</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>どの冗長系も同じデータと同じソフトを共有しているので、論理的な誤りでは一緒に壊れる。<a href="layered-defense.html#independence">層を重ねて守る</a>の「層が独立していないと、穴は一緒に開く」と同じ構図。</p>
+
+  <h2 id="drill">試さない待機系は、動かない</h2>
+  <ol class="steps">
+    <li><b>定期的に切り替えてみる</b>計画した日に本番を待機系へ切り替え、戻す（切り戻し）。手順と時間を確かめる。</li>
+    <li><b>待機系の中身を本番に合わせ続ける</b>設定・バージョン・容量の差は、ふだん使わない待機系ほど広がりやすい。</li>
+    <li><b>共有しているものを探す</b>本番と待機系が同じ依存先・同じ鍵・同じ人の手順に頼っていると、一緒に止まる（<a href="layered-defense.html#independence">層を重ねて守る</a>）。</li>
+  </ol>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>サーバーを 2 台にすれば、1 台落ちても大丈夫だ</summary><p>2 台とも 60% で動いていれば、1 台落ちると残りに 120% 分が集まってあふれる。1 台落ちても残りでさばける容量（N+1）になっているかを、台数ではなく負荷で確かめる。</p></details>
+  <details class="myth"><summary>フェイルオーバーは一瞬で終わる</summary><p>検知・判断・切り替え・伝わる時間の合計がかかる。とくに DNS では TTL が切れるまで古い向き先に行く利用者が残り、非同期レプリケーションなら最後の書き込みを失うこともある。</p></details>
+  <details class="myth"><summary>待機系はふだん使わないので、用意しておけば十分だ</summary><p>使わない待機系ほど設定や容量が本番とずれ、切り替えたときに動かない。計画的に切り替えて、戻す訓練をしておく。</p></details>
+  <details class="myth"><summary>レプリカがあるので、バックアップは要らない</summary><p>レプリケーションは誤った削除や破損、ランサムウェアによる暗号化もそのまま待機系へ伝える。過去の時点に戻せるバックアップを、別の場所に、変更・削除できない形で持っておく。</p></details>
+  <details class="myth"><summary>通信が切れたら、相手は落ちたと判断して引き継げばよい</summary><p>相手は生きていて通信だけが切れていることがあり、両方が本番になるスプリットブレインを起こす。過半数（クォーラム）を持つ側だけが動き、相手は確実に止めてから引き継ぐ。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="static-stability.html">コントロールプレーンが止まったら</a> — 余裕を先に持ち、切り替えをデータプレーンに任せる</li>
+    <li><a href="lb-proxy-cdn.html">ロードバランサ・リバースプロキシ・CDN</a> — ヘルスチェックで落ちたサーバーを外す仕組み</li>
+    <li><a href="distributed-basics.html">分散システムの基本</a> — 分断したときに一貫性と可用性のどちらを取るか</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://docs.aws.amazon.com/wellarchitected/latest/framework/rel_planning_for_recovery_disaster_recovery.html">AWS Well-Architected: REL13-BP02 Use defined recovery strategies</a></li>
+    <li><a href="https://docs.aws.amazon.com/whitepapers/latest/disaster-recovery-workloads-on-aws/disaster-recovery-options-in-the-cloud.html">AWS: Disaster recovery options in the cloud</a></li>
+    <li><a href="https://docs.redhat.com/en/documentation/Red_Hat_Enterprise_Linux/7/html/high_availability_add-on_overview/ch-operation-HAAO">Red Hat: High Availability Add-On の Quorum</a></li>
+    <li><a href="https://people.redhat.com/~kgaillot/pacemaker/doc/2.1/Pacemaker_Explained/html/fencing.html">Pacemaker Explained: Fencing</a></li>
+    <li><a href="https://docs.aws.amazon.com/wellarchitected/latest/framework/rel_backing_up_data_secured_backups_data.html">AWS Well-Architected: REL09-BP02 Secure and encrypt backups</a></li>
+    <li><a href="https://www.thegreengrid.org/node/393">The Green Grid: Redundancy（ASHRAE の定義）</a></li>
+  </ul>
+  <p class="note">確認した日付: 2026-11-22</p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+(() => {
+  const cap = document.getElementById('cap-sim');
+  if (!cap) return;
+  const st = { load: '40', down: false };
+  const update = () => {
+    cap.querySelectorAll('.tg[data-load]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.load === st.load)));
+    cap.querySelector('.tg[data-flag="down"]').setAttribute('aria-pressed', String(st.down));
+    const k = 'l' + st.load + (st.down ? '-down' : '-up');
+    cap.querySelectorAll('[data-k]').forEach(el => { el.hidden = el.dataset.k !== k; });
+  };
+  cap.addEventListener('click', e => {
+    const b = e.target.closest('.tg');
+    if (!b) return;
+    if (b.dataset.load) st.load = b.dataset.load; else st.down = !st.down;
+    update();
+  });
+  update();
+})();
+
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "Web サーバー 2 台がふだんそれぞれ 60% の負荷で動いている。1 台が落ちたらどうなる？",
+    "choices": [
+      "残りの 1 台に 120% 分が集まり、さばききれなくなる",
+      "残りの 1 台が 60% のまま動くので、影響はない",
+      "ロードバランサーが負荷を半分に減らすので、30% になる"
+    ],
+    "answer": 0,
+    "explain": "2 台で分けていた負荷が 1 台に集まる。1 台落ちても耐える（N+1）には、2 台なら各 50% 未満に保つ必要がある。",
+    "ref": "#capacity"
+  },
+  {
+    "q": "データベースの待機系へ非同期レプリケーションしている。本番が突然壊れて待機系へ切り替えたとき、起こりうることは？",
+    "choices": [
+      "待機系への切り替えが、同期より必ず遅くなる",
+      "本番から送りきれていなかった最後の書き込みが失われる",
+      "待機系の書き込みが本番にも自動で反映される"
+    ],
+    "answer": 1,
+    "explain": "非同期では本番に書けた時点で完了を返すので、待機系へ届く前の書き込みは失われうる。失ってよい量が RPO。",
+    "ref": "#data"
+  },
+  {
+    "q": "2 台構成のクラスタで、2 台の間の通信だけが切れた。両方が本番として動き出さないようにする考え方は？",
+    "choices": [
+      "それぞれが相手を落ちたと判断し、両方で処理を続ける",
+      "通信が切れたら 2 台とも再起動を繰り返す",
+      "過半数を持つ側だけが動き、相手は確実に止めてから引き継ぐ"
+    ],
+    "answer": 2,
+    "explain": "両方が本番になるとデータが食い違う（スプリットブレイン）。クォーラムとフェンシングで防ぐ。2 台だと過半数が決まらないので、3 台以上か判定役を置く。",
+    "ref": "#split-brain"
+  },
+  {
+    "q": "DNS の向き先を書き換えてフェイルオーバーしたのに、しばらく古いサーバーへアクセスする利用者が残った。主な理由は？",
+    "choices": [
+      "ヘルスチェックの間隔が短すぎた",
+      "DNS のキャッシュの有効期間（TTL）が切れるまで、古い答えが使われる",
+      "待機系のサーバーの台数が多すぎた"
+    ],
+    "answer": 1,
+    "explain": "フェイルオーバーの時間には、切り替えが利用者に伝わる時間も含まれる。DNS では TTL の分だけ古い向き先が残る。",
+    "ref": "#switch"
+  },
+  {
+    "q": "本番 DB を別リージョンへ同期レプリケーションしている。運用者が誤って重要なテーブルを削除した。どうなる？",
+    "choices": [
+      "待機系にも削除が伝わるので、過去の時点に戻せるバックアップから復元する",
+      "待機系には削除前のデータが残っているので、切り替えれば元に戻る",
+      "同期レプリケーションは削除の操作だけは伝えないので、影響はない"
+    ],
+    "answer": 0,
+    "explain": "冗長化は壊れたら引き継ぐ仕組みで、誤った削除や破損もそのまま全コピーに伝わる。守れるのは主に可用性で、論理的な誤りにはバックアップが要る。",
+    "ref": "#scope"
+  }
+]
+</script>
+</body>
+</html>

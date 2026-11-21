@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>層を重ねて守る：スイスチーズモデルと多層防御</title>
+<meta name="description" content="事故が防御をすり抜けるしくみ（スイスチーズモデル）と、層を重ねて止める方針（多層防御）を、層の独立性と限界まで対にして整理する。">
+<meta name="memo:tags" content="セキュリティ, 設計">
+<meta name="memo:date" content="2026-11-22">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+/* 共通部品（ざっくり言うと・よくある誤解・番号付きの手順・表やリストの中のリンク）と
+   解説用の色（--c-ok・--c-ng・--c-warn・--c-hl）は assets/memo-parts.css にある（build・preview が読み込む）。
+   ここで書き直さない。ページ独自の色分けが要るときは、意味ごとの --c-名前 を :root に足し、凡例やラベルを付ける。
+   アクセント色（--accent）は h1・h2 の左線・段落のリンク・ボタンやタブの操作状態にだけ使う */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+.panel > p:first-child { margin-top: 0; }
+.tab { min-height: 30px; }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 600; }
+tbody th { white-space: nowrap; }
+@media (max-width: 600px) { tbody th { white-space: normal; width: 6.5em; } }
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
+.series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
+.series span { color: var(--fg); font-weight: 700; }
+
+/* 操作ボタン（シミュレーション） */
+.toggles { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.tg {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  min-height: 32px;
+  font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif;
+  cursor: pointer;
+}
+.tg[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.st { font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
+.st.ok { color: var(--c-ok); }
+.st.ng { color: var(--c-ng); }
+.st.warn { color: var(--c-warn); }
+[data-k][hidden] { display: none; }
+
+/* スイスチーズの図 */
+.slices { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; }
+.slice { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--surface); font-size: 0.82rem; display: flex; flex-direction: column; gap: 6px; }
+.slice .name { font-weight: 700; }
+.slice .what { color: var(--fg-2); }
+.slice .hole { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.slice .hole i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--fg-2); flex: none; }
+.slice[data-open="true"] .hole i { border-color: var(--c-ng); background: color-mix(in srgb, var(--c-ng) 25%, transparent); }
+.slice[data-open="true"] .hole { color: var(--c-ng); }
+.slice[data-open="false"] .hole { color: var(--c-ok); }
+.slice[data-open="false"] .hole i { border-color: var(--c-ok); background: var(--c-ok); }
+.hazard { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--fg-2); margin: 4px 0; }
+.hazard::after { content: '→ 層を順に通る →'; }
+.result { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface); font-size: 0.88rem; }
+@media (max-width: 600px) {
+  .slices { grid-template-columns: 1fr 1fr; }
+  .hazard::after { content: '↓ 左上から順に通る ↓'; }
+}
+.slice .tg { margin-top: auto; }
+@media (min-width: 601px) { .slice .what { min-height: calc(2 * 1.7em); } }
+.slice .nw { display: inline-block; }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <h1>層を重ねて守る：スイスチーズモデルと多層防御</h1>
+  <p class="subtitle">事故はなぜ防御をすり抜けるのか（モデル）と、どう重ねれば止まるのか（方針）を対にして見る</p>
+
+  <nav class="series" aria-label="障害に強くするシリーズ">
+    <span aria-current="page">層を重ねて守る</span>
+    <a href="failure-isolation.html">障害を広げない設計</a>
+    <a href="redundancy-failover.html">冗長化とフェイルオーバー</a>
+  </nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>スイスチーズモデルは、穴のある防御層を何枚も重ね、穴がたまたま一直線に並んだときに事故が起きると見る考え方。</li>
+      <li>多層防御は、それに対する設計の方針で、1 枚が破られても次の層で止まるように、性質の違う層を重ねる。</li>
+      <li>層どうしが同じ弱点を共有すると穴が一緒に開くので、層は独立させ、ふりかえりでは「なぜ穴が並んだか」を問う。</li>
+    </ul>
+  </div>
+
+  <h2 id="model">スイスチーズモデル</h2>
+  <p>心理学者の James Reason が示した事故のモデル。防御・障壁・安全装置を、穴の開いたスイスチーズの薄切りにたとえる。どの層にも穴はあるが、普段は別の層が止めてくれる。すべての層の穴が一瞬だけ一直線に並んだとき、危険がすり抜けて事故になる。</p>
+  <p>下はソフトウェアのリリースの例。各層の穴をふさいだり開けたりして、どこで止まるかを見る。</p>
+  <div class="card" id="cheese">
+    <div class="hazard">バグを含む変更</div>
+    <div class="slices">
+      <div class="slice" data-open="true">
+        <span class="name">1. コードレビュー</span>
+        <span class="what">人の目で変更を確かめる</span>
+        <span class="hole"><i></i><span data-k="open">穴あり<span class="nw">（すり抜ける）</span></span><span data-k="closed" hidden>ふさがっている</span></span>
+        <button class="tg" type="button"><span data-k="open">穴をふさぐ</span><span data-k="closed" hidden>穴を開ける</span></button>
+      </div>
+      <div class="slice" data-open="true">
+        <span class="name">2. 自動テスト</span>
+        <span class="what">決まった観点を機械で確かめる</span>
+        <span class="hole"><i></i><span data-k="open">穴あり<span class="nw">（すり抜ける）</span></span><span data-k="closed" hidden>ふさがっている</span></span>
+        <button class="tg" type="button"><span data-k="open">穴をふさぐ</span><span data-k="closed" hidden>穴を開ける</span></button>
+      </div>
+      <div class="slice" data-open="false">
+        <span class="name">3. 段階的リリース</span>
+        <span class="what">一部の利用者にだけ先に出す</span>
+        <span class="hole"><i></i><span data-k="open" hidden>穴あり<span class="nw">（すり抜ける）</span></span><span data-k="closed">ふさがっている</span></span>
+        <button class="tg" type="button"><span data-k="open" hidden>穴をふさぐ</span><span data-k="closed">穴を開ける</span></button>
+      </div>
+      <div class="slice" data-open="true">
+        <span class="name">4. 監視とアラート</span>
+        <span class="what">異常に気づいて戻す</span>
+        <span class="hole"><i></i><span data-k="open">穴あり<span class="nw">（すり抜ける）</span></span><span data-k="closed" hidden>ふさがっている</span></span>
+        <button class="tg" type="button"><span data-k="open">穴をふさぐ</span><span data-k="closed" hidden>穴を開ける</span></button>
+      </div>
+    </div>
+    <div class="result">
+      <span data-k="stop"><span class="st ok">止まる</span>　<b class="stop-at">3. 段階的リリース</b>の層で止まり、事故にならない。ほかの層に穴があっても、1 枚ふさがっていれば足りる。</span>
+      <span data-k="pass" hidden><span class="st ng">すり抜ける</span>　すべての層の穴が並び、バグが本番の全利用者に届く。どれか 1 枚でもふさがっていれば止まっていた。</span>
+    </div>
+  </div>
+  <div class="legend"><span><i style="background:var(--c-ng)"></i>穴あり（すり抜ける）</span><span><i style="background:var(--c-ok)"></i>ふさがっている</span></div>
+
+  <h2 id="holes">穴が開く 2 つの理由</h2>
+  <p>Reason は、穴の原因を「その場の誤り」と「潜在的な条件」に分けた。ほとんどの事故は両方の組み合わせで起きる。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th></th><th>その場の誤り（active failures）</th><th>潜在的な条件（latent conditions）</th></tr></thead>
+      <tbody>
+        <tr><th>何か</th><td>現場の人が直接かかわる危険な行為。うっかり・ど忘れ・判断の誤り・手順違反など</td><td>設計・手順・組織の決定が生む、前から潜んでいる弱点</td></tr>
+        <tr><th>ソフトウェアの例</th><td>本番の DB で削除のコマンドを打ち間違える</td><td>本番と検証の画面が同じ見た目、権限が強すぎる、確認なしで実行できる、人手が足りない</td></tr>
+        <tr><th>効き方</th><td>直接的で、影響は短い。どんな形で起きるかを事前に読みにくい</td><td>長く潜み、その場の誤りと重なったときに表に出る。事前に見つけて直せる</td></tr>
+        <tr><th>対策</th><td>1 つずつ注意しても、また起きる</td><td>条件そのものを直す。直せば多くの誤りがまとめて止まる</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Reason はその場の誤りを蚊にたとえた。1 匹ずつたたいても次々に来るので、防御を強め、蚊が湧く沼（潜在的な条件）を干すのがよい、という見方。人を責めるより、人が働く条件を変える方が効く。</p>
+
+  <h2 id="did">多層防御（defense in depth）</h2>
+  <p>NIST は多層防御を、人・技術・運用を組み合わせて、組織の複数の層にさまざまな障壁を置く情報セキュリティの戦略と定義している。1 枚が破られても次の層で止める、という点はスイスチーズモデルの裏返し。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="did-web">Web アプリ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="did-infra">インフラ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="did-deploy">リリース</button>
+  </div>
+  <div class="panel card" id="did-web">
+    <ol class="steps">
+      <li><b>境界</b>WAF やレート制限で、明らかな攻撃や大量のアクセスを入口で落とす</li>
+      <li><b>認証</b>誰かを確かめる。多要素認証で、パスワードが漏れても止める</li>
+      <li><b>認可</b>その人がその操作をしてよいかを、サーバーで毎回確かめる</li>
+      <li><b>入力の扱い</b>プリペアドステートメントや出力のエスケープで、注入を無害にする</li>
+      <li><b>データ</b>暗号化と最小権限で、盗まれても読めない・広がらないようにする</li>
+      <li><b>検知</b>監査ログとアラートで、すり抜けたものに気づく</li>
+    </ol>
+  </div>
+  <div class="panel card" id="did-infra" hidden>
+    <ol class="steps">
+      <li><b>ネットワークの分離</b>公開する部分と内部を分け、内部へは決まった経路からだけ入れる</li>
+      <li><b>通信の許可</b>セキュリティグループやファイアウォールで、必要なポートと相手だけを通す</li>
+      <li><b>権限</b>人もプログラムも最小権限にし、1 つの鍵が漏れても範囲を狭く保つ</li>
+      <li><b>データ</b>保存時・通信時の暗号化</li>
+      <li><b>復旧</b>別の場所に置いたバックアップ。ほかの層がすべて破られたときの最後の層</li>
+    </ol>
+  </div>
+  <div class="panel card" id="did-deploy" hidden>
+    <ol class="steps">
+      <li><b>レビュー</b>人の目で設計と変更を見る</li>
+      <li><b>自動テスト</b>決まった観点を毎回確かめる</li>
+      <li><b>段階的リリース</b>カナリアや機能フラグで、影響を一部に限る</li>
+      <li><b>監視</b>エラー率や遅延の変化に気づく</li>
+      <li><b>ロールバック</b>すぐ戻せる手段を用意しておく</li>
+    </ol>
+  </div>
+
+  <h2 id="pair">モデルと方針の関係</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th></th><th>スイスチーズモデル</th><th>多層防御</th></tr></thead>
+      <tbody>
+        <tr><th>種類</th><td>事故がどう起きるかを説明するモデル</td><td>どう守るかを決める設計の方針</td></tr>
+        <tr><th>主に使う場面</th><td>起きた事故のふりかえり、潜在的な条件の洗い出し</td><td>システムや運用を作るとき</td></tr>
+        <tr><th>問い</th><td>なぜすべての層の穴が並んだのか</td><td>1 枚が破られたら、次はどの層が止めるのか</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="independence">層が独立していないと、穴は一緒に開く</h2>
+  <p>層を重ねる効果は、それぞれの穴がばらばらに開くことが前提。同じ弱点を共有していると、1 つの原因で複数の層に同時に穴が開き、実際の層の数より薄くなる。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>共有しがちなもの</th><th>例</th></tr></thead>
+      <tbody>
+        <tr><td>同じ人・同じ思い込み</td><td>書いた人がテストも書き、同じ見落としがテストにも入る</td></tr>
+        <tr><td>同じ基盤</td><td>監視が本番と同じ基盤の上で動いていて、障害のときに監視も一緒に止まる</td></tr>
+        <tr><td>同じ依存先</td><td>本番も予備も同じリージョンの同じサービスに頼っている（<a href="static-stability.html">コントロールプレーンが止まったら</a>の隠れた依存）</td></tr>
+        <tr><td>同じ鍵</td><td>複数の層の認証が 1 つの強い権限の鍵でまとめて突破できる</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>層を足すときは、枚数より「別の理由で穴が開く層か」を見る。作る人・動く場所・頼る相手が違う層ほど、穴が並びにくい。</p>
+
+  <h2 id="limits">モデルの限界</h2>
+  <p>スイスチーズモデルには、事故を単純化しすぎている、原因を一直線に並べて見ている、という批判がある。複雑なシステムでは、壊れた部品を探すより、普段なぜうまくいっているのかから見るべきだとする立場（Hollnagel らの Safety-II）もある。一方で、モデルの土台はシステム全体の見方で、高リスクの分野で使われ続けており、今も有効だとする反論もある。図の単純さを「事故は単純」と取り違えず、潜在的な条件を探すための入口として使うのがよい。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>スイスチーズモデルは「防御を何枚も重ねよ」という教えだ</summary><p>モデルそのものは、事故がなぜ防御をすり抜けるのかを説明するもの。「層を重ねて守る」のはそれに対する方針（多層防御）で、両者は事故の側と対策の側から同じことを見ている。</p></details>
+  <details class="myth"><summary>層を 1 枚増やせば、その分だけ確実に安全になる</summary><p>同じ人・同じ基盤・同じ依存先を共有する層は、同じ原因で一緒に穴が開く。枚数より、別の理由で穴が開く独立した層かどうかが効く。</p></details>
+  <details class="myth"><summary>事故の原因は、最後に操作を誤った人だ</summary><p>その場の誤りは穴の 1 つにすぎず、ほかの層の穴（確認なしで実行できる、権限が強すぎるなどの潜在的な条件）が並んで初めて事故になる。誤りを責めるより、条件を直す方が再発を防げる。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="web-vulnerabilities.html">実装起因の脆弱性</a> — Web アプリの「入力の扱い」の層で何を防ぐか</li>
+    <li><a href="static-stability.html">コントロールプレーンが止まったら</a> — 層が同じ依存先を共有していた実例</li>
+    <li><a href="ci-cd.html">CI/CD と GitHub Actions</a> — リリースの層（テスト・段階的リリース）を仕組みにする</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC1117770/">James Reason: Human error: models and management（BMJ, 2000）</a></li>
+    <li><a href="https://csrc.nist.gov/glossary/term/defense_in_depth">NIST CSRC Glossary: defense-in-depth</a></li>
+    <li><a href="https://www.england.nhs.uk/signuptosafety/wp-content/uploads/sites/16/2015/10/safety-1-safety-2-whte-papr.pdf">Hollnagel, Wears, Braithwaite: From Safety-I to Safety-II: A White Paper</a></li>
+    <li><a href="https://psnet.ahrq.gov/issue/good-and-bad-reasons-swiss-cheese-model-and-its-critics">Larouzée, Le Coze: Good and bad reasons: The Swiss cheese model and its critics（Safety Science, 2020）</a></li>
+  </ul>
+  <p class="note">確認した日付: 2026-11-22</p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+(() => {
+  const box = document.getElementById('cheese');
+  if (!box) return;
+  const slices = [...box.querySelectorAll('.slice')];
+  const update = () => {
+    slices.forEach(s => {
+      const open = s.dataset.open === 'true';
+      s.querySelectorAll('[data-k]').forEach(el => { el.hidden = el.dataset.k !== (open ? 'open' : 'closed'); });
+    });
+    const stop = slices.find(s => s.dataset.open !== 'true');
+    const res = box.querySelector('.result');
+    res.querySelectorAll('[data-k]').forEach(el => { el.hidden = el.dataset.k !== (stop ? 'stop' : 'pass'); });
+    if (stop) res.querySelector('.stop-at').textContent = stop.querySelector('.name').textContent;
+  };
+  slices.forEach(s => s.querySelector('.tg').addEventListener('click', () => {
+    s.dataset.open = s.dataset.open === 'true' ? 'false' : 'true';
+    update();
+  }));
+  update();
+})();
+
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "本番 DB で削除コマンドを打ち間違えて障害が起きた。スイスチーズモデルの見方で、ふりかえりでまず探すべきものは？",
+    "choices": [
+      "打ち間違えた人の不注意と、その人の作業の進め方",
+      "確認なしで実行できる・権限が強すぎるなど、誤りを素通りさせた条件",
+      "同じ人が二度と本番で作業しないようにする体制の作り方"
+    ],
+    "answer": 1,
+    "explain": "打ち間違いはその場の誤りで、穴の 1 つにすぎない。潜在的な条件を直せば、同じ種類の誤りがまとめて止まる。",
+    "ref": "#holes"
+  },
+  {
+    "q": "コードレビュー・自動テスト・段階的リリース・監視の 4 層のうち、段階的リリースだけが機能していた。バグを含む変更はどうなる？",
+    "choices": [
+      "どれか 1 層でも止まれば事故にならないので、段階的リリースの層で止まる",
+      "4 層のうち 3 層に穴があるので、事故になる",
+      "監視が最後の層なので、監視が機能していないと必ず事故になる"
+    ],
+    "answer": 0,
+    "explain": "事故になるのは、すべての層の穴が並んだときだけ。1 枚でもふさがっていれば、そこで止まる。",
+    "ref": "#model"
+  },
+  {
+    "q": "監視の仕組みを本番と同じ基盤の上で動かしている。多層防御の観点でいちばんの問題は？",
+    "choices": [
+      "監視の画面の表示が本番の負荷で遅くなり、見づらくなる",
+      "監視のための基盤のコストが本番と二重にかかってしまう",
+      "基盤が落ちたとき監視も一緒に止まり、層の穴が同時に開く"
+    ],
+    "answer": 2,
+    "explain": "層を重ねる効果は、穴がばらばらに開くことが前提。同じ基盤を共有すると 1 つの原因で複数の層に穴が開く。",
+    "ref": "#independence"
+  },
+  {
+    "q": "Web アプリで SQL インジェクション対策にプリペアドステートメントを使っている。多層防御として、さらに重ねる意味があるのは？",
+    "choices": [
+      "同じプリペアドステートメントを 2 回通す",
+      "DB ユーザーの権限を最小にし、WAF や監査ログも置く",
+      "プリペアドステートメントがあるので、ほかの層は外す"
+    ],
+    "answer": 1,
+    "explain": "性質の違う層（権限・境界・検知）を重ねれば、1 つが破られても被害を狭め、気づける。同じ仕組みを重ねても同じ穴を共有するだけ。",
+    "ref": "#did"
+  }
+]
+</script>
+</body>
+</html>
