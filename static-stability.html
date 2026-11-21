@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コントロールプレーンが止まったら</title>
+<meta name="description" content="コントロールプレーンが止まったときの影響を、ルーターとクラウドで比べるシミュレーション、静的安定性、AWS us-east-1 と 2025 年 10 月の障害の事例で整理する。">
+<meta name="memo:tags" content="インフラ, 設計">
+<meta name="memo:date" content="2026-11-22">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+/* 共通部品（ざっくり言うと・よくある誤解・番号付きの手順・表やリストの中のリンク）と
+   解説用の色（--c-ok・--c-ng・--c-warn・--c-hl）は assets/memo-parts.css にある（build・preview が読み込む）。
+   ここで書き直さない。ページ独自の色分けが要るときは、意味ごとの --c-名前 を :root に足し、凡例やラベルを付ける。
+   アクセント色（--accent）は h1・h2 の左線・段落のリンク・ボタンやタブの操作状態にだけ使う */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+.panel > p:first-child { margin-top: 0; }
+.tab { min-height: 30px; }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 600; }
+
+/* シミュレーション */
+.sim .phases { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.sim .phase {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  min-height: 32px;
+  font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif;
+  cursor: pointer;
+}
+.sim .phase[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.sim .phase:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sim .items { list-style: none; padding: 0; margin: 0; }
+.sim .items li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 0.86rem; }
+.sim .items li:last-child { border-bottom: none; }
+.sim .items .what { font-weight: 600; }
+.sim .st { font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
+.sim .st.ok { color: var(--c-ok); }
+.sim .st.ng { color: var(--c-ng); }
+.sim .st.warn { color: var(--c-warn); }
+.sim .why { grid-column: 1 / -1; color: var(--fg-2); font-size: 0.8rem; }
+.sim [data-phase][hidden] { display: none; }
+.sim .phase-note { margin-top: 10px; }
+@media (max-width: 600px) {
+  .sim .items li { grid-template-columns: 1fr; }
+}
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
+.series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
+.series span { color: var(--fg); font-weight: 700; }
+tbody th { white-space: nowrap; }
+td code { white-space: nowrap; }
+@media (max-width: 600px) { tbody th { white-space: normal; width: 6.5em; } }
+.sim .items li { grid-template-columns: auto 1fr; }
+.sim .legend { margin-top: 10px; }
+@media (min-width: 601px) { #route53 + .table-wrap td:nth-child(2) { white-space: nowrap; } }
+</style>
+
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="コントロールプレーンが止まったら">
+<meta property="og:description" content="コントロールプレーンが止まったときの影響を、ルーターとクラウドで比べるシミュレーション、静的安定性、AWS us-east-1 と 2025 年 10 月の障害の事例で整理する。">
+<meta property="og:url" content="https://memo.taka1156.site/static-stability.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>コントロールプレーンが止まったら</h1>
+  <p class="subtitle">止まったときの影響は、狭義と広義でまったく違う。静的安定性と、AWS バージニア北部（us-east-1）の事例で見る</p>
+
+  <nav class="series" aria-label="コントロールプレーンとデータプレーンのシリーズ">
+    <a href="control-data-plane.html">コントロールプレーンとデータプレーン</a>
+    <span aria-current="page">コントロールプレーンが止まったら</span>
+  </nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>ルーターではコントロールプレーンが止まると、時間がたつと通信も止まる。AWS では追加と変更ができなくなるだけ。</li>
+      <li>違いは、データプレーンがコントロールプレーンなしで動き続けるように作られているか（静的安定性）にある。</li>
+      <li>それでも隠れた依存があると影響が広がる。復旧手順はデータプレーンだけで済むようにしておく。</li>
+    </ul>
+  </div>
+  <p class="note">用語の意味（狭義・広義、何がどちらのプレーンか）は<a href="control-data-plane.html">コントロールプレーンとデータプレーン</a>で扱う。</p>
+
+  <h2 id="compare">止まり方の違い</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th></th><th>狭義（ルーター）</th><th>広義（AWS などのクラウド）</th></tr></thead>
+      <tbody>
+        <tr><th>すぐ起きること</th><td>経路の更新が止まる</td><td>リソースの追加・変更・削除ができなくなる</td></tr>
+        <tr><th>時間がたつと</th><td>隣のルーターが経路を取り消し、通信が止まる</td><td>動いているものはそのまま動き続ける</td></tr>
+        <tr><th>理由</th><td>データプレーンが使う経路は、コントロールプレーンが隣と保ち続けて初めて有効だから</td><td>データプレーンが、コントロールプレーンなしで回るように作られているから</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="sim">止めてみる</h2>
+  <p>狭義・広義を選び、時間を進めて、何が動き続けて何が止まるかを見る。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="sim-narrow">狭義（ルーター）</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="sim-broad">広義（AWS）</button>
+  </div>
+
+  <div class="panel card sim" id="sim-narrow">
+    <div class="phases" role="group" aria-label="時間">
+      <button class="phase" type="button" data-to="0" aria-pressed="true">正常</button>
+      <button class="phase" type="button" data-to="1" aria-pressed="false">止めた直後</button>
+      <button class="phase" type="button" data-to="2" aria-pressed="false">数十秒〜数分後</button>
+    </div>
+    <ul class="items">
+      <li>
+        <span class="what">今の通信の転送</span>
+        <span class="st ok" data-phase="0">動く</span><span class="st ok" data-phase="1" hidden>動く</span><span class="st ng" data-phase="2" hidden>止まる</span>
+        <span class="why" data-phase="0">データプレーンが転送表どおりに流している</span>
+        <span class="why" data-phase="1" hidden>直前の転送表のまま流れ続ける</span>
+        <span class="why" data-phase="2" hidden>隣のルーターがこのルーター経由の経路を取り消すので、通信は迂回するか行き場を失う</span>
+      </li>
+      <li>
+        <span class="what">隣のルーターとの BGP セッション</span>
+        <span class="st ok" data-phase="0">動く</span><span class="st warn" data-phase="1" hidden>期限つきで保たれる</span><span class="st ng" data-phase="2" hidden>止まる</span>
+        <span class="why" data-phase="0">定期的に KEEPALIVE を送り合っている</span>
+        <span class="why" data-phase="1" hidden>相手はホールドタイマーが切れるまでは待つ</span>
+        <span class="why" data-phase="2" hidden>ホールドタイマーが切れてセッションが落ちる</span>
+      </li>
+      <li>
+        <span class="what">経路の更新（障害の迂回・新しい経路）</span>
+        <span class="st ok" data-phase="0">動く</span><span class="st ng" data-phase="1" hidden>止まる</span><span class="st ng" data-phase="2" hidden>止まる</span>
+        <span class="why" data-phase="0">コントロールプレーンが経路表を作り直して転送表に反映する</span>
+        <span class="why" data-phase="1" hidden>転送表を作り直す担当がいない</span>
+        <span class="why" data-phase="2" hidden>転送表を作り直す担当がいない</span>
+      </li>
+    </ul>
+    <div class="legend"><span><i style="background:var(--c-ok)"></i>動く</span><span><i style="background:var(--c-warn)"></i>期限つきで保たれる</span><span><i style="background:var(--c-ng)"></i>止まる</span></div>
+    <p class="note phase-note">ホールドタイマーは RFC 4271 の推奨が 90 秒で、実装の既定値は 90 秒（Juniper など）や 180 秒（Cisco）が多い。</p>
+  </div>
+
+  <div class="panel card sim" id="sim-broad" hidden>
+    <div class="phases" role="group" aria-label="時間">
+      <button class="phase" type="button" data-to="0" aria-pressed="true">正常</button>
+      <button class="phase" type="button" data-to="1" aria-pressed="false">止めた直後</button>
+      <button class="phase" type="button" data-to="2" aria-pressed="false">数時間後</button>
+    </div>
+    <ul class="items">
+      <li>
+        <span class="what">動いているインスタンス・今の通信</span>
+        <span class="st ok" data-phase="0">動く</span><span class="st ok" data-phase="1" hidden>動く</span><span class="st ok" data-phase="2" hidden>動く</span>
+        <span class="why" data-phase="0">データプレーンが処理している</span>
+        <span class="why" data-phase="1" hidden>データプレーンはコントロールプレーンに頼らない</span>
+        <span class="why" data-phase="2" hidden>時間がたっても変わらない（静的安定性）</span>
+      </li>
+      <li>
+        <span class="what">新しいリソースの作成・設定の変更</span>
+        <span class="st ok" data-phase="0">動く</span><span class="st ng" data-phase="1" hidden>止まる</span><span class="st ng" data-phase="2" hidden>止まる</span>
+        <span class="why" data-phase="0">API が受け付ける</span>
+        <span class="why" data-phase="1" hidden>受け付ける API そのものが止まっている</span>
+        <span class="why" data-phase="2" hidden>復旧するまで変わらない</span>
+      </li>
+      <li>
+        <span class="what">オートスケールで台数を増やす</span>
+        <span class="st ok" data-phase="0">動く</span><span class="st ng" data-phase="1" hidden>止まる</span><span class="st ng" data-phase="2" hidden>止まる</span>
+        <span class="why" data-phase="0">負荷に応じて新しいインスタンスを起動する</span>
+        <span class="why" data-phase="1" hidden>起動は「追加」なのでコントロールプレーンが要る</span>
+        <span class="why" data-phase="2" hidden>負荷が増えても台数は増えない。余裕を先に持っていないとさばけなくなる</span>
+      </li>
+      <li>
+        <span class="what">壊れたインスタンスの自動の置き換え</span>
+        <span class="st ok" data-phase="0">動く</span><span class="st ng" data-phase="1" hidden>止まる</span><span class="st ng" data-phase="2" hidden>止まる</span>
+        <span class="why" data-phase="0">新しいインスタンスを起動して入れ替える</span>
+        <span class="why" data-phase="1" hidden>置き換えも「追加」</span>
+        <span class="why" data-phase="2" hidden>壊れた分だけ容量が減っていく</span>
+      </li>
+    </ul>
+    <div class="legend"><span><i style="background:var(--c-ok)"></i>動く</span><span><i style="background:var(--c-ng)"></i>止まる</span></div>
+    <p class="note phase-note">これは設計どおりに分かれている場合。実際の障害では、データプレーン側に隠れた依存があると影響が広がる（下の「事例」）。</p>
+  </div>
+
+  <h2 id="static">静的安定性（static stability）</h2>
+  <p>AWS は、作ったあとのリソースへのデータプレーンのアクセスがコントロールプレーンに依存しないことを「静的安定性」と呼んでいる。作る・変える・消すができなくなっても、既存のリソースは使い続けられる、という性質。AWS 自身のサービスの設計方針であり、利用者が自分のシステムに取り入れるパターンでもある。</p>
+  <ol class="steps">
+    <li><b>余裕を先に持っておく</b>AZ が 1 つ壊れたらオートスケールで増やす、ではなく、残りの AZ だけでさばける台数を最初から動かしておく（コストは増える）。</li>
+    <li><b>復旧の手順でコントロールプレーンを呼ばない</b>障害のときに新しく作る・設定を変える手順は、コントロールプレーンが止まっていると使えない。必要なものは事前に作っておく。</li>
+    <li><b>データプレーンで切り替える</b>フェイルオーバーは、ヘルスチェックなどデータプレーンの仕組みで自動に行う。</li>
+  </ol>
+
+  <h3 id="graceful">狭義での延命策</h3>
+  <p>ルーターでも、コントロールプレーンが一時的に止まる場面（ソフトウェアの再起動など）への手当てはある。BGP の Graceful Restart（RFC 4724）は、再起動中も転送の状態を保てることを相手に伝え、相手に経路をしばらく残してもらう仕組み。ただし猶予を延ばすだけで、戻らなければ結局は経路が取り消される。</p>
+
+  <h2 id="useast1">事例：AWS バージニア北部（us-east-1）</h2>
+  <h3 id="global-cp">グローバルサービスのコントロールプレーンの場所</h3>
+  <p>「グローバル」とされる AWS のサービスにも、コントロールプレーンは 1 か所にあるものが多い。データプレーンは各リージョンや世界中の拠点（PoP）に分散している。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>サービス</th><th>コントロールプレーン</th><th>データプレーン</th></tr></thead>
+      <tbody>
+        <tr><td>IAM</td><td><code>us-east-1</code></td><td>各リージョン</td></tr>
+        <tr><td>AWS Organizations</td><td><code>us-east-1</code></td><td>（データプレーンを持たない）</td></tr>
+        <tr><td>AWS アカウント管理</td><td><code>us-east-1</code></td><td>各リージョン</td></tr>
+        <tr><td>Route 53</td><td><code>us-east-1</code>（パブリックのレコード変更だけ <code>us-west-2</code> に待機用あり）</td><td>世界中の PoP と各リージョン</td></tr>
+        <tr><td>CloudFront（と CloudFront 用の ACM・WAF）</td><td><code>us-east-1</code></td><td>世界中の PoP</td></tr>
+        <tr><td>Shield Advanced</td><td><code>us-east-1</code></td><td>各リージョンと世界中の PoP</td></tr>
+        <tr><td>Global Accelerator</td><td><code>us-west-2</code></td><td>世界中の PoP</td></tr>
+        <tr><td>Application Recovery Controller（ARC。旧称 Route 53 ARC）</td><td><code>us-west-2</code></td><td>各リージョン</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>設計どおりなら、us-east-1 のコントロールプレーンが止まっても、世界中で動いているものは動き続け、これらのサービスの「変更」だけができなくなる。</p>
+
+  <h3 id="2025-10">2025 年 10 月の障害で起きたこと</h3>
+  <p>2025 年 10 月 19〜20 日（米国太平洋時間）、DynamoDB の DNS を管理する自動化の競合状態で、リージョンのエンドポイント <code>dynamodb.us-east-1.amazonaws.com</code> の DNS レコードが空になった。そこから EC2 の起動、Network Load Balancer へと影響が広がった。</p>
+  <ol class="steps">
+    <li class="is-ok"><b>静的安定性は効いた</b>障害の前から動いていた EC2 インスタンスは正常なままだった。止まったのは新しい起動や API 呼び出し。</li>
+    <li class="is-ng"><b>us-east-1 のデータプレーンが止まった</b>DynamoDB への新しい接続ができなくなり、それに頼る多くの AWS サービスと利用者のアプリが止まった。</li>
+    <li class="is-ng"><b>隠れた依存で他のリージョンにも出た</b>ルート認証情報や signin.aws.amazon.com 経由のフェデレーションで、他のリージョンでもコンソールにサインインできなくなった。Redshift では、us-east-1 の IAM API に頼る不具合のため、IAM ユーザーの認証情報を使うクエリが全リージョンで失敗した。</li>
+  </ol>
+  <p>番号の色は、緑が設計どおりに守られた所、赤が影響が出た所。世界中で同時に障害が見えたのは、コントロールプレーンが止まったからというより、us-east-1 のデータプレーンに頼るものが多く（us-east-1 で動かしているアプリそのものと、他のリージョンからの隠れた依存）、そこが止まったから。障害を報告するサイトで、関係のなさそうな多くのサービスに同じ時刻に山ができるのはこのため。</p>
+
+  <h3 id="route53">Route 53 で考える：どの操作が止まるか</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>操作</th><th>プレーン</th><th>us-east-1 のコントロールプレーンが<wbr>止まると</th></tr></thead>
+      <tbody>
+        <tr><td>レコードを作る・変える・消す</td><td>コントロールプレーン</td><td>すぐにはできない（パブリックホストゾーンで accelerated recovery を事前に有効にしてあれば、約 60 分後から <code>us-west-2</code> 経由でできる）</td></tr>
+        <tr><td>ホストゾーンの作成・削除、ヘルスチェックの作成・変更</td><td>コントロールプレーン</td><td>できない</td></tr>
+        <tr><td>DNS の問い合わせに答える</td><td>データプレーン</td><td>動き続ける</td></tr>
+        <tr><td>作ってあるヘルスチェックを実行し、結果で応答を切り替える</td><td>データプレーン</td><td>動き続ける</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>なので「障害が起きたらレコードを書き換えて別の地域へ切り替える」手順は、肝心なときにすぐには使えない。2025 年 12 月からは、パブリックホストゾーンで accelerated recovery を事前に有効にしておけば、us-east-1 の障害を AWS が検知してから約 60 分で us-west-2 からレコードを変えられる（障害が始まってから有効にはできない）。すぐに切り替えたいなら、ヘルスチェックとフェイルオーバーのレコードを事前に作っておき、データプレーンに任せる。</p>
+  <p>ELB・RDS・CloudFront など、作るときに Route 53 のレコードを作るサービスの多くは、AWS 内部の同じ仕組みで障害中も作成を続けられる。一方、API Gateway・EKS・Lambda の関数 URL などは us-east-1 の Route 53 コントロールプレーンに頼ったまま。</p>
+
+  <h2 id="design">設計・運用で気をつけること</h2>
+  <ol class="steps">
+    <li><b>依存の裏にあるリージョンを知っておく</b>自分のリージョンが無事でも、使っているグローバルサービスや外部の SaaS が us-east-1 に頼っていることがある。</li>
+    <li><b>復旧の手順を「作る・変える」なしで書く</b>フェイルオーバー先の容量・DNS レコード・ヘルスチェックは平常時に作っておく。</li>
+    <li><b>障害時に変更を急がない</b>コントロールプレーンが不安定なときに設定を変えると、途中で止まって状態がずれることがある。</li>
+    <li><b>サインインと権限の非常口を用意する</b>コンソールへのサインイン経路が止まった場合に、どう作業するかを決めておく。</li>
+  </ol>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>コントロールプレーンが止まったときの影響は、どの文脈でも同じだ</summary><p>ルーターでは時間がたつと経路が取り消されて通信が止まるが、静的安定性を持つクラウドのサービスでは追加と変更ができなくなるだけ。どちらの意味の話かで結論が逆になる。</p></details>
+  <details class="myth"><summary>グローバルサービスは、どのリージョンにも依存していない</summary><p>IAM・Route 53・CloudFront などは、コントロールプレーンが us-east-1 にある。データプレーンは分散しているので動き続けるが、変更は us-east-1 に頼る。</p></details>
+  <details class="myth"><summary>障害時は、Route 53 のレコードを書き換えて切り替えればよい</summary><p>レコードの変更はコントロールプレーンの操作なので、us-east-1 が不調だとすぐにはできない（accelerated recovery を有効にしていても、再開まで約 60 分かかる）。フェイルオーバーは事前に作ったヘルスチェックで自動に行う。</p></details>
+  <details class="myth"><summary>マルチ AZ にしておけば、AZ が落ちてもオートスケールで補えるので余裕は要らない</summary><p>台数を増やすのはコントロールプレーンの仕事で、障害時には遅れたり失敗したりする。残りの AZ だけでさばける容量を先に持っておくのが静的安定性の考え方。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="distributed-basics.html">分散システムの基本</a> — 障害を前提にした設計の土台</li>
+    <li><a href="observability.html">オブザーバビリティと OpenTelemetry</a> — どのプレーンで何が起きているかを見分ける手段</li>
+    <li><a href="kubernetes.html">Kubernetes の全体像</a> — コントロールプレーンが止まっても Pod は動き続けるが、作り直しはされない</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://docs.aws.amazon.com/whitepapers/latest/aws-fault-isolation-boundaries/static-stability.html">AWS Fault Isolation Boundaries: Static stability</a></li>
+    <li><a href="https://docs.aws.amazon.com/whitepapers/latest/aws-fault-isolation-boundaries/global-services.html">AWS Fault Isolation Boundaries: Global services</a>（コントロールプレーンの場所、Route 53 の推奨）</li>
+    <li><a href="https://aws.amazon.com/builders-library/static-stability-using-availability-zones/">Amazon Builders' Library: Static stability using Availability Zones</a></li>
+    <li><a href="https://aws.amazon.com/message/101925/">Summary of the Amazon DynamoDB Service Disruption in the Northern Virginia (US-EAST-1) Region</a>（2025 年 10 月の事後報告）</li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc4271">RFC 4271: BGP-4</a>・<a href="https://www.rfc-editor.org/rfc/rfc4724">RFC 4724: Graceful Restart Mechanism for BGP</a></li>
+  </ul>
+  <p class="note">確認した日付: 2026-11-22</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+document.querySelectorAll('.sim').forEach(sim => {
+  sim.addEventListener('click', e => {
+    const btn = e.target.closest('.phase');
+    if (!btn) return;
+    const to = btn.dataset.to;
+    sim.querySelectorAll('.phase').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+    sim.querySelectorAll('[data-phase]').forEach(el => { el.hidden = el.dataset.phase !== to; });
+  });
+});
+
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "ルーターのコントロールプレーン（BGP の処理）が止まった。データプレーンはしばらく転送を続けるが、数分後にはどうなりやすい？",
+    "choices": ["隣のルーターがホールドタイマー切れで経路を取り消し、通信が迂回するか止まる", "データプレーンが動いているので、通信はずっと影響を受けない", "マネジメントプレーンが代わりに経路を計算し続ける"],
+    "answer": 0,
+    "explain": "狭義では、データプレーンが使う経路はコントロールプレーンが隣と保ち続けて初めて有効。セッションが切れると経路が取り消される。",
+    "ref": "#compare"
+  },
+  {
+    "q": "AWS のあるサービスのコントロールプレーンだけが止まった。設計どおりなら、いちばん起きにくいことは？",
+    "choices": ["新しいリソースを作れない", "オートスケールで台数を増やせない", "動いているインスタンスへの通信が止まる"],
+    "answer": 2,
+    "explain": "静的安定性により、作ったあとのリソースへのデータプレーンのアクセスはコントロールプレーンに依存しない。止まるのは追加・変更・削除。",
+    "ref": "#sim"
+  },
+  {
+    "q": "3 つの AZ で動くサービスを、AZ が 1 つ壊れても耐えられるようにしたい。静的安定性の考え方に合うのは？",
+    "choices": ["壊れたらオートスケールで残りの AZ に台数を足す", "残りの 2 つの AZ だけでさばける台数を、最初から動かしておく", "壊れた AZ のインスタンスを手動で作り直す手順を用意する"],
+    "answer": 1,
+    "explain": "台数を増やす・作り直すのはコントロールプレーンの仕事で、障害時には失敗しやすい。余裕を先に持てば、障害時に何も作らずに済む。",
+    "ref": "#static"
+  },
+  {
+    "q": "Route 53 で別リージョンへのフェイルオーバーを用意したい。us-east-1 が不調でも切り替えられるのはどれ？",
+    "choices": ["障害が起きてから、レコードを手で書き換える", "障害が起きてから、新しいヘルスチェックを作る", "事前に作ったヘルスチェックとフェイルオーバーのレコードで自動に切り替える"],
+    "answer": 2,
+    "explain": "レコードやヘルスチェックの作成・変更はコントロールプレーン（us-east-1）。作ってあるヘルスチェックの実行と DNS の応答はデータプレーンなので動き続ける。accelerated recovery を有効にしたパブリックホストゾーンでも、レコードの変更の再開には約 60 分かかる。",
+    "ref": "#route53"
+  },
+  {
+    "q": "us-east-1 の大きな障害のとき、東京リージョンだけで動かしているはずのシステムでも問題が出た。まず疑うべきことは？",
+    "choices": ["東京リージョンのデータプレーンも同時に壊れた", "サインインや IAM・外部 SaaS など、us-east-1 に頼る隠れた依存がある", "東京リージョンは us-east-1 の一部として動いている"],
+    "answer": 1,
+    "explain": "IAM などはコントロールプレーンが us-east-1 にあり、サインイン経路や一部の機能が us-east-1 に頼っていることがある。2025 年 10 月の障害でも他のリージョンでサインインなどに影響が出た。",
+    "ref": "#2025-10"
+  }
+]
+</script>
+</body>
+</html>

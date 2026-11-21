@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コントロールプレーンとデータプレーン</title>
+<meta name="description" content="「決める側」と「運ぶ側」を分ける考え方を、ルーターの狭い意味からクラウド・Kubernetes の広い意味、呼び分け方とあいまいな境界まで図で整理する。">
+<meta name="memo:tags" content="インフラ, ネットワーク">
+<meta name="memo:date" content="2026-11-22">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+/* 共通部品（ざっくり言うと・よくある誤解・番号付きの手順・表やリストの中のリンク）と
+   解説用の色（--c-ok・--c-ng・--c-warn・--c-hl）は assets/memo-parts.css にある（build・preview が読み込む）。
+   ここで書き直さない。ページ独自の色分けが要るときは、意味ごとの --c-名前 を :root に足し、凡例やラベルを付ける。
+   アクセント色（--accent）は h1・h2 の左線・段落のリンク・ボタンやタブの操作状態にだけ使う */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+:root {
+  --c-cp: #9a3d8a;   /* コントロールプレーン（決める側） */
+  --c-dp: #1f6feb;   /* データプレーン（運ぶ側） */
+  --c-mp: #5a6376;   /* マネジメントプレーン */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-cp: #e58fd3;
+    --c-dp: #58a6ff;
+    --c-mp: #9aa7b8;
+  }
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+.panel > p:first-child { margin-top: 0; }
+.tab { min-height: 30px; }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 600; }
+
+/* 共通の形の図 */
+.flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 8px; align-items: stretch; margin: 12px 0; }
+.flow .box { border: 2px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface); font-size: 0.82rem; min-width: 0; }
+.flow .box b { display: block; font-size: 0.9rem; margin-bottom: 2px; }
+.flow .box span { color: var(--fg-2); }
+.flow .cp { border-color: var(--c-cp); }
+.flow .dp { border-color: var(--c-dp); }
+.flow .mid { border-style: dashed; }
+.flow .ar { align-self: center; color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.flow .ar::before { content: '→'; }
+@media (max-width: 600px) {
+  .flow { grid-template-columns: 1fr; }
+  .flow .ar { justify-self: center; }
+  .flow .ar::before { content: '↓'; }
+}
+
+/* ルーターの図 */
+.router { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--surface); margin: 12px 0; }
+.router .lay { border-left: 4px solid var(--line); padding: 8px 12px; margin: 8px 0; border-radius: 6px; background: var(--bg); font-size: 0.84rem; }
+.router .lay b { display: block; }
+.router .lay.mp { border-left-color: var(--c-mp); border-left-style: dashed; }
+.router .lay.cp { border-left-color: var(--c-cp); }
+.router .lay.dp { border-left-color: var(--c-dp); }
+.router .down { text-align: center; color: var(--fg-2); font-size: 0.78rem; }
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
+.series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
+.series span { color: var(--fg); font-weight: 700; }
+tbody th { white-space: nowrap; }
+.flow .mid { border-color: var(--fg-2); }
+@media (max-width: 600px) { tbody th { white-space: normal; width: 6.5em; } }
+</style>
+
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="コントロールプレーンとデータプレーン">
+<meta property="og:description" content="「決める側」と「運ぶ側」を分ける考え方を、ルーターの狭い意味からクラウド・Kubernetes の広い意味、呼び分け方とあいまいな境界まで図で整理する。">
+<meta property="og:url" content="https://memo.taka1156.site/control-data-plane.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>コントロールプレーンとデータプレーン</h1>
+  <p class="subtitle">「決める側」と「運ぶ側」を分ける考え方。ネットワーク機器の狭い意味から、クラウドの広い意味まで</p>
+
+  <nav class="series" aria-label="コントロールプレーンとデータプレーンのシリーズ">
+    <span aria-current="page">コントロールプレーンとデータプレーン</span>
+    <a href="static-stability.html">コントロールプレーンが止まったら</a>
+  </nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>コントロールプレーンは経路や設定を「決める側」、データプレーンは毎回の通信や処理を「運ぶ側」。</li>
+      <li>元はルーターの中の役割分担（狭義）で、クラウドや Kubernetes では仕組み全体の分け方（広義）に広がった。</li>
+      <li>同じ言葉でも文脈で指す範囲が変わるので、「何のコントロールプレーンか」を主語に付けて話す。</li>
+    </ul>
+  </div>
+
+  <h2 id="shape">共通の形</h2>
+  <p>どちらの意味でも形は同じ。決める側が「結果」を作って渡し、運ぶ側はその結果だけを見て、毎回の仕事を速く大量にこなす。</p>
+  <div class="flow">
+    <div class="box cp"><b>コントロールプレーン</b><span>何をどう流すかを決める。量は少ないが処理は複雑</span></div>
+    <div class="ar"></div>
+    <div class="box mid"><b>渡す結果</b><span>転送表・設定・「望ましい状態」など</span></div>
+    <div class="ar"></div>
+    <div class="box dp"><b>データプレーン</b><span>結果に従って 1 件ずつ処理する。量は多いが処理は単純</span></div>
+  </div>
+  <div class="legend"><span><i style="background:var(--c-cp)"></i>コントロールプレーン（決める側）</span><span><i style="background:var(--c-dp)"></i>データプレーン（運ぶ側）</span></div>
+  <p class="note">プレーン（plane、層）は「どこで動いているか」ではなく「何の役割か」で分ける言葉。1 台の機器や 1 つのサービスの中に両方があることも多い。</p>
+
+  <h2 id="narrow">狭義：ネットワーク機器の中の役割分担</h2>
+  <p>もともとはルーターやスイッチの中の分け方。CPU で動くソフトウェアが経路を決め、専用のチップ（ASIC）が決まった表のとおりにパケットを転送する。</p>
+  <div class="router">
+    <div class="lay mp"><b>マネジメントプレーン</b>SSH・SNMP・API で機器に設定を入れる、状態を見る</div>
+    <div class="down">設定</div>
+    <div class="lay cp"><b>コントロールプレーン</b>BGP・OSPF などで隣の機器と経路を交換し、経路表（RIB）を作る。選んだ経路を転送表（FIB）に書き込む</div>
+    <div class="down">転送表（FIB）</div>
+    <div class="lay dp"><b>データプレーン（フォワーディングプレーン）</b>届いたパケットの宛先を転送表で引き、出口へ流す。1 秒に何百万件もさばく</div>
+  </div>
+  <div class="legend"><span><i style="background:var(--c-mp)"></i>マネジメントプレーン</span><span><i style="background:var(--c-cp)"></i>コントロールプレーン</span><span><i style="background:var(--c-dp)"></i>データプレーン</span></div>
+  <p>ネットワークの世界では、このようにマネジメントプレーンを別に数えて 3 層で説明することが多い。VMware NSX も「マネジメント・コントロール・データ」の 3 層で構成を説明している。</p>
+
+  <h2 id="broad">広義：仕組み全体の分け方</h2>
+  <p>クラウドや分散システムでは、同じ分け方を仕組み全体に当てはめる。AWS も「ネットワークの用語だが、AWS の中のあらゆる所で使っている」と説明している。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="br-k8s">Kubernetes</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="br-mesh">サービスメッシュ</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="br-aws">クラウド（AWS）</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="br-cdn">CDN</button>
+  </div>
+  <div class="panel card table-wrap" id="br-k8s">
+    <table>
+      <thead><tr><th></th><th>部品</th><th>していること</th></tr></thead>
+      <tbody>
+        <tr><th>コントロールプレーン</th><td>kube-apiserver・etcd・スケジューラー・コントローラー</td><td>宣言された「望ましい状態」を保存し、どのノードで何を動かすかを決め、ずれを直し続ける</td></tr>
+        <tr><th>データプレーン</th><td>各ノードのコンテナランタイム・Pod・ネットワーク</td><td>実際にアプリを動かし、リクエストをさばく</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="panel card table-wrap" id="br-mesh" hidden>
+    <table>
+      <thead><tr><th></th><th>部品（Istio の例）</th><th>していること</th></tr></thead>
+      <tbody>
+        <tr><th>コントロールプレーン</th><td>istiod</td><td>ルーティングの規則・証明書・ポリシーを作り、各プロキシに配る</td></tr>
+        <tr><th>データプレーン</th><td>各 Pod の横の Envoy プロキシ（サイドカーモード）、またはノードごとの ztunnel と必要に応じた waypoint プロキシ（アンビエントモード）</td><td>配られた規則で、サービス間の通信を 1 件ずつ中継する</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="panel card table-wrap" id="br-aws" hidden>
+    <table>
+      <thead><tr><th></th><th>EC2 の例</th><th>IAM の例</th></tr></thead>
+      <tbody>
+        <tr><th>コントロールプレーン</th><td>インスタンスを起動・停止する API、置き場所を決める仕組み</td><td>ユーザー・ロール・ポリシーを作る・変える API（us-east-1 にある）</td></tr>
+        <tr><th>データプレーン</th><td>動いているインスタンス、VPC のルートどおりのパケット転送、EBS の読み書き</td><td>各リクエストの認証・認可（リージョンごとに分かれている）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="panel card table-wrap" id="br-cdn" hidden>
+    <table>
+      <thead><tr><th></th><th>部品</th><th>していること</th></tr></thead>
+      <tbody>
+        <tr><th>コントロールプレーン</th><td>管理画面・設定 API</td><td>キャッシュの規則・証明書・WAF のルールを受け付け、世界中のエッジに配る</td></tr>
+        <tr><th>データプレーン</th><td>各地のエッジサーバー</td><td>配られた設定で、利用者のリクエストに 1 件ずつ応える</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">どの例でも、データプレーンは「配られた結果」で動き、コントロールプレーンに毎回問い合わせない作りを目指す。止まったときにどうなるかは<a href="static-stability.html">コントロールプレーンが止まったら</a>で扱う。</p>
+
+  <h2 id="why">なぜ分けるか</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th></th><th>コントロールプレーン</th><th>データプレーン</th></tr></thead>
+      <tbody>
+        <tr><th>量</th><td>少ない（設定の変更・経路の更新）</td><td>多い（すべての通信・リクエスト）</td></tr>
+        <tr><th>処理</th><td>複雑。部品と依存先が多い</td><td>単純。決まった表を引くだけ</td></tr>
+        <tr><th>大事にすること</th><td>一貫性（全体で同じ設定になること）</td><td>可用性と速さ（止まらず、遅れないこと）</td></tr>
+        <tr><th>壊れやすさ</th><td>動く部品が多いぶん、壊れる確率が高い</td><td>単純なぶん、高い可用性を目標にできる</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>性質がまったく違うので、まとめて作るとどちらにも合わない。分けておけば、データプレーンを速く単純に保ったまま、コントロールプレーンだけを作り込める。障害の影響も分けられる。</p>
+
+  <h2 id="naming">現場ではどう呼び分けるか</h2>
+  <p>「狭義」「広義」とはほとんど言わない。「ルーターの」「Kubernetes の」「AWS の」と主語を付けて話せば意味が決まる。主語がないときは、次の手がかりで判断する。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>手がかり</th><th>狭義（ネットワーク機器）</th><th>広義（クラウド・分散システム）</th></tr></thead>
+      <tbody>
+        <tr><th>話している人</th><td>ネットワークエンジニア・NOC</td><td>SRE・クラウドやプラットフォームのエンジニア</td></tr>
+        <tr><th>一緒に出る語</th><td>BGP・OSPF・RIB / FIB・ASIC・フォワーディング</td><td>API・望ましい状態・調整ループ（reconcile）・オーケストレーション</td></tr>
+        <tr><th>層の数</th><td>マネジメントプレーンを入れた 3 層が多い</td><td>コントロールとデータの 2 層が多い</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3 id="api-name">同じ「設定を入れる API」でも呼び名が変わる</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>していること</th><th>狭義での呼び名</th><th>広義での呼び名</th></tr></thead>
+      <tbody>
+        <tr><td>人やツールが API で設定を入れる</td><td>マネジメントプレーン</td><td rowspan="2">コントロールプレーン</td></tr>
+        <tr><td>設定や状況から、実際に流す経路・配置を計算する</td><td>コントロールプレーン</td></tr>
+        <tr><td>毎回の通信・処理をこなす</td><td>データプレーン</td><td>データプレーン</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>クラウドでいう「コントロールプレーン」は、ネットワーク機器でいうマネジメントプレーンとコントロールプレーンをまとめたものにおおよそ当たる。ネットワークの人とクラウドの人の話がかみ合わないのは、たいていここ。</p>
+
+  <h2 id="sdn">SDN：狭義から広義への橋渡し</h2>
+  <p>SDN（ソフトウェア定義ネットワーク）は、各スイッチの中にあったコントロールプレーンを、外のコントローラーに集めた仕組み。スイッチはデータプレーンだけになり、コントローラーが全体の転送表を計算して配る。機器の中の分け方を、そのまま機器の外へ出したことで、「仕組み全体を 2 つに分ける」広義の使い方につながっていった。</p>
+
+  <h2 id="gray">境界があいまいなところ</h2>
+  <p>真ん中の典型例ははっきり分けられるが、境界では人によって言うことが変わる。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>あいまいな所</th><th>なぜ迷うか</th></tr></thead>
+      <tbody>
+        <tr><td>Kubernetes の kubelet</td><td>ノードの上で動くのでデータプレーン側にも見えるが、仕事はコントロールプレーンの指示を受けて Pod を動かす「出先の担当」</td></tr>
+        <tr><td>オートスケール</td><td>動かしているのは制御のループ（決める側）なのに、止まると今のトラフィックをさばけなくなる</td></tr>
+        <tr><td>ルーター自身に宛てたパケット</td><td>BGP や SSH の通信はデータプレーンを通ってから CPU（コントロールプレーン）へ回される（punt）。ここを狙った攻撃から守るのが CoPP（Control Plane Policing）</td></tr>
+        <tr><td>1 つのサービスに両方がある</td><td>AWS の Route 53 は、レコードの変更がコントロールプレーン、DNS の応答とヘルスチェックがデータプレーン。サービス名だけでは、どちらの話か決まらない</td></tr>
+        <tr><td>隠れた依存</td><td>設計上は独立しているはずのデータプレーンが、実は動いている最中にコントロールプレーンや別の地域を呼んでいる。障害で初めて分かることが多い</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">最後の 2 つは障害のときに効いてくる。具体例は<a href="static-stability.html#route53">コントロールプレーンが止まったら</a>にある。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>コントロールプレーンという言葉は、どの現場でも同じ範囲を指す</summary><p>ネットワーク機器では経路を決める部分だけを指し、設定を入れる部分はマネジメントプレーンと呼んで分ける。クラウドでは設定 API を含めた「決める側」全体を指す。主語（何のコントロールプレーンか）を付けて話す。</p></details>
+  <details class="myth"><summary>どちらのプレーンかは、部品が動いている場所で決まる</summary><p>決めるのは役割。ノードの上で動く kubelet がコントロールプレーンの出先として働くように、同じ場所に両方の役割が同居することもある。</p></details>
+  <details class="myth"><summary>1 つのサービスは、丸ごとどちらか一方のプレーンに属する</summary><p>多くのサービスは両方を持つ。Route 53 ならレコードの変更はコントロールプレーン、DNS の応答はデータプレーン。障害の影響を考えるときは「どの操作か」まで分ける。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="kubernetes.html">Kubernetes の全体像</a> — コントロールプレーンとノードの部品を詳しく</li>
+    <li><a href="lb-proxy-cdn.html">ロードバランサ・リバースプロキシ・CDN</a> — データプレーンとして通信をさばく部品</li>
+    <li><a href="distributed-basics.html">分散システムの基本</a> — コントロールプレーンが重視する一貫性と、可用性との引き換え</li>
+    <li><a href="network-layers.html">URL から応答まで</a> — ルーターが転送する層と、その上の層の関係</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://aws.amazon.com/builders-library/static-stability-using-availability-zones/">Amazon Builders' Library: Static stability using Availability Zones</a></li>
+    <li><a href="https://docs.aws.amazon.com/whitepapers/latest/aws-fault-isolation-boundaries/global-services.html">AWS Fault Isolation Boundaries: Global services</a></li>
+    <li><a href="https://docs.aws.amazon.com/r53recovery/latest/dg/data-and-control-planes.html">Amazon Application Recovery Controller: Data and control planes</a></li>
+    <li><a href="https://docs.vmware.com/en/VMware-NSX/4.1/installation/GUID-A1BBC650-CCE3-4AC3-A774-92B195183492.html">VMware NSX: Key Concepts</a></li>
+    <li><a href="https://www.cisco.com/en/US/docs/ios-xml/ios/qos_plcshp/configuration/xe-3s/qos-plcshp-ctrl-pln-plc.html">Cisco: Control Plane Policing</a></li>
+  </ul>
+  <p class="note">確認した日付: 2026-11-22</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "ルーターの中で、届いたパケットを転送表（FIB）どおりに 1 秒に何百万件も出口へ流しているのはどれ？",
+    "choices": ["マネジメントプレーン", "コントロールプレーン", "データプレーン"],
+    "answer": 2,
+    "explain": "転送表を作るのはコントロールプレーン（BGP・OSPF など）で、その表を引いて実際に流すのがデータプレーン（フォワーディングプレーン）。",
+    "ref": "#narrow"
+  },
+  {
+    "q": "クラウドの担当者が「コントロールプレーンの障害でリソースを作れない」と言っている。ネットワーク機器の用語でいうと、おおよそどこに当たる？",
+    "choices": ["データプレーン", "マネジメントプレーンとコントロールプレーンをまとめたもの", "マネジメントプレーンだけ"],
+    "answer": 1,
+    "explain": "クラウドのコントロールプレーンは設定 API（狭義ではマネジメントプレーン）と、配置や経路を決める部分（狭義のコントロールプレーン）の両方を含む。",
+    "ref": "#api-name"
+  },
+  {
+    "q": "データプレーンをコントロールプレーンから切り離し、単純に保つ主な理由は？",
+    "choices": ["すべての通信が通るので、高い可用性と速さが必要だから", "設定の一貫性をいちばん重視するから", "部品と依存先を増やして機能を足しやすくするから"],
+    "answer": 0,
+    "explain": "データプレーンは量が多く止まれない。複雑で壊れやすいコントロールプレーンと分けることで、単純で高可用に保てる。",
+    "ref": "#why"
+  },
+  {
+    "q": "「Route 53 が止まったらしい」と聞いた。影響を見積もる前に、まず確かめるべきことは？",
+    "choices": ["サービス全体が丸ごと止まった前提で動く", "Route 53 がどのリージョンのサービスか", "影響が出ているのがレコードの変更か、DNS の応答か"],
+    "answer": 2,
+    "explain": "Route 53 はレコードの変更がコントロールプレーン、DNS の応答とヘルスチェックがデータプレーン。どちらの操作かで影響がまったく違う。",
+    "ref": "#gray"
+  },
+  {
+    "q": "Kubernetes の kubelet がコントロールプレーンかデータプレーンかで議論になった。判断の基準として適切なのは？",
+    "choices": ["ノードの上で動いているのでデータプレーンと決める", "動いている場所ではなく、どんな役割をしているかで見る", "Go で書かれているかどうかで決める"],
+    "answer": 1,
+    "explain": "プレーンは役割で分ける言葉。kubelet はノード上で動くが、コントロールプレーンの指示を受けて Pod を動かす出先の役割も持つので、境界のあいまいな例になる。",
+    "ref": "#gray"
+  }
+]
+</script>
+</body>
+</html>
