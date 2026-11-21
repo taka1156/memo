@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>障害を広げない設計</title>
+<meta name="description" content="依存先の遅れが連鎖障害になるしくみと、バルクヘッド・サーキットブレーカー・縮退運転の使い方を、対策をオン・オフするシミュレーションで整理する。">
+<meta name="memo:tags" content="設計, バックエンド, インフラ">
+<meta name="memo:date" content="2026-11-22">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+/* 共通部品（ざっくり言うと・よくある誤解・番号付きの手順・表やリストの中のリンク）と
+   解説用の色（--c-ok・--c-ng・--c-warn・--c-hl）は assets/memo-parts.css にある（build・preview が読み込む）。
+   ここで書き直さない。ページ独自の色分けが要るときは、意味ごとの --c-名前 を :root に足し、凡例やラベルを付ける。
+   アクセント色（--accent）は h1・h2 の左線・段落のリンク・ボタンやタブの操作状態にだけ使う */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);  /* 小さい文字の中でも 10px を下回らない */
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+.panel > p:first-child { margin-top: 0; }
+.tab { min-height: 30px; }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chip); font-weight: 600; }
+tbody th { white-space: nowrap; }
+@media (max-width: 600px) { tbody th { white-space: normal; width: 6.5em; } }
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
+.series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
+.series span { color: var(--fg); font-weight: 700; }
+
+/* 操作ボタン（シミュレーション） */
+.toggles { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.tg {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  min-height: 32px;
+  font: 600 0.8rem 'Noto Sans JP', system-ui, sans-serif;
+  cursor: pointer;
+}
+.tg[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.st { font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
+.st.ok { color: var(--c-ok); }
+.st.ng { color: var(--c-ng); }
+.st.warn { color: var(--c-warn); }
+[data-k][hidden] { display: none; }
+
+/* 連鎖障害のシミュレーション */
+.sim .rows { list-style: none; padding: 0; margin: 0; }
+.sim .rows li { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 0.86rem; }
+.sim .rows li:last-child { border-bottom: none; }
+.sim .rows .what { font-weight: 600; }
+.sim .rows .why { grid-column: 1 / -1; color: var(--fg-2); font-size: 0.8rem; }
+.sim .verdict { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: var(--bg); font-size: 0.86rem; }
+.sim .group-label { font-size: 0.78rem; color: var(--fg-2); margin: 2px 0; }
+.sim .legend { margin-top: 10px; }
+@media (max-width: 600px) { .sim .rows li { grid-template-columns: 1fr; } }
+
+/* サーキットブレーカーの状態図 */
+.states { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 8px; align-items: stretch; margin: 12px 0; }
+.states .s { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface); font-size: 0.82rem; min-width: 0; }
+.states .s b { display: block; font-size: 0.9rem; }
+.states .s span { color: var(--fg-2); }
+.states .ar { align-self: center; color: var(--fg-2); font-size: 0.78rem; text-align: center; }
+.states .ar::before { content: '→'; display: block; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 1rem; }
+@media (max-width: 600px) {
+  .states { grid-template-columns: 1fr; }
+  .states .ar::before { content: '↓'; }
+}
+ul.plain { margin: 6px 0 6px 1.2em; } ul.plain li { margin: 2px 0; }
+</style>
+
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="障害を広げない設計">
+<meta property="og:description" content="依存先の遅れが連鎖障害になるしくみと、バルクヘッド・サーキットブレーカー・縮退運転の使い方を、対策をオン・オフするシミュレーションで整理する。">
+<meta property="og:url" content="https://memo.taka1156.site/failure-isolation.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>障害を広げない設計</h1>
+  <p class="subtitle">バルクヘッド・サーキットブレーカー・縮退運転で、1 か所の故障が全体に連鎖しないようにする</p>
+
+  <nav class="series" aria-label="障害に強くするシリーズ">
+    <a href="layered-defense.html">層を重ねて守る</a>
+    <span aria-current="page">障害を広げない設計</span>
+    <a href="redundancy-failover.html">冗長化とフェイルオーバー</a>
+  </nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>依存先が 1 つ遅くなるだけで、待ちが積み上がって呼び出し側まで止まり、障害が連鎖する。</li>
+      <li>バルクヘッドで資源を区切り、サーキットブレーカーで呼ぶのをやめ、縮退運転で中心の機能だけは返し続ける。</li>
+      <li>どれも前提はタイムアウトで、代わりの動きは平常時から試しておかないと、障害のときに働かない。</li>
+    </ul>
+  </div>
+
+  <h2 id="cascade">連鎖障害はどう起きるか</h2>
+  <p>連鎖障害のいちばん多い原因は過負荷。とくに怖いのは、依存先が「落ちる」より「遅くなる」とき。</p>
+  <ol class="steps">
+    <li><b>依存先が遅くなる</b>おすすめ表示のサービスが、ふだん 50 ミリ秒の応答に数十秒かかるようになる。</li>
+    <li><b>待ちが積み上がる</b>呼び出し側では、おすすめを待つリクエストがスレッドや接続を握ったまま動かない。</li>
+    <li class="is-ng"><b>共有の枠を使い切る</b>スレッドや接続の枠を使い切り、関係のない注文や通知の処理まで受け付けられなくなる。</li>
+    <li class="is-ng"><b>上流へ広がる</b>呼び出し側が遅くなったことで、さらにその呼び出し元も待たされる。リトライが負荷を何倍にもする。</li>
+  </ol>
+  <p>3・4 の番号が赤いのは、障害が依存先の外へ広がり始めた段階（1・2 は依存先とその待ちの中にとどまる）。</p>
+
+  <h2 id="sim">止めてみる</h2>
+  <p>注文・おすすめ・通知の 3 つの機能を持つサービスで、おすすめの依存先が遅くなったとする。対策をオン・オフして、何が動き続けるかを見る。</p>
+  <div class="card sim" id="cascade-sim">
+    <div class="group-label">障害</div>
+    <div class="toggles"><button class="tg" type="button" data-flag="slow" aria-pressed="true">おすすめを遅くする</button></div>
+    <div class="group-label">対策</div>
+    <div class="toggles">
+      <button class="tg" type="button" data-flag="bh" aria-pressed="false">バルクヘッド</button>
+      <button class="tg" type="button" data-flag="cb" aria-pressed="false">サーキットブレーカー</button>
+      <button class="tg" type="button" data-flag="deg" aria-pressed="false">縮退運転</button>
+    </div>
+    <ul class="rows">
+      <li data-row="order">
+        <span class="what">注文（いちばん大事な機能）</span>
+        <span class="st ok" data-k="ok" hidden>動く</span><span class="st ok" data-k="protected" hidden>動く</span><span class="st ng" data-k="ng">止まる</span>
+        <span class="why" data-k="ok" hidden>平常どおり</span>
+        <span class="why" data-k="protected" hidden>遅い呼び出しが、注文の分のスレッドや接続を使い切らない</span>
+        <span class="why" data-k="ng">おすすめを待つリクエストが共有の枠を使い切り、注文も受け付けられない</span>
+      </li>
+      <li data-row="reco">
+        <span class="what">おすすめ表示</span>
+        <span class="st ok" data-k="ok" hidden>動く</span><span class="st ng" data-k="timeout">止まる</span><span class="st ng" data-k="fast-error" hidden>エラー（すぐ返る）</span><span class="st warn" data-k="deg-slow" hidden>代わりの表示（遅い）</span><span class="st warn" data-k="deg-fast" hidden>代わりの表示</span>
+        <span class="why" data-k="ok" hidden>平常どおり</span>
+        <span class="why" data-k="timeout">毎回タイムアウトまで待たされた末に失敗する</span>
+        <span class="why" data-k="fast-error" hidden>サーキットブレーカーが開き、呼ばずにすぐ失敗を返す。待たされない</span>
+        <span class="why" data-k="deg-slow" hidden>毎回タイムアウトを待ってから、定番の人気商品の一覧を返す</span>
+        <span class="why" data-k="deg-fast" hidden>サーキットブレーカーが開いているので、待たずに定番の人気商品の一覧を返す</span>
+      </li>
+      <li data-row="notify">
+        <span class="what">通知</span>
+        <span class="st ok" data-k="ok" hidden>動く</span><span class="st ok" data-k="protected" hidden>動く</span><span class="st ng" data-k="ng">止まる</span>
+        <span class="why" data-k="ok" hidden>平常どおり</span>
+        <span class="why" data-k="protected" hidden>おすすめの遅れの影響を受けない</span>
+        <span class="why" data-k="ng">注文と同じく、枠が空かないので処理できない</span>
+      </li>
+    </ul>
+    <div class="legend"><span><i style="background:var(--c-ok)"></i>動く</span><span><i style="background:var(--c-warn)"></i>縮退して動く</span><span><i style="background:var(--c-ng)"></i>止まる・失敗</span></div>
+    <div class="verdict" data-row="verdict">
+      <span data-k="normal" hidden>平常時。どの対策も違いが見えない。「おすすめを遅くする」を押して障害を起こしてみる。</span>
+      <span data-k="cascade"><b>連鎖障害。</b>おすすめの遅れが、関係のない注文と通知まで止めた。バルクヘッドかサーキットブレーカーを入れてみる。</span>
+      <span data-k="contained" hidden><b>障害を閉じ込めた。</b>止まったのはおすすめだけ。さらに縮退運転を入れると、おすすめも何かを返せる。</span>
+      <span data-k="degraded" hidden><b>閉じ込めたうえで縮退運転。</b>注文と通知は動き、おすすめも代わりの表示を返す。サーキットブレーカーがあると、代わりの表示も待たずに出せる。</span>
+    </div>
+  </div>
+
+  <h2 id="bulkhead">バルクヘッド（隔壁）</h2>
+  <p>船の船体を隔壁で区切り、1 区画に穴が開いても浸水をその区画だけに止める、という発想から来ている。アプリの部品をそれぞれの枠（プール）に分け、1 つが壊れてもほかは動き続けるようにする。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>何を区切るか</th><th>例</th></tr></thead>
+      <tbody>
+        <tr><td>呼び出し先ごとの接続・スレッド</td><td>依存サービスごとに接続プールを分け、1 つが詰まってもほかの呼び出しは続けられる</td></tr>
+        <tr><td>利用者・テナントごと</td><td>大口の利用者や重い処理を別のインスタンス群に分け、ほかの利用者に響かないようにする</td></tr>
+        <tr><td>セル（cell）ごと</td><td>システム全体を独立した小さなコピーに分け、障害を 1 セルの利用者だけに限る</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">区切るほど枠どうしで余りを融通できなくなるので、全体としては多めの資源が要る。どこで区切るかは、業務上の重要さと依存関係で決める。</p>
+
+  <h2 id="breaker">サーキットブレーカー</h2>
+  <p>電気のブレーカーのように、失敗が続く相手への呼び出しを一時的に止める。呼ばずにすぐ失敗を返すので、待ちが積み上がらず、弱った相手にも負荷をかけない。</p>
+  <div class="states">
+    <div class="s"><b>閉（Closed）</b><span>普通に呼ぶ。失敗の数や割合を数える</span></div>
+    <div class="ar">失敗がしきい値を超える</div>
+    <div class="s"><b>開（Open）</b><span>呼ばずにすぐ失敗を返す</span></div>
+    <div class="ar">一定時間たつ</div>
+    <div class="s"><b>半開（Half-Open）</b><span>少しだけ試しに呼ぶ。成功すれば閉へ、失敗すれば開へ戻る</span></div>
+  </div>
+  <ul class="plain">
+    <li>決める値は、開くしきい値・開いている時間・半開で試す回数。</li>
+    <li>開いている間に何を返すか（エラー・キャッシュ・代わりの表示）を、呼び出し側で決めておく。</li>
+    <li>状態が変わったら記録し、監視できるようにする。開いたこと自体が障害の知らせになる。</li>
+  </ul>
+
+  <h2 id="degrade">縮退運転（graceful degradation）</h2>
+  <p>依存先が使えなくても、中心の機能だけは返し続ける。AWS はこれを「絶対に必要な依存（ハード）を、なくても動ける依存（ソフト）に変える」と説明している。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>縮退のしかた</th><th>例</th></tr></thead>
+      <tbody>
+        <tr><td>少し古いデータを返す</td><td>在庫数をキャッシュの値で表示する</td></tr>
+        <tr><td>決めておいた静的な応答を返す</td><td>個人向けのおすすめの代わりに、定番の人気商品の一覧を出す</td></tr>
+        <tr><td>機能を隠す</td><td>レビュー欄を一時的に表示しない</td></tr>
+        <tr><td>品質を下げる</td><td>検索で調べる範囲を狭め、早く返す</td></tr>
+        <tr><td>一部のリクエストを断る（負荷を捨てる）</td><td>重要度の低いリクエストから断り、残りを守る</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>気をつけたいのは、まったく別の仕組みで同じ結果を出そうとする「フォールバック」。Amazon Builders' Library の記事は、めったに動かないフォールバックは試されにくく、それ自体が失敗の原因になると注意している。縮退運転は「機能を減らして返す」にとどめ、障害を起こす訓練で平常時から試しておく。</p>
+
+  <h2 id="combine">組み合わせ方</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>対策</th><th>防ぐもの</th><th>関係</th></tr></thead>
+      <tbody>
+        <tr><td>タイムアウト</td><td>いつまでも待つこと</td><td>すべての前提。これがないと、サーキットブレーカーは失敗を数えられない</td></tr>
+        <tr><td>リトライ（指数バックオフ＋ジッター）</td><td>一時的な失敗</td><td>回数を絞らないと負荷を増やす。詳しくは<a href="distributed-basics.html#backoff">分散システムの基本</a></td></tr>
+        <tr><td>バルクヘッド</td><td>1 つの詰まりが枠を使い切ること</td><td>失敗を数える前から、影響の範囲を限る</td></tr>
+        <tr><td>サーキットブレーカー</td><td>失敗が続く相手を呼び続けること</td><td>開いている間はリトライも止まる</td></tr>
+        <tr><td>縮退運転</td><td>依存先の失敗が、そのまま利用者のエラーになること</td><td>サーキットブレーカーが開いたときに返すものを決める</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>サーキットブレーカーがあれば、タイムアウトは設定しなくてよい</summary><p>サーキットブレーカーは失敗を数えて開く。タイムアウトがないと、遅い呼び出しはいつまでも失敗にならず、数えられないまま待ちが積み上がる。</p></details>
+  <details class="myth"><summary>リトライの回数を増やすほど、障害に強くなる</summary><p>依存先が過負荷のときにリトライすると、負荷が何倍にもなって回復を妨げ、連鎖障害を広げる。回数を絞り、指数バックオフとジッターを入れ、サーキットブレーカーと組み合わせる。</p></details>
+  <details class="myth"><summary>縮退運転とは、別の仕組みで同じ結果を出す予備を用意することだ</summary><p>別の仕組みで同じ結果を出すフォールバックは、めったに動かないので試されにくく、それ自体が壊れやすい。縮退運転は、機能や品質を減らしてでも中心の機能を返し続けること。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="distributed-basics.html">分散システムの基本</a> — タイムアウト・リトライ・冪等性の基本</li>
+    <li><a href="rate-limiting.html">レート制限のアルゴリズム</a> — 入口で負荷を断り、内側を守る</li>
+    <li><a href="message-queues.html">メッセージキューと Pub/Sub</a> — 同期の呼び出しをやめて、遅れを吸収する</li>
+    <li><a href="observability.html">オブザーバビリティと OpenTelemetry</a> — どこで待ちが積み上がっているかを見つける</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://sre.google/sre-book/addressing-cascading-failures/">Google SRE Book: Addressing Cascading Failures</a></li>
+    <li><a href="https://learn.microsoft.com/en-us/azure/architecture/patterns/bulkhead">Azure Architecture Center: Bulkhead pattern</a></li>
+    <li><a href="https://martinfowler.com/bliki/CircuitBreaker.html">Martin Fowler: CircuitBreaker</a></li>
+    <li><a href="https://docs.aws.amazon.com/wellarchitected/latest/framework/rel_mitigate_interaction_failure_graceful_degradation.html">AWS Well-Architected: REL05-BP01 Implement graceful degradation</a></li>
+    <li><a href="https://builder.aws.com/content/3EuS9Sakq7L3VLQIF3qzfMfke1Y/avoiding-fallback-in-distributed-systems">AWS Builder Center（Amazon Builders' Library）: Avoiding fallback in distributed systems</a></li>
+  </ul>
+  <p class="note">確認した日付: 2026-11-22</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+(() => {
+  const sim = document.getElementById('cascade-sim');
+  if (!sim) return;
+  const st = { slow: true, bh: false, cb: false, deg: false };
+  const keyOf = {
+    order: () => !st.slow ? 'ok' : (st.bh || st.cb) ? 'protected' : 'ng',
+    notify: () => !st.slow ? 'ok' : (st.bh || st.cb) ? 'protected' : 'ng',
+    reco: () => !st.slow ? 'ok' : st.deg ? (st.cb ? 'deg-fast' : 'deg-slow') : st.cb ? 'fast-error' : 'timeout',
+    verdict: () => !st.slow ? 'normal' : !(st.bh || st.cb) ? 'cascade' : st.deg ? 'degraded' : 'contained',
+  };
+  const update = () => {
+    sim.querySelectorAll('.tg').forEach(b => b.setAttribute('aria-pressed', String(st[b.dataset.flag])));
+    sim.querySelectorAll('[data-row]').forEach(row => {
+      const k = keyOf[row.dataset.row]();
+      row.querySelectorAll('[data-k]').forEach(el => { el.hidden = el.dataset.k !== k; });
+    });
+  };
+  sim.addEventListener('click', e => {
+    const b = e.target.closest('.tg');
+    if (!b) return;
+    st[b.dataset.flag] = !st[b.dataset.flag];
+    update();
+  });
+  update();
+})();
+
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "おすすめ表示の依存先が遅くなっただけなのに、注文まで受け付けられなくなった。最も考えられる原因は？",
+    "choices": [
+      "注文のサービスにも、おすすめと同じ不具合が同時に入っていた",
+      "おすすめを待つリクエストが共有のスレッドや接続を使い切った",
+      "おすすめの依存先が、注文のデータベースの中身を壊してしまった"
+    ],
+    "answer": 1,
+    "explain": "遅い依存先を待つリクエストが共有の枠を握り続けると、関係のない処理まで止まる。依存先は落ちるより遅くなる方が連鎖しやすい。",
+    "ref": "#cascade"
+  },
+  {
+    "q": "外部の決済 API が時々数十秒固まり、そのたびに管理画面まで重くなる。まず入れるべき対策の組み合わせは？",
+    "choices": [
+      "リトライ回数を増やし、決済が成功するまで何度でも粘って呼ぶ",
+      "タイムアウトを外し、決済の処理が終わるまで必ず最後まで待つ",
+      "タイムアウトを付け、決済用の接続プールを分ける（バルクヘッド）"
+    ],
+    "answer": 2,
+    "explain": "タイムアウトで待ちに上限を付け、バルクヘッドで決済の詰まりがほかの処理の枠を使い切らないようにする。",
+    "ref": "#bulkhead"
+  },
+  {
+    "q": "サーキットブレーカーが開いている間、呼び出し側はどうふるまう？",
+    "choices": [
+      "相手を呼ばずにすぐ失敗（または決めておいた代わりの応答）を返す",
+      "相手が回復するまで、届いたリクエストをすべてその場で待たせ続ける",
+      "相手が早く回復するよう、相手への呼び出しを倍の頻度で繰り返す"
+    ],
+    "answer": 0,
+    "explain": "開いた状態では呼ばずにすぐ返すので、待ちが積み上がらず、弱った相手にも負荷をかけない。一定時間後に半開で少しだけ試す。",
+    "ref": "#breaker"
+  },
+  {
+    "q": "商品ページのレビュー表示サービスが落ちた。縮退運転の考え方に合う対応は？",
+    "choices": [
+      "商品ページ全体をエラーにして、障害を知らせる",
+      "レビュー欄だけを隠し、商品情報と購入ボタンは表示し続ける",
+      "別の会社のレビュー API を緊急に呼ぶ仕組みに切り替える"
+    ],
+    "answer": 1,
+    "explain": "中心の機能（商品と購入）を返し続け、付加的な機能を減らすのが縮退運転。普段使わない別の仕組みへのフォールバックは試されにくく壊れやすい。",
+    "ref": "#degrade"
+  }
+]
+</script>
+</body>
+</html>
