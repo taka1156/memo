@@ -297,7 +297,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <ul class="list">
       <li><b>本体は PlanetScale、利用者ごとの状態は D1</b>：会員・注文・決済のように全員で共有するデータは Postgres、ユーザーごとの下書きや設定、AI エージェントの作業メモは D1 に1人1 DB。</li>
       <li><b>Durable Objects の SQLite</b>：チャットルームや共同編集の部屋のように「1つの単位に1つの状態」で、しかも即時に同期したいものは、Durable Objects に内蔵された SQLite（2025年4月に正式提供）が向く。</li>
-      <li><b>KV・R2 は別枠</b>：設定値や読み込み中心の小さな値は KV、画像やファイルは R2（<a href="cloudflare-services.html">Cloudflare サービス</a>参照）。</li>
+      <li><b>KV・R2 は別枠</b>：設定値や読み込み中心の小さな値は KV、画像やファイルは R2。</li>
     </ul>
   </div>
 
@@ -309,7 +309,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
 
   <h2 id="related">関連メモ</h2>
   <ul class="related">
-    <li><a href="cloudflare-services.html">Cloudflare サービス</a> — D1・Hyperdrive 以外のサービスとの組み合わせ</li>
     <li><a href="db-internals.html">DB のしくみ</a> — D1 の中の SQLite の仕組み</li>
     <li><a href="db-index-transaction.html">インデックスとトランザクション</a> — インデックスと分離レベル</li>
   </ul>
