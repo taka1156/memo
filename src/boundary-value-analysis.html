@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>境界値分析と同値分割：テストする値の選び方</title>
+<meta name="description" content="テストで試す値を勘ではなく理由で選ぶ、同値分割・境界値分析と、エッジケース・コーナーケース・エラー推測を、年齢で料金が変わる例と図で解説したページ">
+<meta name="memo:tags" content="テスト, 開発ツール, 設計">
+<meta name="memo:date" content="2026-11-24">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+ul.plain { margin: 6px 0 6px 1.3em; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 数直線（区切り） */
+.bands { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; margin: 12px 0 4px; }
+.band {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 6px;
+  text-align: center;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+.band b { display: block; font-size: 0.85rem; }
+.band .range { display: block; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.72rem; color: var(--fg-2); margin-top: 2px; }
+.band.invalid { border: 1px dashed var(--c-ng); background: color-mix(in srgb, var(--c-ng) 8%, var(--surface)); }
+.band .picks { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; margin-top: 6px; }
+.pick {
+  display: inline-block;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  border-radius: 999px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  background: var(--chip);
+}
+.pick.edge { border-color: var(--c-hl); color: var(--fg); font-weight: 700; background: color-mix(in srgb, var(--c-hl) 10%, var(--surface)); }
+@media (max-width: 600px) {
+  .bands { grid-template-columns: 1fr; }
+  .band { display: grid; grid-template-columns: 5.5em 1fr; align-items: center; text-align: left; gap: 0 8px; }
+  .band b { grid-row: 1; }
+  .band .range { grid-row: 2; grid-column: 1; margin: 0; }
+  .band .picks { grid-row: 1 / 3; grid-column: 2; justify-content: flex-start; margin: 0; }
+}
+
+/* 境目の拡大図 */
+.zoom { display: flex; align-items: flex-end; justify-content: center; gap: 0; margin: 14px 0 6px; flex-wrap: nowrap; }
+.zoom .side { text-align: center; padding: 0 6px 4px; font-size: 0.78rem; color: var(--fg-2); }
+.zoom .cells { display: flex; align-items: flex-start; }
+.zoom .cell {
+  width: 64px;
+  height: 84px;
+  line-height: 1.5;
+  text-align: center;
+  padding: 8px 0;
+  border-top: 2px solid var(--line);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.9rem;
+  position: relative;
+}
+.zoom .cell.wall { border-left: 3px solid var(--fg); }
+.zoom .cell .tag { display: block; white-space: nowrap; font-family: 'Noto Sans JP', system-ui, sans-serif; font-size: 0.7rem; color: var(--fg-2); }
+.zoom .cell.v2 { color: var(--c-hl); font-weight: 700; }
+.zoom .cell.v3 { color: var(--c-hl); }
+@media (max-width: 400px) { .zoom .cell { width: 60px; } .zoom .side { padding: 0 2px 4px; } }
+
+/* 結果の表 */
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+th { font-size: 0.78rem; color: var(--fg-2); font-weight: 700; }
+td.ok { color: var(--c-ok); font-weight: 700; white-space: nowrap; }
+td.ng { color: var(--c-ng); font-weight: 700; white-space: nowrap; }
+td.num { font-family: 'JetBrains Mono', ui-monospace, monospace; white-space: nowrap; }
+tr.hit td { background: color-mix(in srgb, var(--c-ng) 8%, transparent); }
+.verdict { margin-top: 10px; font-size: 0.88rem; }
+
+/* 2 列 */
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0; }
+@media (max-width: 640px) { .two { grid-template-columns: 1fr; } }
+.two .card h3 { margin-top: 0; }
+
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
+.series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
+.series span { color: var(--fg); font-weight: 700; }
+
+table.nw td:first-child { white-space: nowrap; }
+/* コーナーの図 */
+.corner { display: grid; grid-template-columns: auto repeat(5, minmax(0, 44px)); gap: 4px; align-items: center; justify-content: center; margin: 12px 0 4px; }
+.corner .lab { font-size: 0.72rem; color: var(--fg-2); text-align: right; padding-right: 4px; white-space: nowrap; }
+.corner .lab.x { text-align: center; padding: 0; }
+.corner .c { height: 34px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; }
+.corner .c.e { background: color-mix(in srgb, var(--c-hl) 14%, var(--surface)); border-color: var(--c-hl); }
+.corner .c.k { background: var(--c-ng); border-color: var(--c-ng); color: var(--surface); }
+.axis-note { text-align: center; font-size: 0.75rem; color: var(--fg-2); }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>境界値分析と同値分割</h1>
+  <p class="subtitle">テストで試す値を、勘ではなく理由で選ぶ。エッジケース・コーナーケース・エラー推測も</p>
+
+  <nav class="series" aria-label="テスト設計技法のシリーズ">
+    <span aria-current="page">境界値分析と同値分割</span>
+    <a href="decision-table-pairwise.html">デシジョンテーブルとペアワイズ法</a>
+    <a href="state-transition-testing.html">状態遷移テストとユースケーステスト</a>
+  </nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>入力を「同じように扱われるグループ」に分け（同値分割）、その境目を重点的に試す（境界値分析）テストの作り方。</li>
+      <li>バグは <code>&lt;</code> と <code>&lt;=</code> の取り違えのように境目に集まるので、グループの真ん中より両端を試す方がよく見つかる。</li>
+      <li>仕様に書かれていない端（エッジケース）、端の重なり（コーナーケース）、過去の経験（エラー推測）でも値を足す。</li>
+    </ul>
+  </div>
+
+  <h2 id="why">なぜ値を「選ぶ」のか</h2>
+  <p>入力になりうる値は、ふつう多すぎて全部は試せません。年齢を受け取るだけの関数でも、0 歳から 120 歳まで、さらにマイナスや小数、文字まで来るかもしれません。</p>
+  <p>そこで 2 つの考え方で、<b>少ない件数で、見つかりやすい所</b>を試します。</p>
+  <div class="two">
+    <div class="card"><h3>同値分割</h3><p>同じように扱われる値をひとまとめにする。グループの中のどれか 1 つが正しければ、ほかも正しいだろうと考え、<b>代表を 1 つ</b>だけ試す。</p><p class="note">英語では equivalence partitioning</p></div>
+    <div class="card"><h3>境界値分析</h3><p>グループとグループの<b>境目のすぐ両側</b>を試す。実装の書き間違いは、この境目で起きやすい。</p><p class="note">英語では boundary value analysis</p></div>
+  </div>
+
+  <h2 id="partition">例：年齢で入場料が変わる</h2>
+  <p>次の仕様の <code>fareOf(age)</code> をテストします。</p>
+  <div class="card">
+    <ul class="plain">
+      <li>0〜5 歳は無料、6〜12 歳は子ども料金 500 円、13〜64 歳は大人料金 1000 円、65〜120 歳はシニア料金 700 円。</li>
+      <li>年齢は整数。マイナス・121 以上・小数はエラーにする。</li>
+    </ul>
+  </div>
+  <p>同値分割すると、6 つのグループ（<b>同値クラス</b>）に分かれます。点線の 2 つは、エラーになるべき<b>無効な</b>グループです。</p>
+  <div class="bands">
+    <div class="band invalid"><b>無効</b><span class="range">〜 −1</span><span class="picks"><span class="pick edge">-1</span></span></div>
+    <div class="band"><b>無料</b><span class="range">0 〜 5</span><span class="picks"><span class="pick edge">0</span><span class="pick">3</span><span class="pick edge">5</span></span></div>
+    <div class="band"><b>子ども</b><span class="range">6 〜 12</span><span class="picks"><span class="pick edge">6</span><span class="pick">9</span><span class="pick edge">12</span></span></div>
+    <div class="band"><b>大人</b><span class="range">13 〜 64</span><span class="picks"><span class="pick edge">13</span><span class="pick">30</span><span class="pick edge">64</span></span></div>
+    <div class="band"><b>シニア</b><span class="range">65 〜 120</span><span class="picks"><span class="pick edge">65</span><span class="pick">80</span><span class="pick edge">120</span></span></div>
+    <div class="band invalid"><b>無効</b><span class="range">121 〜</span><span class="picks"><span class="pick edge">121</span><span class="pick">200</span></span></div>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--chip);border:1px solid var(--line)"></i>代表値（グループの中ほど）</span>
+    <span><i style="background:var(--c-hl)"></i>境界値（グループの端）</span>
+    <span><i style="border:1px dashed var(--c-ng)"></i>無効なグループ</span>
+  </div>
+
+  <h2 id="demo">代表値だけでは見つからないバグ</h2>
+  <p>この実装には、シニアの判定を <code>age &gt; 65</code> と書いてしまったバグがあるとします。正しくは <code>age &gt;= 65</code> です。65 歳ちょうどの人だけが、大人料金を払わされます。</p>
+  <p>代表値だけで試した場合と、境界値で試した場合を比べます。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="t1">代表値で試す</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="t2">境界値で試す</button>
+  </div>
+  <div class="panel card" id="t1">
+    <div class="table-wrap">
+      <table>
+        <tr><th>年齢</th><th>期待</th><th>実際</th><th>結果</th></tr>
+        <tr><td class="num">-5</td><td>エラー</td><td>エラー</td><td class="ok">通過</td></tr>
+        <tr><td class="num">3</td><td>0 円</td><td>0 円</td><td class="ok">通過</td></tr>
+        <tr><td class="num">9</td><td>500 円</td><td>500 円</td><td class="ok">通過</td></tr>
+        <tr><td class="num">30</td><td>1000 円</td><td>1000 円</td><td class="ok">通過</td></tr>
+        <tr><td class="num">80</td><td>700 円</td><td>700 円</td><td class="ok">通過</td></tr>
+        <tr><td class="num">200</td><td>エラー</td><td>エラー</td><td class="ok">通過</td></tr>
+      </table>
+    </div>
+    <p class="verdict"><b>全部通過。</b>どのグループも試していますが、どの値も境目から離れているので、<code>&gt;</code> と <code>&gt;=</code> の違いが結果に出ません。</p>
+  </div>
+  <div class="panel card" id="t2" hidden>
+    <div class="table-wrap">
+      <table>
+        <tr><th>年齢</th><th>期待</th><th>実際</th><th>結果</th></tr>
+        <tr><td class="num">-1</td><td>エラー</td><td>エラー</td><td class="ok">通過</td></tr>
+        <tr><td class="num">0</td><td>0 円</td><td>0 円</td><td class="ok">通過</td></tr>
+        <tr><td class="num">5</td><td>0 円</td><td>0 円</td><td class="ok">通過</td></tr>
+        <tr><td class="num">6</td><td>500 円</td><td>500 円</td><td class="ok">通過</td></tr>
+        <tr><td class="num">12</td><td>500 円</td><td>500 円</td><td class="ok">通過</td></tr>
+        <tr><td class="num">13</td><td>1000 円</td><td>1000 円</td><td class="ok">通過</td></tr>
+        <tr><td class="num">64</td><td>1000 円</td><td>1000 円</td><td class="ok">通過</td></tr>
+        <tr class="hit"><td class="num">65</td><td>700 円</td><td>1000 円</td><td class="ng">失敗</td></tr>
+        <tr><td class="num">120</td><td>700 円</td><td>700 円</td><td class="ok">通過</td></tr>
+        <tr><td class="num">121</td><td>エラー</td><td>エラー</td><td class="ok">通過</td></tr>
+      </table>
+    </div>
+    <p class="verdict"><b>65 歳で失敗。</b>境目のすぐ両側（64 と 65）を試したので、比較の書き間違いが表に出ました。</p>
+  </div>
+
+  <h2 id="boundary">境目のどこを試すか：2 値と 3 値</h2>
+  <p>「大人は 13 歳から」の境目を拡大します。縦の太線が境目です。</p>
+  <div class="zoom" aria-hidden="true">
+    <div class="side">子ども</div>
+    <div class="cells">
+      <div class="cell v2">12<span class="tag">2値<br>3値</span></div>
+      <div class="cell wall v2">13<span class="tag">2値<br>3値</span></div>
+      <div class="cell v3">14<span class="tag">&nbsp;<br>3値</span></div>
+    </div>
+    <div class="side">大人</div>
+  </div>
+  <div class="table-wrap">
+    <table class="nw">
+      <tr><th>やり方</th><th>試す値</th><th>考え方</th></tr>
+      <tr><td><b>2 値</b></td><td class="num">12, 13</td><td>境目をはさむ両側を 1 つずつ。<code>&lt;</code> と <code>&lt;=</code> の取り違えや、境目が 1 つずれたバグを捕まえる。ふつうはこれで足りる。</td></tr>
+      <tr><td><b>3 値</b></td><td class="num">12, 13, 14</td><td>境目そのものと、その両隣。たとえば <code>age &gt;= 13</code> を <code>age == 13</code> と書き間違えると、12 と 13 は正しく判定されても 14 で失敗する。こうしたミスも境目のそばで捕まえたいときに使う。</td></tr>
+    </table>
+  </div>
+  <p class="note">代表値（大人なら 30）も別に試しているなら、<code>==</code> の書き間違いはそちらでも捕まるので、2 値で十分なことが多いです。</p>
+
+  <h2 id="invalid">無効な値は 1 つずつ試す</h2>
+  <p>エラーになるべき値も、グループに分けて試します。年齢なら、マイナス、上限超え、小数（<code>12.5</code>）、数でない値（<code>NaN</code>）などです。</p>
+  <p>このとき、<b>1 回のテストに無効な値を 2 つ以上入れない</b>のが決まりです。入場料の関数が年齢と会員番号を受け取る場合で考えます。</p>
+  <ol class="steps">
+    <li class="is-ng"><b>まとめて試す</b>年齢 <code>-1</code>・会員番号が空、で呼ぶ。エラーになったのでテストは通過</li>
+    <li class="is-ng"><b>何が確かめられたか分からない</b>年齢のチェックで先に止まったので、会員番号のチェックは一度も動いていない。会員番号のチェックが壊れていても気づけない</li>
+    <li class="is-ok"><b>1 つずつ試す</b>「年齢だけ無効」「会員番号だけ無効」を別々のテストにする。どちらのチェックも動いたことが確かめられる</li>
+  </ol>
+  <p class="note">赤い番号はまずいやり方、緑の番号は正しいやり方です。1 つのエラーが別のエラーを隠してしまうことを、欠陥のマスキング（defect masking）と呼びます。</p>
+
+  <h2 id="hidden">エッジケース：仕様に書かれていない端</h2>
+  <p><b>エッジケース</b>は、1 つの条件が取りうる範囲の端に来る場合のことです。境界値分析が試す「仕様の区切りの両側」もその一部ですが、端は仕様書の数字だけではありません。データの型や、扱う物の性質からも生まれます。仕様に書かれていなくても、次のような所は狙って試します。</p>
+  <div class="table-wrap">
+    <table class="nw">
+      <tr><th>種類</th><th>試したい境目の例</th><th>詳しく</th></tr>
+      <tr><td>個数</td><td>0 件（空の配列・空文字）、1 件、ちょうど 1 ページ分と、その 1 件多い数</td><td><a href="api-pagination.html">ページネーション</a></td></tr>
+      <tr><td>数の大きさ</td><td>0、負の数、型の上限（32 ビット整数なら 2147483647）とその 1 つ上</td><td><a href="floating-point.html">浮動小数点と数値表現</a></td></tr>
+      <tr><td>小数</td><td>丸めの境目（x.5）、<code>0.1 + 0.2</code> のように誤差が出る計算</td><td><a href="floating-point.html">浮動小数点と数値表現</a></td></tr>
+      <tr><td>文字</td><td>最大文字数ちょうどと 1 文字超え、絵文字や結合文字（見た目 1 文字でも、内部では 2 単位以上になる）</td><td><a href="unicode-text.html">文字コードと Unicode</a></td></tr>
+      <tr><td>日付と時刻</td><td>月末、うるう日（2 月 29 日）、年またぎ、夏時間の切り替え、タイムゾーンで日付が変わる時刻</td><td><a href="datetime-timezone.html">日付・時刻・タイムゾーン</a></td></tr>
+    </table>
+  </div>
+
+
+  <h2 id="corner">コーナーケース：端が重なる所</h2>
+  <p><b>コーナーケース</b>は、2 つ以上の条件が<b>同時に</b>端に来る場合です。1 つずつなら問題なくても、重なると初めて壊れることがあります。</p>
+  <p>一覧画面を、「表示する件数」と「回線の速さ」の 2 つの条件で考えます。</p>
+  <div class="corner" aria-hidden="true">
+    <span class="lab">速い</span><span class="c e"></span><span class="c"></span><span class="c"></span><span class="c"></span><span class="c e"></span>
+    <span class="lab">ふつう</span><span class="c e"></span><span class="c"></span><span class="c"></span><span class="c"></span><span class="c e"></span>
+    <span class="lab">遅い</span><span class="c e"></span><span class="c"></span><span class="c"></span><span class="c"></span><span class="c e"></span>
+    <span class="lab">とても遅い</span><span class="c e"></span><span class="c e"></span><span class="c e"></span><span class="c e"></span><span class="c k">✗</span>
+    <span class="lab"></span><span class="lab x">0 件</span><span class="lab x"></span><span class="lab x">100 件</span><span class="lab x"></span><span class="lab x">最大</span>
+  </div>
+  <p class="axis-note">横：表示する件数　縦：回線の速さ</p>
+  <div class="legend">
+    <span><i style="background:color-mix(in srgb, var(--c-hl) 14%, var(--surface));border:1px solid var(--c-hl)"></i>エッジケース（どちらか 1 つが端）</span>
+    <span><i style="background:var(--c-ng)"></i>コーナーケースで起きたバグ（最大件数 × とても遅い回線でタイムアウト）</span>
+  </div>
+  <p>最大件数だけなら速い回線では間に合い、遅い回線だけなら件数が少ないので間に合います。<b>両方が端に来たときだけ</b>タイムアウトします。端を 1 つずつ試すテストでは、この角に届きません。</p>
+  <p>条件が増えると角の数は 2 倍ずつ増えます（条件 3 つで 8 か所、10 個で 1024 か所）。全部の角は試せないので、次のどれかで絞ります。</p>
+  <ul class="plain">
+    <li><b>危ない組み合わせを選ぶ:</b> 「重い × 遅い」「多い × 同時」のように、負荷や時間が積み重なる組み合わせを優先する。</li>
+    <li><b>2 つずつの組み合わせを網羅する:</b> ペアワイズ法で、どの 2 条件の端の組み合わせも 1 回は出るように件数を減らす（<a href="decision-table-pairwise.html">デシジョンテーブルとペアワイズ法</a>）。</li>
+    <li><b>機械に探させる:</b> Property-based Testing や Fuzzing は、端の値を組み合わせた入力を大量に作る（<a href="verification-methods.html">正しさを確かめる 5 つの手法</a>）。</li>
+  </ul>
+
+  <h2 id="guess">エラー推測：経験で値を足す</h2>
+  <p><b>エラー推測</b>は、過去の不具合や「ここは作る人が思い込みやすい」という経験から、怪しい入力や操作を足す方法です。理屈で選ぶ同値分割・境界値分析の<b>抜けを、経験で埋める</b>役割です。</p>
+  <div class="table-wrap">
+    <table class="nw">
+      <tr><th>分類</th><th>よく当たる例</th></tr>
+      <tr><td>入力</td><td>空、空白だけ、前後の空白、特殊文字（<code>&lt; &gt; ' " \</code>）、絵文字、とても長い文字列、全角と半角の数字</td></tr>
+      <tr><td>操作</td><td>ボタンの連打・二重送信、ブラウザバック、リロード、同じ画面を 2 つのタブで開く</td></tr>
+      <tr><td>環境</td><td>タイムアウト、途中で回線が切れる、端末の時計がずれている、画面がとても狭い</td></tr>
+      <tr><td>データ</td><td>同じ値が 2 件ある、削除済みのデータを参照する、ほかの人が同時に更新した</td></tr>
+    </table>
+  </div>
+  <p>操作の欄の多くは「ふつうと違う順番」で起きるバグです。順番は<a href="state-transition-testing.html">状態遷移テスト</a>で、理屈で洗い出すこともできます。</p>
+  <p>この一覧は、チームで育てるものです。障害が起きたら、<a href="postmortem.html">ポストモーテム</a>で分かった原因を一覧に足すと、次の機能のテストで同じ種類のバグを先に探せます。</p>
+
+  <h2 id="steps">テストを作る手順</h2>
+  <ol class="steps">
+    <li><b>入力と出力を書き出す</b>関数が受け取る値と、返す値・起こすことを並べる。</li>
+    <li><b>有効なグループに分ける</b>出力が同じになる範囲ごとに区切る（無料・子ども・大人・シニア）。</li>
+    <li><b>無効なグループに分ける</b>エラーになるべき値を、理由ごとに分ける（マイナス・上限超え・小数・数でない）。</li>
+    <li><b>境目ごとに両側の値を選ぶ</b>2 値なら境目をはさむ 2 つ。仕様に書かれていない端（エッジケース）も足す。</li>
+    <li><b>重なりと経験で足す</b>危ないコーナーケースと、エラー推測の一覧から当てはまるものを足す。</li>
+    <li><b>表にしてテストにする</b>値と期待する結果を表に並べ、1 つのテストで回す。</li>
+  </ol>
+  <p>6 の「表にして回す」書き方は、<a href="testing-strategy.html">テスト戦略</a>の単体テストの例と同じです。Vitest ならこう書けます。</p>
+<pre>test.each([
+  [0, 0],    [5, 0],      // 無料の両端
+  [6, 500],  [12, 500],   // 子どもの両端
+  [13, 1000], [64, 1000], // 大人の両端
+  [65, 700], [120, 700],  // シニアの両端
+])('%i 歳は %i 円', (age, fare) =&gt; {
+  expect(fareOf(age)).toBe(fare);
+});
+
+// 無効な値は 1 件ずつ
+test.each([-1, 121, 12.5, NaN])('%s 歳はエラー', (age) =&gt; {
+  expect(() =&gt; fareOf(age)).toThrow();
+});</pre>
+
+  <h2 id="next">ほかの手法とのつながり</h2>
+  <p>境界値分析は、人が考えて値を選ぶ方法です。その弱点を補う手法があります。</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>困りごと</th><th>補う手法</th></tr>
+      <tr><td>境界値のテストが抜けていないか確かめたい</td><td><a href="mutation-testing.html">ミューテーションテスト</a>。<code>&gt;=</code> を <code>&gt;</code> に変えた版が生き残れば、そこの境界値のテストがない</td></tr>
+      <tr><td>思いつかなかった境目も探したい</td><td>Property-based Testing や Fuzzing。端の値を出やすくした入力を、機械が大量に作る（<a href="verification-methods.html">正しさを確かめる 5 つの手法</a>）</td></tr>
+      <tr><td>入力が複数あり、組み合わせで結果が変わる</td><td><a href="decision-table-pairwise.html">デシジョンテーブルとペアワイズ法</a>。条件の組み合わせを表にして漏れを探す・件数を減らす</td></tr>
+      <tr><td>操作の順番で結果が変わる</td><td><a href="state-transition-testing.html">状態遷移テストとユースケーステスト</a></td></tr>
+    </table>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>境界値さえ試しておけば、テストとして十分だ</summary><p>仕様の境目だけを試しても、型の上限・空・日付のような仕様に書かれていない端や、複数の端が重なって起きるバグは残ります。<a href="#hidden">エッジケース</a>と<a href="#corner">コーナーケース</a>も足し、組み合わせが効く所は別の手法で補います。</p></details>
+  <details class="myth"><summary>エッジケースはめったに起きないので、後回しでよい</summary><p>1 人にとってまれでも、利用者が多ければ毎日どこかで起きます。空の入力や二重送信は、ふつうの利用者が普通に起こします。攻撃者はむしろ端を狙って入力を作ります。</p></details>
+  <details class="myth"><summary>無効な値はまとめて 1 つのテストに入れた方が効率がよい</summary><p>最初のチェックでエラーになると、後ろのチェックは動きません。後ろのチェックが壊れていてもテストは通るので、無効な値は 1 件ずつ試します（<a href="#invalid">無効な値は 1 つずつ試す</a>）。</p></details>
+  <details class="myth"><summary>カバレッジが 100% なら、境目も確かめられている</summary><p>30 歳を試せば <code>age &gt;= 13</code> の行は通ります。ただ、それを <code>age &gt; 13</code> に変えても 30 歳のテストは通るので、境目は確かめていません。行を通ったかと、境目を確かめたかは別です。</p></details>
+  <details class="myth"><summary>同じグループの代表値が正しければ、そのグループの値は全部正しい</summary><p>それは「仕様どおりに区切られているはず」という仮定に立った近道です。実装が仕様にない所で区切っていれば（たとえば 60 歳で分岐している）、グループの中でも結果が変わります。だから代表値に加えて境目を試し、怪しい所は実装も読みます。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="testing-strategy.html">テスト戦略</a> — ここで選んだ値を、どの層のテストに書くか</li>
+    <li><a href="postmortem.html">ポストモーテム</a> — 障害の原因を、エラー推測の一覧に足していく</li>
+    <li><a href="mutation-testing.html">ミューテーションテスト</a> — 境界値のテストが抜けている所を、生き残りとして見つける</li>
+    <li><a href="verification-methods.html">テストから証明まで</a> — 値を人が選ぶ例のテストから、機械が探す・証明する手法へのつながり</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://www.istqb.org/">ISTQB</a>（テスト技法の用語と、Foundation Level のシラバス）</li>
+    <li><a href="https://jstqb.jp/">JSTQB</a>（ISTQB に加盟する日本の資格認定組織。シラバスの日本語版を公開）</li>
+    <li><a href="https://vitest.dev/api/">Vitest API</a>（<code>test.each</code>）</li>
+  </ul>
+  <p class="note">2026-11-24 時点で確認。</p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "CSV の取り込み機能で、最大行数のファイルも、文字化けしやすい文字だけのファイルも、それぞれ単独では問題なく取り込めた。それでも追加で試す価値が高いのは？",
+    "choices": ["最大行数で、しかも全行が文字化けしやすい文字のファイル", "10 行ほどの、ふつうの文字だけのファイルをもう一度", "最大行数のふつうのファイルを、2 回続けて取り込む", "文字化けしやすい文字が 1 行だけ入った小さなファイル"],
+    "answer": 0,
+    "explain": "端を 1 つずつ試して通っても、2 つの端が同時に来るコーナーケースで初めて壊れることがある。処理の重さと文字の変換が積み重なる組み合わせは優先して試す。",
+    "ref": "#corner"
+  },
+  {
+    "q": "年齢で料金が変わる関数を、各グループの真ん中の年齢（3・9・30・80 歳）でテストしたら全部通った。ところが 65 歳だけ料金が間違っていた。テストが見逃したのはなぜ？",
+    "choices": ["グループの分け方が粗く、シニアをさらに細かく分けていなかったから", "どの値も境目から離れていて、> と >= の書き間違いが結果に出なかったから", "マイナスや 121 歳のような、無効な値を試していなかったから", "件数が 4 件と少なく、各グループで 10 件ずつは試すべきだったから"],
+    "answer": 1,
+    "explain": "比較の書き間違いは境目のすぐそばでしか結果を変えない。グループの中ほどの値を何件足しても見つからず、64 と 65 のような境目の両側を試す必要がある。",
+    "ref": "#demo"
+  },
+  {
+    "q": "年齢と会員番号を受け取る関数で、「年齢が −1、会員番号が空」を 1 つのテストで渡したところ、エラーになって通過した。このテストの問題は？",
+    "choices": ["正しい値を 1 つも渡していないので、テストとして無意味", "−1 ではなく −100 のような大きく外れた値にすべき", "エラーになったので問題はない", "年齢のチェックで止まった場合、会員番号のチェックが動いたか分からない"],
+    "answer": 3,
+    "explain": "1 つのエラーが別のエラーを隠す（欠陥のマスキング）。無効な値は 1 件ずつ別のテストにすれば、どちらのチェックも動いたと確かめられる。",
+    "ref": "#invalid"
+  },
+  {
+    "q": "ユーザー名は最大 20 文字という仕様。境目のテストとして、まず加えるべき組み合わせは？",
+    "choices": ["20 文字・21 文字に加え、絵文字を含む 20 文字", "代表値として、真ん中あたりの 10 文字を 1 件", "極端な値として、1 文字と 1000 文字の 2 件", "英字だけの 20 文字を、大文字・小文字・混在で 3 件"],
+    "answer": 0,
+    "explain": "20 と 21 が仕様の境目。さらに、見た目 1 文字でも内部では 2 単位以上になる絵文字は、数え方の違いで境目がずれやすい、仕様に書かれていない境目になる。",
+    "ref": "#hidden"
+  },
+  {
+    "q": "年齢で入場料が変わる関数の仕様では、小数はエラーにすることになっている。年齢 12.5 はどう扱ってテストする？",
+    "choices": ["子どものグループの代表値として、500 円になることを確かめる", "無効なグループ（小数）の値として、ほかの無効な値とは別の 1 件でエラーになることを確かめる", "小数は来ないはずなので、テストの対象から外しておく", "マイナスの値と一緒に 1 つのテストに入れて、エラーになることを確かめる"],
+    "answer": 1,
+    "explain": "仕様で小数はエラーと決まっているので、12.5 は無効なグループの値。無効な値は、欠陥のマスキングを避けるため 1 件ずつ試す。",
+    "ref": "#invalid"
+  }]
+</script>
+</body>
+</html>
