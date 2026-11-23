@@ -358,7 +358,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
         <tr><td>MySQL の資産があり、書き込みが 1 台に収まらなくなってきた</td><td>Vitess（または PlanetScale）。アプリをほぼそのままにシャーディングできる</td></tr>
         <tr><td>複数リージョンにまたがって、強い整合性のまま書きたい</td><td>Spanner、CockroachDB、YugabyteDB</td></tr>
         <tr><td>MySQL 互換のまま広げたく、集計クエリも同じ DB で回したい</td><td>TiDB（TiFlash）</td></tr>
-        <tr><td>多くの小さな DB に分けられる（テナントごと・ユーザーごと）</td><td>DB を分ける設計も検討する（例: <a href="cloudflare-databases.html">D1</a>・<a href="durable-objects.html">Durable Objects</a>）</td></tr>
+        <tr><td>多くの小さな DB に分けられる（テナントごと・ユーザーごと）</td><td>DB を分ける設計も検討する（例: D1・<a href="durable-objects.html">Durable Objects</a>）</td></tr>
       </tbody>
     </table>
   </div>
@@ -374,7 +374,6 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <li><a href="db-internals.html">DB のしくみ</a>・<a href="db-index-transaction.html">インデックスとトランザクション</a> — 1 台の RDB の中身と分離レベル</li>
     <li><a href="nosql-types.html">NoSQL の種類</a> — SQL を手放して横に広げる方式</li>
     <li><a href="distributed-basics.html">分散システムの基本</a> — CAP・整合性モデル・冪等性</li>
-    <li><a href="cloudflare-databases.html">D1 と Hyperdrive＋PlanetScale</a> — Vitess を使ったマネージド MySQL の例</li>
   </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
