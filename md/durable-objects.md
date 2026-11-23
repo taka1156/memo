@@ -150,7 +150,7 @@ export class ChatRoom extends DurableObject {
 | --- | --- |
 | 部屋・在庫・座席など、同時更新を 1 か所で正しく | Durable Objects |
 | WebSocket で多人数をつなぐ | Durable Objects（Hibernation API） |
-| 全データを横断して検索・集計する普通のテーブル | D1 や外部 DB（ [D1 と Hyperdrive](https://memo.taka1156.site/md/cloudflare-databases.md) ） |
+| 全データを横断して検索・集計する普通のテーブル | D1 や外部 DB |
 | 読み込み中心の設定値・キャッシュ | KV |
 | 画像・ファイル | R2 |
 

@@ -12,8 +12,6 @@
 
 ソースコードが「共通の中間表現」を通って機械語になるまで
 
-シリーズ: **LLVM の構成と仕組み** [GCC と Clang の構成比較 →](https://memo.taka1156.site/md/gcc-vs-clang.md)
-
 **ざっくり言うと**
 
 - LLVM は 1 つのコンパイラではなく、コンパイラを作るための **部品（ライブラリ）の集まり** 。C/C++ 用の Clang、Rust、Swift などが土台に使う。
@@ -305,7 +303,7 @@ IR を実行時に機械語にしてすぐ動かす。LLVM には **ORC JIT** �
 
 ✗ 誤解: Clang = LLVM
 
-✓ 正しくは: Clang は LLVM を使う C 系言語のフロントエンド（とドライバ）で、LLVM の利用者の 1 つ。 `clang` コマンドが内部で LLVM のライブラリを呼んでいる。GCC と比べた構成の違いは [GCC と Clang の構成比較](https://memo.taka1156.site/md/gcc-vs-clang.md) へ。
+✓ 正しくは: Clang は LLVM を使う C 系言語のフロントエンド（とドライバ）で、LLVM の利用者の 1 つ。 `clang` コマンドが内部で LLVM のライブラリを呼んでいる。
 
 ✗ 誤解: -O3 にすれば必ず速くなる
 
@@ -336,7 +334,6 @@ clang -O2 -Rpass=inline -Rpass-missed=loop-vectorize -c x.c
 
 ## 関連メモ
 
-- [GCC と Clang の構成比較](https://memo.taka1156.site/md/gcc-vs-clang.md) — GCC との構成の違い
 - [Rust 学習フローと仕組み](https://memo.taka1156.site/md/rust.md) — LLVM を使う言語の例
 - [WebAssembly](https://memo.taka1156.site/md/webassembly.md) — LLVM が出力できる先の 1 つ
 - [メモリ管理](https://memo.taka1156.site/md/memory-management.md) — 言語ごとのメモリの解放方式

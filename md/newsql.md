@@ -226,7 +226,7 @@ Spanner は REPEATABLE READ、CockroachDB は READ COMMITTED（新しい版で�
 | MySQL の資産があり、書き込みが 1 台に収まらなくなってきた | Vitess（または PlanetScale）。アプリをほぼそのままにシャーディングできる |
 | 複数リージョンにまたがって、強い整合性のまま書きたい | Spanner、CockroachDB、YugabyteDB |
 | MySQL 互換のまま広げたく、集計クエリも同じ DB で回したい | TiDB（TiFlash） |
-| 多くの小さな DB に分けられる（テナントごと・ユーザーごと） | DB を分ける設計も検討する（例: [D1](https://memo.taka1156.site/md/cloudflare-databases.md) ・ [Durable Objects](https://memo.taka1156.site/md/durable-objects.md) ） |
+| 多くの小さな DB に分けられる（テナントごと・ユーザーごと） | DB を分ける設計も検討する（例: D1・ [Durable Objects](https://memo.taka1156.site/md/durable-objects.md) ） |
 
 ## よくある誤解
 
@@ -247,4 +247,3 @@ Spanner は REPEATABLE READ、CockroachDB は READ COMMITTED（新しい版で�
 - [DB のしくみ](https://memo.taka1156.site/md/db-internals.md) ・ [インデックスとトランザクション](https://memo.taka1156.site/md/db-index-transaction.md) — 1 台の RDB の中身と分離レベル
 - [NoSQL の種類](https://memo.taka1156.site/md/nosql-types.md) — SQL を手放して横に広げる方式
 - [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) — CAP・整合性モデル・冪等性
-- [D1 と Hyperdrive＋PlanetScale](https://memo.taka1156.site/md/cloudflare-databases.md) — Vitess を使ったマネージド MySQL の例
