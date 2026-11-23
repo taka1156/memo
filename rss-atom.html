@@ -340,13 +340,30 @@ footer#memo-backlink a:hover { color: var(--accent); }
       title="Example Blog" href="/atom.xml"&gt;</code></pre>
   <p>リーダーは HTML を取得して <code>rel="alternate"</code> かつフィードの <code>type</code> を持つ <code>link</code> を探す。見つからなければ <code>/feed</code>・<code>/rss.xml</code> などのよくあるパスを試すリーダーもある。</p>
 
+  <h2 id="static">静的サイトでの作り方</h2>
+  <p>ブログやドキュメントサイトでは、フィードをサーバーで毎回組み立てるより、<b>ビルドのときに XML ファイルとして書き出し、ほかのページと一緒に静的配信する</b>ことが多い。フィードは中身が記事の一覧だけなので、静的ファイルと相性がよい。</p>
+  <div class="flow">
+    <div class="node"><b>記事の原稿</b><span>Markdown と<br>front matter（日付など）</span></div>
+    <div class="arrow">ビルド</div>
+    <div class="node"><b>dist/feed.xml</b><span>HTML と一緒に<br>書き出す</span></div>
+    <div class="arrow">デプロイ</div>
+    <div class="node"><b>CDN・静的ホスティング</b><span>リーダーの<br>条件付き GET に応える</span></div>
+  </div>
+  <ol class="steps">
+    <li><b>ビルドで生成する</b>主な静的サイトジェネレーターには生成の仕組みがある（Hugo は標準で RSS を出力、Astro は <code>@astrojs/rss</code>、Eleventy は <code>@11ty/eleventy-plugin-rss</code>）。自前で書くなら、記事の一覧から XML を組み立てる小さなスクリプトで足りる。</li>
+    <li><b>サイトの URL を設定から渡す</b>静的ファイルには「いまのホスト名」がないので、記事の絶対 URL・フィードの <code>self</code> は、設定に書いたサイトの URL から組み立てる。プレビュー環境の URL がそのまま入らないよう注意する。</li>
+    <li><b>日時は原稿から取る</b><code>updated</code>・<code>pubDate</code> にビルドした時刻を入れると、ビルドのたびに全記事が「更新」に見える。front matter の日付（とタイムゾーン）を使う。</li>
+    <li><b>キャッシュはホスティングに任せられる</b>多くの CDN・静的ホスティングは、静的ファイルに <code>ETag</code> や <code>Last-Modified</code> を付け、条件付き GET に 304 を返す。自分で実装する前に、実際の応答ヘッダーを確かめる。</li>
+    <li><b>WebSub の通知は CI から送る</b>サーバーがないので、記事を公開したことは、デプロイが終わったあとに CI からハブへ知らせる。通知の送り方はハブごとに決まっていて、多くの公開ハブは <code>hub.mode=publish</code> と <code>hub.url</code>（フィードの URL）を POST で受け取る。</li>
+  </ol>
+
   <h2 id="pitfalls">実装でつまずく点</h2>
   <ol class="steps">
     <li><b>ID を変えない</b>ID（<code>guid</code>・<code>id</code>）はその記事の名前。ドメイン移転や URL 設計の変更で ID が変わると、全記事が新着として出直す。URL とは別に、変えない ID を持たせると安全（Atom の <code>tag:</code> URI など）。</li>
     <li><b>相対 URL を使わない</b>フィードは元のページから切り離されて読まれる。本文中の <code>&lt;img src="/a.png"&gt;</code> は壊れやすいので、絶対 URL にして出す。</li>
     <li><b>日付の形式とタイムゾーン</b>RSS は RFC 822、Atom は RFC 3339 と形式が違う。タイムゾーンを省くと 9 時間ずれた新着順になる。生成時に必ずオフセットを付ける。</li>
     <li><b>HTML のエスケープ</b>本文の HTML は <code>&amp;lt;</code> にエスケープするか CDATA で包む。<code>&amp;nbsp;</code> のような HTML 固有の実体参照は XML では未定義でエラーになる。</li>
-    <li><b>件数を絞り、キャッシュを効かせる</b>全記事を毎回出さず最新 10〜50 件にし、<code>ETag</code>・<code>Last-Modified</code> を返す。多くのリーダーに頻繁に取られるので、304 で返せるかが負荷を大きく左右する。</li>
+    <li><b>件数を絞り、キャッシュを効かせる</b>全記事を毎回出さず最新 10〜50 件にし、<code>ETag</code>・<code>Last-Modified</code> を返す。多くのリーダーに頻繁に取られるので、304 で返せるかが負荷を大きく左右する（静的配信ならホスティングが返すことが多い。<a href="#static">静的サイトでの作り方</a>）。</li>
     <li><b>読む側では無害化する</b>フィードの HTML は他人が書いたもの。リーダーやアグリゲーターを作るときは、表示前に <code>script</code> やイベント属性を除く（XSS 対策）。</li>
   </ol>
   <p>出したフィードは W3C Feed Validation Service で検証でき、上の多くの誤りを指摘してくれる。</p>
