@@ -8,6 +8,7 @@
   "utc_offset_hours": 9,
   "quiz": true,
   "roadmap": true,
+  "strict_parts": true,
   "branding": {
     "tagline": "見てわかる、技術の解説ノート",
     "icon": "lines",
