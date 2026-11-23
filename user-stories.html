@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ユーザーストーリーとバックログ</title>
+<meta name="description" content="ユーザーストーリーの書き方、INVEST、受け入れ条件、バックログの並べ方、ストーリーマッピングと分割のパターンを図解。">
+<meta name="memo:tags" content="開発プロセス">
+<meta name="memo:date" content="2026-11-23">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+/* 共通部品（ざっくり言うと・よくある誤解・番号付きの手順・表やリストの中のリンク）と
+   解説用の色（--c-ok・--c-ng・--c-warn・--c-hl）は assets/memo-parts.css にある（build・preview が読み込む）。
+   ここで書き直さない。ページ独自の色分けが要るときは、意味ごとの --c-名前 を :root に足し、凡例やラベルを付ける。
+   アクセント色（--accent）は h1・h2 の左線・段落のリンク・ボタンやタブの操作状態にだけ使う */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.98rem; margin: 22px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.3em; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { color: var(--fg-2); font-weight: 600; font-size: 0.8rem; }
+tbody tr:last-child td { border-bottom: none; }
+.t-wide { min-width: 600px; }
+.t-mid { min-width: 480px; }
+td.rh, th.rh { white-space: nowrap; }
+td.k { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 700; white-space: nowrap; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* ストーリーカード（3C） */
+.three-c { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.three-c .c { background: var(--chip); border-radius: 8px; padding: 10px 12px; }
+.three-c .c h4 { font-size: 0.86rem; margin-bottom: 4px; }
+.three-c .c p { font-size: 0.8rem; color: var(--fg-2); margin: 0; line-height: 1.6; }
+.story-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 12px 14px;
+  margin-top: 12px;
+  font-size: 0.9rem;
+}
+.story-card .row { display: flex; gap: 8px; align-items: baseline; }
+.story-card .row + .row { margin-top: 4px; }
+.story-card .lab {
+  flex: 0 0 auto;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--fg-2);
+  min-width: 4.2em;
+}
+@media (max-width: 600px) {
+  .three-c { grid-template-columns: 1fr; }
+}
+
+/* バックログの形（上ほど細かい） */
+.ice { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 8px; }
+.ice .lv {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--chip);
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  text-align: center;
+}
+.ice .lv b { display: block; font-size: 0.86rem; }
+.ice .lv span { color: var(--fg-2); font-size: 0.76rem; }
+.ice .l1 { width: 56%; border: 2px solid var(--c-hl); }
+.ice .l2 { width: 76%; }
+.ice .l3 { width: 100%; border-style: dashed; }
+@media (max-width: 600px) {
+  .ice .l1 { width: 78%; }
+  .ice .l2 { width: 90%; }
+}
+
+/* ストーリーマップ */
+.map-scroll { overflow-x: auto; margin-top: 8px; }
+.map { min-width: 560px; display: grid; grid-template-columns: 96px repeat(4, minmax(0, 1fr)); gap: 6px; font-size: 0.76rem; }
+.map .h { font-weight: 700; color: var(--fg-2); font-size: 0.72rem; align-self: center; }
+.map .act { background: var(--c-act); color: var(--bg); border-radius: 6px; padding: 6px 8px; font-weight: 700; }
+.map .step { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-weight: 600; }
+.map .st { background: var(--chip); border-radius: 6px; padding: 5px 8px; line-height: 1.45; }
+.map .slice {
+  grid-column: 1 / -1;
+  border-top: 2px dashed var(--fg-2);
+  margin: 4px 0 0;
+  padding-top: 2px;
+  font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--fg-2);
+}
+.map .empty { min-height: 1px; }
+:root { --c-act: #2f6f8f; }
+@media (prefers-color-scheme: dark) { :root { --c-act: #7fb7d6; } }
+
+/* 縦に切る・横に切る */
+.layers { display: grid; grid-template-columns: 70px repeat(3, minmax(0, 1fr)); gap: 4px; font-size: 0.76rem; margin-top: 8px; }
+.layers .lh { color: var(--fg-2); font-weight: 700; align-self: center; font-size: 0.72rem; }
+.layers .fh { text-align: center; color: var(--fg-2); font-weight: 700; font-size: 0.72rem; }
+.layers .cell { background: var(--chip); border-radius: 4px; padding: 6px 4px; text-align: center; border: 2px solid transparent; }
+.layers .cell.pick-v { border-color: var(--c-ok); }
+.layers .cell.pick-h { border-color: var(--c-ng); border-style: dashed; }
+.slice-note { font-size: 0.84rem; margin-top: 10px; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="ユーザーストーリーとバックログ">
+<meta property="og:description" content="ユーザーストーリーの書き方、INVEST、受け入れ条件、バックログの並べ方、ストーリーマッピングと分割のパターンを図解。">
+<meta property="og:url" content="https://memo.taka1156.site/user-stories.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="application/atom+xml" title="MEMO" href="feed.xml">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>ユーザーストーリーとバックログ</h1>
+  <p class="subtitle">流す項目の書き方・受け入れ条件・並べ方・分け方</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>ユーザーストーリーは「誰が・何をしたくて・なぜか」を短く書いた、会話のきっかけになるカードで、仕様書の代わりではない。</li>
+      <li>INVEST で形を整え、受け入れ条件で「終わった」を決め、バックログは上ほど細かく下ほど粗く保つ。</li>
+      <li>大きい項目は技術の層ではなく、ユーザーに届く単位で縦に切って小さくする。</li>
+    </ul>
+  </div>
+
+  <h2 id="story">ユーザーストーリーとは</h2>
+  <p>ユーザーストーリー (user story) は、ソフトウェアに欲しいことを<b>使う人の目線で 1〜2 文に書いたもの</b>です。細かい仕様は書かず、作る人と頼む人が話し合うための目印にします。Ron Jeffries はこれを 3 つの C で説明しました。</p>
+  <div class="card">
+    <div class="three-c">
+      <div class="c"><h4>Card（カード）</h4><p>付箋やチケットに収まる短い文。全部を書き切るためではなく、話の目印にする</p></div>
+      <div class="c"><h4>Conversation（会話）</h4><p>中身は作る人と頼む人の会話で詰める。カードに書けない前提や事情をここで共有する</p></div>
+      <div class="c"><h4>Confirmation（確認）</h4><p>何ができたら終わりかを、確かめられる形（受け入れ条件・テスト）で決める</p></div>
+    </div>
+    <div class="story-card" aria-label="ストーリーカードの例">
+      <div class="row"><span class="lab">誰が</span><span>会員として</span></div>
+      <div class="row"><span class="lab">何を</span><span>パスワードを忘れたときにメールで再設定したい</span></div>
+      <div class="row"><span class="lab">なぜ</span><span>問い合わせを待たずに、すぐ買い物に戻れるように</span></div>
+    </div>
+    <p class="note">よく使われる「〈役割〉として、〈やりたいこと〉したい。それは〈理由〉のためだ」（As a … I want … so that …）の型。英国の Connextra 社のチームが使い始めた書き方として知られる。型は道具で、必須ではない。</p>
+  </div>
+  <p>「なぜ」の部分がいちばん大事です。理由が分かれば、作る人が「それならこの方法の方が早い」と別の案を出せます。逆に「〜として」の役割がいつも「ユーザー」になっているなら、誰のための機能かが詰められていないサインです。</p>
+
+  <h2 id="invest">INVEST：よいストーリーの 6 つの条件</h2>
+  <p>Bill Wake がまとめた、ストーリーの形を確かめるための頭文字です。全部を完璧に満たす必要はなく、<b>崩れているものを見つけて直すための点検表</b>として使います。</p>
+  <div class="table-wrap card">
+    <table class="t-wide">
+      <thead><tr><th class="rh">文字</th><th>意味</th><th>確かめる問い</th><th>崩れている例</th></tr></thead>
+      <tbody>
+        <tr><td class="k">I</td><td>Independent（独立している）</td><td>ほかのストーリーと順番を入れ替えても作れるか</td><td>「A が終わらないと B に手を付けられない」が連なっている</td></tr>
+        <tr><td class="k">N</td><td>Negotiable（話し合える）</td><td>やり方が決め打ちされていないか</td><td>画面の項目や DB の列まで書いてあり、会話の余地がない</td></tr>
+        <tr><td class="k">V</td><td>Valuable（価値がある）</td><td>終わったとき、使う人か頼んだ人にとって何かが良くなるか</td><td>「API を作る」「テーブルを作る」だけで、誰も使えない</td></tr>
+        <tr><td class="k">E</td><td>Estimable（見積もれる）</td><td>どのくらいの大きさか、チームが見当を付けられるか</td><td>分からないことが多すぎて見積もれない（先に調査が要る）</td></tr>
+        <tr><td class="k">S</td><td>Small（小さい）</td><td>1 回のスプリント（または数日）で終わるか</td><td>「注文できる」のように、何週間もかかる</td></tr>
+        <tr><td class="k">T</td><td>Testable（確かめられる）</td><td>終わったかどうかを確かめる方法があるか</td><td>「使いやすくする」「速くする」だけで、基準がない</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>E が崩れているときは、時間を区切った調査（<b>スパイク</b> spike）を別の項目として先に入れ、分かったことを元にストーリーを書き直します。</p>
+
+  <h2 id="acceptance">受け入れ条件と完成の定義</h2>
+  <p>受け入れ条件 (acceptance criteria) は、<b>そのストーリーに固有の</b>「これができたら終わり」の条件です。3C の Confirmation にあたります。振る舞い駆動開発 (BDD) から広まった <code>Given / When / Then</code>（前提・操作・結果）の形で書くと、そのままテストにしやすくなります。</p>
+  <pre>シナリオ: 有効期限内のリンクで再設定できる
+  Given 会員が再設定メールを受け取ってから 10 分たっている
+  When  メールのリンクを開いて新しいパスワードを 2 回入力する
+  Then  パスワードが変わり、ログイン画面に「変更しました」と出る
+
+シナリオ: 期限切れのリンクは使えない
+  Given 再設定メールを受け取ってから 31 分たっている
+  When  メールのリンクを開く
+  Then  「リンクの有効期限が切れています」と出て、再送のボタンが出る</pre>
+  <p>これと混同しやすいのが<b>完成の定義</b> (Definition of Done) です。スクラムガイドでは、インクリメントが品質の基準を満たした状態を表すもので、<b>すべての項目に共通</b>にかかります。</p>
+  <div class="table-wrap card">
+    <table class="t-mid">
+      <thead><tr><th></th><th>受け入れ条件</th><th>完成の定義</th></tr></thead>
+      <tbody>
+        <tr><td class="rh">かかる範囲</td><td>そのストーリーだけ</td><td>すべての項目</td></tr>
+        <tr><td class="rh">中身の例</td><td>「31 分たったリンクは使えない」</td><td>「レビュー済み」「自動テストが通る」「本番相当の環境で動いた」</td></tr>
+        <tr><td class="rh">誰が決めるか</td><td>頼む人（PO など）と作る人の会話</td><td>チーム（組織の基準があればそれ以上に）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>「着手してよい状態」を決める <b>Ready の定義</b> (Definition of Ready) を置くチームもあります。これはスクラムガイドにはない、チームの取り決めです。厳しくしすぎると、話し合いながら詰める余地がなくなり、項目がいつまでも着手できない門番になります。</p>
+
+  <h2 id="backlog">バックログの形</h2>
+  <p>プロダクトバックログは、プロダクトを良くするために要ることを<b>順番に並べた一覧</b>です。全部を同じ細かさで書くのではなく、<b>すぐ着手するものほど細かく、先のものほど粗く</b>しておきます。先のことは状況が変わるので、早く細かく書いても無駄になりやすいからです。</p>
+  <div class="card">
+    <div class="ice" aria-label="バックログの細かさ。上ほど細かい">
+      <div class="lv l1"><b>次の 1〜2 スプリント分</b><span>受け入れ条件まであり、1 件が数日で終わる大きさ</span></div>
+      <div class="lv l2"><b>その先の数スプリント分</b><span>ストーリーの形。大きさは大まかに見積もってある</span></div>
+      <div class="lv l3"><b>いつかやるかもしれないこと</b><span>エピックやアイデアのまま。並び順も大まか</span></div>
+    </div>
+    <div class="legend"><span><i style="background:none;border:2px solid var(--c-hl)"></i>次に着手する範囲（ここだけ細かく）</span><span><i style="background:none;border:1px dashed var(--fg-2)"></i>まだ粗いまま置いておく範囲</span></div>
+  </div>
+  <p>この性質は <b>DEEP</b>（Detailed appropriately：ほどよく詳しい／Estimated：見積もってある／Emergent：変わり続ける／Prioritized：並べてある）とまとめられます。上の段を詰めておく作業を<b>リファインメント</b> (refinement) といい、スクラムガイドでは決まったイベントではなく、継続して行う活動とされています。</p>
+  <h3>並べ方</h3>
+  <p>並び順を決めるのはプロダクトオーナーの責任です。価値の大きさだけでなく、<b>リスク（早く確かめたい不確かさ）・依存関係・期限・学び</b>も考えて決めます。「優先度：高」のラベルを付けるより、1 列に並べて上下を決める方が、何を先にするかの議論がはっきりします。</p>
+
+  <h2 id="story-map">ストーリーマッピング</h2>
+  <p>1 列のバックログは「次に何をするか」は分かりやすい反面、<b>全体の流れのどこを作っているか</b>が見えにくくなります。Jeff Patton が広めたストーリーマッピング (user story mapping) は、使う人の行動を左から右に並べ、その下にストーリーを置いた 2 次元の地図です。</p>
+  <div class="card">
+    <div class="map-scroll">
+      <div class="map" role="img" aria-label="ネットショップのストーリーマップの例">
+        <div class="h">行動</div>
+        <div class="act">商品を探す</div><div class="act">カートに入れる</div><div class="act">注文する</div><div class="act">受け取る</div>
+        <div class="h">手順</div>
+        <div class="step">一覧から選ぶ</div><div class="step">数量を決める</div><div class="step">住所と支払い</div><div class="step">配送を確かめる</div>
+        <div class="slice">リリース 1：最小限で通しで使える</div>
+        <div class="h">ストーリー</div>
+        <div class="st">カテゴリで一覧を見る</div><div class="st">1 個ずつ入れる</div><div class="st">国内住所・カードで払う</div><div class="st">注文完了メール</div>
+        <div class="slice">リリース 2：よく使う人が楽になる</div>
+        <div class="h"></div>
+        <div class="st">キーワードで検索</div><div class="st">数量を変える</div><div class="st">住所を保存する</div><div class="st">配送状況を見る</div>
+        <div class="slice">リリース 3 以降</div>
+        <div class="h"></div>
+        <div class="st">絞り込み・並べ替え</div><div class="st">あとで買うに移す</div><div class="st">日時指定・コンビニ払い</div><div class="empty"></div>
+      </div>
+    </div>
+    <div class="legend"><span><i style="background:var(--c-act)"></i>行動（背骨。左から右に時間が流れる）</span><span><i style="background:none;border:none;border-top:2px dashed var(--fg-2);border-radius:0;width:18px;height:0"></i>リリースの区切り</span></div>
+  </div>
+  <ul class="plain">
+    <li>上の 2 段（行動と手順）を<b>背骨</b> (backbone) と呼び、ここが抜けると流れが途切れる。</li>
+    <li>下に行くほど「なくても流れは通る」ストーリーにする。</li>
+    <li>横の線で切ると、<b>どのリリースでも端から端まで通しで使える</b>単位になる。最初の切れ目は、全部の行動に少なくとも 1 枚ずつ入るように引く。</li>
+  </ul>
+
+  <h2 id="split">大きいストーリーの分け方</h2>
+  <p>大きすぎるストーリー（エピック epic）は小さく分けます。大事なのは<b>縦に切る</b>ことです。画面・API・DB の層ごとに分けると、どの 1 件が終わっても使える物にならず、価値（INVEST の V）も確かめられる結果（T）もなくなります。</p>
+  <div class="card">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-panel="sl-v">縦に切る</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="sl-h">横に切る</button>
+    </div>
+    <div class="panel" id="sl-v">
+      <div class="layers" aria-label="縦に切ると、1 つの機能の画面・API・DB を一度に作る">
+        <div></div><div class="fh">カードで払う</div><div class="fh">住所を保存</div><div class="fh">日時指定</div>
+        <div class="lh">画面</div><div class="cell pick-v">✓</div><div class="cell"></div><div class="cell"></div>
+        <div class="lh">API</div><div class="cell pick-v">✓</div><div class="cell"></div><div class="cell"></div>
+        <div class="lh">DB</div><div class="cell pick-v">✓</div><div class="cell"></div><div class="cell"></div>
+      </div>
+      <p class="slice-note">1 件目で「カードで払う」が画面から DB まで動く。使ってもらえ、受け入れ条件で確かめられる。</p>
+    </div>
+    <div class="panel" id="sl-h" hidden>
+      <div class="layers" aria-label="横に切ると、全機能の DB だけを先に作る">
+        <div></div><div class="fh">カードで払う</div><div class="fh">住所を保存</div><div class="fh">日時指定</div>
+        <div class="lh">画面</div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="lh">API</div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="lh">DB</div><div class="cell pick-h">✓</div><div class="cell pick-h">✓</div><div class="cell pick-h">✓</div>
+      </div>
+      <p class="slice-note">1 件目で全機能のテーブルができるが、誰も使えない。設計の誤りは最後の層を作るまで見つからない。</p>
+    </div>
+    <div class="legend"><span><i style="background:none;border:2px solid var(--c-ok)"></i>1 件目で作る範囲（縦：使える）</span><span><i style="background:none;border:2px dashed var(--c-ng)"></i>1 件目で作る範囲（横：使えない）</span></div>
+  </div>
+
+  <h3 id="split-patterns">分け方の型</h3>
+  <p>「注文できる」というエピックを例に、よく使う切り口を並べます。どれも、分けた 1 件ごとに使う人へ何かが届くようにしています。</p>
+  <div class="table-wrap card">
+    <table class="t-wide">
+      <thead><tr><th>切り口</th><th>分け方</th><th>先に作る 1 件の例</th></tr></thead>
+      <tbody>
+        <tr><td>手順の段階</td><td>流れの一部だけを先に通す。残りは手作業や仮の方法で埋める</td><td>注文を受け付けるだけ。確認メールは後で</td></tr>
+        <tr><td>ルールの違い</td><td>いちばん単純なルールから。例外や条件は別の項目に</td><td>送料は一律。送料無料の条件は後で</td></tr>
+        <tr><td>正常系と異常系</td><td>うまくいく流れを先に。失敗時の扱いを後で</td><td>カードが通る場合だけ。決済失敗の再入力は後で</td></tr>
+        <tr><td>データの違い</td><td>扱うデータの種類を絞る</td><td>国内の住所だけ。海外は後で</td></tr>
+        <tr><td>操作の種類</td><td>作成・参照・変更・削除を分ける</td><td>住所を登録できる。編集・削除は後で</td></tr>
+        <tr><td>入口の違い</td><td>使う端末や画面を絞る</td><td>Web だけ。アプリは後で</td></tr>
+        <tr><td>性能は後で</td><td>まず動かし、速さや量への対応を別の項目にする</td><td>1 件ずつ処理。まとめての大量処理は後で</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>分けたあとは、<b>後回しにした項目のほうが価値が低いか</b>を確かめます。「全部そろわないと誰も使わない」と分かったら、切り口を変えます。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>ユーザーストーリーは「〜として、〜したい、なぜなら〜」の形で書かなければならない</summary><p>この型は広く使われている書き方の 1 つで、決まりではありません。大事なのは、誰のための何で、なぜ要るかが会話で共有され、終わりを確かめられることです。型に当てはめるために「システム管理者として、ログを出したい」のような不自然な文を作るより、短い説明と受け入れ条件の方が伝わることもあります。</p></details>
+  <details class="myth"><summary>スクラムではバックログの項目をユーザーストーリーで書く決まりがある</summary><p>スクラムガイドは項目を「プロダクトバックログアイテム」と呼ぶだけで、書き方は決めていません。ユーザーストーリーはスクラムの外（エクストリーム・プログラミング）から来た、よく組み合わされる道具です。バグ修正や調査など、ストーリーの形にしにくい項目がバックログに並んでいてもかまいません。</p></details>
+  <details class="myth"><summary>ストーリーに受け入れ条件まで全部書いておけば、会話はいらない</summary><p>カードと受け入れ条件は、会話の結果を残すためのものです。書いた人の頭にある前提は文字に乗り切らないので、着手前に作る人と頼む人が話す時間は残します。条件を細かく書くほど、作る人がより良い方法を提案しにくくもなります。</p></details>
+  <details class="myth"><summary>小さく分けるなら、画面・API・DB の担当ごとに分けるのがいちばん効率がよい</summary><p>層ごとに分けると、どの 1 件も単独では使えず、全部そろうまで価値も誤りも見えません。分けるときは 1 件ごとに端から端まで動く縦の切り方を選び、層ごとの作業はストーリーの中のタスクとして扱います。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="agile-scrum.html">アジャイルとスクラムの仕組み</a> — バックログを扱うイベント（プランニング・レビュー）と、プロダクトオーナーの責任</li>
+    <li><a href="kanban-ticket.html">カンバンとチケット駆動開発</a> — ここで作った項目を、チケットとしてボードで流す方法</li>
+    <li><a href="retrospectives.html">ふりかえりの進め方と手法</a> — 「受け入れ条件が曖昧だった」などの問題を次のスプリントに活かす場</li>
+    <li><a href="spec-kit.html">Spec Kit の流れと役割</a> — ユーザーストーリーと受け入れ条件を、AI に渡す仕様の入口として使う例</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://scrumguides.org/scrum-guide.html">The 2020 Scrum Guide</a>（プロダクトバックログ・リファインメント・完成の定義）</li>
+    <li><a href="https://xp123.com/invest-in-good-stories-and-smart-tasks/">Bill Wake: INVEST in Good Stories, and SMART Tasks</a></li>
+    <li><a href="https://ronjeffries.com/xprog/articles/expcardconversationconfirmation/">Ron Jeffries: Essential XP: Card, Conversation, Confirmation</a></li>
+    <li><a href="https://www.agilealliance.org/glossary/user-story-template/">Agile Alliance: Role-feature-reason（ユーザーストーリーの型）</a></li>
+    <li><a href="https://jpattonassociates.com/story-mapping/">Jeff Patton &amp; Associates: Story Mapping</a></li>
+    <li><a href="https://www.humanizingwork.com/the-humanizing-work-guide-to-splitting-user-stories/">Humanizing Work: Guide to Splitting User Stories</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "「会員として、パスワードを再設定したい」というストーリーを、作る人が読んで別の簡単な方法を提案しようとしたが、なぜその機能が要るのかが分からず判断できなかった。カードに足りないのは？",
+    "choices": ["画面の項目と入力チェックの一覧", "ストーリーポイントの見積もり", "それによって何が良くなるかという理由", "担当者と期限"],
+    "answer": 2,
+    "explain": "理由（so that の部分）が分かれば、作る人が目的に合う別のやり方を提案できる。画面の項目を書き込むと、かえって話し合いの余地が減る。",
+    "ref": "#story"
+  },
+  {
+    "q": "「データベースに注文テーブルを作る」という項目がバックログにある。INVEST のどれがいちばん崩れている？",
+    "choices": ["Valuable（終わっても使う人に何も届かない）", "Negotiable（やり方が決め打ちで、話し合う余地がない）", "Estimable（分からないことが多く、大きさを見積もれない）"],
+    "answer": 0,
+    "explain": "テーブルだけでは誰も使えず、価値を確かめられない。注文の一部を画面から DB まで通すストーリーにし、テーブル作成はその中のタスクにする。",
+    "ref": "#invest"
+  },
+  {
+    "q": "「すべての項目でコードレビューを済ませ、自動テストを通すこと」という取り決めは、どこに書くのが合う？",
+    "choices": ["各ストーリーの受け入れ条件", "完成の定義（Definition of Done）", "ストーリーマップの背骨"],
+    "answer": 1,
+    "explain": "全部の項目に共通の品質の基準は完成の定義に置く。受け入れ条件はそのストーリーに固有の振る舞いを書く。",
+    "ref": "#acceptance"
+  },
+  {
+    "q": "1 年先までのバックログを、全項目について受け入れ条件まで書き込んだ。この状態で起きやすい問題は？",
+    "choices": ["見積もりができなくなる", "スプリントの長さを変えられなくなる", "受け入れ条件をテストにできなくなる", "先の項目は状況が変わって書き直しになり、書いた手間が無駄になる"],
+    "answer": 3,
+    "explain": "バックログは上ほど細かく下ほど粗く保つ。先の項目は変わる前提で、着手が近づいたらリファインメントで詰める。",
+    "ref": "#backlog"
+  },
+  {
+    "q": "「注文できる」というエピックを小さく分けたい。最初の 1 件として合うのは？",
+    "choices": ["全機能の画面のデザインだけを先に作る", "国内住所・カード払いだけで、注文が画面から DB まで通る", "全機能の API を先に作り、画面は最後にまとめて作る"],
+    "answer": 1,
+    "explain": "縦に切ると、小さくても使える物が 1 件ごとに届き、設計の誤りも早く見つかる。層ごとの横切りでは、全部そろうまで誰も使えない。",
+    "ref": "#split"
+  }
+]
+</script>
+</body>
+</html>

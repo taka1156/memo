@@ -9,6 +9,15 @@
   <author><name>MEMO</name></author>
   <icon>https://memo.taka1156.site/assets/icon-192.png</icon>
   <entry>
+    <title>ユーザーストーリーとバックログ</title>
+    <id>https://memo.taka1156.site/user-stories.html</id>
+    <link rel="alternate" type="text/html" href="https://memo.taka1156.site/user-stories.html"/>
+    <published>2026-11-23T00:00:00+09:00</published>
+    <updated>2026-11-23T00:00:00+09:00</updated>
+    <summary>ユーザーストーリーの書き方、INVEST、受け入れ条件、バックログの並べ方、ストーリーマッピングと分割のパターンを図解。</summary>
+    <category term="開発プロセス"/>
+  </entry>
+  <entry>
     <title>RSS と Atom</title>
     <id>https://memo.taka1156.site/rss-atom.html</id>
     <link rel="alternate" type="text/html" href="https://memo.taka1156.site/rss-atom.html"/>
@@ -18,6 +27,25 @@
     <category term="フロントエンド"/>
     <category term="バックエンド"/>
     <category term="ネットワーク"/>
+  </entry>
+  <entry>
+    <title>ポストモーテム</title>
+    <id>https://memo.taka1156.site/postmortem.html</id>
+    <link rel="alternate" type="text/html" href="https://memo.taka1156.site/postmortem.html"/>
+    <published>2026-11-23T00:00:00+09:00</published>
+    <updated>2026-11-23T00:00:00+09:00</updated>
+    <summary>障害のあとに原因と再発防止を記録するポストモーテムの書き方を、ブレームレスの考え方と 5 Whys の落とし穴とともに図解。</summary>
+    <category term="開発プロセス"/>
+  </entry>
+  <entry>
+    <title>DORA 指標</title>
+    <id>https://memo.taka1156.site/dora-metrics.html</id>
+    <link rel="alternate" type="text/html" href="https://memo.taka1156.site/dora-metrics.html"/>
+    <published>2026-11-23T00:00:00+09:00</published>
+    <updated>2026-11-23T00:00:00+09:00</updated>
+    <summary>デプロイ頻度・変更のリードタイム・変更失敗率・復旧時間・やり直し率の 5 つで、チームの届ける力を測る DORA 指標の意味と測り方を図解。</summary>
+    <category term="開発プロセス"/>
+    <category term="開発ツール"/>
   </entry>
   <entry>
     <title>コントロールプレーンが止まったら</title>
@@ -482,38 +510,5 @@
     <updated>2026-11-07T00:00:00+09:00</updated>
     <summary>LLM がツールを「呼ぶ」とは実際に何が起きているのか、エージェントのループ、ワークフローとの違い、コンテキストの管理、権限とプロンプトインジェクション、評価のしかたまでを、やり取りの再生と図で整理する。</summary>
     <category term="AI"/>
-  </entry>
-  <entry>
-    <title>文字コードと Unicode</title>
-    <id>https://memo.taka1156.site/unicode-text.html</id>
-    <link rel="alternate" type="text/html" href="https://memo.taka1156.site/unicode-text.html"/>
-    <published>2026-11-06T00:00:00+09:00</published>
-    <updated>2026-11-06T00:00:00+09:00</updated>
-    <summary>コードポイント・UTF-8・UTF-16 の関係、絵文字や結合文字で「1 文字」が数え方によって変わる理由、正規化（NFC / NFKC）と文字化け・utf8mb4 などの実務の落とし穴を、入力して確かめながら整理する</summary>
-    <category term="CS基礎"/>
-    <category term="言語"/>
-    <category term="フロントエンド"/>
-    <category term="バックエンド"/>
-  </entry>
-  <entry>
-    <title>RAG とベクトル検索</title>
-    <id>https://memo.taka1156.site/rag-vector-search.html</id>
-    <link rel="alternate" type="text/html" href="https://memo.taka1156.site/rag-vector-search.html"/>
-    <published>2026-11-06T00:00:00+09:00</published>
-    <updated>2026-11-06T00:00:00+09:00</updated>
-    <summary>埋め込みの類似度・チャンク分割・近似最近傍検索（HNSW・IVF）・ハイブリッド検索と RRF・再ランキング・権限フィルタ・評価のしかたまで、RAG の検索側を詳しく整理する</summary>
-    <category term="AI"/>
-    <category term="データベース"/>
-  </entry>
-  <entry>
-    <title>オブザーバビリティと OpenTelemetry</title>
-    <id>https://memo.taka1156.site/observability.html</id>
-    <link rel="alternate" type="text/html" href="https://memo.taka1156.site/observability.html"/>
-    <published>2026-11-06T00:00:00+09:00</published>
-    <updated>2026-11-06T00:00:00+09:00</updated>
-    <summary>ログ・メトリクス・トレースがそれぞれ何に答えるか、トレース ID でどうつなぐか、OpenTelemetry の SDK・Collector・OTLP の役割を図で整理する</summary>
-    <category term="インフラ"/>
-    <category term="バックエンド"/>
-    <category term="開発ツール"/>
   </entry>
 </feed>

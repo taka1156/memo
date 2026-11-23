@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DORA 指標</title>
+<meta name="description" content="デプロイ頻度・変更のリードタイム・変更失敗率・復旧時間・やり直し率の 5 つで、チームの届ける力を測る DORA 指標の意味と測り方を図解。">
+<meta name="memo:tags" content="開発プロセス, 開発ツール">
+<meta name="memo:date" content="2026-11-23">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+  --c-tp: #2f6f8f;   /* スループットの指標 */
+  --c-st: #8a4f7d;   /* 不安定さの指標 */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+    --c-tp: #7fb7d6;
+    --c-st: #d39ac6;
+  }
+}
+/* 共通部品（ざっくり言うと・よくある誤解・番号付きの手順・表やリストの中のリンク）と
+   解説用の色（--c-ok・--c-ng・--c-warn・--c-hl）は assets/memo-parts.css にある（build・preview が読み込む）。
+   ここで書き直さない。ページ独自の色分けが要るときは、意味ごとの --c-名前 を :root に足し、凡例やラベルを付ける。
+   アクセント色（--accent）は h1・h2 の左線・段落のリンク・ボタンやタブの操作状態にだけ使う */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.98rem; margin: 22px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.3em; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { color: var(--fg-2); font-weight: 600; font-size: 0.8rem; }
+tbody tr:last-child td { border-bottom: none; }
+.t-wide { min-width: 640px; }
+td.rh { white-space: nowrap; font-weight: 600; }
+td.yr { white-space: nowrap; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.grp { display: inline-block; font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; border-radius: 999px; padding: 0 8px; border: 1.5px solid; white-space: nowrap; }
+.grp.tp { border-color: var(--c-tp); }
+.grp.st { border-color: var(--c-st); border-style: dashed; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* 流れの図 */
+.flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 6px 0 4px; font-size: 0.78rem; text-align: center; }
+.flow .pt { background: var(--chip); border-radius: 8px; padding: 8px 4px; font-weight: 700; position: relative; }
+.flow .pt small { display: block; font-weight: 400; color: var(--fg-2); font-size: 0.7rem; }
+.spans { display: grid; gap: 6px; margin-top: 10px; }
+.span { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; align-items: center; font-size: 0.76rem; }
+.span .bar { border-radius: 999px; padding: 3px 10px; font-weight: 700; text-align: center; border: 2px solid; background: var(--surface); }
+.span .bar.tp { border-color: var(--c-tp); }
+.span .bar.st { border-color: var(--c-st); border-style: dashed; }
+.span .lt { grid-column: 1 / 4; }
+.span .rc { grid-column: 3 / 5; }
+.span .df { grid-column: 3 / 4; }
+.span .cf { grid-column: 3 / 5; }
+@media (max-width: 600px) {
+  .flow .pt { font-size: 0.72rem; padding: 6px 2px; }
+  .span { font-size: 0.7rem; }
+  .span .bar { padding: 3px 4px; }
+  .span .df { grid-column: 3 / 5; }
+}
+
+/* デプロイの記録 */
+.days { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; margin-top: 6px; }
+.day { background: var(--chip); border-radius: 6px; min-height: 64px; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.day b { font: 700 0.68rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.dot { width: 14px; height: 14px; border-radius: 50%; background: var(--fg-2); }
+.dot.f { background: var(--c-ng); }
+.dot.x { background: none; border: 3px solid var(--c-warn); }
+.res { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 12px; }
+.res div { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 0.78rem; color: var(--fg-2); }
+.res b { display: block; font: 700 1.05rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg); }
+.res .tp { border-left: 3px solid var(--c-tp); }
+.res .st { border-left: 3px dashed var(--c-st); }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="DORA 指標">
+<meta property="og:description" content="デプロイ頻度・変更のリードタイム・変更失敗率・復旧時間・やり直し率の 5 つで、チームの届ける力を測る DORA 指標の意味と測り方を図解。">
+<meta property="og:url" content="https://memo.taka1156.site/dora-metrics.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="application/atom+xml" title="MEMO" href="feed.xml">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>DORA 指標</h1>
+  <p class="subtitle">デプロイ頻度・変更のリードタイム・変更失敗率・復旧時間・やり直し率</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>DORA 指標は、変更を本番に届ける速さ（スループット）と、届けたあとの崩れにくさ（不安定さ）を 5 つの数字で表すもの。</li>
+      <li>研究では速さと安定は両立し、どちらも小さく頻繁に出すほど良くなる傾向がある。</li>
+      <li>チームが自分の推移を見て改善を話し合う道具で、目標値にしたりチーム同士を比べたりすると数字だけがゆがむ。</li>
+    </ul>
+  </div>
+
+  <h2 id="what">DORA とは</h2>
+  <p>DORA (DevOps Research and Assessment) は、ソフトウェアを届ける力が組織の成果とどうつながるかを調べてきた研究プログラムです。Nicole Forsgren らが毎年の調査（State of DevOps レポート）で分析し、2018 年の書籍『Accelerate』（邦題『LeanとDevOpsの科学』）にまとめました。同じ年に Google Cloud に加わり、いまは <code>dora.dev</code> で指標の解説や簡易診断（Quick Check）を公開しています。</p>
+  <p>その中でいちばん知られているのが、ここで扱う<b>ソフトウェアデリバリーのパフォーマンス指標</b>です。かつては「4 つのキーメトリクス (Four Keys)」と呼ばれ、2024 年から 5 つになりました（<a href="#history">変遷</a>）。</p>
+
+  <h2 id="metrics">5 つの指標</h2>
+  <p>どれも<b>1 つのアプリケーションやサービスごと</b>に測ります。2 つのグループに分かれ、スループットは「どれだけ速く変更が流れるか」、不安定さは「デプロイがどれだけうまくいくか」を表します。2024 年に加わった deployment rework rate には日本語の定訳がまだないので、このメモでは「やり直し率」と書きます。</p>
+  <div class="card">
+    <div class="flow" aria-label="変更が本番に届くまでの流れ">
+      <div class="pt">コミット<small>版管理に入る</small></div>
+      <div class="pt">レビュー・CI<small>待ち時間も含む</small></div>
+      <div class="pt">デプロイ<small>本番に出る</small></div>
+      <div class="pt">本番で稼働<small>失敗なら対応</small></div>
+    </div>
+    <div class="spans">
+      <div class="span"><div class="bar tp lt">変更のリードタイム</div></div>
+      <div class="span"><div class="bar tp df">デプロイ頻度</div></div>
+      <div class="span"><div class="bar tp rc">復旧時間</div></div>
+      <div class="span"><div class="bar st cf">変更失敗率・やり直し率</div></div>
+    </div>
+    <div class="legend"><span><i style="background:none;border:2px solid var(--c-tp)"></i>スループット（速さ）</span><span><i style="background:none;border:2px dashed var(--c-st)"></i>不安定さ（崩れにくさの裏返し）</span></div>
+  </div>
+  <div class="table-wrap card">
+    <table class="t-wide">
+      <thead><tr><th>指標</th><th>測るもの</th><th>良い方向</th><th>グループ</th></tr></thead>
+      <tbody>
+        <tr><td class="rh">変更のリードタイム<br><small>change lead time</small></td><td>変更が版管理にコミットされてから、本番にデプロイされるまでの時間</td><td>短いほど良い</td><td><span class="grp tp">スループット</span></td></tr>
+        <tr><td class="rh">デプロイ頻度<br><small>deployment frequency</small></td><td>一定期間のデプロイの回数、またはデプロイとデプロイの間隔</td><td>多いほど良い</td><td><span class="grp tp">スループット</span></td></tr>
+        <tr><td class="rh">復旧時間<br><small>failed deployment recovery time</small></td><td>失敗して、すぐ対応が要ったデプロイから回復するまでの時間</td><td>短いほど良い</td><td><span class="grp tp">スループット</span></td></tr>
+        <tr><td class="rh">変更失敗率<br><small>change fail rate</small></td><td>デプロイのうち、直後にすぐ対応（ロールバック・修正など）が要ったものの割合</td><td>低いほど良い</td><td><span class="grp st">不安定さ</span></td></tr>
+        <tr><td class="rh">やり直し率<br><small>deployment rework rate</small></td><td>デプロイのうち、本番の障害がきっかけで予定外に行ったものの割合</td><td>低いほど良い</td><td><span class="grp st">不安定さ</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>復旧時間が「速さ」のグループにあるのは、壊れたものを直して出し直す速さも、変更を流す力の一部だからです。どれか 1 つだけを見ると、たとえば「デプロイ頻度は上がったが失敗も増えた」が見えなくなります。<b>5 つを一緒に</b>見ます。</p>
+  <p class="note">変更のリードタイムは、カンバンで言う「リードタイム」（依頼を受けてから完了まで）とは始点が違う。DORA はコミットから本番までの、作ったものを届ける部分だけを測る。カンバン側の指標は<a href="kanban-ticket.html">カンバンとチケット駆動開発</a>の「流れの指標」にある。</p>
+
+  <h2 id="batch">小さく出すと何が変わるか</h2>
+  <p>同じ量の変更を 2 週間（10 営業日）で出す、2 つの架空のチームです。1 日 1 マスで、丸が 1 回のデプロイです。</p>
+  <div class="card">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-panel="b-big">まとめて出す</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="b-small">小さく頻繁に出す</button>
+    </div>
+    <div class="panel" id="b-big">
+      <div class="days" aria-label="5 日目に 1 回目のデプロイが失敗し同じ日に予定外の修正、10 日目に 2 回目のデプロイ">
+        <div class="day"><b>1</b></div><div class="day"><b>2</b></div><div class="day"><b>3</b></div><div class="day"><b>4</b></div>
+        <div class="day"><b>5</b><i class="dot f"></i><i class="dot x"></i></div>
+        <div class="day"><b>6</b></div><div class="day"><b>7</b></div><div class="day"><b>8</b></div><div class="day"><b>9</b></div>
+        <div class="day"><b>10</b><i class="dot"></i></div>
+      </div>
+      <div class="res">
+        <div class="tp">デプロイ頻度<b>3 回</b>予定の 2 回＋予定外 1 回</div>
+        <div class="tp">リードタイム（中央値）<b>5 日</b>リリース日まで待つ</div>
+        <div class="tp">復旧時間<b>6 時間</b>大きな変更のどこが悪いか探す</div>
+        <div class="st">変更失敗率<b>33%</b>3 回中 1 回</div>
+        <div class="st">やり直し率<b>33%</b>3 回中 1 回</div>
+      </div>
+    </div>
+    <div class="panel" id="b-small" hidden>
+      <div class="days" aria-label="毎日 2 回ずつデプロイ。3 日目と 8 日目に 1 回ずつ失敗し、それぞれ同じ日に予定外の修正">
+        <div class="day"><b>1</b><i class="dot"></i><i class="dot"></i></div>
+        <div class="day"><b>2</b><i class="dot"></i><i class="dot"></i></div>
+        <div class="day"><b>3</b><i class="dot"></i><i class="dot f"></i><i class="dot x"></i></div>
+        <div class="day"><b>4</b><i class="dot"></i><i class="dot"></i></div>
+        <div class="day"><b>5</b><i class="dot"></i><i class="dot"></i></div>
+        <div class="day"><b>6</b><i class="dot"></i><i class="dot"></i></div>
+        <div class="day"><b>7</b><i class="dot"></i><i class="dot"></i></div>
+        <div class="day"><b>8</b><i class="dot"></i><i class="dot f"></i><i class="dot x"></i></div>
+        <div class="day"><b>9</b><i class="dot"></i><i class="dot"></i></div>
+        <div class="day"><b>10</b><i class="dot"></i><i class="dot"></i></div>
+      </div>
+      <div class="res">
+        <div class="tp">デプロイ頻度<b>22 回</b>予定の 20 回＋予定外 2 回</div>
+        <div class="tp">リードタイム（中央値）<b>4 時間</b>できたらすぐ出る</div>
+        <div class="tp">復旧時間<b>20 分</b>直前の小さな変更を見ればよい</div>
+        <div class="st">変更失敗率<b>9%</b>22 回中 2 回</div>
+        <div class="st">やり直し率<b>9%</b>22 回中 2 回</div>
+      </div>
+    </div>
+    <div class="legend"><span><i style="background:var(--fg-2)"></i>予定どおりのデプロイ</span><span><i style="background:var(--c-ng)"></i>失敗して、すぐ対応が要ったデプロイ</span><span><i style="background:none;border:3px solid var(--c-warn)"></i>障害を直すための予定外のデプロイ</span></div>
+  </div>
+  <p>小さく出すチームは失敗の<b>回数</b>では 2 回と多いのに、割合は低く、1 回あたりの被害も小さく済んでいます。1 回の変更が小さいと、レビューもテストも楽になり、壊れたときは直前の変更を見れば原因が分かるからです。DORA の研究でも、速さと安定は引き換えではなく、多くのチームで一緒に良くなる（相関する）と報告されています。</p>
+  <p class="note">数字は説明のための架空のもの。予定外のデプロイもデプロイ頻度に数えている。どこまでを 1 回のデプロイと数えるかはチームで決める。</p>
+
+  <h2 id="measure">測り方</h2>
+  <ol class="steps">
+    <li><b>対象を 1 つに絞る</b>指標は 1 つのアプリケーションやサービスごとに測る。性格の違うシステムを混ぜた平均は、どこを直せばよいかを教えてくれない</li>
+    <li><b>言葉の定義をそろえる</b>何を「デプロイ」と数えるか（本番だけか、段階的リリースの途中は数えるか）、何を「失敗」とするか（ロールバック・修正のデプロイ・機能の無効化など、すぐ対応が要ったもの）を書いておく</li>
+    <li><b>データの出どころを決める</b>コミットの時刻は版管理、デプロイの時刻と結果は CD のパイプライン、失敗と復旧はインシデントの記録から取る。最初は手で数えたり、DORA の Quick Check のアンケートで当たりを付けたりするだけでもよい</li>
+    <li><b>推移を見る</b>1 回の値より、数か月の流れを見る。リードタイムや復旧時間は外れ値に引っ張られやすいので、平均より中央値や分布で見る</li>
+    <li><b>いちばんの詰まりを話し合う</b>数字が悪い所を見つけたら、開発・運用・リリースの関係者で流れを描き、どこで待っているかを確かめてから手を打つ</li>
+  </ol>
+
+  <h2 id="pitfalls">使い方の落とし穴</h2>
+  <p>DORA 自身が、指標の使い方でよくある失敗を挙げています。共通するのは、<b>数字を改善のための会話の材料ではなく、評価の道具として使う</b>ことです。</p>
+  <div class="table-wrap card">
+    <table class="t-wide">
+      <thead><tr><th>落とし穴</th><th>起きること</th><th>代わりにすること</th></tr></thead>
+      <tbody>
+        <tr><td class="rh">数字を目標にする</td><td>「1 日 3 回デプロイ」を義務にすると、中身のないデプロイを増やすなど数字だけが動く（グッドハートの法則）</td><td>改善したい状態を決め、数字はその確認に使う</td></tr>
+        <tr><td class="rh">1 つだけを見る</td><td>頻度だけ追うと失敗が増え、失敗率だけ追うとデプロイを控えるようになる</td><td>引っ張り合う 5 つを一緒に見る</td></tr>
+        <tr><td class="rh">違う物を比べる</td><td>モバイルアプリと基幹系の数字を並べても、事情が違いすぎて意味がない</td><td>同じシステムの過去の自分と比べる</td></tr>
+        <tr><td class="rh">チームを競わせる</td><td>ランキングにすると、数字の定義をいじったり悪い数字を隠したりする</td><td>各チームが自分の推移を見て、詰まりを相談する</td></tr>
+        <tr><td class="rh">一部の指標だけ持たせる</td><td>開発は頻度、運用は失敗率、と分けると、互いを責め合う</td><td>5 つ全部を、関わるチーム全員で共有する</td></tr>
+        <tr><td class="rh">業界を言い訳にする</td><td>「規制があるから無理」と、改善の前に諦める</td><td>規制の中でも縮められる待ち時間を探す</td></tr>
+        <tr><td class="rh">測ることが目的になる</td><td>完璧なデータ連携を作るのに何か月もかけ、改善が始まらない</td><td>まず会話と簡単な数え方で始め、必要になったら自動化する</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="improve">数字を良くする打ち手</h2>
+  <p>DORA は指標のほかに、指標を良くする<b>ケイパビリティ</b>（能力・慣行）も調べています。どの指標が悪いかで、効きやすい打ち手が変わります。</p>
+  <div class="table-wrap card">
+    <table>
+      <thead><tr><th>悪い指標</th><th>まず疑う所</th></tr></thead>
+      <tbody>
+        <tr><td class="rh">リードタイムが長い</td><td>レビュー待ち・大きすぎる変更・手作業のテストや承認。変更を小さく分け、トランクベース開発と CI で早く統合する</td></tr>
+        <tr><td class="rh">デプロイ頻度が低い</td><td>デプロイが手作業で怖い・まとめてリリースする決まり。デプロイを自動化し、機能フラグで「出す」と「公開する」を分ける</td></tr>
+        <tr><td class="rh">復旧時間が長い</td><td>異常に気づくのが遅い・戻す手順がない。監視とアラートを整え、ロールバックを 1 操作にする</td></tr>
+        <tr><td class="rh">失敗率・やり直し率が高い</td><td>テストの抜け・本番と違う検証環境・変更が大きい。自動テストを足し、段階的リリースで影響を絞る。障害のたびにポストモーテムで条件を直す</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>どの行にも出てくるのが<b>変更を小さくする</b>ことです。小さい変更は速く流れ、壊れても見つけやすく、戻しやすいので、5 つの指標すべてに効きます。</p>
+
+  <h2 id="history">変遷</h2>
+  <p>古い記事や道具では、名前やグループ分けが今と違うことがあります。</p>
+  <div class="table-wrap card">
+    <table>
+      <thead><tr><th>年</th><th>できごと</th></tr></thead>
+      <tbody>
+        <tr><td class="yr">2014</td><td>デプロイ頻度・リードタイム・平均復旧時間 (MTTR) の 3 つで「IT パフォーマンス」を測る</td></tr>
+        <tr><td class="yr">2015</td><td>変更失敗率が加わり、速さ（スループット）と安定性の 2 つずつ、計 4 つになる。のちに「4 つのキーメトリクス (four keys)」と呼ばれるもの</td></tr>
+        <tr><td class="yr">2023</td><td>MTTR（サービス復旧時間）を「失敗したデプロイからの復旧時間」に改める。データセンターの停止など、変更と関係のない障害を含めないようにするため</td></tr>
+        <tr><td class="yr">2024</td><td>やり直し率が加わって 5 つになり、復旧時間はスループットの側に移る。グループ名も「安定性」から「不安定さ」に</td></tr>
+        <tr><td class="yr">2025</td><td>報告書の題が「State of AI-assisted Software Development」に。チームを Elite・High などの段階に分ける代わりに、7 つの型（アーキタイプ）で表す</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">2026 年 9 月、DORA は 2026 年の年次調査と報告書は行わないと発表した。指標の定義と Quick Check は dora.dev で引き続き公開されている（2026 年 11 月時点）。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>速く出すほど品質は下がるので、デプロイ頻度と安定性はどちらかを選ぶしかない</summary><p>DORA の調査では、多くのチームで速さと安定は一緒に良くなる傾向が続いています。変更を小さくして頻繁に出すと、1 回の変更の危険が小さくなり、壊れても早く直せるからです。片方だけを良くしようとすると、もう片方が崩れやすくなります。</p></details>
+  <details class="myth"><summary>DORA 指標でチームの生産性や個人の成果を評価できる</summary><p>DORA 指標は、1 つのアプリケーションやサービスの届ける流れの状態を表すもので、人やチームの評価のための数字ではありません。評価に使うと、デプロイを細かく割るなど数字だけを良くする動きが起き、指標が状態を表さなくなります。</p></details>
+  <details class="myth"><summary>DORA 指標は今も 4 つで、復旧時間はすべての障害の平均復旧時間 (MTTR) のことだ</summary><p>2024 年からやり直し率が加わって 5 つになりました。復旧時間は 2023 年に、デプロイが原因で失敗したときに回復するまでの時間に絞られています。インフラの停止など変更と関係のない障害は、この指標には入れません。</p></details>
+  <details class="myth"><summary>業界のトップ水準の数字を目標にすれば、チームは改善していく</summary><p>DORA 自身が、指標を目標にすると数字のごまかしを招くと注意しています。ほかの組織の数字ではなく、自分たちの過去と比べ、いちばんの詰まりを直したら数字がどう動いたかで効果を確かめます。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="kanban-ticket.html">カンバンとチケット駆動開発</a> — 依頼から完了までの流れの指標（サイクルタイム・スループット）。DORA はそのうちコミットから本番までを見る</li>
+    <li><a href="ci-cd.html">CI/CD と GitHub Actions</a> — リードタイムとデプロイ頻度を左右するパイプラインと、段階的なデプロイ</li>
+    <li><a href="postmortem.html">ポストモーテム</a> — 変更失敗率と復旧時間を下げるための、障害ごとのふりかえり</li>
+    <li><a href="observability.html">オブザーバビリティと OpenTelemetry</a> — 失敗に早く気づいて復旧時間を縮めるための監視</li>
+    <li><a href="testing-strategy.html">テスト戦略</a> — 変更失敗率を下げる自動テストの組み立て</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://dora.dev/guides/dora-metrics/">DORA: DORA's software delivery performance metrics</a>（5 つの指標の定義・落とし穴）</li>
+    <li><a href="https://dora.dev/guides/dora-metrics/history/">DORA: A history of DORA's software delivery metrics</a>（変遷）</li>
+    <li><a href="https://cloud.google.com/blog/products/ai-machine-learning/announcing-the-2025-dora-report">Google Cloud Blog: Announcing the 2025 DORA Report</a></li>
+    <li><a href="https://leaddev.com/reporting/whats-next-for-dora">LeadDev: What's next for DORA?</a>（2026 年の年次調査を行わないことについて）</li>
+  </ul>
+  <p class="note">2026 年 11 月 23 日に確認。</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "デプロイ頻度を上げたら、変更失敗率も上がってきた。指標の見方として合うのは？",
+    "choices": ["頻度の目標は達成したので、失敗率は別のチームの課題として切り分ける", "5 つの指標を一緒に見て、変更の大きさやテストの抜けなど失敗が増えた理由を探す", "速さと安定は両立しないので、失敗率を下げるためにデプロイの回数を元に戻す"],
+    "answer": 1,
+    "explain": "指標は引っ張り合うように組まれているので、1 つだけを追わず一緒に見る。速さと安定は両立しうるので、どちらかを諦める前に原因を探す。",
+    "ref": "#metrics"
+  },
+  {
+    "q": "データセンターの電源障害でサービスが 2 時間止まった。今の DORA の「失敗したデプロイからの復旧時間」にこの 2 時間をどう扱う？",
+    "choices": ["デプロイが原因ではないので、この指標には含めない", "障害なので、すべて復旧時間の平均に含める", "変更失敗率の分子として 1 回数える", "やり直し率の分子として 1 回数える"],
+    "answer": 0,
+    "explain": "2023 年の見直しで、変更と関係のない障害は含めず、デプロイが原因の失敗からの回復だけを測るようになった。",
+    "ref": "#history"
+  },
+  {
+    "q": "週に 1 回まとめてリリースしているチームが、毎日小さく出すように変えた。失敗したデプロイの回数は少し増えたが、ほかの指標で起きやすい変化は？",
+    "choices": ["変更失敗率が上がり、復旧時間も長くなる", "リードタイムは長くなるが、変更失敗率は下がる", "デプロイ頻度だけが上がり、ほかは変わらない", "失敗の割合と復旧時間が下がり、リードタイムも短くなる"],
+    "answer": 3,
+    "explain": "1 回の変更が小さいと、壊れる割合が下がり、原因が直前の小さな変更に絞れるので早く直せる。できたものを待たずに出せるのでリードタイムも縮む。",
+    "ref": "#batch"
+  },
+  {
+    "q": "経営層から「全チームのデプロイ頻度を毎月ランキングで発表し、上位を表彰したい」と相談された。DORA の考え方に合う返答は？",
+    "choices": ["人数の違いで不公平にならないよう、チームの人数で割った値でランキングにする", "ランキングはやめ、業界のトップ水準の値を全チームの共通目標として毎月追う", "競争は数字のごまかしを招くので、各チームが自分の推移を見て詰まりを相談する場にする"],
+    "answer": 2,
+    "explain": "DORA は指標を目標にすることやチームを競わせることを落とし穴として挙げている。同じシステムの過去と比べて改善に使う。",
+    "ref": "#pitfalls"
+  }
+]
+</script>
+</body>
+</html>

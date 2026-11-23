@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ポストモーテム</title>
+<meta name="description" content="障害のあとに原因と再発防止を記録するポストモーテムの書き方を、ブレームレスの考え方と 5 Whys の落とし穴とともに図解。">
+<meta name="memo:tags" content="開発プロセス">
+<meta name="memo:date" content="2026-11-23">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+/* 共通部品（ざっくり言うと・よくある誤解・番号付きの手順・表やリストの中のリンク）と
+   解説用の色（--c-ok・--c-ng・--c-warn・--c-hl）は assets/memo-parts.css にある（build・preview が読み込む）。
+   ここで書き直さない。ページ独自の色分けが要るときは、意味ごとの --c-名前 を :root に足し、凡例やラベルを付ける。
+   アクセント色（--accent）は h1・h2 の左線・段落のリンク・ボタンやタブの操作状態にだけ使う */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.98rem; margin: 22px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { margin: 6px 0 6px 1.3em; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { color: var(--fg-2); font-weight: 600; font-size: 0.8rem; }
+tbody tr:last-child td { border-bottom: none; }
+.t-wide { min-width: 600px; }
+td.rh { white-space: nowrap; font-weight: 600; }
+td.ng { color: var(--fg-2); }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* タイムラインの帯 */
+.tl-bar { display: flex; height: 30px; border-radius: 6px; overflow: hidden; margin: 10px 0 4px; }
+.tl-bar > div { display: flex; align-items: center; justify-content: center; font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--bg); }
+.tl-bar .s1 { background: var(--c-ng); }
+.tl-bar .s2 { background: var(--c-warn); }
+.tl-bar .s3 { background: var(--c-ok); }
+.tl-scale { display: flex; justify-content: space-between; font: 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.tl-list { list-style: none; margin-top: 12px; font-size: 0.86rem; }
+.tl-list li { display: grid; grid-template-columns: 3.4em 1fr; gap: 10px; padding: 5px 0; border-bottom: 1px dashed var(--line); }
+.tl-list li:last-child { border-bottom: none; }
+.tl-list time { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.tl-list .mark { font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; margin-left: 6px; white-space: nowrap; color: var(--fg-2); }
+
+/* 言い換えの例 */
+.say { display: grid; gap: 8px; }
+.say .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.say .b, .say .g { border-radius: 8px; padding: 8px 10px; font-size: 0.84rem; background: var(--chip); border-left: 3px solid; }
+.say .b { border-left-color: var(--c-ng); }
+.say .g { border-left-color: var(--c-ok); }
+.say .lab { display: block; font: 700 0.7rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); margin-bottom: 2px; }
+@media (max-width: 600px) {
+  .say .row { grid-template-columns: 1fr; }
+}
+
+/* なぜの連鎖 */
+.why { list-style: none; counter-reset: w; }
+.why li { counter-increment: w; position: relative; padding: 6px 10px 6px 64px; margin: 4px 0; background: var(--chip); border-radius: 8px; font-size: 0.86rem; }
+.why li::before { content: 'なぜ' counter(w); position: absolute; left: 10px; top: 6px; font: 700 0.72rem 'JetBrains Mono', ui-monospace, monospace; color: var(--fg-2); }
+.why li.end { background: none; border: 1px dashed var(--line); padding-left: 10px; }
+.why li.end::before { content: none; }
+.why li.stop { outline: 2px solid var(--c-ng); outline-offset: -2px; }
+.branches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.branches .br h4 { font-size: 0.84rem; margin-bottom: 4px; }
+.branches .why li { font-size: 0.8rem; padding-left: 10px; padding-top: 22px; }
+.branches .why li::before { top: 4px; }
+.branches .why li.fix { outline: 2px solid var(--c-ok); outline-offset: -2px; }
+@media (max-width: 720px) {
+  .branches { grid-template-columns: 1fr; }
+}
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="ポストモーテム">
+<meta property="og:description" content="障害のあとに原因と再発防止を記録するポストモーテムの書き方を、ブレームレスの考え方と 5 Whys の落とし穴とともに図解。">
+<meta property="og:url" content="https://memo.taka1156.site/postmortem.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="application/atom+xml" title="MEMO" href="feed.xml">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>ポストモーテム</h1>
+  <p class="subtitle">ブレームレスな障害のふりかえりと、5 Whys の使いどころ</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>ポストモーテムは、障害のあとに影響・経緯・原因・再発防止策を文書にまとめ、組織で学ぶためのふりかえり。</li>
+      <li>人を責めず「なぜその判断が当時は正しく見えたか」を問うと、事実が集まり、仕組みの弱点が見つかる。</li>
+      <li>原因は 1 本の鎖に絞らず、アクションは「気をつける」ではなく担当と期限のある仕組みの変更にする。</li>
+    </ul>
+  </div>
+
+  <h2 id="what">ポストモーテムとは</h2>
+  <p>ポストモーテム (postmortem) は、障害（インシデント）が収まったあとに書く<b>ふりかえりの文書</b>と、それを読み合う場のことです。元は「検死」の意味ですが、IT の運用では「何が起き、なぜ起き、次にどうするか」を記録して、同じ障害をくり返さないために使います。Etsy の John Allspaw による 2012 年の記事や、Google の SRE 本の「ポストモーテムの文化」の章などを通じて、IT 業界に広まりました。</p>
+  <p>全部の障害で書くと続かないので、<b>書く条件を先に決めておく</b>のが普通です。SRE 本では次のような例が挙がっています。</p>
+  <ul class="plain">
+    <li>利用者から見える停止や劣化が、決めた基準を超えた</li>
+    <li>データが失われた</li>
+    <li>当番の人が手で介入した（ロールバック・切り替えなど）</li>
+    <li>解決までの時間が、決めた基準を超えた</li>
+    <li>監視が気づかず、人が見つけた</li>
+  </ul>
+  <p>条件に当てはまらなくても、関係者が書きたいと言えば書けるようにしておきます。</p>
+
+  <h2 id="flow">障害からポストモーテムまで</h2>
+  <ol class="steps">
+    <li><b>検知と対応</b>まず影響を止める（緩和）。原因の追究は後回しにして、ロールバックや切り替えで利用者への影響を小さくする。対応中のやりとりは時刻つきで残す</li>
+    <li><b>下書き</b>記憶が新しいうちに、対応した人が中心になって事実（時刻・数字・判断）を書く。チャットやダッシュボードのリンクを貼る</li>
+    <li><b>レビュー</b>関係者で読み合い、抜けている事実、原因の掘り方、アクションの妥当さを確かめる。責める言葉が混ざっていないかもここで見る</li>
+    <li><b>アクションの追跡</b>再発防止策を担当と期限つきでバックログに入れ、普段の作業と同じく完了まで追う</li>
+    <li><b>共有</b>関係のないチームも読めるところに置く。似た弱点を持つ別のシステムで役に立つ</li>
+  </ol>
+  <p>通常のスプリントのふりかえりが「チームの進め方」を見直す場なのに対し、ポストモーテムは<b>1 つの出来事を深く掘り、システムと組織の弱点</b>を見つける場です。</p>
+
+  <h2 id="blameless">ブレームレス：人ではなく条件を見る</h2>
+  <p>ブレームレス (blameless、非難しない) は、障害のきっかけになった操作をした人を責めないという約束です。責められると分かっていると、人は自分に不利な事実を話さなくなり、いちばん大事な情報が集まりません。</p>
+  <p>代わりに、<b>その人がその時点で知っていたこと・見えていたものから考えると、なぜその判断が妥当に見えたのか</b>を問います。同じ立場なら別の人も同じことをした、と分かれば、直すべきは人ではなく、誤りを招いた画面・手順・権限・情報の出し方です。</p>
+  <div class="card">
+    <div class="say">
+      <div class="row">
+        <div class="b"><span class="lab">責める書き方</span>田中さんが確認を怠り、本番に誤った設定を出した。</div>
+        <div class="g"><span class="lab">ブレームレスな書き方</span>設定の差分はレビュー画面に表示されず、検証環境では別のファイルが上書きしていたため、誤りに気づける手がかりがなかった。</div>
+      </div>
+      <div class="row">
+        <div class="b"><span class="lab">責める書き方</span>当番がアラートを見落とした。</div>
+        <div class="g"><span class="lab">ブレームレスな書き方</span>同じ時間帯に重要度の低いアラートが 40 件出ており、今回のものは見た目で区別できなかった。</div>
+      </div>
+      <div class="row">
+        <div class="b"><span class="lab">責める書き方</span>手順を守らなかったのが原因。</div>
+        <div class="g"><span class="lab">ブレームレスな書き方</span>手順書は 2 年前の構成のままで、今の画面とは項目名が違っていた。</div>
+      </div>
+    </div>
+    <div class="legend"><span><i style="background:var(--c-ng)"></i>人の注意不足で終わっている</span><span><i style="background:var(--c-ok)"></i>誤りを招いた条件まで書いている</span></div>
+  </div>
+  <p>ブレームレスは「誰も責任を取らない」ことではありません。名前を出して状況を説明するのはかまいませんし、アクションの担当ははっきり決めます。変わるのは、<b>責任を「処罰」ではなく「改善を進める役目」として扱う</b>ことです。人の誤りを潜在的な条件の表れとして見る考え方は、<a href="layered-defense.html">層を重ねて守る</a>のスイスチーズモデルとも共通します。</p>
+
+  <h2 id="template">書く項目</h2>
+  <p>書式はチームで 1 つに決めておくと、書く人も読む人も迷いません。よく使われる項目は次のとおりです。</p>
+  <div class="table-wrap card">
+    <table class="t-wide">
+      <thead><tr><th>項目</th><th>書くこと</th><th>ありがちな失敗</th></tr></thead>
+      <tbody>
+        <tr><td class="rh">要約</td><td>何が・いつ・どのくらいの間・誰に影響したかを 2〜3 文で</td><td>原因の細部から書き始め、影響が分からない</td></tr>
+        <tr><td class="rh">影響</td><td>失敗したリクエスト数、影響した利用者数、売上・SLO への影響など数字で</td><td>「一部のユーザー」だけで、規模が分からない</td></tr>
+        <tr><td class="rh">タイムライン</td><td>発生・検知・判断・緩和・復旧を時刻つきで。誰が何を見て何をしたか</td><td>あとから分かった事実を、その時点で分かっていたように書く</td></tr>
+        <tr><td class="rh">原因と寄与要因</td><td>きっかけと、それが障害にまで育った条件（検知の遅れ・影響の広がり方）</td><td>原因を 1 つに絞り、「人為的ミス」で止める</td></tr>
+        <tr><td class="rh">うまくいったこと</td><td>早く気づけた、すぐ戻せた、など残したい仕組み</td><td>悪かった点だけを並べ、効いた対策が次に消される</td></tr>
+        <tr><td class="rh">運が良かったこと</td><td>たまたま被害が小さかった理由（深夜だった、詳しい人が居合わせた）</td><td>書かずに済ませ、次は運が悪くて大きな被害になる</td></tr>
+        <tr><td class="rh">アクション</td><td>何を・誰が・いつまでに。種類（防ぐ・早く気づく・影響を小さくする）も</td><td>担当と期限がなく、誰も手を付けない</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 id="timeline">タイムラインの例</h3>
+  <p>設定の変更でキャッシュが効かなくなり、データベースが過負荷になった架空の障害です。どこに時間がかかったかを区間で見ると、改善の的が絞れます。</p>
+  <div class="card">
+    <div class="tl-bar" role="img" aria-label="発生から検知まで 9 分、対応して緩和まで 13 分、緩和から復旧まで 7 分">
+      <div class="s1" style="flex:9">9分</div><div class="s2" style="flex:13">13分</div><div class="s3" style="flex:7">7分</div>
+    </div>
+    <div class="tl-scale"><span>14:02</span><span>14:31</span></div>
+    <div class="legend"><span><i style="background:var(--c-ng)"></i>影響が出ているのに誰も気づいていない</span><span><i style="background:var(--c-warn)"></i>気づいて対応している</span><span><i style="background:var(--c-ok)"></i>緩和して元に戻りつつある</span></div>
+    <ol class="tl-list">
+      <li><time>14:02</time><span>設定の変更をデプロイ。本番だけキャッシュの有効期限が 0（キャッシュしない）になる<span class="mark">発生</span></span></li>
+      <li><time>14:05</time><span>データベースの CPU 使用率が 90% を超える（アラートの対象外）</span></li>
+      <li><time>14:11</time><span>エラー率のアラートが鳴る<span class="mark">検知</span></span></li>
+      <li><time>14:15</time><span>インシデントとして宣言し、指揮をとる人を決める</span></li>
+      <li><time>14:24</time><span>直前のデプロイを疑い、設定をロールバック<span class="mark">緩和</span></span></li>
+      <li><time>14:31</time><span>エラー率が普段の値に戻る<span class="mark">復旧</span></span></li>
+    </ol>
+  </div>
+  <p>この例では、最初の 9 分は監視が気づいていません。原因（設定の誤り）を防ぐ策と同じくらい、<b>「なぜ 9 分気づけなかったか」</b>を問う価値があります。</p>
+
+  <h2 id="five-whys">5 Whys の使いどころと落とし穴</h2>
+  <p>5 Whys（なぜなぜ分析）は、起きたことに「なぜ」を重ねて原因を掘る方法で、トヨタ生産方式から広まりました。手軽で、表面の原因で止まらないようにする助けになります。ただし、1 本の鎖でたどると、<b>最後が人の注意不足に行き着きやすい</b>という落とし穴があります。</p>
+  <div class="card">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-panel="w1">1 本の鎖</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="w2">問いを分ける</button>
+    </div>
+    <div class="panel" id="w1">
+      <ol class="why">
+        <li>エラーが増えた → データベースが過負荷になったから</li>
+        <li>過負荷になった → キャッシュが効かず、全部の読み込みが届いたから</li>
+        <li>キャッシュが効かなかった → 設定の有効期限が 0 になっていたから</li>
+        <li class="stop">0 になっていた → 担当者が確認を怠ったから</li>
+        <li class="end">結論：「今後は確認を徹底する」</li>
+      </ol>
+      <p class="note">4 つ目で人の注意に行き着き、そこで止まっている。この結論では、同じ条件がそろえば別の人が同じ誤りをする。</p>
+    </div>
+    <div class="panel" id="w2" hidden>
+      <div class="branches">
+        <div class="br">
+          <h4>なぜ起きたか</h4>
+          <ol class="why">
+            <li>本番だけ有効期限が 0 になった</li>
+            <li>設定ファイルの読み込み順が変わり、既定値の 0 が使われた</li>
+            <li class="fix">検証環境は別のファイルで上書きしており、差が出なかった</li>
+          </ol>
+        </div>
+        <div class="br">
+          <h4>なぜ気づくのが遅れたか</h4>
+          <ol class="why">
+            <li>9 分間アラートが鳴らなかった</li>
+            <li>エラー率しか見ておらず、データベースの CPU は対象外だった</li>
+            <li class="fix">予兆の指標をアラートにする基準がなかった</li>
+          </ol>
+        </div>
+        <div class="br">
+          <h4>なぜ影響が広がったか</h4>
+          <ol class="why">
+            <li>全利用者に一度に影響した</li>
+            <li>設定の変更はコードと違い、段階的に出していなかった</li>
+            <li class="fix">設定の変更を小さく出す仕組みがなかった</li>
+          </ol>
+        </div>
+      </div>
+      <p class="note">起きた理由・気づくのが遅れた理由・広がった理由に分けると、どれも仕組みで直せる条件にたどり着く。</p>
+    </div>
+    <div class="legend"><span><i style="background:none;border:2px solid var(--c-ng)"></i>人の注意で止まった「なぜ」</span><span><i style="background:none;border:2px solid var(--c-ok)"></i>仕組みで直せる条件にたどり着いた「なぜ」</span></div>
+  </div>
+  <ul class="plain">
+    <li>「5 回」は目安で、回数に意味はない。直せる条件に届いたら止めてよい。</li>
+    <li>複雑なシステムの障害は、いくつもの条件が重なって起きるのが普通。原因を 1 つに絞らず、<b>寄与要因</b> (contributing factors) として並べる。</li>
+    <li>「人為的ミス」が出てきたら、それは答えではなく、<b>次の「なぜ」の出発点</b>として扱う。</li>
+  </ul>
+
+  <h2 id="actions">アクションの書き方</h2>
+  <p>アクションは、<b>同じ条件がそろっても障害にならない、または小さく済む</b>ように仕組みを変えるものにします。人に注意を求める対策は、書いた直後は効いても、人が入れ替わったり忙しくなったりすると効かなくなります。</p>
+  <div class="table-wrap card">
+    <table class="t-wide">
+      <thead><tr><th>種類</th><th>弱いアクション</th><th>強いアクション</th></tr></thead>
+      <tbody>
+        <tr><td class="rh">起きにくくする</td><td class="ng">設定は慎重に変える</td><td>有効期限が 0 の設定を CI のチェックでエラーにする（担当: 基盤チーム、期限: 12/5）</td></tr>
+        <tr><td class="rh">早く気づく</td><td class="ng">ダッシュボードをこまめに見る</td><td>データベースの CPU が 80% を 5 分超えたらアラートにする（担当: 当番の責任者、期限: 11/30）</td></tr>
+        <tr><td class="rh">影響を小さくする</td><td class="ng">何かあればすぐ戻す</td><td>設定の変更も 5% の利用者から段階的に出す（担当: 基盤チーム、期限: 12/19）</td></tr>
+        <tr><td class="rh">直しやすくする</td><td class="ng">手順書を見直す</td><td>設定のロールバックを 1 コマンドにし、手順書から呼ぶ（担当: 当番の責任者、期限: 12/12）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>アクションは多すぎると終わりません。効果の大きいものに絞り、残りは「やらない」と決めた理由ごと記録します。完了したかどうかを、次のレビューや定例で確かめます。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>ブレームレスにすると誰も責任を取らなくなる</summary><p>ブレームレスでも、アクションの担当と期限ははっきり決めます。やめるのは、誤りをした人を処罰したり、評価を下げたりすることです。責めないことで事実が集まり、責任を「仕組みを直す役目」として果たせるようになります。</p></details>
+  <details class="myth"><summary>5 Whys で「なぜ」を 5 回くり返せば、ただ 1 つの根本原因にたどり着ける</summary><p>回数は目安で、障害の多くはいくつもの条件が重なって起きます。1 本の鎖だけでたどると、たどる人の思い込みで道筋が決まり、人の注意不足で止まりやすくなります。起きた理由・気づくのが遅れた理由・広がった理由のように問いを分け、寄与要因を並べます。</p></details>
+  <details class="myth"><summary>ポストモーテムは大きな障害のときだけ書けばよい</summary><p>大きな障害は、小さな障害やヒヤリとした出来事（ニアミス）と同じ弱点から起きることが多くあります。書く条件を決めたうえで、条件に当てはまらない出来事も短い形で残しておくと、大きくなる前に弱点を直せます。</p></details>
+  <details class="myth"><summary>原因が分かるまでは、ロールバックなどの対応をしない方がよい</summary><p>障害の最中は、原因の追究より影響を止めることを優先します。原因を調べるための情報（ログ・時刻・画面）は残しつつ、まず戻すか切り替えます。原因の分析はポストモーテムで落ち着いて行います。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="retrospectives.html">ふりかえりの進め方と手法</a> — チームの進め方を定期的に見直す場。ポストモーテムは 1 つの障害を深く掘る版</li>
+    <li><a href="layered-defense.html">層を重ねて守る：スイスチーズモデルと多層防御</a> — 人の誤りを潜在的な条件の表れとして見る考え方と、アクションで層を足す発想</li>
+    <li><a href="observability.html">オブザーバビリティと OpenTelemetry</a> — 「なぜ気づくのが遅れたか」を直すときの、何をアラートにするか</li>
+    <li><a href="ci-cd.html">CI/CD と GitHub Actions</a> — 段階的なリリースや、設定のチェックを仕組みに入れる場所</li>
+    <li><a href="failure-isolation.html">障害を広げない設計</a> — 「なぜ影響が広がったか」の答えになりやすい設計の弱点</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://sre.google/sre-book/postmortem-culture/">Site Reliability Engineering, Chapter 15: Postmortem Culture: Learning from Failure</a>（書く条件・ブレームレス）</li>
+    <li><a href="https://sre.google/workbook/postmortem-culture/">The Site Reliability Workbook, Chapter 10: Postmortem Culture</a>（良い例と悪い例）</li>
+    <li><a href="https://sre.google/sre-book/example-postmortem/">Site Reliability Engineering: Example Postmortem</a>（項目の例。うまくいったこと・運が良かったこと）</li>
+    <li><a href="https://www.etsy.com/codeascraft/blameless-postmortems">John Allspaw: Blameless PostMortems and a Just Culture（Etsy Code as Craft）</a></li>
+    <li><a href="https://www.atlassian.com/incident-management/postmortem/5-whys">Atlassian: 5 Whys</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "障害の最中、原因はまだ分からないが、直前のデプロイが怪しい。まずやるべきことは？",
+    "choices": ["原因を特定できるまで、ログとメトリクスを調べ続ける", "ログや時刻を残しつつ、ロールバックして影響を止める", "記憶が新しいうちに、ポストモーテムの下書きを書く"],
+    "answer": 1,
+    "explain": "障害の最中は影響を止める（緩和）ことを優先する。原因の分析は、収まったあとのポストモーテムで行う。",
+    "ref": "#flow"
+  },
+  {
+    "q": "ポストモーテムで「当番がアラートを見落とした」と書かれていた。ブレームレスなレビューで次に問うべきことは？",
+    "choices": ["当番の人がその時点で何を見ていて、なぜ見落とすのが自然だったか", "当番の人に、今後は見落とさないという再発防止の誓約を書いてもらうか", "次の当番からは、経験の長い別の人に担当を代えるべきか", "見落としの回数を記録して、当番の人の評価に反映するべきか"],
+    "answer": 0,
+    "explain": "その時点で見えていたものから判断の妥当さを考えると、アラートの多さや見分けにくさなど、直せる条件が見つかる。",
+    "ref": "#blameless"
+  },
+  {
+    "q": "5 Whys でたどったら「担当者の確認不足」に行き着いた。どう扱うのがよい？",
+    "choices": ["根本原因が分かったので、確認の徹底を周知して終える", "5 回に満たないので、無理にでも 5 回目の「なぜ」を足す", "人の誤りを出発点に、なぜ確認できなかったか、ほかに防げた層はないかを掘る"],
+    "answer": 2,
+    "explain": "人為的ミスは結論ではなく次の問いの出発点。確認を難しくした条件や、気づけなかった理由・広がった理由に分けて掘る。",
+    "ref": "#five-whys"
+  },
+  {
+    "q": "再発防止のアクションとして、いちばん効果が続きやすいのは？",
+    "choices": ["設定を変えるときは二重に確認するよう全員に周知する", "手順書の注意書きを太字にする", "障害の担当者に研修を受けてもらう", "危険な設定値を CI のチェックでエラーにし、担当と期限を決める"],
+    "answer": 3,
+    "explain": "人の注意に頼る対策は時間がたつと効かなくなる。同じ条件がそろっても止まるように仕組みを変え、担当と期限で完了まで追う。",
+    "ref": "#actions"
+  }
+]
+</script>
+</body>
+</html>
