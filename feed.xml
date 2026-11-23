@@ -422,17 +422,6 @@
     <category term="データベース"/>
   </entry>
   <entry>
-    <title>bubblewrap と socat</title>
-    <id>https://memo.taka1156.site/bubblewrap-socat.html</id>
-    <link rel="alternate" type="text/html" href="https://memo.taka1156.site/bubblewrap-socat.html"/>
-    <published>2026-11-14T00:00:00+09:00</published>
-    <updated>2026-11-14T00:00:00+09:00</updated>
-    <summary>bwrap でコマンドを閉じ込め、socat とプロキシで許可した通信だけ通す仕組みを、AI エージェントでの使われ方とともに図解。</summary>
-    <category term="Linux"/>
-    <category term="セキュリティ"/>
-    <category term="AI"/>
-  </entry>
-  <entry>
     <title>冪等キーとリトライ</title>
     <id>https://memo.taka1156.site/api-idempotency.html</id>
     <link rel="alternate" type="text/html" href="https://memo.taka1156.site/api-idempotency.html"/>
@@ -520,5 +509,14 @@
     <summary>Kubernetes が「あるべき状態」を宣言して保ち続ける仕組みを、コントロールプレーンとノードの部品、Pod・Deployment・Service・Ingress / Gateway の関係、ヘルスチェックとリソース指定まで図で整理する。</summary>
     <category term="インフラ"/>
     <category term="Linux"/>
+  </entry>
+  <entry>
+    <title>グラフ探索と最短経路</title>
+    <id>https://memo.taka1156.site/graph-algorithms.html</id>
+    <link rel="alternate" type="text/html" href="https://memo.taka1156.site/graph-algorithms.html"/>
+    <published>2026-11-07T00:00:00+09:00</published>
+    <updated>2026-11-07T00:00:00+09:00</updated>
+    <summary>グラフの表し方、BFS と DFS の違い、依存関係を並べるトポロジカルソート、ダイクストラ法の動きを迷路や手順の図で解説し、問題ごとの使い分けをまとめる。</summary>
+    <category term="CS基礎"/>
   </entry>
 </feed>

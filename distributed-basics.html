@@ -334,7 +334,7 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <tr><td>D1（読み取りレプリカ・ベータ）</td><td>Sessions API の<b>ブックマーク</b>を引き継ぐと、自分の書き込みが次の読み取りで見える（逐次整合性）</td><td>読み取りを世界中で速くしつつ、ユーザー単位の一貫性は保ちたいとき</td></tr>
     <tr><td>Durable Objects</td><td>1 オブジェクト＝1 か所で処理するので強い整合性</td><td>在庫・座席・チャットルームなど、同時更新を正しく捌きたいもの</td></tr>
   </table></div>
-  <p class="note">詳しくは <a href="cloudflare-databases.html">D1 と Hyperdrive＋PlanetScale</a>、<a href="cloudflare-services.html">Cloudflare サービス</a>。KV で在庫数を管理すると、書き込みが各地に届くまでの間に売り越しが起き得る、という具合に<b>整合性モデルの選択がそのままバグになる</b>。</p>
+  <p class="note">詳しくは <a href="cloudflare-databases.html">D1 と Hyperdrive＋PlanetScale</a>。KV で在庫数を管理すると、書き込みが各地に届くまでの間に売り越しが起き得る、という具合に<b>整合性モデルの選択がそのままバグになる</b>。</p>
 
   <h2 id="idempotency">冪等性 (idempotency)</h2>
   <p><b>同じ操作を 1 回やっても 10 回やっても、結果が同じ</b>になる性質。タイムアウト時に安心してリトライするための土台です。</p>

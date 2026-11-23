@@ -153,7 +153,6 @@ openssl s_client -connect example.com:443 -servername example.com </dev/null | h
 - [セキュリティヘッダー](https://memo.taka1156.site/md/security-headers.md) — HSTS で https を強制する
 - [リアルタイム通信](https://memo.taka1156.site/md/realtime-comm.md) — HTTP の上でつなぎっぱなしにする方式
 - [Core Web Vitals](https://memo.taka1156.site/md/web-performance.md) — 接続の速さが LCP に効く
-- [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) — TLS 終端と CDN を担う例
 
 ## 参考
 

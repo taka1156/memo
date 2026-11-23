@@ -109,7 +109,7 @@ Hyperdrive＋PS
 
 - **本体は PlanetScale、利用者ごとの状態は D1** ：会員・注文・決済のように全員で共有するデータは Postgres、ユーザーごとの下書きや設定、AI エージェントの作業メモは D1 に1人1 DB。
 - **Durable Objects の SQLite** ：チャットルームや共同編集の部屋のように「1つの単位に1つの状態」で、しかも即時に同期したいものは、Durable Objects に内蔵された SQLite（2025年4月に正式提供）が向く。
-- **KV・R2 は別枠** ：設定値や読み込み中心の小さな値は KV、画像やファイルは R2（ [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) 参照）。
+- **KV・R2 は別枠** ：設定値や読み込み中心の小さな値は KV、画像やファイルは R2。
 
 ## よくある誤解
 
@@ -131,7 +131,6 @@ Hyperdrive＋PS
 
 ## 関連メモ
 
-- [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) — D1・Hyperdrive 以外のサービスとの組み合わせ
 - [DB のしくみ](https://memo.taka1156.site/md/db-internals.md) — D1 の中の SQLite の仕組み
 - [インデックスとトランザクション](https://memo.taka1156.site/md/db-index-transaction.md) — インデックスと分離レベル
 

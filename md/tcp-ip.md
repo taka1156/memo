@@ -117,7 +117,7 @@ default via 192.168.1.1 dev eth0          # どこにも当てはまらなけれ
 - `docker run -p 8080:80` も同じ仕組み（ホストの 8080 宛てをコンテナの 80 に転送）。
 - クラウドのプライベートサブネットから外に出るための「NAT ゲートウェイ」も、これをマネージドにしたもの。
 
-コンテナのネットワーク名前空間は [Docker 動作原理](https://memo.taka1156.site/md/docker.md) 、 `ports` の書き方は [Dockerfile と Compose の書き方](https://memo.taka1156.site/md/docker-files.md) を参照。
+コンテナのネットワーク名前空間は [Docker 動作原理](https://memo.taka1156.site/md/docker.md) を参照。
 
 ## ポートとソケット
 

@@ -320,7 +320,7 @@ default via 192.168.1.1 dev eth0          <span class="cm"># どこにも当て�
     <li><code>docker run -p 8080:80</code> も同じ仕組み（ホストの 8080 宛てをコンテナの 80 に転送）。</li>
     <li>クラウドのプライベートサブネットから外に出るための「NAT ゲートウェイ」も、これをマネージドにしたもの。</li>
   </ul>
-  <p class="note">コンテナのネットワーク名前空間は <a href="docker.html">Docker 動作原理</a>、<code>ports</code> の書き方は <a href="docker-files.html">Dockerfile と Compose の書き方</a> を参照。</p>
+  <p class="note">コンテナのネットワーク名前空間は <a href="docker.html">Docker 動作原理</a> を参照。</p>
 
   <h2 id="ports">ポートとソケット</h2>
   <p>IP アドレスでホストまで届いたあと、<b>ポート番号（0〜65535）</b>でどのプロセスに渡すかが決まる。1 本の通信は <b>送信元 IP・送信元ポート・宛先 IP・宛先ポート・プロトコル</b>の 5 つ組で識別される。</p>

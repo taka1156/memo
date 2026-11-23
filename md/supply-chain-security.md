@@ -167,7 +167,6 @@ postinstall で秘密を盗む（Shai-Hulud）
 
 - [JS のモジュールと依存管理](https://memo.taka1156.site/md/js-modules.md) — ロックファイルと、npm・pnpm・Bun のインストール方式
 - [CI/CD と GitHub Actions](https://memo.taka1156.site/md/ci-cd.md) — Action の SHA 固定、権限、OIDC
-- [GitHub サービス](https://memo.taka1156.site/md/github-services.md) — Dependabot と依存関係レビュー
 - [Docker イメージの種類](https://memo.taka1156.site/md/docker-images.md) — SBOM・署名付きの最小イメージ
 - [暗号の基礎](https://memo.taka1156.site/md/crypto-basics.md) — 署名と証明書の土台
 

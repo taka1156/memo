@@ -152,7 +152,5 @@ PR ごとに一時的な環境（URL）を作って、レビュー時に実際�
 
 ## 関連メモ
 
-- [GitHub サービス](https://memo.taka1156.site/md/github-services.md) — Actions と並ぶ GitHub のサービス
 - [テスト戦略](https://memo.taka1156.site/md/testing-strategy.md) — パイプラインで流すテストの分け方
-- [Dockerfile と Compose の書き方](https://memo.taka1156.site/md/docker-files.md) — CI でビルドするイメージの書き方
 - [暗号の基礎](https://memo.taka1156.site/md/crypto-basics.md) — OIDC トークンの署名を検証する仕組み

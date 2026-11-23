@@ -453,18 +453,6 @@
   "quizzes": 5
  },
  {
-  "file": "bubblewrap-socat.html",
-  "title": "bubblewrap と socat",
-  "desc": "bwrap でコマンドを閉じ込め、socat とプロキシで許可した通信だけ通す仕組みを、AI エージェントでの使われ方とともに図解。",
-  "tags": [
-   "Linux",
-   "セキュリティ",
-   "AI"
-  ],
-  "date": "2026-11-14",
-  "quizzes": 5
- },
- {
   "file": "api-idempotency.html",
   "title": "冪等キーとリトライ",
   "desc": "POST をリトライしても二重送信・二重課金にならない API の作り方を、冪等キーの判定フロー（409・422）、記録と本処理の原子性、外部 API を挟む処理の再開、クライアント側のキーの持ち方で図解する",
@@ -906,17 +894,6 @@
   "quizzes": 5
  },
  {
-  "file": "vinext.html",
-  "title": "vinext と Next.js の比較",
-  "desc": "Cloudflare の vinext と本家 Next.js の違いと、Workers・Node.js・SSG の 3 つのデプロイパターンを図解。",
-  "tags": [
-   "JavaScript",
-   "フロントエンド"
-  ],
-  "date": "2026-11-03",
-  "quizzes": 5
- },
- {
   "file": "ui-design-styles.html",
   "title": "UI デザインスタイル早見表",
   "desc": "スキューモフィズムからリキッドグラスまで、主要な UI デザインスタイルを実物サンプルと CSS で比較。",
@@ -1097,17 +1074,6 @@
   "tags": [
    "インフラ",
    "Linux"
-  ],
-  "date": "2026-11-03",
-  "quizzes": 5
- },
- {
-  "file": "docker-files.html",
-  "title": "Dockerfile と Compose の書き方",
-  "desc": "Dockerfile・マルチステージビルド・compose.yaml・devcontainer.json の書き方を、注釈付きの例と落とし穴で整理。",
-  "tags": [
-   "インフラ",
-   "開発ツール"
   ],
   "date": "2026-11-03",
   "quizzes": 5
@@ -1398,26 +1364,6 @@
   "quizzes": 5
  },
  {
-  "file": "spec-kit.html",
-  "title": "Spec Kit の流れと役割",
-  "desc": "Spec Kit の仕様駆動開発の流れ、各コマンドと人間・AI の役割、生成ファイルを図解。",
-  "tags": [
-   "AI"
-  ],
-  "date": "2026-11-01",
-  "quizzes": 5
- },
- {
-  "file": "opentofu.html",
-  "title": "OpenTofu 概念図",
-  "desc": "設定ファイル(.tf)からState・Providerを経てインフラに反映されるまでの流れと、役割ごとのファイル名を図解。",
-  "tags": [
-   "インフラ"
-  ],
-  "date": "2026-11-01",
-  "quizzes": 5
- },
- {
   "file": "language-genealogy.html",
   "title": "プログラミング言語の系譜",
   "desc": "OCaml→Rust、JS→TypeScriptのような言語間の親子・孫関係を、派生・影響・実装の3種類でたどれる系譜図。",
@@ -1426,35 +1372,5 @@
   ],
   "date": "2026-11-01",
   "quizzes": 3
- },
- {
-  "file": "github-services.html",
-  "title": "GitHub サービス",
-  "desc": "Actions・Pages・Codespaces など GitHub の 9 サービスを、開発の流れに沿った図と使い分けで整理。",
-  "tags": [
-   "開発ツール"
-  ],
-  "date": "2026-11-01",
-  "quizzes": 5
- },
- {
-  "file": "cloudflare-services.html",
-  "title": "Cloudflare サービス",
-  "desc": "Workers・Pages・R2・D1 など Cloudflare の 9 サービスを、リクエストの流れに沿った図と使い分けで整理。",
-  "tags": [
-   "インフラ"
-  ],
-  "date": "2026-11-01",
-  "quizzes": 5
- },
- {
-  "file": "ansible.html",
-  "title": "Ansible 概念図",
-  "desc": "Control NodeからManaged Nodesまでの流れと、役割ごとのファイル名の対応を図解。",
-  "tags": [
-   "インフラ"
-  ],
-  "date": "2026-11-01",
-  "quizzes": 5
  }
 ]

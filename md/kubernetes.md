@@ -18,7 +18,7 @@
 - たくさんの **コントローラ** が「あるべき状態」と「今の状態」を見比べ、差を埋める操作を延々と繰り返す（調整ループ）。Pod が落ちても勝手に作り直されるのはこのため。
 - コンテナを動かす単位は **Pod** 。Pod は使い捨てで IP も変わるので、安定した入口として **Service** 、HTTP の振り分けに **Ingress / Gateway** を前に置く。
 
-前提: コンテナそのものの仕組みは [Docker 動作原理](https://memo.taka1156.site/md/docker.md) 、イメージの作り方は [Dockerfile と Compose](https://memo.taka1156.site/md/docker-files.md) 。Kubernetes はそのコンテナを「複数台のマシンで、止まらないように」動かすための仕組み。
+前提: コンテナそのものの仕組みは [Docker 動作原理](https://memo.taka1156.site/md/docker.md) 。Kubernetes はそのコンテナを「複数台のマシンで、止まらないように」動かすための仕組み。
 
 ## Docker Compose との違い
 
@@ -225,4 +225,3 @@ kubectl diff -f web.yaml                   # 適用したら何が変わるか�
 - [CI/CD と GitHub Actions](https://memo.taka1156.site/md/ci-cd.md) — マニフェストを適用するまでのパイプライン
 - [オブザーバビリティと OpenTelemetry](https://memo.taka1156.site/md/observability.md) — クラスタの中を追うログ・メトリクス・トレース
 - [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) — レプリカと整合性の前提
-- [OpenTofu 概念図](https://memo.taka1156.site/md/opentofu.md) — クラスタそのものをコードで作る
