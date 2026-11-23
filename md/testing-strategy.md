@@ -5,7 +5,7 @@
 > 静的チェック・単体・結合・E2E の役割分担と、場面ごとにどの層で書くかを選べるデモ、Vitest・Testing Library・Playwright・MSW の使いどころ、モックの境界、E2E の不安定さ（flaky）対策、ビジュアルリグレッションを図解。
 
 - URL: https://memo.taka1156.site/testing-strategy.html
-- タグ: 開発ツール, JavaScript, 設計
+- タグ: テスト, 開発ツール, JavaScript
 - 日付: 2026-11-03
 
 ---

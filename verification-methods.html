@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テストから証明まで：正しさを確かめる 5 つの手法</title>
+<meta name="description" content="Fuzzing・Property-based Testing・Design by Contract・モデル検査・形式検証（定理証明）が何をどこまで確かめるのかと、いつどれを使うかを、数式なしで図解したページ">
+<meta name="memo:tags" content="テスト, 開発ツール, 設計">
+<meta name="memo:date" content="2026-11-24">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+ul.plain { margin: 6px 0 6px 1.3em; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+/* はしご：手軽 → 確か */
+.ladder { display: flex; gap: 22px; align-items: stretch; margin: 12px 0 4px; }
+.rung {
+  flex: 1 1 0;
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 10px;
+  text-align: center;
+}
+.rung b { display: block; font-size: 0.85rem; line-height: 1.4; }
+.rung span { display: block; font-size: 0.72rem; color: var(--fg-2); line-height: 1.5; margin-top: 4px; }
+.rung:not(:last-child)::after {
+  content: "→";
+  position: absolute;
+  right: -18px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-2);
+  font-size: 0.9rem;
+}
+.ladder-axis {
+  display: flex; justify-content: space-between;
+  font-size: 0.75rem; color: var(--fg-2);
+  border-top: 1px dashed var(--line);
+  padding-top: 4px; margin-top: 8px;
+}
+@media (max-width: 640px) {
+  .ladder { flex-direction: column; gap: 18px; }
+  .rung:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -19px; transform: translateX(-50%); }
+  .ladder-axis { flex-direction: column; gap: 2px; }
+  .ladder-axis span:first-child::before { content: "上ほど "; }
+  .ladder-axis span:last-child::before { content: "下ほど "; }
+}
+
+/* 入力空間の図 */
+.space-wrap { display: grid; grid-template-columns: minmax(0, 340px) 1fr; gap: 18px; align-items: start; }
+@media (max-width: 640px) { .space-wrap { grid-template-columns: 1fr; } }
+svg.space { width: 100%; height: auto; display: block; }
+.sp-bg { fill: var(--chip); }
+.sp-cell { fill: var(--surface); }
+.sp-bug { fill: color-mix(in srgb, var(--c-ng) 22%, var(--surface)); stroke: var(--c-ng); stroke-width: 1; stroke-dasharray: 2 2; }
+.sp-dot { fill: var(--c-hl); }
+.sp-found { fill: var(--c-ng); }
+.sp-x { stroke: var(--surface); stroke-width: 2; stroke-linecap: round; }
+.sp-arrow { stroke: var(--fg); stroke-width: 1.6; fill: none; }
+.sp-arrowhead { fill: var(--fg); }
+.sp-proved { fill: color-mix(in srgb, var(--c-ok) 45%, var(--surface)); }
+svg.space:has(.sp-proved) .sp-cell { fill: color-mix(in srgb, var(--c-ok) 18%, var(--surface)); }
+.sp-fail { fill: none; stroke: var(--c-ng); stroke-width: 2.5; }
+.space-cap { font-size: 0.75rem; color: var(--fg-2); margin-top: 6px; }
+.legend i.dot { border-radius: 50%; }
+.legend i.bug { background: color-mix(in srgb, var(--c-ng) 22%, var(--surface)); border: 1px dashed var(--c-ng); }
+.legend i.proved { background: color-mix(in srgb, var(--c-ok) 30%, var(--surface)); }
+
+/* 手法の見出しカード */
+.method-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin-bottom: 4px; }
+.method-head .en { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.78rem; color: var(--fg-2); }
+.analogy { border-left: 3px solid var(--line); padding: 2px 0 2px 12px; margin: 10px 0; color: var(--fg-2); }
+.analogy b { color: var(--fg); }
+
+/* 2 列 */
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0; }
+@media (max-width: 640px) { .two { grid-template-columns: 1fr; } }
+.two .card h3 { margin-top: 0; }
+
+/* 契約の図 */
+.contract { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 8px; align-items: center; margin: 10px 0; }
+.contract .box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 0.82rem; }
+.contract .box b { display: block; font-size: 0.85rem; }
+.contract .box small { display: block; color: var(--fg-2); font-size: 0.75rem; margin-top: 4px; }
+.contract .arrow { color: var(--fg-2); text-align: center; }
+.contract .arrow::before { content: "→"; }
+.contract-inv { border: 1px dashed var(--fg-2); border-radius: 10px; padding: 8px 12px; font-size: 0.82rem; text-align: center; margin-top: 4px; }
+@media (max-width: 640px) {
+  .contract { grid-template-columns: 1fr; }
+  .contract .arrow::before { content: "↓"; }
+}
+
+/* 順番の表 */
+td.ok { color: var(--c-ok); font-weight: 700; }
+td.ng { color: var(--c-ng); font-weight: 700; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+th { font-size: 0.78rem; color: var(--fg-2); font-weight: 700; }
+table.compare { min-width: 640px; }
+table.compare td:first-child { font-weight: 700; white-space: nowrap; }
+td.mono { white-space: nowrap; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+/* 言葉の整理（入れ子の箱） */
+.nest { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--surface); }
+.nest > b { display: block; margin-bottom: 8px; }
+.nest .inner { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.nest .inner div { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--bg); font-size: 0.85rem; }
+.nest .inner div b { display: block; }
+.nest-out { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; font-size: 0.8rem; color: var(--fg-2); }
+.nest-out span { border: 1px dashed var(--line); border-radius: 999px; padding: 2px 10px; }
+@media (max-width: 640px) { .nest .inner { grid-template-columns: 1fr; } }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="テストから証明まで：正しさを確かめる 5 つの手法">
+<meta property="og:description" content="Fuzzing・Property-based Testing・Design by Contract・モデル検査・形式検証（定理証明）が何をどこまで確かめるのかと、いつどれを使うかを、数式なしで図解したページ">
+<meta property="og:url" content="https://memo.taka1156.site/verification-methods.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="application/atom+xml" title="MEMO" href="feed.xml">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>テストから証明まで：正しさを確かめる 5 つの手法</h1>
+  <p class="subtitle">Fuzzing・Property-based Testing・Design by Contract・モデル検査・形式検証を、数式なしで</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>5 つとも「プログラムが正しいか」を確かめる方法で、違いは<b>どこまで広く・どれだけ確実に</b>確かめるか。</li>
+      <li>はしごを進むほど、試す入力を増やす段階から、<b>全部の場合をまとめて確かめる</b>段階へ進む。そのぶん手間も増える。</li>
+      <li>普段は例のテストに Fuzzing や PBT を足し、並行処理の設計や絶対に外せない部分だけ、検査や証明まで進める。</li>
+    </ul>
+  </div>
+
+  <h2 id="ladder">確かめ方のはしご</h2>
+  <p>ふだん書くテストは「この入力ならこの答え」をいくつか試すものです。ここからはしごを進むほど、確かめる範囲が広く、結果が確実になります。代わりに、書くものと手間が増えます。</p>
+  <div class="ladder">
+    <div class="rung"><b>例のテスト</b><span>境界値など、選んだ入力を数個試す</span></div>
+    <div class="rung"><b>Fuzzing</b><span>変な入力を大量に投げて、落ちないか見る</span></div>
+    <div class="rung"><b>Property-based Testing</b><span>ルールを書いて、ランダムな入力で大量に試す</span></div>
+    <div class="rung"><b>モデル検査</b><span>設計の模型の状態を全部たどる</span></div>
+    <div class="rung"><b>定理証明</b><span>すべての入力で正しいと論証する</span></div>
+  </div>
+  <div class="ladder-axis"><span>手軽・すぐ回せる</span><span>確実・手間が大きい</span></div>
+  <p class="note">Design by Contract（契約）は、はしごの 1 段ではありません。「何が正しいか」を書き表す方法で、どの段でも確かめる基準として使えます（<a href="#dbc">下で説明</a>）。</p>
+
+  <h2 id="space">図で見る：確かめる範囲の違い</h2>
+  <p>四角の 1 マスを「入力 1 つ」と考えます。右下の点線のマスだけにバグがあります。端の、めったに来ない入力で起きるバグ、という想定です。タブを切り替えて、各手法がどこまで確かめるかを見比べてください。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="sp1">例のテスト</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="sp2">Fuzzing</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="sp3">PBT</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="sp4">モデル検査</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="sp5">定理証明</button>
+  </div>
+  <div class="panel card" id="sp1">
+    <div class="space-wrap">
+      <div><svg class="space" viewBox="0 0 320 200" role="img" aria-hidden="true"><rect class="sp-bg" x="0" y="0" width="320" height="200" rx="6"/><rect class="sp-cell" x="2" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="182" width="16" height="16" rx="3"/><circle class="sp-dot" cx="10.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="310.0" cy="90.0" r="4.5"/></svg><p class="space-cap">試したのは 3 マスだけ</p></div>
+      <div>
+        <p><b>人が選んだ入力だけを試す。</b>上手に選ぶなら、バグが集まりやすい<b>境界値</b>（左端・真ん中・右端のような境目）を狙います。選んだ所はきちんと確かめられます。</p>
+        <p>それでも試せるのは、思いついた境目だけです。この図では横方向の端は試しましたが、縦方向の端と重なる右下の角は思いつきませんでした。テストは全部通るので、バグに気づけません。選び方は<a href="boundary-value-analysis.html">境界値分析と同値分割</a>にまとめています。</p>
+      </div>
+    </div>
+  </div>
+  <div class="panel card" id="sp2" hidden>
+    <div class="space-wrap">
+      <div><svg class="space" viewBox="0 0 320 200" role="img" aria-hidden="true"><rect class="sp-bg" x="0" y="0" width="320" height="200" rx="6"/><rect class="sp-cell" x="2" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="182" width="16" height="16" rx="3"/><circle class="sp-dot" cx="10.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="50.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="130.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="190.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="210.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="230.0" cy="10.0" r="4.5"/><circle class="sp-found" cx="270.0" cy="190.0" r="7.5"/><path class="sp-x" d="M266.5 186.5L273.5 193.5M273.5 186.5L266.5 193.5"/><circle class="sp-dot" cx="290.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="290.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="290.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="290.0" cy="130.0" r="4.5"/><circle class="sp-found" cx="290.0" cy="170.0" r="7.5"/><path class="sp-x" d="M286.5 166.5L293.5 173.5M293.5 166.5L286.5 173.5"/><circle class="sp-found" cx="290.0" cy="190.0" r="7.5"/><path class="sp-x" d="M286.5 186.5L293.5 193.5M293.5 186.5L286.5 193.5"/><circle class="sp-dot" cx="310.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="310.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="310.0" cy="70.0" r="4.5"/><circle class="sp-found" cx="310.0" cy="150.0" r="7.5"/><path class="sp-x" d="M306.5 146.5L313.5 153.5M313.5 146.5L306.5 153.5"/><circle class="sp-found" cx="310.0" cy="190.0" r="7.5"/><path class="sp-x" d="M306.5 186.5L313.5 193.5M313.5 186.5L306.5 193.5"/><circle class="sp-found" cx="310.0" cy="170.0" r="7.5"/><path class="sp-x" d="M306.5 166.5L313.5 173.5M313.5 166.5L306.5 173.5"/></svg><p class="space-cap">端に寄った変な入力を大量に試す</p></div>
+      <div>
+        <p><b>ふつうは来ない入力を機械が大量に作って投げる。</b>壊れたファイル、極端に長い文字列、ありえない数値などです。</p>
+        <p>見ているのは主に<b>「落ちたか・固まったか」</b>だけです。答えが合っているかまでは、ふつうは見ません。そのぶん準備が少なくて済み、端のバグに届きやすくなります。</p>
+      </div>
+    </div>
+  </div>
+  <div class="panel card" id="sp3" hidden>
+    <div class="space-wrap">
+      <div><svg class="space" viewBox="0 0 320 200" role="img" aria-hidden="true"><defs><marker id="ah" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="sp-arrowhead" d="M0 0L8 4L0 8z"/></marker></defs><rect class="sp-bg" x="0" y="0" width="320" height="200" rx="6"/><rect class="sp-cell" x="2" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="182" width="16" height="16" rx="3"/><circle class="sp-dot" cx="10.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="50.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="50.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="110.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="190.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="230.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="230.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="250.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="250.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="250.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="290.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="310.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="310.0" cy="130.0" r="4.5"/><circle class="sp-found" cx="310.0" cy="190.0" r="7.5"/><path class="sp-x" d="M306.5 186.5L313.5 193.5M313.5 186.5L306.5 193.5"/><path class="sp-arrow" d="M304.0 184.0L277.0 157.0" marker-end="url(#ah)"/><circle class="sp-found" cx="270.0" cy="150.0" r="7.5"/><path class="sp-x" d="M266.5 146.5L273.5 153.5M273.5 146.5L266.5 153.5"/></svg><p class="space-cap">ランダムに試し、失敗したら小さく縮める</p></div>
+      <div>
+        <p><b>「いつも成り立つはずのルール」を書いて、ランダムな入力で大量に試す。</b>見るのは落ちたかではなく、ルールが成り立つかどうかです。</p>
+        <p>失敗する入力が見つかると、もっと小さく単純な入力へ自動で<b>縮めて（shrink）</b>くれます。矢印はこの縮める動きです。おかげで原因を調べやすくなります。</p>
+      </div>
+    </div>
+  </div>
+  <div class="panel card" id="sp4" hidden>
+    <div class="space-wrap">
+      <div><svg class="space" viewBox="0 0 320 200" role="img" aria-hidden="true"><rect class="sp-bg" x="0" y="0" width="320" height="200" rx="6"/><rect class="sp-cell" x="2" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="182" width="16" height="16" rx="3"/><circle class="sp-dot" cx="10.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="10.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="30.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="50.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="50.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="50.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="50.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="50.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="50.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="50.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="50.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="50.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="50.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="70.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="90.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="110.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="110.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="110.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="110.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="110.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="110.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="110.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="110.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="110.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="110.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="130.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="130.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="130.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="130.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="130.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="130.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="130.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="130.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="130.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="130.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="150.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="170.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="190.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="190.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="190.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="190.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="190.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="190.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="190.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="190.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="190.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="190.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="210.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="210.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="210.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="210.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="210.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="210.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="210.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="210.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="210.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="210.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="230.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="230.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="230.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="230.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="230.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="230.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="230.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="230.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="230.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="230.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="250.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="250.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="250.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="250.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="250.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="250.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="250.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="250.0" cy="150.0" r="4.5"/><circle class="sp-dot" cx="250.0" cy="170.0" r="4.5"/><circle class="sp-dot" cx="250.0" cy="190.0" r="4.5"/><circle class="sp-dot" cx="270.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="270.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="270.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="270.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="270.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="270.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="270.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="290.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="290.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="290.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="290.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="290.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="290.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="290.0" cy="130.0" r="4.5"/><circle class="sp-dot" cx="310.0" cy="10.0" r="4.5"/><circle class="sp-dot" cx="310.0" cy="30.0" r="4.5"/><circle class="sp-dot" cx="310.0" cy="50.0" r="4.5"/><circle class="sp-dot" cx="310.0" cy="70.0" r="4.5"/><circle class="sp-dot" cx="310.0" cy="90.0" r="4.5"/><circle class="sp-dot" cx="310.0" cy="110.0" r="4.5"/><circle class="sp-dot" cx="310.0" cy="130.0" r="4.5"/><circle class="sp-found" cx="270.0" cy="150.0" r="7.5"/><path class="sp-x" d="M266.5 146.5L273.5 153.5M273.5 146.5L266.5 153.5"/><circle class="sp-found" cx="270.0" cy="170.0" r="7.5"/><path class="sp-x" d="M266.5 166.5L273.5 173.5M273.5 166.5L266.5 173.5"/><circle class="sp-found" cx="270.0" cy="190.0" r="7.5"/><path class="sp-x" d="M266.5 186.5L273.5 193.5M273.5 186.5L266.5 193.5"/><circle class="sp-found" cx="290.0" cy="150.0" r="7.5"/><path class="sp-x" d="M286.5 146.5L293.5 153.5M293.5 146.5L286.5 153.5"/><circle class="sp-found" cx="290.0" cy="170.0" r="7.5"/><path class="sp-x" d="M286.5 166.5L293.5 173.5M293.5 166.5L286.5 173.5"/><circle class="sp-found" cx="290.0" cy="190.0" r="7.5"/><path class="sp-x" d="M286.5 186.5L293.5 193.5M293.5 186.5L286.5 193.5"/><circle class="sp-found" cx="310.0" cy="150.0" r="7.5"/><path class="sp-x" d="M306.5 146.5L313.5 153.5M313.5 146.5L306.5 153.5"/><circle class="sp-found" cx="310.0" cy="170.0" r="7.5"/><path class="sp-x" d="M306.5 166.5L313.5 173.5M313.5 166.5L306.5 173.5"/><circle class="sp-found" cx="310.0" cy="190.0" r="7.5"/><path class="sp-x" d="M306.5 186.5L313.5 193.5M313.5 186.5L306.5 193.5"/></svg><p class="space-cap">模型の中は 1 マス残らず調べる</p></div>
+      <div>
+        <p><b>設計を小さな模型にして、ありうる状態を全部たどる。</b>たとえば「客は 2 人まで、在庫は 3 個まで」のように範囲を絞ります。その範囲の中は漏れなく調べ、バグの場所を全部見つけます。</p>
+        <p>調べるのは実物のコードではなく<b>模型</b>です。模型が実物と違えば、見逃しも出ます。</p>
+      </div>
+    </div>
+  </div>
+  <div class="panel card" id="sp5" hidden>
+    <div class="space-wrap">
+      <div><svg class="space" viewBox="0 0 320 200" role="img" aria-hidden="true"><rect class="sp-bg" x="0" y="0" width="320" height="200" rx="6"/><rect class="sp-proved" x="0" y="0" width="320" height="200" rx="6"/><rect class="sp-cell" x="2" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="2" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="22" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="42" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="62" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="82" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="102" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="122" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="142" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="162" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="182" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="202" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="222" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="122" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="142" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="162" width="16" height="16" rx="3"/><rect class="sp-cell" x="242" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="262" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="262" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="282" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="282" y="182" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="2" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="22" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="42" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="62" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="82" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="102" width="16" height="16" rx="3"/><rect class="sp-cell" x="302" y="122" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="142" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="162" width="16" height="16" rx="3"/><rect class="sp-bug" x="302" y="182" width="16" height="16" rx="3"/><rect class="sp-fail" x="260" y="140" width="60" height="60" rx="4"/></svg><p class="space-cap">全体を 1 つずつではなく、まとめて扱う</p></div>
+      <div>
+        <p><b>1 マスずつ試すのではなく、「どのマスでも成り立つ」ことを筋道立てて示す。</b>入力が無限にあっても扱えます。</p>
+        <p>バグがある所では証明が通りません。図の赤い枠のように、どこで成り立たないかが分かります。証明が全部通れば、<b>書いた仕様の範囲では</b>すべての入力で正しいと言えます。</p>
+      </div>
+    </div>
+  </div>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--c-hl)"></i>試した入力</span>
+    <span><i class="bug"></i>バグが起きる入力</span>
+    <span><i class="dot" style="background:var(--c-ng)"></i>見つけたバグ</span>
+    <span><i class="proved"></i>証明で全部確かめた範囲</span>
+  </div>
+
+  <h2 id="example">共通の例：自動販売機</h2>
+  <p>以下では、同じ自動販売機を例にして各手法を説明します。</p>
+  <div class="card">
+    <ul class="plain">
+      <li>商品は 1 種類で <b>100 円</b>。使える硬貨は 10・50・100・500 円。</li>
+      <li>入れたお金が 100 円以上になったら、ボタンで商品とおつりが出る。</li>
+      <li>在庫が 0 なら「売り切れ」で、お金は返す。</li>
+    </ul>
+  </div>
+
+  <h2 id="fuzzing">Fuzzing（ファジング）</h2>
+  <div class="method-head"><b>変な入力を大量に与えて、壊れるかを見る</b><span class="en">Fuzzing / fuzz testing</span></div>
+  <p class="analogy"><b>たとえ:</b> 小さな子どもに自販機を触らせる。硬貨を 100 枚連続で入れる、ボタンを連打する、曲がった硬貨を押し込む。正しい使い方は知らないけれど、機械が止まったら壊れた場所が分かる。</p>
+  <p>今のファジングの多くは<b>カバレッジ誘導型</b>です。「新しい分かれ道を通った入力」を覚えておき、それを少しずつ変えて奥へ進みます。でたらめに投げるより、ずっと深い所まで届きます。</p>
+  <ol class="steps">
+    <li><b>種を用意する</b>ふつうの入力をいくつか渡す（例: 正しい硬貨の並び）。</li>
+    <li><b>少し変える</b>値を変える、つなぐ、削る、繰り返すなどを機械が自動でやる。</li>
+    <li><b>動かして見張る</b>落ちた・固まった・メモリを壊した、を検出する。</li>
+    <li><b>新しい道を通った入力は種に足す</b>次はそこからさらに変えて、奥の分かれ道を探す。</li>
+  </ol>
+  <div class="two">
+    <div class="card"><h3>見つけやすいもの</h3><ul class="plain"><li>クラッシュ・無限ループ・固まる</li><li>メモリ破壊（C/C++ など）</li><li>パーサや通信の入口の脆弱性</li></ul></div>
+    <div class="card"><h3>苦手なもの</h3><ul class="plain"><li>「落ちないが答えが違う」バグ（アサーションや契約を足すと拾える）</li><li>パスワードのように、正しい値でしか先へ進めない処理</li></ul></div>
+  </div>
+  <p class="note">主な道具: AFL++、libFuzzer（開発はバグ修正のみに縮小。今も広く使われる）、Go の <code>go test -fuzz</code>、Rust の cargo-fuzz。オープンソース向けには OSS-Fuzz があります。</p>
+
+  <h2 id="pbt">Property-based Testing（PBT）</h2>
+  <div class="method-head"><b>答えではなく「いつも成り立つルール」を書く</b><span class="en">Property-based Testing</span></div>
+  <p class="analogy"><b>たとえ:</b> 「150 円入れたらおつり 50 円」と 1 件ずつ書く代わりに、「<b>どんな入れ方でも、おつり ＝ 入れた額 − 100 円</b>」というルールを 1 つ書く。あとは機械が入れ方を何百通りも考えて試してくれる。</p>
+  <div class="two">
+    <div class="card"><h3>例のテスト</h3><pre>150 円入れる → おつり 50 円
+500 円入れる → おつり 400 円
+100 円入れる → おつり 0 円</pre><p class="note">書いた 3 件しか確かめない</p></div>
+    <div class="card"><h3>プロパティ（ルール）</h3><pre>どんな硬貨の組み合わせでも
+（合計 100 円以上なら）
+  おつり ＝ 入れた額 − 100
+  おつり ≧ 0</pre><p class="note">入力は機械が作る（1 回に数百通りほど。既定は道具しだいで、Hypothesis や fast-check は 100、proptest は 256、jqwik は 1000）</p></div>
+  </div>
+  <p>入力はでたらめではありません。多くの道具は、0・空の配列・空文字・とても大きな数のような<b>端の値を出やすく</b>してあります。人が境界値を選ぶ作業の一部を、機械が肩代わりしてくれます。ただし、「65 歳からシニア料金」のような仕様の中の境目までは知りません。そうした境目は、人がテストに書くか、ルールの中で狙って入力を作らせます。</p>
+  <h3>失敗したら「縮める」</h3>
+  <p>たとえば、おつりに 50 円玉が入る場合だけ計算を間違えるバグがあるとします。機械がランダムに試すと、最初は複雑な入力で失敗が見つかります。そこから PBT の道具は、失敗したままの、もっと単純な入力へ自動で縮めます。</p>
+  <ol class="steps">
+    <li class="is-ng"><b>見つかった失敗</b><code>[100, 10, 500, 50, 10]</code> を入れると、おつりが 570 円のはずなのに 520 円</li>
+    <li><b>硬貨を減らして試す</b>失敗が続く限り、硬貨を減らしたり小さくしたりする</li>
+    <li class="is-ng"><b>最小の失敗</b><code>[100, 50]</code> を入れると、おつり 50 円が出ない。これで「50 円玉のおつり」が怪しいと分かる</li>
+  </ol>
+  <p class="note">赤い丸は、ルールが破れた（失敗した）入力です。</p>
+  <h3>ルールの見つけ方</h3>
+  <ul class="plain">
+    <li><b>行って戻る:</b> 保存して読み込んだら元どおり（<code>decode(encode(x)) == x</code>）。</li>
+    <li><b>順番によらない:</b> 硬貨を入れる順番を変えても、おつりは同じ。</li>
+    <li><b>2 回やっても同じ:</b> 並べ替えた物をもう一度並べ替えても変わらない。</li>
+    <li><b>素朴な版と比べる:</b> 速い実装と、遅いが分かりやすい実装の答えが一致する。</li>
+  </ul>
+  <p class="note">主な道具: fast-check（JavaScript / TypeScript）、Hypothesis（Python）、QuickCheck（Haskell）、proptest（Rust）、jqwik（Java）。</p>
+
+  <h2 id="dbc">Design by Contract（契約による設計）</h2>
+  <div class="method-head"><b>関数の「約束」を、コードに書いて確かめる</b><span class="en">Design by Contract</span></div>
+  <p class="analogy"><b>たとえ:</b> お店と客の約束。客は「100 円以上入れる」と約束し、店は「商品と正しいおつりを出す」と約束する。どちらが約束を破ったかで、どちらの責任かが決まる。</p>
+  <div class="contract">
+    <div class="box"><b>事前条件</b>呼ぶ側が守る約束<small>入れた額 ≧ 100 円／硬貨は 10・50・100・500 円だけ／在庫 ≧ 1</small></div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="box"><b>買う()</b>関数の中身<small>商品を出し、おつりを計算し、在庫を減らす</small></div>
+    <div class="arrow" aria-hidden="true"></div>
+    <div class="box"><b>事後条件</b>関数が守る約束<small>おつり ＝ 入れた額 − 100／在庫が 1 減った</small></div>
+  </div>
+  <div class="contract-inv"><b>不変条件</b>（いつ見ても成り立つ約束）：在庫は 0 以上／機械の中のお金は、マイナスにならない</div>
+  <p>約束が破れたら、その場で止めて知らせます。<b>どの約束が破れたかで、直す場所が分かる</b>のが大きな利点です。</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>破れた約束</th><th>悪いのは</th></tr>
+      <tr><td>事前条件</td><td>呼ぶ側（たとえば 50 円しか入っていないのに「買う」を呼んだ）</td></tr>
+      <tr><td>事後条件</td><td>関数の中身（おつりの計算が間違っている）</td></tr>
+      <tr><td>不変条件</td><td>状態を変えた処理のどれか（在庫を減らしすぎた）</td></tr>
+    </table>
+  </div>
+  <p>契約は、ほかの手法と組み合わせると強くなります。Fuzzing や PBT で大量に動かすと、その間ずっと契約が「答えは正しいか」を見張ります。Dafny のような検証用の言語では、契約がそのまま証明する仕様になります（<a href="#proof">定理証明</a>の例）。</p>
+  <p class="note">言語の機能として持つ例: Eiffel（この考え方を広めた言語）、D、Ada / SPARK、Dafny。そのほかの言語でも <code>assert</code> やライブラリで書けます。</p>
+
+  <h2 id="model">モデル検査</h2>
+  <div class="method-head"><b>設計の模型の状態を、機械が全部たどる</b><span class="en">Model Checking</span></div>
+  <p class="analogy"><b>たとえ:</b> 迷路の分かれ道を、ロボットに 1 本残らず歩かせる。行き止まりやゴールに着けない道があれば、その道順を教えてくれる。</p>
+  <p>いちばん力を発揮するのは、<b>複数のものが同時に動く</b>場面です。順番の組み合わせが多すぎて、人も普通のテストも見落とすからです。</p>
+  <h3>例：在庫が 1 個なのに、2 人が同時にボタンを押す</h3>
+  <p>自販機がネットにつながり、スマホからも買えるとします。「買う」は次の 2 段階で動きます。</p>
+  <ol class="steps">
+    <li><b>在庫を見る</b>在庫が 1 以上なら「売れる」と判断する</li>
+    <li><b>商品を出して、在庫を 1 減らす</b>段階 1 で見た在庫の数から 1 を引いて書き込む</li>
+  </ol>
+  <p>A さんと B さんがそれぞれこの 2 段階を進めると、実行の順番は全部で 6 通りあります。モデル検査はこの 6 通りを全部試します。</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>順番（A1 = A さんの段階 1）</th><th>結果</th><th></th></tr>
+      <tr><td class="mono">A1 → A2 → B1 → B2</td><td>A さんが買い、B さんは売り切れ</td><td class="ok">OK</td></tr>
+      <tr><td class="mono">B1 → B2 → A1 → A2</td><td>B さんが買い、A さんは売り切れ</td><td class="ok">OK</td></tr>
+      <tr><td class="mono">A1 → B1 → A2 → B2</td><td>2 人とも在庫 1 を見たので、<b>2 個出そうとする</b></td><td class="ng">NG</td></tr>
+      <tr><td class="mono">A1 → B1 → B2 → A2</td><td>同上</td><td class="ng">NG</td></tr>
+      <tr><td class="mono">B1 → A1 → A2 → B2</td><td>同上</td><td class="ng">NG</td></tr>
+      <tr><td class="mono">B1 → A1 → B2 → A2</td><td>同上</td><td class="ng">NG</td></tr>
+    </table>
+  </div>
+  <p>手元のテストでは、ほとんど毎回 1 行目の順で動くので、テストは通ってしまいます。本番でたまにしか起きず、再現もしにくい種類のバグです。モデル検査なら、<b>失敗する順番そのもの</b>を示してくれます。</p>
+  <div class="two">
+    <div class="card"><h3>見つけやすいもの</h3><ul class="plain"><li>同時に動くときの順番の不具合（競合状態）</li><li>デッドロック（お互いを待って止まる）</li><li>分散システムの設計ミス</li></ul></div>
+    <div class="card"><h3>限界</h3><ul class="plain"><li>状態の数がすぐ爆発的に増える（<b>状態爆発</b>）。模型を小さく絞る必要がある</li><li>確かめるのは模型。実物のコードとずれると見逃す</li></ul></div>
+  </div>
+  <p class="note">主な道具: TLA+（TLC）、Alloy、SPIN。C のコードを直接、範囲を区切って調べる CBMC のような道具もあります。</p>
+
+  <h2 id="proof">形式検証（定理証明）</h2>
+  <div class="method-head"><b>すべての入力で正しいことを、論証して機械に確かめさせる</b><span class="en">Formal Verification / Theorem Proving</span></div>
+  <p class="analogy"><b>たとえ:</b> 「偶数 ＋ 偶数 は必ず偶数」。これを信じるのに、すべての数を足して確かめた人はいません。「偶数は 2 × 何か と書ける。足しても 2 × 何か になる」という<b>筋道</b>で、無限にある組み合わせを一度に片づけられるからです。</p>
+  <p>定理証明は、この筋道をプログラムに対して行います。<b>人が書いた（AI が書いた）筋道に穴がないかは、ツールが 1 段ずつ機械的に調べます。</b>ツールが受け入れた証明は、書いた人を信用しなくても信用できます。</p>
+  <h3>数式を書かなくてもよい例（Dafny）</h3>
+  <p>Dafny という言語では、契約を書くだけで、ツールが自動で証明を探します。</p>
+<pre>method Change(paid: int, price: int) returns (change: int)
+  requires paid &gt;= price   // 事前条件：入れた額 ≧ 価格
+  ensures change &gt;= 0      // 事後条件：おつり ≧ 0
+{
+  change := paid - price;
+}</pre>
+  <p>このコードを Dafny に通すと、「事前条件を満たす<b>すべての</b> <code>paid</code> と <code>price</code> で、おつりは 0 以上」と確かめられます。テストのように値を試してはいません。仮に <code>requires</code> の行を消すと、Dafny は「事後条件を証明できない」と指摘します。</p>
+  <div class="two">
+    <div class="card"><h3>向いている所</h3><ul class="plain"><li>間違えると被害が大きい所（暗号、OS のカーネル、コンパイラ、決済の中心部）</li><li>何年も変わらない、小さくて大事な部品</li></ul></div>
+    <div class="card"><h3>限界</h3><ul class="plain"><li>手間が大きい。難しい性質は、人が証明の道筋を書く必要がある</li><li>保証されるのは<b>書いた仕様どおり</b>であること。仕様が間違っていれば意味がない</li></ul></div>
+  </div>
+  <p class="note">主な道具: 自動寄りの Dafny・SPARK、人が道筋を書く Lean・Rocq（旧 Coq）・Isabelle。実例として、証明済みの C コンパイラ CompCert や、OS カーネル seL4 があります。</p>
+
+  <h2 id="terms">言葉の整理：「形式検証」はどこまでを指す？</h2>
+  <p>「形式検証」は、広い意味では<b>数学的な方法で正しさを確かめる手法の総称</b>です。モデル検査も定理証明もその中に入ります。狭い意味で「証明すること」だけを指す人もいます。</p>
+  <div class="nest">
+    <b>形式検証（広い意味）：仕様を厳密に書き、機械が漏れなく確かめる</b>
+    <div class="inner">
+      <div><b>モデル検査</b>状態を全部たどる。自動で動き、反例（失敗する道順）を出してくれる</div>
+      <div><b>定理証明</b>論証で全部をまとめて扱う。無限の入力も扱えるが、手間が大きい</div>
+    </div>
+    <div class="nest-out"><span>Fuzzing</span><span>PBT</span><span>例のテスト</span><span>＝ 試して探す側（形式検証には入らない）</span></div>
+  </div>
+  <p>Design by Contract はその間にあります。実行時に確かめれば「試す側」、Dafny のように証明に使えば「形式検証の仕様」になります。また、TypeScript や Rust の型チェックも「すべての入力について、ある性質を機械が確かめる」という点で、軽い形式検証の仲間と見ることができます。</p>
+  <p class="note">どれも新しい考え方ではありません。証明の考え方は 1960 年代、契約とファジングは 1980 年代、PBT は 2000 年ごろから広まりました。最近注目されているのは、AI が書いたコードや証明を、ツールで機械的に確かめる使い方が増えているためです（2026 年 11 月時点）。</p>
+
+  <h2 id="compare">5 つの比較</h2>
+  <div class="table-wrap">
+    <table class="compare">
+      <tr><th>手法</th><th>人が書くもの</th><th>確かめる範囲</th><th>得意なこと</th><th>手間</th></tr>
+      <tr><td>例のテスト</td><td>入力と期待する答え</td><td>書いた分だけ</td><td>決まった仕様の確認</td><td>小</td></tr>
+      <tr><td>Fuzzing</td><td>入力を流し込む入口（ハーネス）</td><td>大量・ランダム（実物のコード）</td><td>クラッシュ・固まる・脆弱性</td><td>小〜中（回す時間は長め）</td></tr>
+      <tr><td>PBT</td><td>いつも成り立つルール</td><td>大量・ランダム（実物のコード）</td><td>境界や組み合わせの見落とし</td><td>中</td></tr>
+      <tr><td>契約</td><td>事前・事後・不変条件</td><td>動かすたび（または証明で全部）</td><td>責任の切り分け・早期発見</td><td>小〜中</td></tr>
+      <tr><td>モデル検査</td><td>設計の模型と、守るべき性質</td><td>模型の全状態</td><td>並行・分散の順番の不具合</td><td>中〜大</td></tr>
+      <tr><td>定理証明</td><td>仕様と証明（の道筋）</td><td>すべての入力</td><td>絶対に外せない部分の保証</td><td>大</td></tr>
+    </table>
+  </div>
+
+  <h2 id="choose">いつどれを使う？</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>こんなとき</th><th>まず試す手法</th></tr>
+      <tr><td>外から来るデータを読む（ファイル・通信・ユーザー入力のパーサ）</td><td>Fuzzing</td></tr>
+      <tr><td>「元に戻る」「順番によらない」など、ルールが言える関数</td><td>PBT</td></tr>
+      <tr><td>関数やクラスの責任の範囲をはっきりさせたい</td><td>契約</td></tr>
+      <tr><td>複数のプロセスやサーバーが同時に動く設計を作る</td><td>モデル検査</td></tr>
+      <tr><td>間違えると大事故・大損・重大な脆弱性につながる、小さな中心部</td><td>定理証明</td></tr>
+    </table>
+  </div>
+  <p>実際には組み合わせて使います。よくあるのは、<b>契約を書き、PBT や Fuzzing で大量に動かして、その間ずっと契約に見張らせる</b>やり方です。設計の段階でモデル検査を使い、実装は普通のテストで確かめる、という分け方もよく使われます。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>形式検証で証明すれば、バグは 1 つもなくなる</summary><p>保証されるのは「書いた仕様どおりに動く」ことだけです。仕様そのものが意図とずれていれば、正しく間違えます。また、証明の前提の外（コンパイラ、OS、ハードウェア、設定、外部のサービス）は保証の外です。</p></details>
+  <details class="myth"><summary>Fuzzing を長く回しても何も見つからなければ、そのコードは安全だ</summary><p>見つからないことは、ないことの証明にはなりません。届いていない分かれ道が残っていることもあります。どのコードを通ったか（カバレッジ）を見て、届いていない所を確かめます。</p></details>
+  <details class="myth"><summary>PBT はランダムなので、失敗しても再現できない</summary><p>道具は失敗したときの乱数の種（seed）と、縮めた最小の入力を報告します。同じ種で再実行すれば再現できます。Hypothesis のように、失敗した例を保存して次回も必ず試す道具もあります。</p></details>
+  <details class="myth"><summary>形式検証は数学者でないと使えない</summary><p>モデル検査は、模型と性質を書けば機械が自動で調べます。Dafny のような道具では、条件（契約）を書くだけで証明が自動で見つかることも多いです。難しい証明を人が書くのは、一部の深い性質だけです。</p></details>
+  <details class="myth"><summary>契約はコメントに書く注意書きと同じだ</summary><p>コメントは実行しても誰も確かめません。契約はコードとして書くので、動かすたびに確かめられ、破れたらその場で止まります。証明に使える道具もあります。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="boundary-value-analysis.html">境界値分析と同値分割</a> — はしごの 1 段目、例のテストで試す値を人が選ぶ方法</li>
+    <li><a href="testing-strategy.html">テスト戦略</a> — 例のテストをどの層に書くか。この 5 つは、そこへ上乗せする確かめ方</li>
+    <li><a href="mutation-testing.html">ミューテーションテスト</a> — 境界値のテストの抜けなど、書いたテストやプロパティが捕まえ損ねるバグを見つける</li>
+    <li><a href="concurrency-models.html">並行処理のモデル</a> — モデル検査が得意な競合状態が、なぜ起きるか</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://hypothesis.readthedocs.io/">Hypothesis のドキュメント</a>（Python の PBT）</li>
+    <li><a href="https://fast-check.dev/">fast-check</a>（JavaScript / TypeScript の PBT）</li>
+    <li><a href="https://llvm.org/docs/LibFuzzer.html">libFuzzer（LLVM）</a>（カバレッジ誘導型ファジング）</li>
+    <li><a href="https://go.dev/doc/security/fuzz/">Go Fuzzing</a></li>
+    <li><a href="https://lamport.azurewebsites.net/tla/tla.html">The TLA+ Home Page</a></li>
+    <li><a href="https://dafny.org/">Dafny</a></li>
+    <li><a href="https://lean-lang.org/">Lean</a></li>
+    <li><a href="https://sel4.systems/">seL4</a></li>
+  </ul>
+  <p class="note">2026-11-23 時点で確認。</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "ユーザーがアップロードした画像ファイルを読み込む C のライブラリがある。壊れたファイルを渡されたときに落ちる箇所を、手間をかけずに探したい。まず試す手法は？",
+    "choices": ["定理証明で、すべての入力で落ちないことを証明する", "モデル検査で、読み込み処理の状態を全部たどる", "Fuzzing で、変形したファイルを大量に読ませる", "例のテストに、正しい画像を数枚追加する"],
+    "answer": 2,
+    "explain": "外から来るデータを読む入口で、落ちる・固まるを探すのは Fuzzing が最も手軽で得意。答えの正しさを書かなくても回せる。",
+    "ref": "#fuzzing"
+  },
+  {
+    "q": "文字列を圧縮する compress と、元に戻す decompress を作った。どんな文字列でも元に戻ることを、たくさんの入力で確かめたい。合う手法は？",
+    "choices": ["PBT で「decompress(compress(s)) が s に等しい」というルールを書く", "Fuzzing で compress が落ちないかだけを見る", "契約で「引数は空でない」と事前条件を書く", "モデル検査で、圧縮の状態遷移を全部たどる"],
+    "answer": 0,
+    "explain": "「行って戻ると元どおり」は代表的なプロパティ。落ちたかだけを見る Fuzzing では、戻した結果が違うバグを見つけられない。",
+    "ref": "#pbt"
+  },
+  {
+    "q": "2 台のサーバーが同じ在庫を同時に減らす設計にした。手元のテストは全部通るのに、本番でまれに在庫より多く売れてしまう。設計の段階で見つけるのに向く手法は？",
+    "choices": ["例のテストの件数を増やす", "モデル検査で、2 台の処理の順番の組み合わせを全部調べる", "Fuzzing で、在庫の数に極端な値を入れる", "契約で、在庫の型を整数に決める"],
+    "answer": 1,
+    "explain": "順番の組み合わせで起きるバグは、普通のテストではほとんど同じ順にしか動かないので見つかりにくい。モデル検査は全部の順番をたどり、失敗する順番を示す。",
+    "ref": "#model"
+  },
+  {
+    "q": "「買う」関数に「入れた額 ≧ 価格」という事前条件を付けたところ、実行中にこの事前条件が破れて止まった。まず直すべき場所は？",
+    "choices": ["「買う」関数の中のおつりの計算", "事前条件を消して、止まらないようにする", "事後条件を「おつり ≧ −100」に緩める", "「買う」を呼んでいる側の処理"],
+    "answer": 3,
+    "explain": "事前条件は呼ぶ側が守る約束。破れたのは、条件を満たさないまま呼んだ側のバグ。事後条件が破れたなら関数の中身を疑う。",
+    "ref": "#dbc"
+  },
+  {
+    "q": "定理証明で「仕様どおり動く」と証明済みのモジュールが、本番で利用者の期待と違う動きをした。考えられる原因として最も筋がよいのは？",
+    "choices": ["証明ツールが乱数で試しただけなので、当たらなかった入力があった", "仕様そのものが、利用者の期待とずれていた", "証明は数マスしか確かめないので、端の入力を見落とした", "証明済みのコードは期待と違う動きをしないので、原因は利用者の誤操作に限られる"],
+    "answer": 1,
+    "explain": "証明が保証するのは「書いた仕様どおり」であることだけ。仕様が意図とずれていれば、証明が通っても期待とは違う動きになる。",
+    "ref": "#myths"
+  }
+]
+</script>
+</body>
+</html>

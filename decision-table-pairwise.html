@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>デシジョンテーブルとペアワイズ法：条件の組み合わせの選び方</title>
+<meta name="description" content="条件の組み合わせを表にして仕様の穴と漏れを見つけるデシジョンテーブルと、組み合わせを 2 つずつ網羅して件数を減らすペアワイズ法を、送料と検索フィルターの例で図解したページ">
+<meta name="memo:tags" content="テスト, 開発ツール, 設計">
+<meta name="memo:date" content="2026-11-24">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6;
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+ul.plain { margin: 6px 0 6px 1.3em; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+.series { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; font-size: 0.8rem; }
+.series a, .series span { padding: 3px 10px; border-radius: 999px; background: var(--chip); color: var(--fg-2); text-decoration: none; }
+.series span { color: var(--fg); font-weight: 700; }
+
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+th { font-size: 0.78rem; color: var(--fg-2); font-weight: 700; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0; }
+@media (max-width: 640px) { .two { grid-template-columns: 1fr; } }
+.two .card h3 { margin-top: 0; }
+table.nw td:first-child { white-space: nowrap; }
+table.wide { min-width: 560px; }
+/* デシジョンテーブル */
+table.dt { min-width: 460px; }
+table.dt th, table.dt td { text-align: center; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+table.dt td.cond { text-align: left; font-family: 'Noto Sans JP', system-ui, sans-serif; font-weight: 700; white-space: nowrap; }
+table.dt tr.sep td { border-bottom: 2px solid var(--fg-2); }
+table.dt td.fixed { background: color-mix(in srgb, var(--c-hl) 16%, transparent); font-weight: 700; }
+table.dt td.any { color: var(--fg-2); }
+/* ペアワイズ */
+table.pw td.pa, table.pw td.pb { background: color-mix(in srgb, var(--c-hl) 10%, transparent); }
+table.pw { min-width: 420px; }
+.check-grid { display: grid; grid-template-columns: auto repeat(3, minmax(0, 72px)); gap: 4px; justify-content: center; margin: 10px 0; font-size: 0.78rem; }
+.check-grid span { padding: 6px 4px; text-align: center; }
+.check-grid .h { color: var(--fg-2); font-weight: 700; }
+.check-grid .v { background: color-mix(in srgb, var(--c-hl) 14%, var(--surface)); border: 1px solid var(--c-hl); border-radius: 6px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 700; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="デシジョンテーブルとペアワイズ法：条件の組み合わせの選び方">
+<meta property="og:description" content="条件の組み合わせを表にして仕様の穴と漏れを見つけるデシジョンテーブルと、組み合わせを 2 つずつ網羅して件数を減らすペアワイズ法を、送料と検索フィルターの例で図解したページ">
+<meta property="og:url" content="https://memo.taka1156.site/decision-table-pairwise.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="application/atom+xml" title="MEMO" href="feed.xml">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>デシジョンテーブルとペアワイズ法</h1>
+  <p class="subtitle">条件の組み合わせを、漏れなく洗い出す方法と、賢く減らす方法</p>
+
+  <nav class="series" aria-label="テスト設計技法のシリーズ">
+    <a href="boundary-value-analysis.html">境界値分析と同値分割</a>
+    <span aria-current="page">デシジョンテーブルとペアワイズ法</span>
+    <a href="state-transition-testing.html">状態遷移テストとユースケーステスト</a>
+  </nav>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>どちらも、条件がいくつも重なるときに、どの組み合わせを試すかを決める技法。</li>
+      <li>デシジョンテーブルは組み合わせを全部表にして、仕様の穴と漏れを見つける。ペアワイズ法は 2 つずつの組み合わせだけ網羅して件数を減らす。</li>
+      <li>結果が組み合わせで決まるロジックには表、ほぼ独立した設定や環境の組み合わせにはペアワイズを使う。</li>
+    </ul>
+  </div>
+
+  <h2 id="why">組み合わせはすぐ増える</h2>
+  <p>条件が 1 つなら、<a href="boundary-value-analysis.html">境界値分析と同値分割</a>で値を選べます。ところが条件が重なると、組み合わせの数は<b>掛け算で</b>増えます。</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>条件の数と選択肢</th><th>全部の組み合わせ</th></tr>
+      <tr><td>はい・いいえが 3 つ</td><td>2 × 2 × 2 ＝ <b>8 通り</b></td></tr>
+      <tr><td>はい・いいえが 10 個</td><td>2 を 10 回掛けて <b>1024 通り</b></td></tr>
+      <tr><td>3 択が 4 つ</td><td>3 × 3 × 3 × 3 ＝ <b>81 通り</b></td></tr>
+    </table>
+  </div>
+  <p>この増え方への向き合い方が 2 つあります。少ないうちに<b>全部を表にして確かめる</b>のがデシジョンテーブル、多すぎるときに<b>大事な所を残して減らす</b>のがペアワイズ法です。</p>
+
+  <h2 id="dt">デシジョンテーブル（決定表）</h2>
+  <p>条件の組み合わせと、そのときの結果（動作）を表にまとめる技法です。表の<b>1 列が 1 つのルール</b>で、そのまま 1 件のテストになります。</p>
+  <h3>例：送料の計算</h3>
+  <p>仕様書にはこう書かれていたとします。</p>
+  <div class="card">
+    <p>送料は 600 円。会員は送料無料。合計 5000 円以上でも送料無料。離島への配送は 1000 円を追加する。</p>
+  </div>
+  <p>文章では分かったつもりになれますが、表にすると疑問が出てきます。手順をタブで追ってください。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="d1">1. 全部並べる</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="d2">2. 穴を見つける</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="d3">3. まとめる</button>
+  </div>
+  <div class="panel card" id="d1">
+    <p>条件 3 つの「はい（Y）・いいえ（N）」を、8 通り全部並べます。上半分が条件、下半分が結果です。</p>
+    <div class="table-wrap">
+      <table class="dt">
+        <tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th></tr>
+        <tr><td class="cond">会員</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>N</td><td>N</td><td>N</td></tr>
+        <tr><td class="cond">5000 円以上</td><td>Y</td><td>Y</td><td>N</td><td>N</td><td>Y</td><td>Y</td><td>N</td><td>N</td></tr>
+        <tr class="sep"><td class="cond">離島</td><td>Y</td><td>N</td><td>Y</td><td>N</td><td>Y</td><td>N</td><td>Y</td><td>N</td></tr>
+        <tr><td class="cond">送料</td><td>?</td><td>0</td><td>?</td><td>0</td><td>?</td><td>0</td><td>1600</td><td>600</td></tr>
+      </table>
+    </div>
+    <p>離島が「はい」で、送料無料の条件も満たす列（1・3・5）は、文章からは答えが決まりません。</p>
+  </div>
+  <div class="panel card" id="d2" hidden>
+    <p>「?」の列は<b>仕様の穴</b>です。無料の人にも離島の 1000 円はかかるのか、かからないのか。文章では誰も気づかなかった問題が、表にすると見えます。</p>
+    <p>テストを書く前に、仕様を決める人に確認します。ここでは「無料の人でも離島の 1000 円はかかる」と決まったとします。</p>
+    <div class="table-wrap">
+      <table class="dt">
+        <tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th></tr>
+        <tr><td class="cond">会員</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>N</td><td>N</td><td>N</td></tr>
+        <tr><td class="cond">5000 円以上</td><td>Y</td><td>Y</td><td>N</td><td>N</td><td>Y</td><td>Y</td><td>N</td><td>N</td></tr>
+        <tr class="sep"><td class="cond">離島</td><td>Y</td><td>N</td><td>Y</td><td>N</td><td>Y</td><td>N</td><td>Y</td><td>N</td></tr>
+        <tr><td class="cond">送料</td><td class="fixed">1000</td><td>0</td><td class="fixed">1000</td><td>0</td><td class="fixed">1000</td><td>0</td><td>1600</td><td>600</td></tr>
+      </table>
+    </div>
+    <p class="note">色の付いた欄が、確認して決まった所です。</p>
+  </div>
+  <div class="panel card" id="d3" hidden>
+    <p>会員なら、5000 円以上かどうかは結果に影響しません。こうした列は「−（どちらでもよい）」でまとめられます。8 列が 6 列になり、テストも 6 件で済みます。</p>
+    <div class="table-wrap">
+      <table class="dt">
+        <tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th></tr>
+        <tr><td class="cond">会員</td><td>Y</td><td>Y</td><td>N</td><td>N</td><td>N</td><td>N</td></tr>
+        <tr><td class="cond">5000 円以上</td><td class="any">−</td><td class="any">−</td><td>Y</td><td>Y</td><td>N</td><td>N</td></tr>
+        <tr class="sep"><td class="cond">離島</td><td>Y</td><td>N</td><td>Y</td><td>N</td><td>Y</td><td>N</td></tr>
+        <tr><td class="cond">送料</td><td>1000</td><td>0</td><td>1000</td><td>0</td><td>1600</td><td>600</td></tr>
+      </table>
+    </div>
+    <p>まとめた列（A・B）をテストするときは、「−」の所にどちらの値を入れてもかまいません。心配なら両方を試します。</p>
+  </div>
+
+  <h3>表にすると見つかるもの</h3>
+  <ul class="plain">
+    <li><b>穴:</b> 結果が決まっていない組み合わせ（上の「?」）。</li>
+    <li><b>矛盾:</b> 同じ組み合わせに、仕様の別々の所が違う結果を書いている。</li>
+    <li><b>ありえない組み合わせ:</b> 「未ログインで会員」のように起こりえない列。実装でも弾くべきかを決める。</li>
+  </ul>
+  <p>条件のそれぞれの値をどう選ぶか（5000 円ちょうど・4999 円など）は、境界値分析と組み合わせて決めます。デシジョンテーブルは「どの組み合わせか」を、境界値分析は「その中でどの値か」を決めます。</p>
+
+  <h2 id="pairwise">ペアワイズ法（オールペア法）</h2>
+  <p>条件が多くて、全部の組み合わせはとても試せないときに使う技法です。全部ではなく、<b>どの 2 つの条件を取り出しても、その値の組み合わせが少なくとも 1 回は出てくる</b>ように、テストを選びます。</p>
+  <h3>なぜ 2 つずつでよいのか</h3>
+  <p>不具合の多くは、1 つの条件だけ、または 2 つの条件の組み合わせで起きる、と報告されています。「地図表示 × 安い順のときだけ並びが崩れる」は 2 つの組み合わせです。3 つ以上が同時にそろったときだけ起きる不具合は、比べると少数です。そこで 2 つずつの組み合わせを全部押さえれば、少ない件数で多くを捕まえられます。</p>
+
+  <h3>例：検索画面の 4 つのフィルター</h3>
+  <p>次の 4 つのフィルターに、それぞれ 3 つの選択肢があります。全部だと 3 × 3 × 3 × 3 ＝ <b>81 通り</b>です。</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>条件</th><th>選択肢</th></tr>
+      <tr><td>並び順</td><td>新着・人気・安い順</td></tr>
+      <tr><td>表示</td><td>リスト・グリッド・地図</td></tr>
+      <tr><td>期間</td><td>今日・今週・全期間</td></tr>
+      <tr><td>在庫</td><td>あり・なし・指定なし</td></tr>
+    </table>
+  </div>
+  <p>ペアワイズ法で選ぶと、<b>9 通り</b>で済みます。</p>
+  <div class="table-wrap">
+    <table class="pw">
+      <tr><th>#</th><th>並び順</th><th>表示</th><th>期間</th><th>在庫</th></tr>
+      <tr><td>1</td><td class="pa">新着</td><td class="pb">リスト</td><td>今日</td><td>あり</td></tr>
+      <tr><td>2</td><td class="pa">新着</td><td class="pb">グリッド</td><td>今週</td><td>なし</td></tr>
+      <tr><td>3</td><td class="pa">新着</td><td class="pb">地図</td><td>全期間</td><td>指定なし</td></tr>
+      <tr><td>4</td><td class="pa">人気</td><td class="pb">リスト</td><td>今週</td><td>指定なし</td></tr>
+      <tr><td>5</td><td class="pa">人気</td><td class="pb">グリッド</td><td>全期間</td><td>あり</td></tr>
+      <tr><td>6</td><td class="pa">人気</td><td class="pb">地図</td><td>今日</td><td>なし</td></tr>
+      <tr><td>7</td><td class="pa">安い順</td><td class="pb">リスト</td><td>全期間</td><td>なし</td></tr>
+      <tr><td>8</td><td class="pa">安い順</td><td class="pb">グリッド</td><td>今日</td><td>指定なし</td></tr>
+      <tr><td>9</td><td class="pa">安い順</td><td class="pb">地図</td><td>今週</td><td>あり</td></tr>
+    </table>
+  </div>
+  <p>確かめてみます。色の付いた「並び順」と「表示」の 2 列だけを取り出して、組み合わせの表に書き込むと、9 マスが全部ちょうど 1 回ずつ埋まります。</p>
+  <div class="check-grid" aria-hidden="true">
+    <span></span><span class="h">リスト</span><span class="h">グリッド</span><span class="h">地図</span>
+    <span class="h">新着</span><span class="v">#1</span><span class="v">#2</span><span class="v">#3</span>
+    <span class="h">人気</span><span class="v">#4</span><span class="v">#5</span><span class="v">#6</span>
+    <span class="h">安い順</span><span class="v">#7</span><span class="v">#8</span><span class="v">#9</span>
+  </div>
+  <p>ほかのどの 2 列（たとえば「期間」と「在庫」）を取り出しても、同じように 9 マスが全部埋まります。81 通りのうち 9 通りしか試していないのに、<b>2 つの組み合わせはすべて 1 回は試した</b>ことになります。</p>
+
+  <h3>実際に使うときの注意</h3>
+  <ul class="plain">
+    <li><b>ありえない組み合わせ（制約）:</b> 「Windows で最新の Safari」のように、今は存在しない組み合わせが出ることがあります。道具に「この組み合わせは除く」と指定します。</li>
+    <li><b>道具を使う:</b> 小さな例は手で作れますが、条件や選択肢の数がそろっていないと難しくなります。Microsoft の PICT や、NIST の ACTS のような道具が、制約つきで自動で組みます。</li>
+    <li><b>大事な組み合わせは足す:</b> よく使われる組み合わせや、過去に壊れた組み合わせは、ペアワイズの結果に関係なく追加します。</li>
+    <li><b>3 つずつにもできる:</b> 心配なら「3 つずつの組み合わせを網羅する」設定にします。件数は増えますが、全部よりはずっと少なくなります。</li>
+  </ul>
+
+  <h2 id="choose">どちらを使う？</h2>
+  <div class="table-wrap">
+    <table class="nw wide">
+      <tr><th></th><th>デシジョンテーブル</th><th>ペアワイズ法</th></tr>
+      <tr><td>向き</td><td>組み合わせを<b>網羅する</b></td><td>組み合わせを<b>減らす</b></td></tr>
+      <tr><td>向いている対象</td><td>結果が条件の組み合わせで決まるロジック（割引・権限・送料）</td><td>互いにほぼ独立した設定や環境（ブラウザ × OS × 画面サイズ、検索フィルター）</td></tr>
+      <tr><td>条件の数</td><td>少ない（目安は 4〜5 個まで）。多ければ分割する</td><td>多くてもよい</td></tr>
+      <tr><td>得られるもの</td><td>仕様の穴・矛盾の発見と、全ルールのテスト</td><td>少ない件数で、2 つずつの組み合わせを全部試したという保証</td></tr>
+      <tr><td>漏れるもの</td><td>表に入れなかった条件</td><td>3 つ以上が同時にそろったときだけ起きる不具合</td></tr>
+    </table>
+  </div>
+  <p>迷ったら、「この組み合わせで<b>結果が変わるように作られているか</b>」で考えます。作りとして結果が変わる（会員なら無料）なら、全ルールを確かめるデシジョンテーブル。作りとしては関係ないはずだが、念のため組み合わせても壊れないか見たい（地図表示でも並び順が効くか）なら、ペアワイズ法です。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>ペアワイズ法で選んだテストが全部通れば、全部の組み合わせで正しく動く</summary><p>保証されるのは、2 つずつの組み合わせを 1 回は試したことだけです。3 つ以上が同時にそろったときだけ起きる不具合は残りえます。大事な組み合わせは個別に足し、必要なら 3 つずつの網羅に上げます。</p></details>
+  <details class="myth"><summary>デシジョンテーブルは、テストの件数を増やすだけの作業だ</summary><p>一番の価値は、表にする途中で仕様の穴や矛盾が見つかることです。テストを書く前、仕様を決める段階で作ると、作り直しを減らせます。また「−」でまとめれば件数も減らせます。</p></details>
+  <details class="myth"><summary>条件が多すぎると、デシジョンテーブルは使えない</summary><p>関係する条件ごとに表を分けます。送料の表と、ポイント付与の表のように、結果ごとに独立した小さな表にすれば扱えます。それでも独立した条件が多いなら、ペアワイズ法の出番です。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="authorization-models.html">認可モデル（RBAC・ABAC・ReBAC）</a> — 役割 × 操作 × 持ち主の権限判定は、デシジョンテーブルで確かめる代表的な対象</li>
+    <li><a href="testing-strategy.html">テスト戦略</a> — ブラウザ × 画面サイズの組み合わせを E2E やビジュアルリグレッションで回すときに、件数を絞る</li>
+    <li><a href="verification-methods.html">テストから証明まで</a> — 組み合わせを機械にランダムに作らせる Property-based Testing との違い</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://github.com/microsoft/pict">PICT（Microsoft、GitHub）</a>（ペアワイズのテストを制約つきで作る道具）</li>
+    <li><a href="https://csrc.nist.gov/projects/automated-combinatorial-testing-for-software">Automated Combinatorial Testing for Software（NIST）</a>（組み合わせテストの研究と ACTS）</li>
+    <li><a href="https://www.istqb.org/">ISTQB</a>（テスト技法の用語とシラバス）</li>
+  </ul>
+  <p class="note">2026-11-24 時点で確認。</p>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "「学生は 2 割引。平日は 1 割引。」という仕様を受け取った。デシジョンテーブルを作ると、まず何が見つかりやすい？",
+    "choices": ["学生かどうかを判定するときに、境目になる年齢の値", "結果が同じになる列をまとめて、テストを半分に減らせること", "学生で平日のとき、割引を足すのか大きい方だけかが決まっていないこと", "平日と休日に、それぞれ何件ずつテストを書けばよいかの目安"],
+    "answer": 2,
+    "explain": "組み合わせを全部並べると、文章では決まっていない列（両方の条件を満たすとき）が穴として見える。テストを書く前に仕様を決めてもらう。",
+    "ref": "#dt"
+  },
+  {
+    "q": "ブラウザ 4 種 × OS 3 種 × 画面サイズ 3 種 × 言語 4 種で表示を確かめたい。全部だと 144 通りで回しきれない。合う方法は？",
+    "choices": ["ペアワイズ法で、2 つずつの組み合わせを網羅する組を道具で作る", "デシジョンテーブルで 144 列を全部書き出す", "各条件から 1 つずつ選んで、1 件だけ試す", "利用者の多い Chrome × Windows だけ試し、ほかは省く"],
+    "answer": 0,
+    "explain": "互いにほぼ独立した環境の組み合わせは、ペアワイズ法で件数を大きく減らせる。ありえない組み合わせは制約として除き、よく使う組み合わせは個別に足す。",
+    "ref": "#pairwise"
+  },
+  {
+    "q": "ペアワイズ法で作った 12 件のテストが全部通った。それでも残りうる不具合は？",
+    "choices": ["どれか 1 つの条件の値だけで起きる不具合", "2 つの条件の特定の組み合わせで起きる不具合", "どの条件にも関係なく、常に起きる不具合", "3 つの条件が同時に特定の値になったときだけ起きる不具合"],
+    "answer": 3,
+    "explain": "ペアワイズ法が保証するのは 2 つずつの組み合わせを 1 回は試したことまで。3 つ以上が同時にそろう組み合わせは含まれていないことがある。",
+    "ref": "#myths"
+  },
+  {
+    "q": "デシジョンテーブルで「会員で離島でなければ、5000 円以上かどうかに関係なく送料無料」の 2 列を「−」で 1 列にまとめた。この列をテストするときの扱いとして正しいのは？",
+    "choices": ["「−」の所は値を入れずにテストする", "「−」の所はどちらの値でもよい。心配なら両方を試す", "まとめた列はテストしなくてよい", "「−」の所には必ず境界値の 5000 円を入れる"],
+    "answer": 1,
+    "explain": "「−」は結果に影響しないという意味なので、どちらの値を入れても期待する結果は同じ。本当に影響しないか不安なら、両方を試して確かめる。",
+    "ref": "#dt"
+  }
+]
+</script>
+</body>
+</html>
