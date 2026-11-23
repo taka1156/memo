@@ -48,6 +48,16 @@
     <category term="開発ツール"/>
   </entry>
   <entry>
+    <title>個人情報のマスキング</title>
+    <id>https://memo.taka1156.site/data-masking.html</id>
+    <link rel="alternate" type="text/html" href="https://memo.taka1156.site/data-masking.html"/>
+    <published>2026-11-23T00:00:00+09:00</published>
+    <updated>2026-11-23T00:00:00+09:00</updated>
+    <summary>本番データを開発・ログ・外部サービスへ渡す前に個人情報を隠す考え方を、手法の違いと検出の限界から図解。</summary>
+    <category term="セキュリティ"/>
+    <category term="データベース"/>
+  </entry>
+  <entry>
     <title>コントロールプレーンが止まったら</title>
     <id>https://memo.taka1156.site/static-stability.html</id>
     <link rel="alternate" type="text/html" href="https://memo.taka1156.site/static-stability.html"/>
@@ -501,14 +511,5 @@
     <updated>2026-11-07T00:00:00+09:00</updated>
     <summary>全探索・貪欲法・分割統治法・動的計画法・二分探索の考え方と使い分けを、入力サイズの目安、マージソートやフィボナッチの呼び出し木などの図で比べて解説。</summary>
     <category term="CS基礎"/>
-  </entry>
-  <entry>
-    <title>AI エージェントとツール呼び出し</title>
-    <id>https://memo.taka1156.site/ai-agents.html</id>
-    <link rel="alternate" type="text/html" href="https://memo.taka1156.site/ai-agents.html"/>
-    <published>2026-11-07T00:00:00+09:00</published>
-    <updated>2026-11-07T00:00:00+09:00</updated>
-    <summary>LLM がツールを「呼ぶ」とは実際に何が起きているのか、エージェントのループ、ワークフローとの違い、コンテキストの管理、権限とプロンプトインジェクション、評価のしかたまでを、やり取りの再生と図で整理する。</summary>
-    <category term="AI"/>
   </entry>
 </feed>
