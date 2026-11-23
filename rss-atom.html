@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RSS と Atom</title>
+<meta name="description" content="RSS と Atom のフィードの仕組み、XML の書き方の違い、配信と取得の流れ、実装でつまずく点がわかる">
+<meta name="memo:tags" content="フロントエンド, バックエンド, ネットワーク">
+<meta name="memo:date" content="2026-11-23">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+ul.plain { padding-left: 1.3em; margin: 6px 0; }
+ul.plain li { margin: 3px 0; }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+@media (max-width: 600px) { th, td { padding: 8px 6px; font-size: 0.8rem; } }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--fg-2); font-weight: 700; font-size: 0.78rem; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+td:first-child code { white-space: nowrap; overflow-wrap: normal; }
+
+/* 流れの図 */
+.flow { display: flex; align-items: stretch; gap: 0; margin: 12px 0; }
+.flow .node {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 12px;
+  text-align: center;
+  font-size: 0.82rem;
+}
+.flow .node b { display: block; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.85rem; margin-bottom: 4px; }
+.flow .node span { color: var(--fg-2); }
+.flow .arrow {
+  flex: 0 0 64px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  color: var(--fg-2);
+  font-size: 0.7rem;
+  text-align: center;
+  line-height: 1.3;
+}
+.flow .arrow::before { content: "→"; font-size: 1.2rem; line-height: 1; margin-bottom: 2px; }
+.flow .arrow.back::before { content: "⇄"; }
+@media (max-width: 600px) {
+  .flow { flex-direction: column; }
+  .flow .arrow { flex: 0 0 auto; padding: 6px 0; }
+  .flow .arrow::before { content: "↓"; }
+  .flow .arrow.back::before { content: "⇅"; }
+}
+
+/* 2 列 */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+.grid2 .card h3 { margin-top: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+.panel > p:first-child { margin-top: 0; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+<!-- memo:head（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MEMO">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MEMO">
+<meta property="og:title" content="RSS と Atom">
+<meta property="og:description" content="RSS と Atom のフィードの仕組み、XML の書き方の違い、配信と取得の流れ、実装でつまずく点がわかる">
+<meta property="og:url" content="https://memo.taka1156.site/rss-atom.html">
+<meta property="og:image" content="https://memo.taka1156.site/assets/og.png?v=b26c0af2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="application/atom+xml" title="MEMO" href="feed.xml">
+<link rel="stylesheet" href="assets/memo-parts.css">
+<style id="memo-accent">html:root{--accent:#a15c00}@media (prefers-color-scheme: dark){html:root{--accent:#ffb454}}</style>
+<!-- /memo:head -->
+</head>
+<body>
+<div class="wrap">
+  <h1>RSS と Atom</h1>
+  <p class="subtitle">サイトの更新を XML の一覧として配る「フィード」の 2 つの形式</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>RSS と Atom は、記事の一覧（タイトル・URL・日時・本文）を決まった形の XML で配るフィードの形式。</li>
+      <li>読む側（フィードリーダー）が定期的にフィードの URL を取りに行き、前回になかった項目を新着として扱う。</li>
+      <li>新しく作るなら仕様が厳密な Atom が扱いやすいが、Podcast など RSS 2.0 前提の世界では RSS を使う。</li>
+    </ul>
+  </div>
+
+  <h2 id="flow">配信と取得の流れ</h2>
+  <p>フィードは「サイトが置いておく XML ファイル」にすぎない。届け方の基本はプル型（読む側が取りに行く）で、それを補うプッシュ型の仕組みとして WebSub がある。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="flow-poll">ポーリング</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="flow-push">WebSub（プッシュ）</button>
+  </div>
+  <div class="panel" id="flow-poll">
+    <div class="flow">
+      <div class="node"><b>サイト</b><span>記事を公開すると<br>feed.xml を作り直す</span></div>
+      <div class="arrow">置く</div>
+      <div class="node"><b>feed.xml</b><span>最新 N 件の<br>item / entry</span></div>
+      <div class="arrow back">条件付き<br>GET</div>
+      <div class="node"><b>フィードリーダー</b><span>数十分〜数時間おきに<br>取得して新着を判定</span></div>
+    </div>
+    <ol class="steps">
+      <li><b>前回の値を付けて取りに行く</b>リーダーは前回の応答の <code>ETag</code> と <code>Last-Modified</code> を覚えておき、<code>If-None-Match</code>・<code>If-Modified-Since</code> を付けて GET する。</li>
+      <li><b>変わっていなければ 304</b>サーバーは本文なしの <code>304 Not Modified</code> を返す。帯域とサーバーの負荷がほぼかからない。</li>
+      <li><b>変わっていれば 200 と新しい XML</b>リーダーは各項目の ID（RSS の <code>guid</code>、Atom の <code>id</code>）を既読の一覧と比べ、知らない ID を新着として表示する。</li>
+    </ol>
+  </div>
+  <div class="panel" id="flow-push" hidden>
+    <div class="flow">
+      <div class="node"><b>サイト</b><span>記事を公開したら<br>ハブに知らせる</span></div>
+      <div class="arrow">更新を<br>通知</div>
+      <div class="node"><b>ハブ</b><span>フィードを取得して<br>購読者に配る</span></div>
+      <div class="arrow">POST で<br>届ける</div>
+      <div class="node"><b>購読者</b><span>あらかじめ<br>コールバック URL を登録</span></div>
+    </div>
+    <p>WebSub（旧称 PubSubHubbub）は W3C の勧告。フィードに <code>&lt;link rel="hub"&gt;</code> と <code>&lt;link rel="self"&gt;</code> を書いておくと、対応する購読者はハブに購読を申し込み、更新があるとハブから POST で受け取れる。ポーリングの間隔を待たずに届くのが利点。</p>
+    <p class="note">プッシュに対応していないリーダーも多いので、WebSub を入れてもフィード自体は普通に GET できるようにしておく。</p>
+  </div>
+
+  <h2 id="formats">形式の系譜</h2>
+  <p>「RSS」は 1 つの仕様ではなく、名前を共有する別々の系統がある。いま実際に出会うのはほぼ <b>RSS 2.0</b> と <b>Atom 1.0</b> の 2 つ。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>形式</th><th>正式名・位置づけ</th><th>いまの扱い</th></tr></thead>
+      <tbody>
+        <tr><td><code>RSS 0.9x</code></td><td>Netscape が始めた初期の形式</td><td>過去のもの。読めるリーダーは多いが新しく出す理由はない</td></tr>
+        <tr><td><code>RSS 1.0</code></td><td>RDF Site Summary。RDF（意味づけの枠組み）に基づく別系統</td><td>ほぼ使われない</td></tr>
+        <tr><td><code>RSS 2.0</code></td><td>Really Simple Syndication。0.9x の後継で、仕様は凍結されている</td><td>最も広く使われる。Podcast の配信はこれが前提</td></tr>
+        <tr><td><code>Atom 1.0</code></td><td>RSS のあいまいさをなくすため有志が設計し、IETF で RFC 4287 として標準化</td><td>ブログ基盤・GitHub・YouTube などが配信。新規なら第一候補</td></tr>
+        <tr><td><code>JSON Feed</code></td><td>同じ考え方を JSON で書く形式（1.1 版）</td><td>対応するリーダーは増えたが、XML の 2 つほど普及していない</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="xml">XML の書き方を比べる</h2>
+  <p>同じ記事 1 件を、それぞれの形式で書くとこうなる。外側の入れ物（チャンネル／フィード）と、記事 1 件（item／entry）の 2 段構えなのは同じ。</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="xml-rss">RSS 2.0</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="xml-atom">Atom 1.0</button>
+  </div>
+  <div class="panel" id="xml-rss">
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"&gt;
+  &lt;channel&gt;
+    &lt;title&gt;Example Blog&lt;/title&gt;
+    &lt;link&gt;https://example.com/&lt;/link&gt;
+    &lt;description&gt;技術メモ&lt;/description&gt;
+    &lt;atom:link rel="self" type="application/rss+xml"
+               href="https://example.com/feed.xml"/&gt;
+    &lt;item&gt;
+      &lt;title&gt;RSS を書いてみた&lt;/title&gt;
+      &lt;link&gt;https://example.com/posts/rss&lt;/link&gt;
+      &lt;guid isPermaLink="true"&gt;https://example.com/posts/rss&lt;/guid&gt;
+      &lt;pubDate&gt;Mon, 23 Nov 2026 09:00:00 +0900&lt;/pubDate&gt;
+      &lt;description&gt;&lt;![CDATA[&lt;p&gt;本文の要約&lt;/p&gt;]]&gt;&lt;/description&gt;
+    &lt;/item&gt;
+  &lt;/channel&gt;
+&lt;/rss&gt;</code></pre>
+    <ul class="plain">
+      <li>チャンネルの必須は <code>title</code>・<code>link</code>・<code>description</code> の 3 つ。item は <code>title</code> か <code>description</code> のどちらかがあればよい。</li>
+      <li>日付は RFC 822 形式（<code>Mon, 23 Nov 2026 …</code>）。</li>
+      <li>本文が HTML なのかプレーンテキストなのかを示す決まりがない。実際には HTML として扱われることが多い。</li>
+      <li>フィード自身の URL を書く要素がないので、Atom の名前空間を借りて <code>atom:link rel="self"</code> を書くのが定番。</li>
+    </ul>
+  </div>
+  <div class="panel" id="xml-atom" hidden>
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;feed xmlns="http://www.w3.org/2005/Atom"&gt;
+  &lt;title&gt;Example Blog&lt;/title&gt;
+  &lt;id&gt;https://example.com/&lt;/id&gt;
+  &lt;updated&gt;2026-11-23T09:00:00+09:00&lt;/updated&gt;
+  &lt;author&gt;&lt;name&gt;Taro&lt;/name&gt;&lt;/author&gt;
+  &lt;link rel="self" href="https://example.com/atom.xml"/&gt;
+  &lt;link rel="alternate" href="https://example.com/"/&gt;
+  &lt;entry&gt;
+    &lt;title&gt;Atom を書いてみた&lt;/title&gt;
+    &lt;id&gt;tag:example.com,2026:posts/atom&lt;/id&gt;
+    &lt;updated&gt;2026-11-23T09:00:00+09:00&lt;/updated&gt;
+    &lt;link rel="alternate" href="https://example.com/posts/atom"/&gt;
+    &lt;summary type="text"&gt;本文の要約&lt;/summary&gt;
+    &lt;content type="html"&gt;&amp;lt;p&amp;gt;本文&amp;lt;/p&amp;gt;&lt;/content&gt;
+  &lt;/entry&gt;
+&lt;/feed&gt;</code></pre>
+    <ul class="plain">
+      <li>フィードと entry の両方で <code>id</code>・<code>title</code>・<code>updated</code> が必須。著者（<code>author</code>）はフィードか、すべての entry のどちらかに要る。</li>
+      <li>日付は RFC 3339 形式（<code>2026-11-23T09:00:00+09:00</code>）。</li>
+      <li>本文の種類を <code>type</code> 属性（<code>text</code>・<code>html</code>・<code>xhtml</code>）で明示する。</li>
+      <li><code>link</code> は <code>rel</code> で役割を分ける（<code>alternate</code> は記事の HTML、<code>self</code> はフィード自身）。</li>
+    </ul>
+  </div>
+
+  <h3>要素の対応表</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>意味</th><th>RSS 2.0</th><th>Atom 1.0</th></tr></thead>
+      <tbody>
+        <tr><td>入れ物 / 1 件</td><td><code>channel</code> / <code>item</code></td><td><code>feed</code> / <code>entry</code></td></tr>
+        <tr><td>一意な ID</td><td><code>guid</code>（任意）</td><td><code>id</code>（必須・IRI）</td></tr>
+        <tr><td>記事の URL</td><td><code>link</code></td><td><code>link rel="alternate"</code></td></tr>
+        <tr><td>日時</td><td><code>pubDate</code>（公開日・任意）</td><td><code>updated</code>（必須）・<code>published</code>（任意）</td></tr>
+        <tr><td>要約 / 本文</td><td><code>description</code>（本文は拡張の <code>content:encoded</code>）</td><td><code>summary</code> / <code>content</code></td></tr>
+        <tr><td>添付ファイル</td><td><code>enclosure</code>（仕様に上限はないが、1 件に 1 つが推奨）</td><td><code>link rel="enclosure"</code>（複数可）</td></tr>
+        <tr><td>MIME タイプ</td><td><code>application/rss+xml</code>（慣習）</td><td><code>application/atom+xml</code>（IANA 登録）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="choose">どちらを選ぶか</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>Atom を選ぶ場面</h3>
+      <ul class="plain">
+        <li>新しくブログやサービスのフィードを作る</li>
+        <li>本文が HTML かテキストかを、読む側に誤解なく伝えたい</li>
+        <li>記事の更新日時を正しく伝えたい（<code>updated</code> が必須）</li>
+        <li>IETF の標準として仕様に従いたい</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>RSS 2.0 を選ぶ場面</h3>
+      <ul class="plain">
+        <li>Podcast を配信する（Apple Podcasts などは RSS 2.0 と <code>enclosure</code> が前提）</li>
+        <li>連携先のサービスが RSS しか受け付けない</li>
+        <li>既存の RSS フィードがあり、URL や形式を変えて購読者を失いたくない</li>
+      </ul>
+    </div>
+  </div>
+  <p class="note">主要なフィードリーダーは両方を読めるので、一般の読者向けならどちらでも届く。両方出すなら中身をそろえる。下の自動検出に載せるのは 1 形式だけにするのが望ましく、複数書くなら主に読んでほしいフィードを先に書く（RSS Advisory Board の自動検出仕様の推奨）。</p>
+
+  <h2 id="discovery">フィードの見つけ方（自動検出）</h2>
+  <p>読む人がフィードの URL を知らなくても、サイトの URL をリーダーに入れれば見つかるように、HTML の <code>&lt;head&gt;</code> に案内を書く。</p>
+<pre><code>&lt;link rel="alternate" type="application/atom+xml"
+      title="Example Blog" href="/atom.xml"&gt;</code></pre>
+  <p>リーダーは HTML を取得して <code>rel="alternate"</code> かつフィードの <code>type</code> を持つ <code>link</code> を探す。見つからなければ <code>/feed</code>・<code>/rss.xml</code> などのよくあるパスを試すリーダーもある。</p>
+
+  <h2 id="pitfalls">実装でつまずく点</h2>
+  <ol class="steps">
+    <li><b>ID を変えない</b>ID（<code>guid</code>・<code>id</code>）はその記事の名前。ドメイン移転や URL 設計の変更で ID が変わると、全記事が新着として出直す。URL とは別に、変えない ID を持たせると安全（Atom の <code>tag:</code> URI など）。</li>
+    <li><b>相対 URL を使わない</b>フィードは元のページから切り離されて読まれる。本文中の <code>&lt;img src="/a.png"&gt;</code> は壊れやすいので、絶対 URL にして出す。</li>
+    <li><b>日付の形式とタイムゾーン</b>RSS は RFC 822、Atom は RFC 3339 と形式が違う。タイムゾーンを省くと 9 時間ずれた新着順になる。生成時に必ずオフセットを付ける。</li>
+    <li><b>HTML のエスケープ</b>本文の HTML は <code>&amp;lt;</code> にエスケープするか CDATA で包む。<code>&amp;nbsp;</code> のような HTML 固有の実体参照は XML では未定義でエラーになる。</li>
+    <li><b>件数を絞り、キャッシュを効かせる</b>全記事を毎回出さず最新 10〜50 件にし、<code>ETag</code>・<code>Last-Modified</code> を返す。多くのリーダーに頻繁に取られるので、304 で返せるかが負荷を大きく左右する。</li>
+    <li><b>読む側では無害化する</b>フィードの HTML は他人が書いたもの。リーダーやアグリゲーターを作るときは、表示前に <code>script</code> やイベント属性を除く（XSS 対策）。</li>
+  </ol>
+  <p>出したフィードは W3C Feed Validation Service で検証でき、上の多くの誤りを指摘してくれる。</p>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>RSS は廃れた技術で、もう誰も使っていない</summary><p>個人向けのリーダー市場は縮んだが、Podcast の配信、ニュースやブログの連携、GitHub のリリース通知、検索エンジンや自動化ツールへの更新の受け渡しなど、裏側では今も広く使われている。</p></details>
+  <details class="myth"><summary>Atom は RSS の新しいバージョンだ</summary><p>Atom は RSS とは別の仕様で、RSS 2.0 のあいまいさを避けるために 2003 年に有志のコミュニティが一から設計し、のちに IETF で RFC 4287（2005 年）として標準化された。要素名も日付の形式も違い、互換ではない。</p></details>
+  <details class="myth"><summary>フィードを置けば、更新は読者にすぐ届く</summary><p>基本はリーダーが定期的に取りに来るポーリングなので、届くまでにリーダーの取得間隔ぶんの遅れがある。すぐ届けたいなら WebSub に対応する。</p></details>
+  <details class="myth"><summary>RSS の guid には記事の URL を入れなければならない</summary><p><code>guid</code> は一意であればよい。URL でない値を入れるときは <code>isPermaLink="false"</code> を付ける（省略すると URL として扱われる）。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="http-cache.html">HTTP キャッシュ</a> — フィードの条件付き GET（ETag・304）の仕組み</li>
+    <li><a href="web-vulnerabilities.html">実装起因の脆弱性（入力の扱い）</a> — フィードの HTML を表示するときの XSS 対策</li>
+    <li><a href="realtime-comm.html">リアルタイム通信</a> — ポーリングとプッシュの使い分け</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://www.rssboard.org/rss-specification">RSS 2.0 Specification</a>（RSS Advisory Board）</li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc4287">RFC 4287: The Atom Syndication Format</a></li>
+    <li><a href="https://www.w3.org/TR/websub/">WebSub</a>（W3C Recommendation）</li>
+    <li><a href="https://www.jsonfeed.org/version/1.1/">JSON Feed Version 1.1</a></li>
+    <li><a href="https://validator.w3.org/feed/">W3C Feed Validation Service</a></li>
+  </ul>
+
+  <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->
+<link rel="stylesheet" href="assets/memo-quiz.css">
+<section id="memo-quiz-ui" hidden aria-labelledby="memo-quiz-title">
+<h2 id="memo-quiz-title">確認クイズ <small></small></h2>
+<div class="mq-list"></div>
+<div class="mq-result" hidden aria-live="polite"></div>
+<button type="button" class="mq-reset">やり直す</button>
+</section>
+<script src="assets/memo-quiz.js" defer></script>
+<!-- /memo:quiz -->
+<footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "ブログのドメインを移転したら、購読者のフィードリーダーに過去の記事が全部「新着」として出てしまった。最も考えられる原因は？",
+    "choices": ["フィードに載せる件数を移転前より増やしてしまった", "各記事の ID（guid / id）が新しいドメインの URL に変わった", "移転後のサーバーが Last-Modified ヘッダーを返していない", "移転に合わせて形式を Atom から RSS 2.0 に変えた"],
+    "answer": 1,
+    "explain": "リーダーは ID で既読かどうかを判定するため、ID が変わると別の記事とみなされる。URL と切り離した変わらない ID を持たせておくと防げる。",
+    "ref": "#pitfalls"
+  },
+  {
+    "q": "フィードへのアクセスが多くサーバー負荷が高い。中身が変わっていないときの転送をほぼなくすには？",
+    "choices": ["フィードを JSON Feed に変える", "item の description を短くする", "ETag / Last-Modified を返し、条件付き GET に 304 で応える", "HTML の head に link rel=\"alternate\" を書く"],
+    "answer": 2,
+    "explain": "リーダーは前回の ETag・Last-Modified を付けて取得するので、変化がなければ本文なしの 304 で済む。",
+    "ref": "#flow"
+  },
+  {
+    "q": "新しく Podcast を配信したい。フィードの形式はどれを選ぶ？",
+    "choices": ["RSS 2.0（enclosure で音声ファイルを指す）", "Atom 1.0（link rel=\"enclosure\"）", "RSS 1.0", "どれでも同じように扱われる"],
+    "answer": 0,
+    "explain": "Podcast の配信先は RSS 2.0 と enclosure を前提にしているため、Podcast では RSS 2.0 を使う。",
+    "ref": "#choose"
+  },
+  {
+    "q": "フィードの本文に <img src=\"/img/a.png\"> を入れたら、リーダーで画像が表示されない。直し方は？",
+    "choices": ["本文の HTML 全体を CDATA で包んでエスケープをやめる", "content の type を html から xhtml に変える", "フィードの MIME タイプを application/xml に変える", "画像の URL を https://example.com/img/a.png の形の絶対 URL にする"],
+    "answer": 3,
+    "explain": "フィードは元のページから切り離されて読まれるため、相対 URL はリーダー側で正しく解決されないことがある。",
+    "ref": "#pitfalls"
+  },
+  {
+    "q": "記事の公開から数秒で購読者に更新を届けたい。フィード側で対応するものは？",
+    "choices": ["フィードに載せる件数を最新の 1 件だけに絞っておく", "link rel=\"hub\" でハブを示し、公開時にハブへ通知する", "ETag を返して条件付き GET に 304 で応えられるようにする", "自動検出用の link rel=\"alternate\" を全ページに書く"],
+    "answer": 1,
+    "explain": "通常のポーリングでは取得間隔ぶん遅れる。WebSub ならハブが購読者に POST で届ける。",
+    "ref": "#flow"
+  }
+]
+</script>
+</body>
+</html>

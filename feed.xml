@@ -5,9 +5,20 @@
   <id>https://memo.taka1156.site/</id>
   <link rel="alternate" type="text/html" href="https://memo.taka1156.site/"/>
   <link rel="self" type="application/atom+xml" href="https://memo.taka1156.site/feed.xml"/>
-  <updated>2026-11-22T00:00:00+09:00</updated>
+  <updated>2026-11-23T00:00:00+09:00</updated>
   <author><name>MEMO</name></author>
   <icon>https://memo.taka1156.site/assets/icon-192.png</icon>
+  <entry>
+    <title>RSS と Atom</title>
+    <id>https://memo.taka1156.site/rss-atom.html</id>
+    <link rel="alternate" type="text/html" href="https://memo.taka1156.site/rss-atom.html"/>
+    <published>2026-11-23T00:00:00+09:00</published>
+    <updated>2026-11-23T00:00:00+09:00</updated>
+    <summary>RSS と Atom のフィードの仕組み、XML の書き方の違い、配信と取得の流れ、実装でつまずく点がわかる</summary>
+    <category term="フロントエンド"/>
+    <category term="バックエンド"/>
+    <category term="ネットワーク"/>
+  </entry>
   <entry>
     <title>コントロールプレーンが止まったら</title>
     <id>https://memo.taka1156.site/static-stability.html</id>
@@ -504,16 +515,5 @@
     <category term="インフラ"/>
     <category term="バックエンド"/>
     <category term="開発ツール"/>
-  </entry>
-  <entry>
-    <title>メッセージキューと Pub/Sub</title>
-    <id>https://memo.taka1156.site/message-queues.html</id>
-    <link rel="alternate" type="text/html" href="https://memo.taka1156.site/message-queues.html"/>
-    <published>2026-11-06T00:00:00+09:00</published>
-    <updated>2026-11-06T00:00:00+09:00</updated>
-    <summary>キュー・Pub/Sub・ログ型（Kafka）の違い、ack と再配信・DLQ・順序・Outbox パターンを、SQS・Cloudflare Queues・Kafka の比較で整理する</summary>
-    <category term="設計"/>
-    <category term="インフラ"/>
-    <category term="バックエンド"/>
   </entry>
 </feed>
