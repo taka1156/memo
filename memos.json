@@ -1235,17 +1235,6 @@
   "quizzes": 5
  },
  {
-  "file": "vue-vs-svelte.html",
-  "title": "Vue と Svelte",
-  "desc": "Vue の Proxy リアクティブと仮想 DOM、Vapor Mode、Svelte のコンパイラと runes を、コンパイル結果と依存追跡のデモで比較。",
-  "tags": [
-   "JavaScript",
-   "フロントエンド"
-  ],
-  "date": "2026-11-02",
-  "quizzes": 5
- },
- {
   "file": "tsrs-vs-tsgo.html",
   "title": "tsrs と tsgo の比較",
   "desc": "TypeScript のネイティブ実装 tsgo（Go）と tsrs（Rust）の仕組み・性能・使い分けを図で比較。",
@@ -1260,17 +1249,6 @@
   "file": "reactivity-models.html",
   "title": "UI 更新の3つの方式",
   "desc": "仮想 DOM・シグナル・コンパイラという UI フレームワークの更新方式を、同じ操作で何が再実行されるかで比較し、React・Vue・Solid・Svelte を地図に配置。",
-  "tags": [
-   "JavaScript",
-   "フロントエンド"
-  ],
-  "date": "2026-11-02",
-  "quizzes": 5
- },
- {
-  "file": "react-vs-solid.html",
-  "title": "React と Solid",
-  "desc": "見た目はそっくりな JSX で、中身は正反対。React の再レンダーと Fiber、Solid のシグナルとコンパイル結果を、同じカウンターで比較。",
   "tags": [
    "JavaScript",
    "フロントエンド"

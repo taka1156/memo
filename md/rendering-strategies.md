@@ -152,7 +152,6 @@ Server Components はサーバー専用の部品をハイドレーションの�
 
 ## 関連メモ
 
-- [React と Solid](https://memo.taka1156.site/md/react-vs-solid.md) — ハイドレーション後に動く更新方式（再レンダーとシグナル）の違い
 - [Core Web Vitals](https://memo.taka1156.site/md/web-performance.md) — LCP・INP で戦略を比べる
 - [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) — SSG・ISR を支える HTTP キャッシュ
 - [PWA の仕組みとチェックリスト](https://memo.taka1156.site/md/pwa.md) — Service Worker でのキャッシュ
