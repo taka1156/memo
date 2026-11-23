@@ -254,6 +254,7 @@ DB
 - [アジャイルとスクラムの仕組み](https://memo.taka1156.site/md/agile-scrum.md) — バックログを扱うイベント（プランニング・レビュー）と、プロダクトオーナーの責任
 - [カンバンとチケット駆動開発](https://memo.taka1156.site/md/kanban-ticket.md) — ここで作った項目を、チケットとしてボードで流す方法
 - [ふりかえりの進め方と手法](https://memo.taka1156.site/md/retrospectives.md) — 「受け入れ条件が曖昧だった」などの問題を次のスプリントに活かす場
+- [Spec Kit の流れと役割](https://memo.taka1156.site/md/spec-kit.md) — ユーザーストーリーと受け入れ条件を、AI に渡す仕様の入口として使う例
 
 ## 参考
 

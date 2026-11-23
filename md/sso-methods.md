@@ -297,6 +297,7 @@ Cookie はドメインをまたいで共有できないので、アプリ同士�
 - [SAML 2.0](https://memo.taka1156.site/md/saml.md) — フェデレーション方式の流れと、アプリが検証すること
 - [OAuth 2.0 / OIDC のフロー](https://memo.taka1156.site/md/oauth-oidc.md) — フェデレーションの OIDC の流れ。IAP などのプロキシも裏で使う
 - [ロードバランサ・リバースプロキシ・CDN](https://memo.taka1156.site/md/lb-proxy-cdn.md) — リバースプロキシそのものの役割
+- [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) — リバースプロキシ方式の例としての Cloudflare Access
 - [JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) — SSO のあと各アプリが持つセッションと、署名付きヘッダーの検証
 - [シークレット管理](https://memo.taka1156.site/md/secrets-management.md) — 代理認証・透過型で保管するパスワードの守り方
 

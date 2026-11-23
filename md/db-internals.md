@@ -229,6 +229,8 @@ CLOUDFLARE D1 の場合
 - Workers から SQL を投げるサーバーレス DB で、中身は SQLite。 **1つの DB はシングルスレッドで、最大 10GB（Workers Paid。無料プランは 500MB）** 。大きくするより DB を分けて増やす（Workers Paid ではアカウントあたり最大 100 万 DB）。
 - 読み取りレプリカ（ベータ）や、直近 30 日（無料プランは 7 日）の任意の時点に戻せる Time Travel をサービス側が用意している。
 
+Hyperdrive＋PlanetScale（Postgres / MySQL）との比較は [D1 と Hyperdrive＋PlanetScale](https://memo.taka1156.site/md/cloudflare-databases.md) にまとめた。
+
 TURSO（libSQL）の場合
 
 - SQLite フォークの libSQL をサーバーとして動かし、HTTP・WebSocket 越しに提供する。

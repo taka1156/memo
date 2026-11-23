@@ -192,5 +192,6 @@ LV 3 **マルチエージェント** エージェントが別のエージェン�
 - [LLM の仕組み](https://memo.taka1156.site/md/llm-basics.md) — トークン・コンテキスト・ツール呼び出しの土台
 - [MCP の仕組み](https://memo.taka1156.site/md/mcp.md) — エージェントに外部ツールを渡す標準の通信
 - [CLAUDE.md / AGENTS.md / Skills](https://memo.taka1156.site/md/agent-instructions.md) — エージェントへの指示ファイルと Skills の置き場所
+- [Spec Kit の流れと役割](https://memo.taka1156.site/md/spec-kit.md) — 仕様から実装まで AI と分担する開発の流れ
 - [RAG とベクトル検索](https://memo.taka1156.site/md/rag-vector-search.md) — エージェントが資料を探す検索側の仕組み
 - [オブザーバビリティと OpenTelemetry](https://memo.taka1156.site/md/observability.md) — エージェントの動きをトレースで追う方法

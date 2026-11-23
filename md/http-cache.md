@@ -157,6 +157,7 @@ curl -sI https://example.com/ -H 'If-None-Match: "v42"'   # 304 が返るか
 
 ## 関連メモ
 
+- [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) — DNS のプロキシ経由で CDN を通す Cloudflare の例
 - [PWA の仕組みとチェックリスト](https://memo.taka1156.site/md/pwa.md) — Service Worker で自前のキャッシュを持つ
 - [CORS と同一オリジンポリシー](https://memo.taka1156.site/md/cors-sop.md) — Vary と CORS のヘッダーが絡む場面
 - [Vite ツールチェーン図解](https://memo.taka1156.site/md/vite-toolchain.md) — 本番用の dist/ を出力するビルドツールの構成

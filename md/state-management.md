@@ -223,6 +223,7 @@ const total = items.reduce((s, i) => s + i.price, 0);   // 描画のたびに計
 ## 関連メモ
 
 - [UI 更新の3つの方式](https://memo.taka1156.site/md/reactivity-models.md) — 値が変わったあと画面をどう描き直すか（仮想 DOM・シグナル・コンパイラ）
+- [React と Solid](https://memo.taka1156.site/md/react-vs-solid.md) ・ [Vue と Svelte](https://memo.taka1156.site/md/vue-vs-svelte.md) — 各フレームワークの状態の持ち方
 - [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) — stale-while-revalidate の元の考え方
 - [キャッシュ戦略](https://memo.taka1156.site/md/cache-strategies.md) — 更新したら無効化する、というキャッシュの基本
 - [レンダリング戦略](https://memo.taka1156.site/md/rendering-strategies.md) — サーバー側でデータを取って描く構成

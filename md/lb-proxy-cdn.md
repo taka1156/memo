@@ -84,7 +84,7 @@ CDN
 - キャッシュしない応答も、TLS をユーザーの近くで張り、オリジンまでは混んでいない経路・張りっぱなしの接続で運ぶので速くなる
 - DDoS の吸収・WAF・ボット対策・画像変換など、入口でやると得な処理が集まっている
 
-例: Cloudflare、Amazon CloudFront、Fastly、Akamai。
+例: Cloudflare、Amazon CloudFront、Fastly、Akamai。Cloudflare の範囲は [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) 。
 
 （元のページで操作できます → https://memo.taka1156.site/lb-proxy-cdn.html#roles）
 
@@ -257,4 +257,5 @@ server {
 - [HTTP/1.1・2・3 と TLS・DNS](https://memo.taka1156.site/md/web-protocols.md) — TLS ハンドシェイクと HTTP/2・3 の違い
 - [HTTP キャッシュ](https://memo.taka1156.site/md/http-cache.md) — CDN がキャッシュを判断するヘッダー
 - [リアルタイム通信](https://memo.taka1156.site/md/realtime-comm.md) — つなぎっぱなしの接続とアイドルタイムアウト
+- [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) — CDN とエッジの実例
 - [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) — リトライと冪等性

@@ -175,7 +175,7 @@ export class Counter extends DurableObject {
 
 **落とし穴：** ゲートが守るのはストレージ操作の待ち時間だけ。途中で外部 API を `await fetch()` すると、その間に別のリクエストが割り込める。外部呼び出しをまたいで状態を読み書きするなら、呼び出しの前後で状態を確認し直すか、ストレージのトランザクションにまとめる。
 
-どこで使うかは [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) （整合性の比較）。
+どこで使うかは [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) （整合性の比較）と [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) 。
 
 ## どれを選ぶか
 

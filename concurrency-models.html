@@ -372,7 +372,7 @@ result := &lt;-ch                      <span class="cm">// チャネルで受け
   }
 }</code></pre>
   <p class="note"><b>落とし穴：</b>ゲートが守るのはストレージ操作の待ち時間だけ。途中で外部 API を <code>await fetch()</code> すると、その間に別のリクエストが割り込める。外部呼び出しをまたいで状態を読み書きするなら、呼び出しの前後で状態を確認し直すか、ストレージのトランザクションにまとめる。</p>
-  <p>どこで使うかは <a href="distributed-basics.html#cloudflare">分散システムの基本</a>（整合性の比較）。</p>
+  <p>どこで使うかは <a href="distributed-basics.html#cloudflare">分散システムの基本</a>（整合性の比較）と <a href="cloudflare-services.html">Cloudflare サービス</a>。</p>
 
   <h2 id="choose">どれを選ぶか</h2>
   <div class="table-wrap"><table class="tbl">

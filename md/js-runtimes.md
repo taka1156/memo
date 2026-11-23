@@ -182,6 +182,8 @@ JS を実行するのは1スレッドだが、ファイル I/O や DNS などは
 
 状態はバインディングで扱う： **KV** （読み込み中心のキーバリュー）、 **R2** （オブジェクトストレージ）、 **D1** （SQLite ベースの DB）、 **Durable Objects** （1つの場所で状態を持ち続けるオブジェクト）。グローバル変数は同じ isolate が再利用されれば残るが、残る保証はない。
 
+[Cloudflare サービスのメモ](https://memo.taka1156.site/md/cloudflare-services.md) も参照。
+
 ## どれを選ぶか
 
 Node.js
@@ -220,4 +222,5 @@ Workers
 
 ## 関連メモ
 
+- [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) — Workers と組み合わせるサービス
 - [Vite ツールチェーン図解](https://memo.taka1156.site/md/vite-toolchain.md) — JS をビルドする側の道具

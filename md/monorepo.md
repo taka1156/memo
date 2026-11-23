@@ -159,6 +159,7 @@ pnpm --filter "...[origin/main]" test   # 先頭の ... = そのパッケージ�
 - [パッケージマネージャとロックファイル](https://memo.taka1156.site/md/package-managers.md) — ワークスペース全体で 1 つになるロックファイルと依存の解決
 - [CI/CD と GitHub Actions](https://memo.taka1156.site/md/ci-cd.md) — 影響範囲だけを動かすジョブとキャッシュの置き場
 - [グラフ探索と最短経路](https://memo.taka1156.site/md/graph-algorithms.md) — タスクの順番はトポロジカルソート、影響範囲は逆向きの探索
+- [GitHub サービス](https://memo.taka1156.site/md/github-services.md) — CODEOWNERS とブランチ保護
 
 ## 参考
 

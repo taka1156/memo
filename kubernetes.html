@@ -224,7 +224,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
     </ul>
   </div>
 
-  <p class="note">前提: コンテナそのものの仕組みは <a href="docker.html">Docker 動作原理</a>。Kubernetes はそのコンテナを「複数台のマシンで、止まらないように」動かすための仕組み。</p>
+  <p class="note">前提: コンテナそのものの仕組みは <a href="docker.html">Docker 動作原理</a>、イメージの作り方は <a href="docker-files.html">Dockerfile と Compose</a>。Kubernetes はそのコンテナを「複数台のマシンで、止まらないように」動かすための仕組み。</p>
 
   <h2 id="why">Docker Compose との違い</h2>
   <div class="table-wrap">
@@ -425,6 +425,7 @@ kubectl diff -f web.yaml                   <span class="cm"># 適用したら何
     <li><a href="ci-cd.html">CI/CD と GitHub Actions</a> — マニフェストを適用するまでのパイプライン</li>
     <li><a href="observability.html">オブザーバビリティと OpenTelemetry</a> — クラスタの中を追うログ・メトリクス・トレース</li>
     <li><a href="distributed-basics.html">分散システムの基本</a> — レプリカと整合性の前提</li>
+    <li><a href="opentofu.html">OpenTofu 概念図</a> — クラスタそのものをコードで作る</li>
   </ul>
 
   <!-- memo:quiz（scripts/memo.py が自動生成。手で編集しない） -->

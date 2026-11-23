@@ -117,7 +117,7 @@ EVENTUAL
 | D1（読み取りレプリカ・ベータ） | Sessions API の ブックマーク を引き継ぐと、自分の書き込みが次の読み取りで見える（逐次整合性） | 読み取りを世界中で速くしつつ、ユーザー単位の一貫性は保ちたいとき |
 | Durable Objects | 1 オブジェクト＝1 か所で処理するので強い整合性 | 在庫・座席・チャットルームなど、同時更新を正しく捌きたいもの |
 
-KV で在庫数を管理すると、書き込みが各地に届くまでの間に売り越しが起き得る、という具合に **整合性モデルの選択がそのままバグになる** 。
+詳しくは [D1 と Hyperdrive＋PlanetScale](https://memo.taka1156.site/md/cloudflare-databases.md) 、 [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) 。KV で在庫数を管理すると、書き込みが各地に届くまでの間に売り越しが起き得る、という具合に **整合性モデルの選択がそのままバグになる** 。
 
 ## 冪等性 (idempotency)
 

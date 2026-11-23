@@ -123,7 +123,7 @@ RRF(文書) = Σ  1 / (k + その検索での順位)     // k は 60 がよく�
 | 既存 DB の拡張 | PostgreSQL ＋ pgvector（HNSW・IVFFlat） | 本文・権限・メタデータと同じ DB で JOIN・トランザクションしたいとき |
 | 検索エンジン | Elasticsearch・OpenSearch | キーワード検索とベクトル検索を 1 つで（ハイブリッド） |
 | ベクトル DB | Qdrant・Milvus・Weaviate・Pinecone など | 件数が非常に多い・ベクトル検索の機能を細かく使いたい |
-| エッジ | Cloudflare Vectorize | Workers から使う |
+| エッジ | Cloudflare Vectorize | Workers から使う（ [Cloudflare サービス](https://memo.taka1156.site/md/cloudflare-services.md) ） |
 
 ### メタデータと権限のフィルタ
 

@@ -309,6 +309,7 @@ Kanban Guide は、最低限見る指標として次の 4 つを挙げていま�
 
 ## 関連メモ
 
+- [GitHub サービス](https://memo.taka1156.site/md/github-services.md) — Issues・Projects・PR をどう組み合わせてボードにするか
 - [CI/CD と GitHub Actions](https://memo.taka1156.site/md/ci-cd.md) — 「レビューへ動かすのは CI が通ってから」を仕組みで強制する
 - [Git の内部構造](https://memo.taka1156.site/md/git-internals.md) — チケット番号を書き込むコミットとブランチの実体
 - [テスト戦略](https://memo.taka1156.site/md/testing-strategy.md) — 完了条件をテストで確かめられる形にする

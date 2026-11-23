@@ -207,6 +207,7 @@ CI の設定の具体例は [CI/CD と GitHub Actions](https://memo.taka1156.sit
 
 - [CI/CD と GitHub Actions](https://memo.taka1156.site/md/ci-cd.md) — Secrets・Environments の使い方と、OIDC でクラウドに入る設定
 - [Kubernetes の全体像](https://memo.taka1156.site/md/kubernetes.md) — Secret の正体と、RBAC・etcd 暗号化
+- [GitHub サービス](https://memo.taka1156.site/md/github-services.md) — シークレットスキャンとプッシュ保護
 - [暗号の基礎](https://memo.taka1156.site/md/crypto-basics.md) — エンベロープ暗号化の土台になる共通鍵暗号と鍵の扱い
 - [JWT とセッション](https://memo.taka1156.site/md/jwt-vs-session.md) — 署名鍵を替えるときの kid の使い方
 - [Git の内部構造](https://memo.taka1156.site/md/git-internals.md) — 消したはずのファイルが履歴に残る理由

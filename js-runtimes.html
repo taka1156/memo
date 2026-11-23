@@ -378,6 +378,7 @@ createServer((req, res) =&gt; {
   <div class="panel card" id="f3" hidden>
     <p><b>エッジで動く軽量ランタイム</b>。デプロイすると世界中の拠点に配られ、ユーザーに近い場所で応答する。</p>
     <p>状態はバインディングで扱う：<b>KV</b>（読み込み中心のキーバリュー）、<b>R2</b>（オブジェクトストレージ）、<b>D1</b>（SQLite ベースの DB）、<b>Durable Objects</b>（1つの場所で状態を持ち続けるオブジェクト）。グローバル変数は同じ isolate が再利用されれば残るが、残る保証はない。</p>
+    <p class="note"><a href="cloudflare-services.html">Cloudflare サービスのメモ</a>も参照。</p>
   </div>
 
   <h2 id="choose">どれを選ぶか</h2>
@@ -416,6 +417,7 @@ createServer((req, res) =&gt; {
 
   <h2 id="related">関連メモ</h2>
   <ul class="related">
+    <li><a href="cloudflare-services.html">Cloudflare サービス</a> — Workers と組み合わせるサービス</li>
     <li><a href="vite-toolchain.html">Vite ツールチェーン図解</a> — JS をビルドする側の道具</li>
   </ul>
 

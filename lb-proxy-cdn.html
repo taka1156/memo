@@ -270,7 +270,7 @@ th { background: var(--chip); font-weight: 700; white-space: nowrap; }
       <li>キャッシュしない応答も、TLS をユーザーの近くで張り、オリジンまでは混んでいない経路・張りっぱなしの接続で運ぶので速くなる</li>
       <li>DDoS の吸収・WAF・ボット対策・画像変換など、入口でやると得な処理が集まっている</li>
     </ul>
-    <p class="note">例: Cloudflare、Amazon CloudFront、Fastly、Akamai。</p>
+    <p class="note">例: Cloudflare、Amazon CloudFront、Fastly、Akamai。Cloudflare の範囲は <a href="cloudflare-services.html">Cloudflare サービス</a>。</p>
   </div>
 
   <h3>同じソフトが兼ねる範囲</h3>
@@ -416,6 +416,7 @@ server {
     <li><a href="web-protocols.html">HTTP/1.1・2・3 と TLS・DNS</a> — TLS ハンドシェイクと HTTP/2・3 の違い</li>
     <li><a href="http-cache.html">HTTP キャッシュ</a> — CDN がキャッシュを判断するヘッダー</li>
     <li><a href="realtime-comm.html">リアルタイム通信</a> — つなぎっぱなしの接続とアイドルタイムアウト</li>
+    <li><a href="cloudflare-services.html">Cloudflare サービス</a> — CDN とエッジの実例</li>
     <li><a href="distributed-basics.html">分散システムの基本</a> — リトライと冪等性</li>
   </ul>
 

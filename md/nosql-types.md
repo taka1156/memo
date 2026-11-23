@@ -162,6 +162,7 @@ user:u1 → {"name":"佐藤"} user:u1:orders → ["o1","o2"] order:o1 → {"tota
 - [DB のしくみ](https://memo.taka1156.site/md/db-internals.md) — RDB の中身（比べる相手）
 - [インデックスとトランザクション](https://memo.taka1156.site/md/db-index-transaction.md) — RDB のインデックスとトランザクション
 - [Redis と Valkey の仕組み](https://memo.taka1156.site/md/redis-valkey.md) — キーバリュー型の代表
+- [D1 と Hyperdrive＋PlanetScale](https://memo.taka1156.site/md/cloudflare-databases.md) — エッジから使う DB の選び方
 - [分散システムの基本](https://memo.taka1156.site/md/distributed-basics.md) — CAP と整合性モデル
 - [RAG とベクトル検索](https://memo.taka1156.site/md/rag-vector-search.md) — ベクトル検索という別の問い合わせ方
 - [データ構造と計算量の早見表](https://memo.taka1156.site/md/data-structures.md) — ハッシュ表・木など中で使う構造
