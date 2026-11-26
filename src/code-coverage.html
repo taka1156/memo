@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カバレッジ基準：C0・C1・C2・MC/DC・MCC の違い</title>
+<meta name="description" content="命令網羅（C0）・分岐網羅（C1）・条件網羅（C2）・MC/DC・複合条件網羅（MCC）の違いを、同じ if 文で必要なテストを比べながら理解し、単体テストの指標としての使い方がわかるページ">
+<meta name="memo:tags" content="テスト, 開発ツール, 設計">
+<meta name="memo:date" content="2026-11-27">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1c2230;
+  --fg-2: #5a6376;
+  --line: #dde1e8;
+  --accent: #0077b6; /* 実際の色は memo.config.json の branding で決まり、memo:head が上書きする */
+  --chip: #eceff4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0e14;
+    --surface: #111823;
+    --fg: #cdd9e5;
+    --fg-2: #7d8b9d;
+    --line: #1e2d3d;
+    --accent: #00d4ff;
+    --chip: #18222f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 40px 16px 72px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+h1 {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.subtitle { color: var(--fg-2); font-size: 0.85rem; margin: 4px 0 28px; }
+h2 {
+  font-size: 1.1rem;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+h3 { font-size: 0.95rem; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: max(0.85em, 0.68rem);
+  background: var(--chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+pre code { background: none; padding: 0; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+ul.plain { margin: 6px 0 6px 1.2em; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.78rem; color: var(--fg-2); font-weight: 600; }
+.crit table { min-width: 600px; }
+.tools table { min-width: 560px; }
+
+/* 真理値表：選んだ行だけ「注目」の色で塗る */
+.tt table { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.tt td, .tt th { text-align: center; padding: 6px 6px; }
+.tt tr.pick td { background: color-mix(in srgb, var(--c-hl) 16%, transparent); }
+.tt tr.pick td:first-child { box-shadow: inset 3px 0 0 var(--c-hl); }
+.count {
+  font: 700 0.95rem 'JetBrains Mono', ui-monospace, monospace;
+  margin-top: 10px;
+}
+
+/* 判定バッジ */
+.st {
+  display: inline-block;
+  font: 700 0.72rem/1.5 'Noto Sans JP', system-ui, sans-serif;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
+  white-space: nowrap;
+}
+.st.ok { color: var(--c-ok); }
+.st.ng { color: var(--c-ng); }
+
+/* 包含関係の図 */
+.fig { width: 100%; max-width: 480px; display: block; margin: 8px auto; }
+.fig .bx { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.fig text { fill: var(--fg); font-family: 'Noto Sans JP', system-ui, sans-serif; }
+.fig .sub { fill: var(--fg-2); }
+.fig .ar { stroke: var(--fg-2); stroke-width: 1.6; fill: none; }
+.fig .no { stroke: var(--c-warn); stroke-width: 2; stroke-dasharray: 5 4; fill: none; }
+.fig .ah { fill: var(--fg-2); }
+
+/* タブ */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--fg-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: 600 0.78rem 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.panel[hidden] { display: none; }
+
+footer#memo-backlink {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+footer#memo-backlink a {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--fg-2);
+  font: 600 12px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+footer#memo-backlink a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>カバレッジ基準：C0・C1・C2・MC/DC・MCC</h1>
+  <p class="subtitle">同じ if 文で、基準ごとにどのテストが何件要るかを比べる</p>
+
+  <div class="card summary">
+    <strong>ざっくり言うと</strong>
+    <ul>
+      <li>カバレッジ基準は「何を 1 回は通せば網羅したとみなすか」の決まりで、命令・分岐・条件・条件の組み合わせの順に細かくなる。</li>
+      <li>条件網羅（C2）は分岐網羅（C1）を含まない。両方を満たす判定条件網羅、各条件の効き目を示す MC/DC と強くなる。</li>
+      <li>単体テストでは分岐網羅を目安に未実行の所を読み、複雑な条件は MC/DC で考える。率の高さは正しさを保証しない。</li>
+    </ul>
+  </div>
+
+  <h2 id="overview">基準の一覧</h2>
+  <p>コードの構造を見てテストを選ぶ（ホワイトボックス）ときの物差しを、カバレッジ基準（coverage criteria）と呼ぶ。下の表は弱い順。右端の件数は、次の節の例（条件が 3 つある if 文 1 つ）で基準を満たすのに要る最少のテスト数。</p>
+  <div class="card table-wrap crit">
+    <table>
+      <thead><tr><th>呼び名</th><th>名前（英語）</th><th>1 回は通すもの</th><th>例での最少件数</th></tr></thead>
+      <tbody>
+        <tr><td><b>C0</b></td><td>命令網羅（statement coverage）</td><td>すべての命令（文）</td><td>1</td></tr>
+        <tr><td><b>C1</b></td><td>分岐網羅・判定網羅（branch / decision coverage）</td><td>すべての判定の真と偽</td><td>2</td></tr>
+        <tr><td><b>C2</b></td><td>条件網羅（condition coverage）</td><td>判定の中の個々の条件の真と偽</td><td>2</td></tr>
+        <tr><td>—</td><td>判定条件網羅（decision/condition coverage）</td><td>C1 と C2 の両方</td><td>2</td></tr>
+        <tr><td><b>MC/DC</b></td><td>改良条件判定網羅（modified condition/decision coverage）</td><td>C1・C2 に加え、各条件が単独で判定の結果を変えること</td><td>4</td></tr>
+        <tr><td><b>MCC</b></td><td>複合条件網羅（multiple condition coverage）</td><td>条件の真偽のすべての組み合わせ</td><td>8</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">「C2」が指すものは資料によって違い、条件網羅とする資料も、複合条件網羅（MCC）とする資料もある。話がずれやすいので、チームでは「条件網羅」「MC/DC」のように名前で呼ぶほうが安全。分岐網羅と判定網羅もほぼ同じ意味で使われるが、<code>switch</code> や例外の扱いなど細かい所で区別する資料もある。</p>
+
+  <h2 id="example">例：送料無料の判定</h2>
+  <p>会員で 5000 円以上買ったか、クーポンを持っていれば送料を無料にする関数。判定（decision）は if の式全体、条件（condition）はその中の <code>&amp;&amp;</code>・<code>||</code> でつながった 1 つ 1 つの式。</p>
+<pre><code>function shippingFee(isMember, total, hasCoupon) {
+  let fee = 500;
+  if ((isMember &amp;&amp; total &gt;= 5000) || hasCoupon) {  // 判定
+    fee = 0;
+  }
+  return fee;
+}
+// 条件 A: isMember   B: total &gt;= 5000   C: hasCoupon</code></pre>
+  <p>条件が 3 つなので、真偽の組み合わせは 2<sup>3</sup> = 8 通り。次の節では、この 8 行の表から基準ごとにテストを選ぶ。T は真、F は偽で、判定が真なら送料無料、偽なら 500 円。</p>
+
+  <h2 id="compare">基準ごとに選ぶテスト</h2>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="p-c0">C0</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-c1">C1</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-c2">C2</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-dc">C1+C2</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-mcdc">MC/DC</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="p-mcc">MCC</button>
+  </div>
+  <div class="legend"><span><i style="background:var(--c-hl)"></i>その基準を満たすために選んだテスト（一例）</span></div>
+
+  <div class="panel card" id="p-c0">
+<div class="table-wrap tt"><table><thead><tr><th>No</th><th>A</th><th>B</th><th>C</th><th>判定</th><th>選択</th></tr></thead><tbody>
+<tr><td>1</td><td>T</td><td>T</td><td>T</td><td>真</td><td>—</td></tr>
+<tr class="pick"><td>2</td><td>T</td><td>T</td><td>F</td><td>真</td><td><b>選ぶ</b></td></tr>
+<tr><td>3</td><td>T</td><td>F</td><td>T</td><td>真</td><td>—</td></tr>
+<tr><td>4</td><td>T</td><td>F</td><td>F</td><td>偽</td><td>—</td></tr>
+<tr><td>5</td><td>F</td><td>T</td><td>T</td><td>真</td><td>—</td></tr>
+<tr><td>6</td><td>F</td><td>T</td><td>F</td><td>偽</td><td>—</td></tr>
+<tr><td>7</td><td>F</td><td>F</td><td>T</td><td>真</td><td>—</td></tr>
+<tr><td>8</td><td>F</td><td>F</td><td>F</td><td>偽</td><td>—</td></tr>
+</tbody></table></div>
+    <p class="count">最少 1 件</p>
+    <p><code>fee = 0;</code> を通る行を 1 つ選べば、関数の文はすべて実行される。else がないので、<b>判定が偽になる場合（送料 500 円）は一度も試さなくても 100%</b> になる。</p>
+  </div>
+
+  <div class="panel card" id="p-c1" hidden>
+<div class="table-wrap tt"><table><thead><tr><th>No</th><th>A</th><th>B</th><th>C</th><th>判定</th><th>選択</th></tr></thead><tbody>
+<tr><td>1</td><td>T</td><td>T</td><td>T</td><td>真</td><td>—</td></tr>
+<tr class="pick"><td>2</td><td>T</td><td>T</td><td>F</td><td>真</td><td><b>選ぶ</b></td></tr>
+<tr><td>3</td><td>T</td><td>F</td><td>T</td><td>真</td><td>—</td></tr>
+<tr class="pick"><td>4</td><td>T</td><td>F</td><td>F</td><td>偽</td><td><b>選ぶ</b></td></tr>
+<tr><td>5</td><td>F</td><td>T</td><td>T</td><td>真</td><td>—</td></tr>
+<tr><td>6</td><td>F</td><td>T</td><td>F</td><td>偽</td><td>—</td></tr>
+<tr><td>7</td><td>F</td><td>F</td><td>T</td><td>真</td><td>—</td></tr>
+<tr><td>8</td><td>F</td><td>F</td><td>F</td><td>偽</td><td>—</td></tr>
+</tbody></table></div>
+    <p class="count">最少 2 件</p>
+    <p>判定が真の行と偽の行を 1 つずつ。C0 で抜けていた「送料がかかる場合」が入る。ただし No.2 と No.4 ではクーポン（C）は常に F なので、クーポンが効くかは確かめていない。</p>
+  </div>
+
+  <div class="panel card" id="p-c2" hidden>
+<div class="table-wrap tt"><table><thead><tr><th>No</th><th>A</th><th>B</th><th>C</th><th>判定</th><th>選択</th></tr></thead><tbody>
+<tr><td>1</td><td>T</td><td>T</td><td>T</td><td>真</td><td>—</td></tr>
+<tr class="pick"><td>2</td><td>T</td><td>T</td><td>F</td><td>真</td><td><b>選ぶ</b></td></tr>
+<tr><td>3</td><td>T</td><td>F</td><td>T</td><td>真</td><td>—</td></tr>
+<tr><td>4</td><td>T</td><td>F</td><td>F</td><td>偽</td><td>—</td></tr>
+<tr><td>5</td><td>F</td><td>T</td><td>T</td><td>真</td><td>—</td></tr>
+<tr><td>6</td><td>F</td><td>T</td><td>F</td><td>偽</td><td>—</td></tr>
+<tr class="pick"><td>7</td><td>F</td><td>F</td><td>T</td><td>真</td><td><b>選ぶ</b></td></tr>
+<tr><td>8</td><td>F</td><td>F</td><td>F</td><td>偽</td><td>—</td></tr>
+</tbody></table></div>
+    <p class="count">最少 2 件</p>
+    <p>A・B・C がそれぞれ T と F を 1 回ずつ取っている。ところが判定は 2 件とも真で、<b>送料がかかる場合を一度も試していない</b>。条件網羅を満たしても分岐網羅は満たせないことがある、という例。</p>
+    <p class="note">ここでは各条件の値を入力で数えている。短絡評価で実際には評価されない条件の扱いは<a href="#short-circuit">後述</a>。</p>
+  </div>
+
+  <div class="panel card" id="p-dc" hidden>
+<div class="table-wrap tt"><table><thead><tr><th>No</th><th>A</th><th>B</th><th>C</th><th>判定</th><th>選択</th></tr></thead><tbody>
+<tr><td>1</td><td>T</td><td>T</td><td>T</td><td>真</td><td>—</td></tr>
+<tr><td>2</td><td>T</td><td>T</td><td>F</td><td>真</td><td>—</td></tr>
+<tr class="pick"><td>3</td><td>T</td><td>F</td><td>T</td><td>真</td><td><b>選ぶ</b></td></tr>
+<tr><td>4</td><td>T</td><td>F</td><td>F</td><td>偽</td><td>—</td></tr>
+<tr><td>5</td><td>F</td><td>T</td><td>T</td><td>真</td><td>—</td></tr>
+<tr class="pick"><td>6</td><td>F</td><td>T</td><td>F</td><td>偽</td><td><b>選ぶ</b></td></tr>
+<tr><td>7</td><td>F</td><td>F</td><td>T</td><td>真</td><td>—</td></tr>
+<tr><td>8</td><td>F</td><td>F</td><td>F</td><td>偽</td><td>—</td></tr>
+</tbody></table></div>
+    <p class="count">最少 2 件</p>
+    <p>判定条件網羅は、C1（判定の真偽）と C2（各条件の真偽）を同時に満たす。この例は 2 件で足りる。C2 と同じ件数でも、選ぶ行で強さが変わる。</p>
+  </div>
+
+  <div class="panel card" id="p-mcdc" hidden>
+<div class="table-wrap tt"><table><thead><tr><th>No</th><th>A</th><th>B</th><th>C</th><th>判定</th><th>選択</th><th>補足</th></tr></thead><tbody>
+<tr><td>1</td><td>T</td><td>T</td><td>T</td><td>真</td><td>—</td><td></td></tr>
+<tr class="pick"><td>2</td><td>T</td><td>T</td><td>F</td><td>真</td><td><b>選ぶ</b></td><td>A の組・B の組</td></tr>
+<tr class="pick"><td>3</td><td>T</td><td>F</td><td>T</td><td>真</td><td><b>選ぶ</b></td><td>C の組</td></tr>
+<tr class="pick"><td>4</td><td>T</td><td>F</td><td>F</td><td>偽</td><td><b>選ぶ</b></td><td>B の組・C の組</td></tr>
+<tr><td>5</td><td>F</td><td>T</td><td>T</td><td>真</td><td>—</td><td></td></tr>
+<tr class="pick"><td>6</td><td>F</td><td>T</td><td>F</td><td>偽</td><td><b>選ぶ</b></td><td>A の組</td></tr>
+<tr><td>7</td><td>F</td><td>F</td><td>T</td><td>真</td><td>—</td><td></td></tr>
+<tr><td>8</td><td>F</td><td>F</td><td>F</td><td>偽</td><td>—</td><td></td></tr>
+</tbody></table></div>
+    <p class="count">最少 4 件（条件 3 つ ＋ 1）</p>
+    <p>各条件について「その条件だけを変えると判定が変わる」2 行の組を用意する。A は No.2 と No.6、B は No.2 と No.4、C は No.3 と No.4。組が行を共有できるので、4 行で 3 組がそろう。作り方は<a href="#mcdc">下の節</a>。</p>
+  </div>
+
+  <div class="panel card" id="p-mcc" hidden>
+<div class="table-wrap tt"><table><thead><tr><th>No</th><th>A</th><th>B</th><th>C</th><th>判定</th><th>選択</th></tr></thead><tbody>
+<tr class="pick"><td>1</td><td>T</td><td>T</td><td>T</td><td>真</td><td><b>選ぶ</b></td></tr>
+<tr class="pick"><td>2</td><td>T</td><td>T</td><td>F</td><td>真</td><td><b>選ぶ</b></td></tr>
+<tr class="pick"><td>3</td><td>T</td><td>F</td><td>T</td><td>真</td><td><b>選ぶ</b></td></tr>
+<tr class="pick"><td>4</td><td>T</td><td>F</td><td>F</td><td>偽</td><td><b>選ぶ</b></td></tr>
+<tr class="pick"><td>5</td><td>F</td><td>T</td><td>T</td><td>真</td><td><b>選ぶ</b></td></tr>
+<tr class="pick"><td>6</td><td>F</td><td>T</td><td>F</td><td>偽</td><td><b>選ぶ</b></td></tr>
+<tr class="pick"><td>7</td><td>F</td><td>F</td><td>T</td><td>真</td><td><b>選ぶ</b></td></tr>
+<tr class="pick"><td>8</td><td>F</td><td>F</td><td>F</td><td>偽</td><td><b>選ぶ</b></td></tr>
+</tbody></table></div>
+    <p class="count">8 件（2 の 3 乗）</p>
+    <p>全組み合わせ。条件が 1 つ増えるたびに倍になり、条件 10 個なら 1024 件。<code>&amp;&amp;</code>・<code>||</code> の短絡評価があると実際に起こりうる組み合わせは減る（<a href="#short-circuit">後述</a>）。</p>
+  </div>
+
+  <h2 id="hierarchy">強さの関係：C2 は C1 を含まない</h2>
+  <p>「上の基準を 100% 満たせば、下の基準も 100% 満たす」という関係を矢印で表すと次のようになる。条件網羅（C2）だけが横に外れている。</p>
+  <svg class="fig" viewBox="0 0 400 304" role="img" aria-label="MCC は MC/DC を含み、MC/DC は判定条件網羅を含み、判定条件網羅は C1 と C2 を含み、C1 は C0 を含む。C1 と C2 は互いに含まない">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="ah" d="M0,0L10,5L0,10z"/></marker></defs>
+    <rect class="bx" x="20" y="6" width="200" height="40" rx="8"/><text x="120" y="31" text-anchor="middle" font-size="14" font-weight="700">MCC 複合条件網羅</text>
+    <rect class="bx" x="20" y="66" width="200" height="40" rx="8"/><text x="120" y="91" text-anchor="middle" font-size="14" font-weight="700">MC/DC</text>
+    <rect class="bx" x="20" y="126" width="200" height="40" rx="8"/><text x="120" y="151" text-anchor="middle" font-size="14" font-weight="700">判定条件網羅</text>
+    <rect class="bx" x="20" y="186" width="200" height="40" rx="8"/><text x="120" y="211" text-anchor="middle" font-size="14" font-weight="700">C1 分岐網羅</text>
+    <rect class="bx" x="20" y="246" width="200" height="40" rx="8"/><text x="120" y="271" text-anchor="middle" font-size="14" font-weight="700">C0 命令網羅</text>
+    <rect class="bx" x="252" y="186" width="136" height="40" rx="8"/><text x="320" y="211" text-anchor="middle" font-size="14" font-weight="700">C2 条件網羅</text>
+    <path class="ar" d="M120,46V64" marker-end="url(#ah)"/>
+    <path class="ar" d="M120,106V124" marker-end="url(#ah)"/>
+    <path class="ar" d="M120,166V184" marker-end="url(#ah)"/>
+    <path class="ar" d="M120,226V244" marker-end="url(#ah)"/>
+    <path class="ar" d="M220,146H320V184" marker-end="url(#ah)"/>
+    <path class="no" d="M222,206H250"/>
+    <text class="sub" x="320" y="250" text-anchor="middle" font-size="12">C1 と C2 は</text>
+    <text class="sub" x="320" y="266" text-anchor="middle" font-size="12">互いに含まない</text>
+  </svg>
+  <div class="legend"><span><i style="background:var(--fg-2)"></i>矢印の元は先を含む（元を満たせば先も満たす）</span><span><i style="background:var(--c-warn)"></i>点線：どちらも相手を含まない</span></div>
+  <p>C1 と C2 が比べられないのは、見ている所が違うから。C1 は判定全体の結果だけ、C2 は各条件の値だけを見る。前の節の C2 の例のように、条件は全部 T・F を取ったのに判定は真のまま、ということが起こる。逆に C1 の例では、クーポン（C）は F しか取っていない。</p>
+  <p>MC/DC と MCC は、判定条件網羅をさらに強めたもの。MC/DC は「各条件が結果に効いているか」まで求め、MCC は効き目に関係なく全組み合わせを求める。</p>
+
+  <h2 id="mcdc">MC/DC の作り方：条件ごとに「効き目の組」を探す</h2>
+  <p>MC/DC の要は<b>独立性</b>（independence）：ほかの条件を固定したまま 1 つの条件だけを変えると、判定の結果が変わることを、テストの組で示す。</p>
+  <ol class="steps">
+    <li><b>条件を書き出す</b>判定 <code>(A &amp;&amp; B) || C</code> の条件は A・B・C の 3 つ。</li>
+    <li><b>条件ごとに組を探す</b>真理値表から、その条件だけが違い、判定も違う 2 行を探す。例えば A なら No.2（TTF・真）と No.6（FTF・偽）。</li>
+    <li><b>組を重ねて行を減らす</b>どの条件の組も共有できる行を優先して選ぶ。条件が N 個なら最少 N+1 行で済むことが多い。</li>
+    <li><b>期待値を仕様から決める</b>選んだ行の正しい結果は、コードではなく仕様（ここでは送料のルール）から決める。</li>
+  </ol>
+  <div class="card table-wrap pairs">
+    <table>
+      <thead><tr><th>条件</th><th>組（その条件だけが違う 2 行）</th><th>判定の変化</th></tr></thead>
+      <tbody>
+        <tr><td>A 会員</td><td>No.2（T T F）と No.6（F T F）</td><td>真 → 偽</td></tr>
+        <tr><td>B 5000円以上</td><td>No.2（T T F）と No.4（T F F）</td><td>真 → 偽</td></tr>
+        <tr><td>C クーポン</td><td>No.3（T F T）と No.4（T F F）。No.5 と 6、No.7 と 8 でもよい</td><td>真 → 偽</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>A の組は No.2 と No.6 の 1 通りしかない。A が結果に効くのは「B が T で C が F」のときだけだからで、ほかの組（No.1 と No.5 など）は A を変えても判定が変わらない。こうした「効かない組み合わせ」を除けるので、MCC よりずっと少ない件数で、すべての条件が意味を持っていることを確かめられる。</p>
+
+  <h2 id="bug">例：演算子の取り違えを見つけられるか</h2>
+  <p>書き手が <code>&amp;&amp;</code> を <code>||</code> と打ち間違え、コードが <code>isMember || total &gt;= 5000 || hasCoupon</code> になっていたとする。仕様どおりなら送料 500 円のはずの No.4（会員だが 5000 円未満）と No.6（会員でないが 5000 円以上）で、誤って無料になる。</p>
+  <p>カバレッジは<b>書かれたコード</b>に対して測るので、間違ったコードに対して各基準を満たすテストを選んだとき、No.4 か No.6 が必ず入るかを比べる。</p>
+  <div class="card table-wrap bug">
+    <table>
+      <thead><tr><th>基準</th><th>間違ったコードで基準を満たすテストの例</th><th>誤りが見つかるか</th></tr></thead>
+      <tbody>
+        <tr><td>C0</td><td>No.1 だけ</td><td><span class="st ng">見逃すことがある</span></td></tr>
+        <tr><td>C1</td><td>No.1 と No.8（真と偽が 1 回ずつ）</td><td><span class="st ng">見逃すことがある</span></td></tr>
+        <tr><td>C2・判定条件網羅</td><td>No.1（TTT）と No.8（FFF）</td><td><span class="st ng">見逃すことがある</span></td></tr>
+        <tr><td>MC/DC（unique-cause）</td><td>No.4・No.6・No.7・No.8 の 1 通りしかない</td><td><span class="st ok">必ず見つかる</span></td></tr>
+        <tr><td>MC/DC（masking）</td><td>No.1・No.5・No.7・No.8 でも満たせる</td><td><span class="st ng">見逃すことがある</span></td></tr>
+        <tr><td>MCC</td><td>全 8 件</td><td><span class="st ok">必ず見つかる</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="legend"><span><i style="background:var(--c-ok)"></i>どう選んでも誤りの出る行が入る</span><span><i style="background:var(--c-ng)"></i>誤りの出る行を含まない選び方がある</span></div>
+  <p><code>A || B || C</code> では、A が結果に効くのは B と C が両方 F のときだけ。ほかの条件を固定して 1 つだけ変える unique-cause MC/DC はその行（No.4）を強制し、B についても同じ理由で No.6 を強制する。C0〜判定条件網羅は「通ったか」「値を取ったか」しか見ないので、運よく No.4・No.6 を選ばない限り誤りは表に出ない。</p>
+  <p>ただし、GCC や Clang が測る masking MC/DC（<a href="#short-circuit">後述</a>）では、A=T の行の B・C は評価されないので値は何でもよく、No.1（TTT）と No.8（FFF）の組で A の効き目を示せる。No.1・No.5・No.7・No.8 は仕様でも間違ったコードでも結果が同じなので、誤りは表に出ない。<b>ツールの MC/DC が 100% でも、この種の誤りを必ず拾えるとは限らない</b>。条件ごとの組を自分で選ぶときに、ほかの条件を固定した組（unique-cause の形）を選べば見つかる。</p>
+  <p class="note">どの基準も、選んだ行の期待値を仕様から正しく書いて初めて誤りが見つかる。<code>&gt;=</code> を <code>&gt;</code> にした境界の誤りは、条件の真偽の組み合わせではなく値の選び方の問題なので、どの基準でも見逃しうる（<a href="boundary-value-analysis.html">境界値分析</a>で拾う）。</p>
+
+  <h2 id="short-circuit">短絡評価とツールが数えるもの</h2>
+  <p>多くの言語の <code>&amp;&amp;</code>・<code>||</code> は短絡評価（short-circuit evaluation）で、結果が決まった時点で右側を評価しない。例の判定では、A が F なら B は評価されず、<code>A &amp;&amp; B</code> が T なら C は評価されない。</p>
+  <ul class="plain">
+    <li><b>MCC は実際の件数が減る</b>：評価される条件の値の並びで数えると、8 通りのうち区別できるのは 5 通り（A=F で C が T/F、A=T・B=F で C が T/F、A=T・B=T）。</li>
+    <li><b>MC/DC にも流儀がある</b>：「ほかの条件を固定して 1 つだけ変える」厳密な形を unique-cause MC/DC、評価されない条件（結果に効かない条件）は違っていてもよいとする形を masking MC/DC と呼ぶ。短絡評価のある言語では masking の方が組を作りやすい。</li>
+  </ul>
+  <p>ツールのレポートにある「branch」の意味も、ツールによって違う。率を指標にする前に、自分のツールが何を数えているかを確かめる。</p>
+  <div class="card table-wrap tools">
+    <table>
+      <thead><tr><th>ツール</th><th>分岐として数えるもの</th><th>条件・MC/DC</th></tr></thead>
+      <tbody>
+        <tr><td>coverage.py（Python、<code>--branch</code>）</td><td>ある行から次の行への移り（どちらの行へ進んだか）</td><td><code>and</code>・<code>or</code> の各項は数えない</td></tr>
+        <tr><td>Istanbul（JavaScript。nyc や Jest・Vitest の istanbul プロバイダ）</td><td>if・三項演算子の両側に加え、<code>&amp;&amp;</code>・<code>||</code> の各項が評価されたか</td><td>各項の真偽の組み合わせは見ない</td></tr>
+        <tr><td>GCC / gcov</td><td>オブジェクトコードの分岐（<code>gcov -b</code>）</td><td>GCC 14 以降、<code>-fcondition-coverage</code> と <code>gcov --conditions</code> で masking MC/DC</td></tr>
+        <tr><td>Clang / llvm-cov</td><td>ソース上の分岐（<code>&amp;&amp;</code>・<code>||</code> の各条件の真偽を含む）</td><td>Clang 18 以降、<code>-fcoverage-mcdc</code> で MC/DC</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="unit-test">単体テストの指標として使う</h2>
+  <p>カバレッジは「テストがどこを<b>通っていないか</b>」を機械的に教えてくれる数少ない指標で、単体テストの抜けを見つけるのに向いている。一方で「通った所を正しく確かめたか」は測らない。この性質を踏まえて使う。</p>
+  <ol class="steps">
+    <li><b>分岐まで測る設定にする</b>行・命令だけだと、else のない if の偽側が抜けても 100% になる。<code>--branch</code> など分岐を測る設定を入れ、分岐の率を見る。</li>
+    <li><b>率より「通っていない所」を読む</b>未実行の分岐を 1 つずつ見て、テストを足すか、要らないコード（到達しない防御コードなど）かを判断する。率はその結果として上がるもの。</li>
+    <li><b>しきい値は下限として使う</b>CI では「変更で率が下がったら止める」「変更した行は高い率を求める」のように、悪化を防ぐ使い方が向く。全体の率を上げること自体を目標にすると、確かめないテストが増える。</li>
+    <li><b>複雑な条件は MC/DC で考える</b>ツールが MC/DC を測れなくても、<code>&amp;&amp;</code>・<code>||</code> が 3 つ以上並ぶ判定は、条件ごとの組を表にしてテストを選ぶ。条件が多すぎるなら、関数に分けて判定を単純にする方が先。</li>
+    <li><b>確かめているかは別の方法で見る</b>アサーションの強さは<a href="mutation-testing.html">ミューテーションテスト</a>、どの値を試すかは<a href="boundary-value-analysis.html">境界値分析</a>や<a href="decision-table-pairwise.html">デシジョンテーブル</a>で補う。</li>
+  </ol>
+  <p>率の目安として、Google は 2020 年のブログで 60% を「許容できる」、75% を「称賛に値する」、90% を「模範的」としつつ、全チームに一律の数字を課すべきではないと書いている。安全性が求められる分野では、規格が基準そのものを決めている。</p>
+  <div class="card table-wrap std">
+    <table>
+      <thead><tr><th>規格</th><th>求められる構造カバレッジ</th></tr></thead>
+      <tbody>
+        <tr><td>DO-178C（航空機のソフトウェア）</td><td>レベル C：命令網羅。レベル B：＋判定網羅。レベル A（最も厳しい）：＋MC/DC</td></tr>
+        <tr><td>ISO 26262-6（自動車。ソフトウェアユニット）</td><td>命令網羅は ASIL A・B で強く推奨、分岐網羅は ASIL B〜D で強く推奨、MC/DC は ASIL D で強く推奨（それ以外は推奨）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>C2（条件網羅）を満たせば C1（分岐網羅）も満たせる</summary><p>満たせないことがある。各条件が T と F を取っても、判定全体が一度も偽にならない選び方がある（例では No.2 と No.7）。分岐も確かめたいなら判定条件網羅以上にする。</p></details>
+  <details class="myth"><summary>MC/DC は条件のすべての組み合わせを試す</summary><p>全組み合わせは MCC（複合条件網羅）。MC/DC は各条件が単独で結果を変える組だけを求めるので、条件が N 個なら最少 N+1 件程度で済み、条件が増えても件数は直線的にしか増えない。</p></details>
+  <details class="myth"><summary>ツールの branch の率は C1（分岐網羅）のことだ</summary><p>ツールによって違う。行の移りを数えるもの、<code>&amp;&amp;</code>・<code>||</code> の各項まで数えるもの、オブジェクトコードの分岐を数えるものがあり、同じコードでも率は変わる。</p></details>
+  <details class="myth"><summary>カバレッジが 100% ならバグはない</summary><p>カバレッジはコードが実行されたかしか見ない。アサーションのないテストでも上がり、境界値の誤りや、そもそも書かれていない処理（仕様の抜け）は見つからない。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="mutation-testing.html">ミューテーションテスト</a> — カバレッジでは見えない「確かめたか」を測る</li>
+    <li><a href="boundary-value-analysis.html">境界値分析と同値分割</a> — 条件の真偽ではなく、試す値の選び方</li>
+    <li><a href="decision-table-pairwise.html">デシジョンテーブルとペアワイズ法</a> — 条件の組み合わせを仕様側から選ぶ方法</li>
+    <li><a href="testing-strategy.html">テスト戦略</a> — 単体テストをどの層にどれだけ書くか</li>
+  </ul>
+
+  <h2 id="sources">参考</h2>
+  <ul class="sources">
+    <li><a href="https://shemesh.larc.nasa.gov/fm/papers/Hayhurst-2001-tm210876-MCDC.pdf">A Practical Tutorial on Modified Condition/Decision Coverage</a>（Hayhurst ほか、NASA/TM-2001-210876）</li>
+    <li><a href="https://testing.googleblog.com/2020/08/code-coverage-best-practices.html">Code Coverage Best Practices</a>（Google Testing Blog、2020 年）</li>
+    <li><a href="https://coverage.readthedocs.io/en/latest/branch.html">Branch coverage measurement</a>（coverage.py）</li>
+    <li><a href="https://clang.llvm.org/docs/SourceBasedCodeCoverage.html">Source-based Code Coverage</a>（Clang）</li>
+    <li><a href="https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html">Instrumentation Options</a>（GCC。<code>-fcondition-coverage</code>）</li>
+    <li><a href="https://maskray.me/blog/2024-01-28-mc-dc-and-compiler-implementations">Modified condition/decision coverage (MC/DC) and compiler implementations</a>（MaskRay）</li>
+    <li><a href="https://ldra.com/ldra-blog/do-178c-structural-coverage-analysis/">DO-178C &amp; Structural Coverage Analysis</a>（LDRA）</li>
+  </ul>
+  <p class="note">2026 年 11 月 27 日に確認。</p>
+
+  <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+  });
+});
+</script>
+
+<script type="application/json" id="memo-quiz">
+[
+  {
+    "q": "if (a || b) に対して (a=true, b=false) と (a=false, b=true) の 2 件だけをテストした（短絡評価は考えない）。満たしているカバレッジ基準は？",
+    "choices": ["分岐網羅（C1）と条件網羅（C2）の両方", "分岐網羅（C1）だけ", "条件網羅（C2）だけ", "どちらも満たしていない"],
+    "answer": 2,
+    "explain": "a・b はそれぞれ true と false を取っているので条件網羅は満たすが、判定は 2 件とも真で、偽の側を通っていないので分岐網羅は満たさない。",
+    "ref": "#hierarchy"
+  },
+  {
+    "q": "&& と || でつながった独立な条件が 4 つある判定で、MC/DC を満たすテストを作る。最少で何件くらい要る？",
+    "choices": ["4 件", "5 件", "8 件", "16 件"],
+    "answer": 1,
+    "explain": "MC/DC は条件ごとに「その条件だけで結果が変わる」組を用意し、組の行を共有させるので、条件が N 個なら最少 N+1 件が目安。16 件は全組み合わせ（MCC）。",
+    "ref": "#mcdc"
+  },
+  {
+    "q": "Python の coverage.py を --branch 付きで回し、分岐の率が 100% になった。if a and b: の a・b について言えることは？",
+    "choices": ["a・b それぞれが真と偽を取ったとは限らない", "a・b それぞれが真と偽を取ったことが保証される", "a・b のすべての組み合わせを試したことが保証される", "MC/DC も満たしている"],
+    "answer": 0,
+    "explain": "coverage.py の分岐は行から行への移りを数えるもので、and・or の各項の真偽は数えない。条件ごとに確かめたいなら、条件ごとの組を自分で選ぶ。",
+    "ref": "#short-circuit"
+  },
+  {
+    "q": "送料無料の条件を (isMember && total >= 5000) || hasCoupon と書くべきところを、&& を || と打ち間違えた。このコードに対してどの基準を満たすようにテストを選べば、選び方によらず誤りが見つかる？（MC/DC は、ほかの条件を固定して 1 つだけ変える unique-cause MC/DC とする）",
+    "choices": ["命令網羅（C0）", "分岐網羅（C1）", "判定条件網羅", "MC/DC（unique-cause）"],
+    "answer": 3,
+    "explain": "誤ったコード A || B || C で MC/DC を満たすには、各条件だけが真になる行（会員だけ、5000 円以上だけなど）が必ず要り、そこで仕様との食い違いが出る。C0〜判定条件網羅は、すべて真とすべて偽の 2 件などでも満たせてしまう。評価されない条件は違っていてよいとする masking MC/DC では、TTT・FTT・FFT・FFF でも満たせてしまい、見逃すことがある。",
+    "ref": "#bug"
+  },
+  {
+    "q": "単体テストの分岐カバレッジを CI の指標にしたい。効き目のある使い方は？",
+    "choices": ["全体の率 100% を必須にし、届かない変更は止める", "率を上げたテストは良いテストとみなし、レビューを省く", "率の低下を止める下限にし、未実行の分岐を読む", "分岐は数えず、命令網羅の率だけを毎回記録する"],
+    "answer": 2,
+    "explain": "カバレッジは通っていない所を教える指標で、確かめたかは測らない。悪化を防ぐ下限として使い、未実行の分岐を読むのが効く。率そのものを目標にすると、アサーションのないテストが増えやすい。",
+    "ref": "#unit-test"
+  }
+]
+</script>
+</body>
+</html>
