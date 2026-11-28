@@ -75,7 +75,9 @@ code {
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
-  white-space: nowrap;
+  overflow-wrap: anywhere;  /* 長いコードは画面幅で折り返す（nowrap だとスマホでページごと横にずれる） */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 pre {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -153,6 +155,22 @@ td.files code { display: inline-block; margin: 0 4px 4px 0; }
 .prec div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 12px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); font-size: 0.84rem; }
 .prec div:first-child { border-color: var(--line); }
 .prec span.n { color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.7rem; white-space: nowrap; }
+
+/* ホスト × Task の進み方 */
+.hostgrid { display: grid; grid-template-columns: minmax(64px, auto) repeat(3, minmax(0, 1fr)); gap: 6px; align-items: stretch; }
+.hostgrid .h { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; color: var(--fg-2); text-align: center; align-self: end; }
+.hostgrid .host { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.8rem; font-weight: 700; align-self: center; }
+.hostgrid .st { border: 1.5px solid var(--line); border-radius: 6px; padding: 6px 4px; text-align: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.78rem; font-weight: 700; }
+.st.ok { color: var(--c-ok); border-color: var(--c-ok); }
+.st.chg { color: var(--c-warn); border-color: var(--c-warn); }
+.st.ng { color: var(--c-ng); border-color: var(--c-ng); }
+.st.off { color: var(--fg-2); border-style: dashed; font-weight: 400; }
+.legend i.sw2 { width: 13px; height: 13px; border-radius: 3px; border: 1.5px solid; flex: none; display: inline-block; }
+.legend i.lc-ok { border-color: var(--c-ok); }
+.legend i.lc-chg { border-color: var(--c-warn); }
+.legend i.lc-ng { border-color: var(--c-ng); }
+.legend i.lc-off { border-color: var(--line); border-style: dashed !important; }
+.status-name { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 700; white-space: nowrap; }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -439,6 +457,10 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <h3>Connection Plugin <span class="tag">どう繋ぐか</span></h3>
     <p>Control Node と管理対象の間の通信方法。Ansible はモジュールを一時ファイルとして相手に送り込み、実行して結果を回収し、後片付けする。</p>
   </div>
+  <div class="card" style="margin-top:10px">
+    <h3>Collections と FQCN <span class="tag">部品の配り方</span></h3>
+    <p>Modules・Roles・Plugin は Collection という単位で配布される。<code>ansible.builtin.apt</code> の <code>ansible.builtin</code> が Collection 名で、この「名前空間.Collection名.モジュール名」の書き方を FQCN（完全修飾コレクション名）と呼ぶ。短く <code>apt</code> と書いても動くことが多いが、別の Collection に同名のモジュールがあると取り違えるので FQCN で書くのが推奨。<code>ansible-core</code> だけを入れた環境では、<code>ansible.builtin</code> 以外（<code>community.general</code> など）は <code>requirements.yml</code> に書いて <code>ansible-galaxy</code> で入れる。<code>ansible</code> パッケージには主要な Collection が同梱されているが、使うものとそのバージョンは <code>requirements.yml</code> に書いて固定しておくとよい。</p>
+  </div>
 
   <h2 id="flow">実行の流れ</h2>
   <p class="lead"><code>ansible-playbook -i inventory/hosts.yml site.yml</code> を実行したときの順序。</p>
@@ -452,6 +474,88 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div><b>結果を表示する</b><span class="d">PLAY RECAP でホストごとの集計が出る。</span></div>
   </div>
 
+  <h2 id="hosts">複数ホストでの進み方</h2>
+  <p class="lead">既定（<code>strategy: linear</code>）では、1 つの Task を全ホストで終えてから次の Task に進む。ホストを 1 台ずつ最後まで流すのではない。</p>
+  <div class="card">
+    <div class="hostgrid" role="img" aria-label="3 台のホストで 3 つの Task を実行したときの結果。server-b は Task 2 で失敗し、Task 3 からは外れる">
+      <span></span><span class="h">Task 1</span><span class="h">Task 2</span><span class="h">Task 3</span>
+      <span class="host">server-a</span><span class="st ok">ok</span><span class="st chg">changed</span><span class="st ok">ok</span>
+      <span class="host">server-b</span><span class="st chg">changed</span><span class="st ng">failed</span><span class="st off">外れる</span>
+      <span class="host">server-c</span><span class="st ok">ok</span><span class="st ok">ok</span><span class="st chg">changed</span>
+    </div>
+    <div class="legend" style="margin-top:12px">
+      <span><i class="sw2 lc-ok"></i>ok（変更なし）</span>
+      <span><i class="sw2 lc-chg"></i>changed（変更した）</span>
+      <span><i class="sw2 lc-ng"></i>failed（失敗）</span>
+      <span><i class="sw2 lc-off"></i>以降の Task から外れる</span>
+    </div>
+    <p class="note">色分けは <code>ansible-playbook</code> の画面表示（ok・changed・failed で色が変わる）に合わせている。</p>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>forks <span class="tag">同時に何台触るか</span></h3>
+    <p>1 つの Task を何台に同時に実行するか。既定は 5 なので、20 台あれば 5 台ずつ 4 回に分けて同じ Task を流す。<code>ansible.cfg</code> の <code>forks</code> か <code>-f</code> で変える。Control Node の CPU・メモリと相談して決める。</p>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>serial <span class="tag">何台ずつ最後まで流すか</span></h3>
+    <p>Play に <code>serial: 2</code> と書くと、ホストを 2 台ずつの組に分け、組ごとに Play を最後まで流してから次の組に進む。全台を同時に再起動して止めてしまうのを防ぐ、ローリング更新に使う。<code>max_fail_percentage</code> と組み合わせると、失敗が多い組が出た時点で残りの組に進まずに止められる。</p>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>失敗したホスト <span class="tag">ほかは止まらない</span></h3>
+    <p>ある Task が失敗したホストは、その Play の残りから外れる。ほかのホストはそのまま続く（上の図の server-b）。1 台でも失敗したら全体を止めたいときは <code>any_errors_fatal: true</code> を使う。</p>
+  </div>
+
+  <h2 id="status">結果の 5 つの状態と冪等性</h2>
+  <p class="lead">Task はホストごとに次のどれかで終わる。PLAY RECAP の <code>ok=</code> は changed を含む成功した Task の数で、そのうち変更したものが <code>changed=</code> にも数えられる（ほかに <code>rescued=</code>・<code>ignored=</code> も並ぶ）。</p>
+  <div class="card table-wrap">
+  <table>
+    <thead><tr><th>状態</th><th>意味</th><th>そのあと</th></tr></thead>
+    <tbody>
+      <tr><td class="status-name">ok</td><td>すでにあるべき状態だった。何も変えていない。</td><td>次の Task へ。</td></tr>
+      <tr><td class="status-name">changed</td><td>あるべき状態にするために変更した。</td><td><code>notify:</code> があれば Handler が予約される。</td></tr>
+      <tr><td class="status-name">skipped</td><td><code>when:</code> の条件が偽だった、などで実行しなかった。</td><td>次の Task へ。</td></tr>
+      <tr><td class="status-name">failed</td><td>モジュールがエラーを返した。</td><td>そのホストは以降の Task から外れる（<code>ignore_errors</code> で続けることもでき、その場合 RECAP では <code>ignored</code> に数えられる）。</td></tr>
+      <tr><td class="status-name">unreachable</td><td>SSH などで接続できなかった。</td><td>そのホストは以降の Task から外れる。</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>冪等かどうかの確かめ方 <span class="tag">2 回流す</span></h3>
+    <p>同じ Playbook を続けて 2 回実行し、2 回目の PLAY RECAP で <code>changed=0</code> になれば冪等に書けている。2 回目にも changed が出る Task は、毎回なにかを変えている（または変えたと報告している）。よくあるのは <code>command</code> / <code>shell</code> で、中身を判断できないので実行すれば必ず changed になる。確認だけのコマンドなら <code>changed_when: false</code>、作るものがあるなら <code>creates:</code> で「もうあれば実行しない」と教える。</p>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>check と diff <span class="tag">変更せずに予告する</span></h3>
+    <p><code>ansible-playbook site.yml --check --diff</code> は、実際には変更せず「変わるはずのもの」を changed として報告し、<code>--diff</code> でファイルの中身の差分も見せる。ただし予告できるのは check モードに対応したモジュールだけで、<code>command</code> / <code>shell</code> は <code>creates</code> / <code>removes</code> を付けない限り check モードでは実行されず、変更なし（<code>changed=False</code>）として報告される。また前の Task で入れるはずのパッケージが check では実際には入らないので、それを前提にした後ろの Task が失敗することがある。</p>
+  </div>
+
+  <h2 id="control">条件・繰り返し・結果の受け渡し</h2>
+  <p class="lead">Task はどれも「ホストごとに」評価される。同じ Task でも、ホストによって実行されたりスキップされたりする。</p>
+<pre>- name: nginx の設定を検査する
+  ansible.builtin.command: nginx -t
+  register: nginx_test        <span class="c"># 結果（rc・stdout など）をこのホストの変数に入れる</span>
+  changed_when: false         <span class="c"># 検査だけなので changed と報告しない</span>
+  failed_when: false          <span class="c"># 失敗しても止めず、下で結果を見る</span>
+
+- name: 検査に通ったときだけ再読み込み
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+  when: nginx_test.rc == 0    <span class="c"># 前の Task の結果で分岐</span>
+
+- name: Debian 系だけにパッケージを入れる
+  ansible.builtin.apt:
+    name: "{{ item }}"         <span class="c"># Jinja2 で変数を埋め込む</span>
+    state: present
+  loop: [nginx, curl]          <span class="c"># 1 項目ずつ繰り返す</span>
+  when: ansible_facts['os_family'] == "Debian"   <span class="c"># facts で分岐</span></pre>
+  <div class="card" style="margin-top:10px">
+    <h3>register <span class="tag">結果を次へ渡す</span></h3>
+    <p>Task の結果を変数として保存する。変数はホストごとに別々に持つので、server-a の結果で server-b の動きが変わることはない（ほかのホストの値は <code>hostvars['server-a']</code> で明示的に読む）。</p>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>when と loop <span class="tag">分岐と繰り返し</span></h3>
+    <p><code>when:</code> は Jinja2 の式で、<code>{{ }}</code> を付けずに書く。<code>loop:</code> は項目ごとに同じモジュールを呼ぶ。<code>apt</code> の <code>name</code> のようにリストをそのまま受け取れるモジュールなら、loop より一度に渡すほうが速い。</p>
+  </div>
+
   <h2 id="var-priority">変数の優先順位（抜粋）</h2>
   <p class="lead">同じ名前の変数が複数箇所にあるときは、上にあるものが勝つ。</p>
   <div class="prec">
@@ -463,6 +567,17 @@ footer#memo-backlink a:hover { color: var(--accent); }
     <div><span><code>group_vars/&lt;グループ&gt;</code></span><span class="n"></span></div>
     <div><span>Role の <code>defaults/main.yml</code></span><span class="n">最も弱い</span></div>
   </div>
+
+  <h2 id="myths">よくある誤解</h2>
+  <details class="myth"><summary>Playbook から Task を消せば、その Task が作ったものも消える</summary><p>Ansible は「前回何を作ったか」を記録しないので、Task を消しても管理対象には何も起きず、作ったものはそのまま残る。消したいときは <code>state: absent</code> の Task を書いて一度流してから、その Task を消す。前回の結果を State に記録して差分で消す OpenTofu との大きな違い（<a href="opentofu.html#graph">OpenTofu 概念図</a>）。</p></details>
+  <details class="myth"><summary>Ansible は宣言的なので、Task を書く順番は関係ない</summary><p>宣言的なのは各モジュールの中身（「この状態にする」）で、Task そのものは書いた順に上から実行される。設定ファイルを置く前にパッケージを入れる、のような順序は自分で並べて決める。</p></details>
+  <details class="myth"><summary>Handler は notify した Task の直後に実行される</summary><p>Handler は予約されるだけで、実行されるのはそのセクション（<code>pre_tasks</code>・<code>roles</code> と <code>tasks</code>・<code>post_tasks</code>）の最後。何度 notify されても 1 回だけ動く。途中で動かしたいときは <code>ansible.builtin.meta: flush_handlers</code> を置く。</p></details>
+  <details class="myth"><summary><code>--check</code> で問題がなければ、本番で流しても必ず成功する</summary><p>check モードは対応しているモジュールの予告にすぎない。<code>command</code> / <code>shell</code> は check では実行されず、前の Task の結果を前提にした Task は check では正しく評価できない。予告として使い、検証環境で一度流すのが確実。</p></details>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="opentofu.html">OpenTofu 概念図</a> — サーバーの中身を整える Ansible に対し、サーバーやネットワークそのものを作る側</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>
@@ -483,17 +598,6 @@ document.querySelectorAll('.tabs').forEach(group => {
 <script type="application/json" id="memo-quiz">
 [
   {
-    "q": "Web サーバーを 3 台増やすことになった。Playbook がグループ名（web）で対象を指している場合、何を直せばよい？",
-    "choices": [
-      "Inventory の web グループにホストを追加するだけ",
-      "Playbook に新しいサーバーの IP を書き足す",
-      "サーバーごとに Playbook を複製する"
-    ],
-    "answer": 0,
-    "explain": "Playbook は IP ではなくグループ名で対象を指すので、増減は Inventory だけで吸収できる。",
-    "ref": "#concepts"
-  },
-  {
     "q": "nginx の設定ファイルが変わったときだけ nginx を再起動したい。どう書く？",
     "choices": [
       "再起動のコマンドを Role の defaults/main.yml に変数として書いておく",
@@ -505,15 +609,15 @@ document.querySelectorAll('.tabs').forEach(group => {
     "ref": "#files"
   },
   {
-    "q": "同じ Playbook を、すでに設定済みのサーバーにもう一度実行した。何が起きる？",
+    "q": "同じ Playbook を 2 回続けて流したら、2 回目も shell で書いた Task だけが毎回 changed になる。どう直す？",
     "choices": [
-      "すべての Task がもう一度やり直され、設定が二重になる",
-      "一度実行済みの Playbook は、二回目以降はエラーで止まる",
-      "すでにあるべき状態なら、何も変更されない"
+      "作るものがあれば creates: を、確認だけなら changed_when: false を付ける",
+      "Task を Handler に移して notify から呼ぶ",
+      "--check を付けて実行する"
     ],
-    "answer": 2,
-    "explain": "ほとんどのモジュールは状態を宣言する作りなので、すでにあるべき状態なら何も変更しない（冪等性）。",
-    "ref": "#concepts"
+    "answer": 0,
+    "explain": "command / shell は中身を判断できないので、実行すれば必ず changed になる。creates や changed_when で「変更したか」の判断を教えると冪等になる。",
+    "ref": "#status"
   },
   {
     "q": "自作 Role の初期値を、グループやホストごとに上書きできるようにしたい。初期値はどこに書く？",
@@ -527,15 +631,26 @@ document.querySelectorAll('.tabs').forEach(group => {
     "ref": "#var-priority"
   },
   {
-    "q": "Ansible で管理する Linux サーバー側に、最低限必要なものは？",
+    "q": "Web サーバー 10 台の nginx を更新したいが、全台が同時に再起動してサービスが止まるのは避けたい。Play に何を書く？",
     "choices": [
-      "SSH で接続できることと Python",
-      "Ansible 本体と常駐エージェント",
-      "Control Node と同じ Playbook のコピー"
+      "forks: 2",
+      "any_errors_fatal: true",
+      "serial: 2"
+    ],
+    "answer": 2,
+    "explain": "serial は指定した台数ずつ Play を最後まで流してから次の組に進む（ローリング更新）。forks は同時に実行する台数で、1 つの Task を全台で終えてから次に進む点は変わらない。",
+    "ref": "#hosts"
+  },
+  {
+    "q": "不要になった cron 設定を入れる Task を Playbook から削除して実行した。サーバー上の cron 設定はどうなる？",
+    "choices": [
+      "そのまま残る。消すには state: absent の Task を一度流す",
+      "前回の記録をもとに Ansible が自動で削除する",
+      "Playbook の構文エラーになる"
     ],
     "answer": 0,
-    "explain": "Ansible はエージェントレス。Control Node がモジュールを送り込んで実行し、後片付けまで行う。",
-    "ref": "#concepts"
+    "explain": "Ansible は前回何を作ったかを記録しないので、Task を消しても何も起きない。消したい状態を Task として書く必要がある。",
+    "ref": "#myths"
   }
 ]
 </script>

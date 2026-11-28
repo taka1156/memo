@@ -77,7 +77,9 @@ code {
   background: var(--chip);
   padding: 1px 5px;
   border-radius: 4px;
-  white-space: nowrap;
+  overflow-wrap: anywhere;  /* 長いコードは画面幅で折り返す（nowrap だとスマホでページごと横にずれる） */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 pre {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -156,6 +158,26 @@ td.files code { display: inline-block; margin: 0 4px 4px 0; }
 .prec div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 12px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); font-size: 0.84rem; }
 .prec div:first-child { border-color: var(--line); }
 .prec span.n { color: var(--fg-2); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.7rem; white-space: nowrap; }
+
+/* plan の記号 */
+.sym { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 700; white-space: nowrap; }
+
+/* count と for_each の比較 */
+.addr-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 600px) { .addr-cols { grid-template-columns: minmax(0, 1fr); } }
+.addr-cols h3 { margin-bottom: 8px; }
+.addr { display: flex; flex-direction: column; gap: 6px; }
+.addr div { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 10px; border: 1.5px solid var(--line); border-radius: 6px; font-size: 0.82rem; }
+.addr code { white-space: nowrap; }
+.addr .r { font-size: 0.76rem; font-weight: 700; white-space: nowrap; color: var(--fg-2); }
+.addr div.chg { border-color: var(--c-warn); }
+.addr div.chg .r { color: var(--c-warn); }
+.addr div.del { border-color: var(--c-ng); }
+.addr div.del .r { color: var(--c-ng); }
+.legend i.sw2 { width: 13px; height: 13px; border-radius: 3px; border: 1.5px solid; flex: none; display: inline-block; }
+.legend i.lc-keep { border-color: var(--line); }
+.legend i.lc-chg { border-color: var(--c-warn); }
+.legend i.lc-del { border-color: var(--c-ng); }
 
 footer#memo-backlink {
   margin-top: 40px;
@@ -427,7 +449,7 @@ env = "staging"</pre>
   </div>
   <div class="card" style="margin-top:10px">
     <h3>State <span class="tag">今の状態の記録</span></h3>
-    <p>OpenTofu が「前回自分が何を作ったか」を知っている唯一の手がかり。plan はこの State を実体の現状で更新（refresh）してから設定ファイルと比較して差分を出す。壊れたり他人と競合したりすると大きな事故につながるため、チームでは Backend（S3 など）で共有しロックをかける。</p>
+    <p>OpenTofu が「前回自分が何を作ったか」を知っている唯一の手がかり。plan はこの State を実体の現状で更新（refresh）してから設定ファイルと比較して差分を出す。壊れたり他人と競合したりすると大きな事故につながるため、チームでは Backend（S3 など）で共有しロックをかける。また State には DB のパスワードなど機密の値も平文で入るので、保存先の読み取り権限を絞る。OpenTofu では State そのものを暗号化する設定もできる。</p>
   </div>
   <div class="card" style="margin-top:10px">
     <h3>Provider <span class="tag">誰が実行するか</span></h3>
@@ -436,6 +458,10 @@ env = "staging"</pre>
   <div class="card" style="margin-top:10px">
     <h3>Module <span class="tag">まとめて使い回す</span></h3>
     <p>複数の Resource をまとめた部品。呼び出し元からは Resource と同じ感覚で <code>module "web" { source = "./modules/web-server" }</code> のように使う。</p>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>Data Source <span class="tag">作らずに読むだけ</span></h3>
+    <p><code>data "aws_ami" "ubuntu" { ... }</code> のように書き、すでにあるもの（最新の AMI、別チームが作った VPC など）を Provider 経由で読み取って値として使う。Resource と違って作成・削除はせず、State には読み取った結果が入るだけ。参照は <code>data.aws_ami.ubuntu.id</code> の形になる。</p>
   </div>
   <div class="card" style="margin-top:10px">
     <h3>Plan と Apply <span class="tag">安全に反映する</span></h3>
@@ -452,14 +478,153 @@ env = "staging"</pre>
     <div><b>State を更新する</b><span class="d">成功した Resource の情報を State に書き込む。次回の plan はこの新しい State を基準にする。</span></div>
   </div>
 
+  <h2 id="graph">依存関係と並列実行</h2>
+  <p class="lead">Resource を書く順番は関係ない。OpenTofu は Resource 同士の参照から依存グラフを作り、依存が解けたものから並行して作る（同時に動かすのは既定で最大 10 個まで。<code>-parallelism</code> で変えられる）。</p>
+  <div class="card diagram">
+  <svg viewBox="0 0 760 290" role="img" aria-label="依存グラフの例。VPC と S3 バケットが先に並列で作られ、次に Subnet と Security Group、最後に EC2 インスタンスが作られる">
+    <defs>
+      <marker id="ar-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="var(--fg-2)"/>
+      </marker>
+    </defs>
+    <rect class="grp" x="20" y="10" width="220" height="240" rx="12"/>
+    <rect class="grp" x="270" y="10" width="220" height="240" rx="12"/>
+    <rect class="grp" x="520" y="10" width="220" height="240" rx="12"/>
+    <text class="gl" x="130" y="276" text-anchor="middle">1 段目（同時に作る）</text>
+    <text class="gl" x="380" y="276" text-anchor="middle">2 段目（同時に作る）</text>
+    <text class="gl" x="630" y="276" text-anchor="middle">3 段目</text>
+
+    <rect x="40" y="60" width="180" height="54" rx="9" fill="var(--chip)" stroke="var(--line)" stroke-width="1.4"/>
+    <text class="t1" x="130" y="83">VPC</text>
+    <text class="t2" x="130" y="102">aws_vpc.main</text>
+    <rect x="40" y="170" width="180" height="54" rx="9" fill="var(--chip)" stroke="var(--line)" stroke-width="1.4"/>
+    <text class="t1" x="130" y="193">S3 バケット</text>
+    <text class="t2" x="130" y="212">依存なし</text>
+
+    <rect x="290" y="30" width="180" height="54" rx="9" fill="var(--chip)" stroke="var(--line)" stroke-width="1.4"/>
+    <text class="t1" x="380" y="53">Subnet</text>
+    <text class="t2" x="380" y="72">vpc_id = aws_vpc.main.id</text>
+    <rect x="290" y="120" width="180" height="54" rx="9" fill="var(--chip)" stroke="var(--line)" stroke-width="1.4"/>
+    <text class="t1" x="380" y="143">Security Group</text>
+    <text class="t2" x="380" y="162">vpc_id = aws_vpc.main.id</text>
+
+    <rect x="540" y="75" width="180" height="54" rx="9" fill="var(--chip)" stroke="var(--line)" stroke-width="1.4"/>
+    <text class="t1" x="630" y="98">EC2 インスタンス</text>
+    <text class="t2" x="630" y="117">subnet と SG を参照</text>
+
+    <path class="edge" d="M220,87 H250 V57 H288" marker-end="url(#ar-g)"/>
+    <path class="edge" d="M220,87 H250 V147 H288" marker-end="url(#ar-g)"/>
+    <path class="edge" d="M470,57 H505 V96 H538" marker-end="url(#ar-g)"/>
+    <path class="edge" d="M470,147 H505 V108 H538" marker-end="url(#ar-g)"/>
+  </svg>
+  </div>
+  <p class="note">矢印は「先に作るもの → それを参照するもの」。削除（<code>tofu destroy</code>）はこの逆順で、EC2 インスタンスから消える。</p>
+  <div class="card" style="margin-top:10px">
+    <h3>暗黙の依存 <span class="tag">参照が順番になる</span></h3>
+    <p><code>vpc_id = aws_vpc.main.id</code> のように別の Resource の属性を参照すると、それだけで「VPC が先」という依存になる。VPC の ID は作るまで決まらないので、plan では <code>(known after apply)</code> と表示される。</p>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>depends_on <span class="tag">参照に表れない依存</span></h3>
+    <p>属性を参照しないが順番が必要なとき（IAM の権限を付けてからでないと動かないアプリ、など）だけ <code>depends_on = [aws_iam_role_policy.app]</code> で明示する。参照で表せるなら参照で書くほうが、何に依存しているかが読み取れる。</p>
+  </div>
+
+  <h2 id="plan-symbols">plan の記号と作り直し</h2>
+  <p class="lead">plan の出力の行頭の記号で、何が起きるかがわかる。特に <code>-/+</code> は見落とすと事故になる。</p>
+  <div class="card table-wrap">
+  <table>
+    <thead><tr><th>記号</th><th>意味</th><th>起きること</th></tr></thead>
+    <tbody>
+      <tr><td class="sym">+</td><td>create</td><td>新しく作る。</td></tr>
+      <tr><td class="sym">~</td><td>update in-place</td><td>今ある実体のまま設定を変える（タグの変更など）。</td></tr>
+      <tr><td class="sym">-/+</td><td>replace</td><td>削除してから作り直す。その場で変えられない属性（EC2 の AMI など）を変えたとき。原因の属性に <code># forces replacement</code> が付く。中のデータや IP は失われる。</td></tr>
+      <tr><td class="sym">+/-</td><td>replace</td><td>先に新しいものを作ってから古いものを消す（<code>create_before_destroy</code> を付けたとき）。</td></tr>
+      <tr><td class="sym">-</td><td>destroy</td><td>削除する。</td></tr>
+      <tr><td class="sym">&lt;=</td><td>read</td><td>Data Source を読む（値が apply まで決まらないとき）。</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h3>lifecycle <span class="tag">作り直し・削除の扱いを変える</span></h3>
+    <p>Resource の中に <code>lifecycle { ... }</code> を書くと、差分の扱いを変えられる。</p>
+    <ul style="margin:6px 0 0 1.2em">
+      <li><code>create_before_destroy = true</code> … 作り直すとき、新しいほうを先に作る。止まる時間を減らせるが、名前が重複できないものでは使えない。</li>
+      <li><code>prevent_destroy = true</code> … この Resource を消す plan をエラーにする。本番 DB などの誤削除よけ。</li>
+      <li><code>ignore_changes = [tags]</code> … 外の仕組みが書き換える属性を差分として扱わない。</li>
+    </ul>
+  </div>
+
+  <h2 id="count-foreach">count と for_each</h2>
+  <p class="lead">同じ Resource を複数作る方法は 2 つあり、State の中での呼び名（アドレス）が違う。<code>["a", "b", "c"]</code> の 3 つを作ったあと、<code>"b"</code> を消したときの plan を比べる。</p>
+  <div class="addr-cols">
+    <div class="card">
+      <h3>count <span class="tag">番号で呼ぶ</span></h3>
+      <div class="addr">
+        <div><span><code>web[0]</code> a</span><span class="r">変わらない</span></div>
+        <div class="chg"><span><code>web[1]</code> b → c</span><span class="r">中身が変わる</span></div>
+        <div class="del"><span><code>web[2]</code> c</span><span class="r">削除</span></div>
+      </div>
+      <p class="note">番号が詰まるので、b を消しただけなのに c まで変更・作り直しの対象になる。</p>
+    </div>
+    <div class="card">
+      <h3>for_each <span class="tag">キーで呼ぶ</span></h3>
+      <div class="addr">
+        <div><code>web["a"]</code><span class="r">変わらない</span></div>
+        <div class="del"><code>web["b"]</code><span class="r">削除</span></div>
+        <div><code>web["c"]</code><span class="r">変わらない</span></div>
+      </div>
+      <p class="note">キーで対応するので、消したものだけが消える。</p>
+    </div>
+  </div>
+  <div class="legend" style="margin-top:10px">
+    <span><i class="sw2 lc-keep"></i>変わらない</span>
+    <span><i class="sw2 lc-chg"></i>変更・作り直し</span>
+    <span><i class="sw2 lc-del"></i>削除</span>
+  </div>
+  <p>どれも同じものを N 個並べるだけ（台数だけを変える）なら <code>count</code>、名前や設定がそれぞれ違うものを並べるなら <code>for_each</code> を使う。<code>count = var.enabled ? 1 : 0</code> のように「作るか作らないか」の切り替えにも <code>count</code> がよく使われる。</p>
+
+  <h2 id="refactor">コードと実体のずれを直す</h2>
+  <p class="lead">設定・State・実体の 3 つがずれたときに使うもの。<code>moved</code> などのブロックはコードに残るので、PR でレビューでき、ほかの環境にも同じ操作が適用される。</p>
+  <div class="card table-wrap">
+  <table>
+    <thead><tr><th>起きたこと</th><th>使うもの</th><th>何が起きるか</th></tr></thead>
+    <tbody>
+      <tr><td>コンソールで手で設定を変えた（ドリフト）</td><td><code>tofu plan</code></td><td>refresh で実体の変化を見つけ、設定どおりに戻す差分を出す。手の変更を残したいなら、設定のほうを合わせる。</td></tr>
+      <tr><td>手で作った実体を管理下に入れたい</td><td><code>import</code> ブロック / <code>tofu import</code></td><td>実体を State に登録する。設定は自分で書くか、<code>tofu plan -generate-config-out=生成先.tf</code> で下書きを作る。</td></tr>
+      <tr><td>Resource の名前を変えた・Module に移した</td><td><code>moved</code> ブロック</td><td>作り直さずに State 上のアドレスだけを移す。書かないと「古い名前を削除・新しい名前を作成」になる。</td></tr>
+      <tr><td>管理をやめたい（実体は残す）</td><td><code>removed</code> ブロック / <code>tofu state rm</code></td><td><code>removed</code> ブロックに <code>lifecycle { destroy = false }</code> を書くと、State から外すだけで実体は消さない（<code>destroy = true</code> だと実体も削除される）。<code>tofu state rm</code> でも外せるが、コードに記録が残らない。</td></tr>
+    </tbody>
+  </table>
+  </div>
+<pre><span class="c"># aws_instance.web を Module の中に移したとき</span>
+moved {
+  from = aws_instance.web
+  to   = module.web.aws_instance.this
+}
+
+<span class="c"># 管理だけやめて、実体は残すとき</span>
+removed {
+  from = aws_instance.legacy
+  lifecycle {
+    destroy = false
+  }
+}</pre>
+
   <h2 id="myths">よくある質問</h2>
   <div class="prec">
     <div><span>OpenTofu と Terraform は別の言語？</span><span class="n">いいえ</span></div>
     <div><span>State を手で直接編集してよい？</span><span class="n">非推奨</span></div>
     <div><span><code>.terraform/</code> は Git にコミットする？</span><span class="n">しない</span></div>
     <div><span><code>.terraform.lock.hcl</code> は Git にコミットする？</span><span class="n">する</span></div>
+    <div><span>変数に <code>sensitive = true</code> を付ければ State からも隠れる？</span><span class="n">いいえ</span></div>
+    <div><span>plan が通れば apply も必ず成功する？</span><span class="n">いいえ</span></div>
   </div>
-  <p class="lead" style="margin-top:14px">OpenTofu は、Terraform のライセンスが BSL に変わったことを受けて、最後のオープンソース版（1.5 系）からフォークされたプロジェクトで、現在は Linux Foundation 配下の CNCF でホストされている。HCL 構文・State 形式・Provider エコシステムに高い互換性がある。コマンド名が <code>terraform</code> から <code>tofu</code> に変わるほか、State の暗号化など OpenTofu 独自の機能も追加されている。State を直接編集したい場合は <code>tofu state</code> コマンド群（<code>mv</code> / <code>rm</code> など）や <code>tofu import</code> を使う。</p>
+  <p class="lead" style="margin-top:14px"><code>sensitive = true</code> は plan や出力の画面で値を伏せるだけで、State には平文で入る。また plan は設定と State の差分を計算するだけなので、名前の重複・権限不足・上限（クォータ）など、API を実際に呼んで初めてわかるエラーは apply で起きる。途中で失敗しても、成功した Resource は State に記録されるので、直して apply し直せば続きから進む。</p>
+  <p class="lead" style="margin-top:14px">OpenTofu は、Terraform のライセンスが BSL に変わったことを受けて、最後のオープンソース版（1.5 系）からフォークされたプロジェクトで、現在は Linux Foundation 配下の CNCF でホストされている。HCL 構文・State 形式・Provider エコシステムに高い互換性がある。コマンド名が <code>terraform</code> から <code>tofu</code> に変わるほか、State の暗号化など OpenTofu 独自の機能も追加されている。State を直接編集したい場合は <code>tofu state</code> コマンド群（<code>mv</code> / <code>rm</code> など）や <code>tofu import</code>、上の <code>moved</code> などのブロックを使う。</p>
+
+  <h2 id="related">関連メモ</h2>
+  <ul class="related">
+    <li><a href="ansible.html">Ansible 概念図</a> — OpenTofu で作ったサーバーの中身（パッケージ・設定ファイル）を整える側。手順を上から実行し、State を持たない</li>
+  </ul>
 
   <footer id="memo-backlink"><a href="index.html">&larr; 一覧に戻る</a></footer>
 </div>
@@ -502,26 +667,26 @@ document.querySelectorAll('.tabs').forEach(group => {
     "ref": "#concepts"
   },
   {
-    "q": "Git にコミットすべきものはどれ？",
+    "q": "count = length(var.names) で 3 台のサーバーを作っている。リストの真ん中の 1 台だけを消すと、plan はどうなる？",
     "choices": [
-      ".terraform.lock.hcl（.terraform/ は入れない）",
-      ".terraform/（.terraform.lock.hcl は入れない）",
-      ".terraform/ と .terraform.lock.hcl の両方"
+      "番号が詰まり、後ろのサーバーまで変更・作り直しの対象になる",
+      "消した 1 台だけが削除される",
+      "count は途中を消せないのでエラーになる"
     ],
     "answer": 0,
-    "explain": "lock ファイルは Provider のバージョンを固定するので共有する。.terraform/ はダウンロードした実体なので .gitignore に入れる。",
-    "ref": "#myths"
+    "explain": "count は番号でアドレスを付けるので、途中を消すと後ろの番号がずれる。名前ごとに管理したいなら for_each でキーを付ける。",
+    "ref": "#count-foreach"
   },
   {
-    "q": "Resource の名前を変えたいが、作り直さずに State 上の対応だけ移したい。どうする？",
+    "q": "aws_instance.web を Module の中に移したい。作り直さず、しかも PR のレビューで移動がわかる形にするには？",
     "choices": [
-      "tofu state mv を使う",
-      "Resource を削除して apply し、もう一度追加する",
-      "terraform.tfstate をエディタで直接書き換える"
+      "terraform.tfstate をエディタで書き換えて、変更をコミットする",
+      "古い Resource を削除して apply し、Module 側で作り直す",
+      "moved ブロックで from と to を書く"
     ],
-    "answer": 0,
-    "explain": "State の手動編集は非推奨。tofu state mv / rm などのコマンド（取り込みは tofu import）で操作する。",
-    "ref": "#myths"
+    "answer": 2,
+    "explain": "moved ブロックは State 上のアドレスだけを移し、コードに残るのでレビューでき、ほかの環境にも同じ移動が適用される。tofu state mv でも移せるが、記録が残らない。",
+    "ref": "#refactor"
   },
   {
     "q": "staging と本番で instance_type の値だけを変えたい。値はどこに書く？",
